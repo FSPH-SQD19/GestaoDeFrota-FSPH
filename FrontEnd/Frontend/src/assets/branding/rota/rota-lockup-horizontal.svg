@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" width="640" height="180" role="img" aria-labelledby="rota-lockup-title">
+  <title id="rota-lockup-title">Rota FSPH - Lockup Horizontal Oficial</title>
+  <defs>
+    <linearGradient id="lh_blue" x1="40" y1="20" x2="160" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#2563EB"/>
+      <stop offset="100%" stopColor="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="lh_indigo" x1="160" y1="160" x2="40" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#4338CA"/>
+      <stop offset="60%" stopColor="#6366F1"/>
+      <stop offset="100%" stopColor="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Símbolo Rota (Escalado e posicionado à esquerda) -->
+  <g transform="translate(16, 10) scale(0.625)">
+    <path fill="url(#lh_blue)" d="M 64 128 C 64 80 100 44 148 44 C 180 44 206 62 216 88 C 220 98 212 108 202 108 C 193 108 186 102 181 94 C 174 76 156 66 138 66 C 104 66 86 92 86 128 C 86 138 78 146 68 146 C 58 146 64 138 64 128 Z"/>
+    <path fill="url(#lh_indigo)" d="M 192 128 C 192 176 156 212 108 212 C 76 212 50 194 40 168 C 36 158 44 148 54 148 C 63 148 70 154 75 162 C 82 180 100 190 118 190 C 152 190 170 164 170 128 C 170 118 178 110 188 110 C 198 110 192 118 192 128 Z"/>
+    <circle cx="128" cy="128" r="14" fill="#0284C7"/>
+    <circle cx="128" cy="128" r="7" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Wordmark ROTA -->
+  <text x="200" y="105" font-family="'Space Grotesk', -apple-system, sans-serif" font-size="76" font-weight="800" letter-spacing="-2" fill="#0F172A">
+    ROTA
+  </text>
+  
+  <!-- Subtítulo Institucional FSPH -->
+  <text x="204" y="140" font-family="'Space Grotesk', -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="3" fill="#64748B">
+    FSPH · GESTÃO DE FROTA &amp; SVO
+  </text>
+</svg>

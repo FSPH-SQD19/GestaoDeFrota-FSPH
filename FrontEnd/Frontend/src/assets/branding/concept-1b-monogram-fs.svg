@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-c1b">
+  <title id="title-c1b">Frota FSPH - Conceito 1B (Monograma Integrado F + S: Frota e SVO)</title>
+  <defs>
+    <linearGradient id="c1b_grad" x1="40" y1="40" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#2563EB"/>
+      <stop offset="50%" stopColor="#3B82F6"/>
+      <stop offset="100%" stopColor="#1E40AF"/>
+    </linearGradient>
+  </defs>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Haste e Barra Superior do 'F' -->
+    <path
+      d="M 80 208 L 80 58 C 80 48 88 44 98 44 L 194 44"
+      stroke="url(#c1b_grad)"
+      stroke-width="26"
+    />
+    
+    <!-- Barra Intermediária do 'F' que se conecta à curva sinuosa do 'S' (SVO) -->
+    <path
+      d="M 80 120 L 168 120 C 188 120 196 136 196 150 C 196 172 178 188 152 188 L 108 188 C 88 188 80 200 80 212"
+      stroke="url(#c1b_grad)"
+      stroke-width="26"
+    />
+
+    <!-- Ponto de Conexão Ativo / Biossegurança -->
+    <circle cx="194" cy="44" r="8" fill="#F59E0B" />
+  </g>
+</svg>
