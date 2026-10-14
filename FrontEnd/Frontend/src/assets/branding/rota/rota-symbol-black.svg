@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="rota-black-title">
+  <title id="rota-black-title">Símbolo Rota - Versão Monocromática Preta</title>
+  <g id="symbol" fill="#0A0D14">
+    <path
+      d="M 64 128
+         C 64 80 100 44 148 44
+         C 180 44 206 62 216 88
+         C 220 98 212 108 202 108
+         C 193 108 186 102 181 94
+         C 174 76 156 66 138 66
+         C 104 66 86 92 86 128
+         C 86 138 78 146 68 146
+         C 58 146 64 138 64 128 Z"
+    />
+    <path
+      d="M 192 128
+         C 192 176 156 212 108 212
+         C 76 212 50 194 40 168
+         C 36 158 44 148 54 148
+         C 63 148 70 154 75 162
+         C 82 180 100 190 118 190
+         C 152 190 170 164 170 128
+         C 170 118 178 110 188 110
+         C 198 110 192 118 192 128 Z"
+    />
+    <circle cx="128" cy="128" r="14" fill="#0A0D14"/>
+    <circle cx="128" cy="128" r="6" fill="#FFFFFF"/>
+  </g>
+</svg>

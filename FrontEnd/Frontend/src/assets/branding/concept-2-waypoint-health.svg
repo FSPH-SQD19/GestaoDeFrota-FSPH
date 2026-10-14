@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-c2">
+  <title id="title-c2">Frota FSPH - Conceito 2 (Waypoint Logístico com Cruz da Saúde em Espaço Negativo)</title>
+  <!-- Forma do Waypoint com Cruz em Espaço Negativo usando fill-rule evenodd -->
+  <path
+    fill="currentColor"
+    fill-rule="evenodd"
+    d="M 128 28
+       C 86 28 52 62 52 104
+       C 52 152 116 218 123.5 225.5
+       C 126 228 130 228 132.5 225.5
+       C 140 218 204 152 204 104
+       C 204 62 170 28 128 28 Z
+       
+       M 118 78
+       C 118 74 122 74 128 74
+       C 134 74 138 74 138 78
+       L 138 94
+       L 154 94
+       C 158 94 158 98 158 104
+       C 158 110 158 114 154 114
+       L 138 114
+       L 138 130
+       C 138 134 134 134 128 134
+       C 122 134 118 134 118 130
+       L 118 114
+       L 102 114
+       C 98 114 98 110 98 104
+       C 98 98 98 94 102 94
+       L 118 94 Z"
+  />
+</svg>

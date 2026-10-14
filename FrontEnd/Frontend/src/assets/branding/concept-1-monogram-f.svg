@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-c1-v2">
+  <title id="title-c1-v2">Frota FSPH - Conceito 1 (Evoluído: F-Momentum / Vetor Aerodinâmico)</title>
+  <defs>
+    <linearGradient id="c1_blue_grad" x1="50" y1="40" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#3B82F6"/>
+      <stop offset="100%" stopColor="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="c1_cyan_grad" x1="90" y1="110" x2="190" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#60A5FA"/>
+      <stop offset="100%" stopColor="#2563EB"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    <!-- Lâmina Superior: Coluna inclinada e feixe de alta velocidade (Letra F) -->
+    <path
+      fill="url(#c1_blue_grad)"
+      d="M 68 214
+         C 63 214 59 209 61 204
+         L 98 56
+         C 100 48 107 42 116 42
+         L 204 42
+         C 213 42 218 51 213 58
+         L 194 88
+         C 191 93 186 96 180 96
+         L 134 96
+         L 122 144
+         L 98 144
+         L 84 204
+         C 82 210 76 214 68 214 Z"
+    />
+    
+    <!-- Lâmina Secundária: Braço intermediário em vetor de aceleração -->
+    <path
+      fill="url(#c1_cyan_grad)"
+      d="M 128 120
+         C 130 114 135 110 142 110
+         L 182 110
+         C 190 110 195 119 191 126
+         L 174 154
+         C 171 159 166 162 160 162
+         L 118 162
+         L 128 120 Z"
+    />
+
+    <!-- Elemento Focal: Ponto de Despacho e Precisão GPS -->
+    <circle cx="198" cy="88" r="8" fill="#F59E0B"/>
+  </g>
+</svg>
