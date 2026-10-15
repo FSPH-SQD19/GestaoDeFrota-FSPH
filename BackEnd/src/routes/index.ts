@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { healthController } from "../controller/health_c";
+import authRoutes from "./auth_r";
 
-const routes = Router();
+const router = Router();
 
-routes.get("/health", healthController);
+router.get("/health", healthController);
+router.use("/auth", authRoutes);
 
-export default routes;
+export default router;
