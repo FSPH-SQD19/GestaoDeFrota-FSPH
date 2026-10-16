@@ -74,28 +74,33 @@ jobs:
             const marker = '<!-- gestao-frota-ci -->';
             const results = JSON.parse(process.env.STEP_RESULTS);
             const statuses = {
-              success: '✅ passou',
-              failure: '❌ falhou',
+              success: '✅',
+              failure: '❌',
               cancelled: '🚫 cancelado',
               skipped: '⏭️ não executado',
             };
             const status = (outcome) => statuses[outcome] ?? statuses.skipped;
+            const conclusions = {
+              success: '✅ CI aprovada',
+              failure: '❌ CI com falha',
+              cancelled: '🚫 CI cancelada',
+              skipped: '⏭️ CI não executada',
+            };
             const sha = context.payload.pull_request.head.sha;
             const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
             const body = [
               marker,
-              '## 🧪 Resultado da CI',
+              '## 👁️ O olho que tudo vê',
               '',
-              `**Resultado geral:** ${status(process.env.CI_RESULT)}`,
+              `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
               '',
-              `- Dependências: ${status(results.dependencies)}`,
-              `- Lint: ${status(results.lint)}`,
-              `- Testes unitários e tipos: ${status(results.tests)}`,
-              `- Build: ${status(results.build)}`,
+              `📦 Dependências · ${status(results.dependencies)}  `,
+              `🔎 Lint · ${status(results.lint)}  `,
+              `🧪 Testes e tipos · ${status(results.tests)}  `,
+              `🏗️ Build · ${status(results.build)}`,
               '',
-              `Commit: [${sha.slice(0, 7)}](${repoUrl}/commit/${sha})`,
-              `[Ver execução completa](${runUrl})`,
+              `Commit: [${sha.slice(0, 7)}](${repoUrl}/commit/${sha}) · [Ver execução completa](${runUrl})`,
             ].join('\n');
 
             const comments = await github.paginate(github.rest.issues.listComments, {
