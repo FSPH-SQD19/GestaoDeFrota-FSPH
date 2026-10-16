@@ -184,6 +184,8 @@ A IA não substitui a validação humana das regras operacionais, especialmente 
 
 ## Documentação do projeto
 
+- [Guia de branches, commits e pull requests](GitHub.md)
+
 A documentação de requisitos e planejamento complementa este README e descreve o escopo do MVP, os perfis de usuário, as regras de negócio, a API, a modelagem de dados e os diagramas.
 
 - **Especificação dos Requisitos — Sistema de Gestão de Frota e SVO**
