@@ -1,8 +1,28 @@
 {
-  "dependencies": {
-    "bcrypt": "^6.0.0"
-  },
   "devDependencies": {
-    "@types/bcrypt": "^6.0.0"
+    "concurrently": "^10.0.6"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev": "concurrently --kill-others-on-fail -n API,WEB -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "test": "npm run test --workspaces",
+    "test:watch": "concurrently --kill-others-on-fail -n API,WEB -c blue,green \"npm run test:watch --workspace=backend\" \"npm run test:watch --workspace=frontend\"",
+    "test:coverage": "npm run test:coverage --workspaces",
+    "check": "npm run lint && npm test && npm run build"
+  },
+  "private": true,
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "workspaces": [
+    "BackEnd",
+    "FrontEnd"
+  ],
+  "overrides": {
+    "deepmerge-ts": "^8.0.2"
   }
 }

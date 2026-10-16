@@ -73,7 +73,7 @@ A tipografia padrão do ecossistema ROTA é a **Space Grotesk** (Google Fonts), 
 ## 5. Arquivos e Formatos Disponíveis
 
 Todos os arquivos vetoriais de produção estão salvos e versionados no repositório em:
-[`FrontEnd/Frontend/src/assets/branding/rota/`](file:///c:/Users/bruno/Downloads/residencia/GestaoDeFrota-FSPH/FrontEnd/Frontend/src/assets/branding/rota/)
+[`FrontEnd/src/assets/branding/rota/`](../FrontEnd/src/assets/branding/rota/)
 
 | Arquivo | Descrição | Uso Recomendado |
 | :--- | :--- | :--- |

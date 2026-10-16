@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { prisma } from "../libs/prisma";
+import { prisma } from "../lib/prisma";
 import { comparePassword } from "./password_s";
 
 interface LoginInput{
@@ -52,7 +52,7 @@ const token = jwt.sign({
 return {
     token,
     usuario: {
-        ID: usuario.id,
+        id: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
         perfis,
