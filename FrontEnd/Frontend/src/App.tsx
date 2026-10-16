@@ -6,8 +6,9 @@ import { Sidebar } from './components/layout/Sidebar'
 import { Header } from './components/layout/Header'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
 import { VeiculosPage } from './pages/veiculos/VeiculosPage'
+import { MotoristasPage } from './pages/motoristas/MotoristasPage'
 import { Card, Badge } from './components/common'
-import { FileText, Users, PhoneCall, BarChart3, ShieldCheck } from 'lucide-react'
+import { FileText, PhoneCall, BarChart3, ShieldCheck } from 'lucide-react'
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth()
@@ -54,21 +55,9 @@ const AppContent: React.FC = () => {
         <main className="mt-4 flex-1">
           {activeTab === 'dashboard' && <DashboardPage />}
           {activeTab === 'veiculos' && <VeiculosPage />}
+          {activeTab === 'motoristas' && <MotoristasPage />}
 
           {/* Placeholders informativos para as abas restantes */}
-          {activeTab === 'motoristas' && (
-            <Card className="p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
-                <Users className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Gestão de Motoristas</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Cadastro de condutores, controle de validade de CNH com alertas de bloqueio e escalas operacionais.
-              </p>
-              <Badge variant="info">Módulo em desenvolvimento</Badge>
-            </Card>
-          )}
-
           {activeTab === 'solicitacoes' && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
