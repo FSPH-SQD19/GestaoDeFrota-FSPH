@@ -261,6 +261,10 @@ Os testes atuais usam mocks para o banco e dados sintéticos para autenticação
 
 ### Acompanhar o resultado
 
+Ao terminar a verificação de um PR da equipe (branch no próprio repositório), o bot `github-actions` publica um comentário com o resultado geral e o status de dependências, lint, testes/tipos e build. O resumo inclui o commit e o link da execução. Nas próximas execuções, o mesmo comentário é atualizado.
+
+Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes como não executadas. Execuções canceladas não publicam o resumo. O job de comentários usa `pull-requests: write`; o job que instala e executa o código continua com permissão apenas de leitura. Execuções manuais e PRs de forks não publicam esse comentário.
+
 Após enviar o workflow e os arquivos necessários do projeto para a branch do PR, abra a aba **Checks** do PR ou a aba **Actions** do repositório. Se uma etapa falhar, abra seus logs, corrija a causa e envie um novo commit para executar novamente.
 
 Para reproduzir as mesmas verificações localmente, execute `npm ci` e depois `npm run check` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux.
