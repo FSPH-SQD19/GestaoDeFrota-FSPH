@@ -144,6 +144,17 @@ describe('criarVeiculo', () => {
         )
     })
 
+    it('não falha o cadastro se a auditoria falhar', async () => {
+        mocks.registrarAuditoria.mockRejectedValue(new Error('falha de auditoria'))
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+        const resposta = await criarVeiculo(entrada, usuarioId)
+
+        expect(resposta.id).toBe(registro.id)
+        expect(consoleError).toHaveBeenCalled()
+        consoleError.mockRestore()
+    })
+
     it('retorna 409 quando a placa já existe, sem criar nem auditar', async () => {
         mocks.findUnique.mockResolvedValue({ id: 'existente' })
 

@@ -169,13 +169,17 @@ export async function criarVeiculo(input: CriarVeiculoInput, usuarioId: string) 
   }
 
   const resposta = serializarVeiculo(veiculo);
-  await registrarAuditoria({
-    usuarioId,
-    acao: "CRIAR",
-    tabelaAfetada: "veiculos",
-    registroId: veiculo.id,
-    dadosNovos: JSON.parse(JSON.stringify(resposta)),
-  });
+  try {
+    await registrarAuditoria({
+      usuarioId,
+      acao: "CRIAR",
+      tabelaAfetada: "veiculos",
+      registroId: veiculo.id,
+      dadosNovos: JSON.parse(JSON.stringify(resposta)),
+    });
+  } catch (erro) {
+    console.error("Falha ao registrar auditoria do veículo", veiculo.id, erro);
+  }
 
   return resposta;
 }
