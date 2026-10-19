@@ -20,13 +20,14 @@ services:
 
   backend:
     build:
-      context: ./BackEnd
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: BackEnd/Dockerfile
     container_name: frota-svo-backend
     environment:
       NODE_ENV: development
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no arquivo .env}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     depends_on:
@@ -36,8 +37,8 @@ services:
   frontend:
     container_name: frota-svo-frontend
     build:
-      context: ./FrontEnd/Frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: FrontEnd/Dockerfile
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:

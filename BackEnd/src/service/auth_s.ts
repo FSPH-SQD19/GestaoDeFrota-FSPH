@@ -52,7 +52,7 @@ const token = jwt.sign({
 return {
     token,
     usuario: {
-        ID: usuario.id,
+        id: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
         perfis,

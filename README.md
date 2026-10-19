@@ -131,14 +131,13 @@ cd <PASTA_DO_REPOSITORIO>
 
 ### Configurar o ambiente
 
-1. Verifique se existe um arquivo `.env.example` ou documentação equivalente.
+1. Verifique o arquivo `.env.example` ou documentação equivalente.
 2. Crie o arquivo `.env` a partir do modelo disponibilizado.
 3. Preencha as credenciais e configurações necessárias para o ambiente local.
-4. Não compartilhe nem envie credenciais reais ao Git.
 
 ### Iniciar os serviços
 
-Se o repositório contiver um `docker-compose.yml` configurado para iniciar toda a aplicação, execute:
+ execute:
 
 ```bash
 docker compose up --build
@@ -162,8 +161,6 @@ Para parar os serviços:
 docker compose down
 ```
 
-**Importante:** esses comandos pressupõem que o Docker Compose e os serviços já estejam configurados no repositório. Consulte o `README`, o `docker-compose.yml` e os arquivos de configuração existentes caso algum comando ou variável não corresponda à implementação atual.
-
 ## Configuração por variáveis de ambiente
 
 Use somente as variáveis documentadas pelo projeto. A configuração poderá incluir valores como:
@@ -172,8 +169,6 @@ Use somente as variáveis documentadas pelo projeto. A configuração poderá in
 - Porta da API e endereço da aplicação front-end.
 - Chave secreta e tempo de expiração dos tokens JWT.
 - Configurações específicas do ambiente e dos serviços.
-
-Não coloque senhas, tokens, chaves privadas ou dados reais de usuários no repositório. O arquivo `.env` deve ser ignorado pelo Git; disponibilize apenas um `.env.example` sem segredos.
 
 ## Segurança e privacidade
 
@@ -189,12 +184,12 @@ A IA não substitui a validação humana das regras operacionais, especialmente 
 
 ## Documentação do projeto
 
+- [Guia de branches, commits e pull requests](GitHub.md)
+
 A documentação de requisitos e planejamento complementa este README e descreve o escopo do MVP, os perfis de usuário, as regras de negócio, a API, a modelagem de dados e os diagramas.
 
 - **Especificação dos Requisitos — Sistema de Gestão de Frota e SVO**
 - **Entrega Parcial — Takeoff / Residência em Software e IA — Squad 19**
-
-Inclua os documentos no repositório ou adicione links para suas versões oficiais, caso possam ser compartilhados publicamente.
 
 ## Equipe
 
