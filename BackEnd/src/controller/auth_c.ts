@@ -3,14 +3,14 @@ import { login } from "../service/auth_s";
 
 export async function loginController(req: Request, res: Response) {
   try {
-    const { email, senha } = req.body;
+    const { email, senha } = req.body ?? {};
     if (
       typeof email !== "string" ||
       typeof senha !== "string" ||
       !email.trim() ||
       !senha
     ) {
-      return res.status(400).json({mensagem: "E-mail e senha são obrigatórios.",});
+      return res.status(400).json({ error: "email e senha são obrigatórios" });
     }
 
     const resultado = await login({
@@ -21,11 +21,9 @@ export async function loginController(req: Request, res: Response) {
   } catch (error) {
     console.error("Erro no login:", error);
     if (error instanceof Error && error.message === "Credenciais inválidas") {
-      return res.status(401).json({
-        mensagem: "E-mail ou senha inválidos.",
-      });
+      return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    return res.status(500).json({mensagem: "Erro interno ao realizar login.",});
+    return res.status(500).json({ mensagem: "Erro interno ao realizar login." });
   }
 }
