@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { prisma } from "../libs/prisma";
+import { prisma } from "../lib/prisma";
 import { comparePassword } from "./password_s";
 
 interface LoginInput{
