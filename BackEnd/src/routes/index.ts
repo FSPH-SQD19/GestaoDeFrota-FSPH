@@ -3,6 +3,7 @@ import { criarVeiculoController, listarVeiculosController } from "../controller/
 import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
 import authRoutes from "./auth_r";
+import motoristaRoutes from "./motorista_r";
 
 const router = Router();
 const veiculos = Router();
@@ -14,6 +15,7 @@ veiculos.post("/", criarVeiculoController);
 
 router.get("/health", healthController);
 router.use("/auth", authRoutes);
+router.use("/motoristas", motoristaRoutes);
 
 router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/veiculos", veiculos);
