@@ -24,6 +24,6 @@ export async function loginController(req: Request, res: Response) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    return res.status(500).json({ error: "Erro interno ao realizar login." });
+    return res.status(500).json({ mensagem: "Erro interno ao realizar login." });
   }
 }
