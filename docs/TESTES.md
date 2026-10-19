@@ -1,8 +1,22 @@
-# Como criar e executar testes unitários
+# Testes, lint e cobertura
+
+[Índice da documentação](README.md)
 
 O projeto usa Vitest para os testes dos dois workspaces, Testing Library com jsdom para os componentes React e Oxlint para a análise estática. As dependências são instaladas pelo `package-lock.json` da raiz e compartilhadas no `node_modules` central.
 
 Use uma versão de Node compatível com `engines` do `package.json`: linha 22 a partir de 22.12, linha 24 ou versão 26 em diante.
+
+## Sumário
+
+- [Comandos pela raiz](#comandos-pela-raiz)
+- [Organização](#organização)
+- [Como criar um teste](#como-criar-um-teste)
+- [Convenções para novos testes](#convenções-para-novos-testes)
+- [Lint](#lint)
+- [Cobertura](#cobertura)
+- [CI nos pull requests](#ci-nos-pull-requests)
+- [Como interpretar falhas](#como-interpretar-falhas)
+- [Referências](#referências)
 
 ## Comandos pela raiz
 
@@ -74,6 +88,8 @@ BackEnd/
     service/auth_s.test.ts          Credenciais, perfis, assinatura JWT e erros
     service/password_s.test.ts      Hashes com salt e verificação de senhas
     service/auditoria_s.test.ts     Dados enviados à persistência da auditoria
+    service/veiculo_s.test.ts       Filtros, validações, criação e erros de veículos
+    routes/veiculo_r.test.ts        Requisições HTTP, autenticação e respostas de veículos
 FrontEnd/
   .oxlintrc.json                    Configuração React/TypeScript
   vitest.config.ts                  Ambiente jsdom, setup e cobertura
@@ -218,11 +234,11 @@ Evite testar somente o funcionamento de um mock. Verifique o comportamento do c�
 - Importe `describe`, `it`, `expect` e `vi` de `vitest`; os testes não dependem de funções globais implícitas.
 - Descreva o comportamento esperado e verifique resultados observáveis, incluindo os caminhos de erro relevantes.
 - No front-end, localize os controles por papel, rótulo ou texto e use `userEvent` para as interações.
-- Isole banco e serviços externos com mocks. Os testes iniciais de autenticação e auditoria substituem o módulo `src/lib/prisma` antes de importar o código testado.
+- Isole banco e serviços externos com mocks. Os testes de autenticação e auditoria substituem o módulo `src/lib/prisma` antes de importar o código testado.
 - Use dados sintéticos. Altere variáveis de ambiente com `vi.stubEnv`; o Vitest restaura as alterações entre os testes.
 - Mantenha os testes independentes. A configuração limpa chamadas de mocks e restaura os spies; os testes que mudam implementações usam `vi.resetAllMocks`.
 
-Os testes unitários não exigem Docker, banco de dados, usuários cadastrados ou segredos reais. O teste de senhas usa bcrypt real e os testes de autenticação verificam a assinatura JWT com uma chave sintética. Testes de integração com banco e testes completos de navegador devem ser organizados separadamente quando forem adicionados.
+Os testes unitários não exigem Docker, banco de dados, usuários cadastrados ou segredos reais. O teste de senhas usa bcrypt real e os testes de autenticação verificam a assinatura JWT com uma chave sintética. A suíte também contém testes HTTP de veículos em `tests/unit/routes`: eles iniciam a aplicação em uma porta local temporária e fazem requisições reais ao Express, mantendo o Prisma simulado. Esses cenários verificam a integração das rotas, middlewares e controllers, sem banco externo. Organize os testes com banco real e os testes completos de navegador separadamente dos testes com dependências isoladas.
 
 ## Lint
 
@@ -238,40 +254,13 @@ Os relatórios usam o provedor V8 e são gerados em:
 - `FrontEnd/coverage/index.html`
 - `coverage-summary.json` dentro de cada pasta de cobertura, para consumo por ferramentas.
 
-No back-end, a medição inclui os serviços e controllers. No front-end, inclui o código de `src`, exceto o ponto de montagem `main.tsx` e os arquivos de tipos. Arquivos ainda sem testes também entram na medição; não há percentual mínimo obrigatório nesta estrutura inicial.
+No back-end, a medição inclui os serviços e controllers. No front-end, inclui o código de `src`, exceto o ponto de montagem `main.tsx` e os arquivos de tipos. A medição considera todos os arquivos definidos na configuração, incluindo os que não possuem testes. Os relatórios servem para identificar os caminhos que precisam de novos cenários.
 
 As pastas de cobertura são ignoradas pelo Git. Os caches do Vitest e do TypeScript ficam sob o `node_modules` da raiz.
 
 ## CI nos pull requests
 
-O workflow está em `.github/workflows/ci.yml` e executa no GitHub Actions quando um PR é aberto, recebe novos commits, é reaberto ou passa de rascunho para pronto para revisão. Vale para PRs destinados a qualquer branch, inclusive rascunhos. Também permite execução manual pela aba **Actions**, quando o workflow estiver disponível na branch padrão.
-
-O job **Lint, testes e build** usa Ubuntu e Node.js 24. As etapas são:
-
-1. Obter o código do PR.
-2. Configurar Node.js e o cache de downloads do npm, usando o lockfile da raiz como referência.
-3. Executar `npm ci` na raiz, instalando os dois workspaces e gerando o Prisma Client pelo `postinstall` do back-end.
-4. Executar `npm run lint` nos dois projetos.
-5. Executar `npm test`, incluindo a checagem de tipos dos testes e as suítes unitárias dos dois projetos.
-6. Executar `npm run build` para compilar o back-end e o front-end.
-
-Uma falha interrompe as etapas seguintes e deixa a verificação do PR com falha. Novos commits cancelam uma execução anterior ainda em andamento no mesmo PR. O limite de cada execução é de 15 minutos.
-
-Os testes atuais usam mocks para o banco e dados sintéticos para autenticação. O workflow não precisa de PostgreSQL, Docker ou secrets cadastrados no GitHub. A cobertura continua disponível pelo comando local `npm run test:coverage`; ela não é uma etapa deste CI.
-
-### Acompanhar o resultado
-
-Ao terminar a verificação de um PR da equipe (branch no próprio repositório), o bot `github-actions` publica um comentário com o resultado geral e o status de dependências, lint, testes/tipos e build. O resumo inclui o commit e o link da execução. Nas próximas execuções, o mesmo comentário é atualizado.
-
-Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes como não executadas. Execuções canceladas não publicam o resumo. O job de comentários usa `pull-requests: write`; o job que instala e executa o código continua com permissão apenas de leitura. Execuções manuais e PRs de forks não publicam esse comentário.
-
-Após enviar o workflow e os arquivos necessários do projeto para a branch do PR, abra a aba **Checks** do PR ou a aba **Actions** do repositório. Se uma etapa falhar, abra seus logs, corrija a causa e envie um novo commit para executar novamente.
-
-Para reproduzir as mesmas verificações localmente, execute `npm ci` e depois `npm run check` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux.
-
-Criar o workflow exibe a verificação no PR. Para exigir sua aprovação antes do merge, um administrador precisa marcar **Lint, testes e build** como verificação obrigatória nas regras da branch do GitHub, após a primeira execução. Essa regra não é definida pelo arquivo do workflow.
-
-Referências: [eventos de pull request no GitHub Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request), [checkout](https://github.com/actions/checkout) e [setup-node](https://github.com/actions/setup-node).
+O funcionamento do workflow, os gatilhos, as permissões e o comentário automático estão no [guia de CI](CI.md).
 
 ## Como interpretar falhas
 
@@ -287,4 +276,6 @@ Ao executar os testes, o Vitest mostra os arquivos e cenários que passaram ou f
 | Teste passa sozinho e falha com os demais | Estado compartilhado, implementações de mocks, timers ou variáveis de ambiente não restaurados. |
 | Lint falha com aviso | Os scripts usam `--deny-warnings`; avisos também precisam ser resolvidos. |
 
-Referências: [configuração do Vitest](https://vitest.dev/config/), [cobertura do Vitest](https://vitest.dev/guide/coverage) e [configuração do Oxlint](https://oxc.rs/docs/guide/usage/linter/config-file-reference).
+## Referências
+
+[configuração do Vitest](https://vitest.dev/config/), [cobertura do Vitest](https://vitest.dev/guide/coverage) e [configuração do Oxlint](https://oxc.rs/docs/guide/usage/linter/config-file-reference).

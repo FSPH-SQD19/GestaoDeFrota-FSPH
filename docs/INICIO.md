@@ -1,6 +1,8 @@
 # Como iniciar o projeto
 
-Execute os comandos na raiz do projeto.
+[Índice da documentação](README.md)
+
+Execute os comandos na raiz do projeto. Para configurar Node.js, banco, variáveis ou Docker, consulte [Ambiente](AMBIENTE.md).
 
 ## Comandos npm
 
@@ -48,4 +50,3 @@ A raiz usa **npm workspaces** para instalar e executar os dois projetos. Cada pa
 - **Back-end:** responde normalmente em `http://localhost:3000`; a rota `/health` indica se a API está funcionando.
 
 Para encerrar os processos iniciados por `npm run dev`, pressione `Ctrl+C` no terminal.
-
