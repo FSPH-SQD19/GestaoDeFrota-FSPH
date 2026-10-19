@@ -1,8 +1,33 @@
 # Fluxo de trabalho da equipe
 
+[Índice da documentação](README.md)
+
 A branch principal é a `master`. Cada tarefa deve ser feita em uma branch própria e enviada para a `master` por um pull request (PR).
 
+**Não faça push diretamente para a `master`.**
+
 Execute os comandos na raiz do projeto.
+
+## Padrão de branches
+
+Use letras minúsculas e hífens (`-`), sem espaços ou acentos:
+
+- `feature-nome`: novas funcionalidades.
+- `fix-nome`: correções.
+- `docs-nome`: documentação.
+
+Exemplo: `feature-hashencryption`.
+
+## Padrão de commits
+
+Use o formato `tipo: descrição`:
+
+- `feat`: funcionalidade.
+- `fix`: correção.
+- `docs`: documentação.
+- `refactor`: melhoria no código.
+
+Exemplo: `feat: adicionar hash de senhas`.
 
 ## 1. Criar uma branch
 
@@ -11,7 +36,7 @@ Antes de começar, confira se não há alterações pendentes de outra tarefa co
 ```bash
 git switch master
 git pull --ff-only origin master
-git switch -c cadastro-veiculos
+git switch -c feature-cadastro-veiculos
 ```
 
 ## 2. Fazer as alterações e o commit
@@ -41,7 +66,7 @@ Use mensagens claras. Exemplos: `feat: adicionar cadastro de veículos`, `fix: c
 ## 3. Enviar a branch
 
 ```bash
-git push -u origin cadastro-veiculos
+git push -u origin feature-cadastro-veiculos
 ```
 
 Use o nome da branch criada no primeiro passo. Nos próximos envios dessa mesma branch, basta usar `git push`.
@@ -52,15 +77,17 @@ Use o nome da branch criada no primeiro passo. Nos próximos envios dessa mesma 
 2. Selecione **base: master** e **compare: sua branch**.
 3. Coloque um título claro e uma descrição curta do que mudou e como conferir.
 4. Crie o PR e peça a revisão de alguém da equipe.
-5. Aguarde o CI passar na aba **Checks** e trate os comentários antes do merge.
+5. Aguarde o [CI](CI.md) passar na aba **Checks** e trate os comentários antes do merge.
 
 Exemplo de descrição:
 
 ```markdown
 ## O que mudou
+
 - Adicionado cadastro de veículos.
 
 ## Como foi verificado
+
 - npm run check executado com sucesso.
 ```
 
@@ -78,4 +105,3 @@ git pull --ff-only origin master
 ```
 
 Para a próxima tarefa, crie uma nova branch.
-

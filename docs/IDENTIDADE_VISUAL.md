@@ -1,20 +1,18 @@
-# 📘 Manual de Identidade Visual — ROTA (FSPH)
+# Identidade visual — ROTA (FSPH)
+
+[Índice da documentação](README.md)
 
 Guia oficial de marca, cores, tipografia e diretrizes de aplicação para a plataforma **ROTA**, desenvolvida pelo **Squad 19** para a **Fundação de Saúde Parreiras Horta (FSPH)** no programa Takeoff.
 
----
+## Marca ROTA
 
-## 1. A Marca ROTA
-
-O **ROTA** é o sistema web e PWA mobile para centralização, despacho e rastreabilidade da frota administrativa (LACEN, Hemose, SES, Diretoria) e da frota especializada do SVO (Serviço de Verificação de Óbito) da FSPH.
+O **ROTA** é o projeto de sistema web para centralização, despacho e rastreabilidade da frota administrativa (LACEN, Hemose, SES, Diretoria) e da frota especializada do SVO (Serviço de Verificação de Óbito) da FSPH. O conceito de marca considera aplicações web e PWA mobile.
 
 * **Nome Oficial:** ROTA (ou ROTA FSPH)
 * **Assinatura de Marca:** Gestão de Frota e SVO
 * **Atributos da Marca:** Confiabilidade pública, precisão logística, rastreabilidade em tempo real e biossegurança.
 
----
-
-## 2. Anatomia do Símbolo: O Loop Contínuo
+## Anatomia do símbolo: o loop contínuo
 
 O símbolo do **ROTA** foi desenhado com geometria vetorial pura (`viewBox="0 0 256 256"`), baseado em simetria rotacional de 180°:
 
@@ -32,14 +30,12 @@ O símbolo do **ROTA** foi desenhado com geometria vetorial pura (`viewBox="0 0 
 ```
 
 1. **Pista Superior (Azul Safira / Cyan):** Representa a saída institucional, o despacho rápido e o transporte de equipes e amostras biológicas.
-2. **Pista Inferior (Índigo Profundo / SVO):** Representa o percurso de volta, a triagem médica e o protocolo obrigatório de **desinfecção sanitária** da viatura (Portaria MS nº 1.405).
+2. **Pista Inferior (Índigo Profundo / SVO):** Representa o percurso de volta, a triagem médica e a **desinfecção sanitária** da viatura. O material original associa esse conceito à Portaria MS nº 1.405; veja [Contexto das diretrizes](#contexto-das-diretrizes).
 3. **Núcleo Central Iluminado (Ciano / Ponto GPS):** O ponto focal que simboliza georreferenciamento em tempo real e monitoramento contínuo da frota.
 
----
+## Paleta de cores
 
-## 3. Paleta de Cores Oficial
-
-### 3.1 Cores Primárias de Marca
+### Cores primárias da marca
 
 | Nome da Cor | Amostra | HEX | RGB | CMYK | Aplicação |
 | :--- | :---: | :---: | :---: | :---: | :--- |
@@ -48,7 +44,7 @@ O símbolo do **ROTA** foi desenhado com geometria vetorial pura (`viewBox="0 0 
 | **Rota Deep Navy**| ⬛ | `#0A0D14` | `10, 13, 20` | `50, 35, 0, 92`| Fundo da Sidebar flutuante, header e modo dark |
 | **Rota Indigo** | 🟣 | `#4F46E5` | `79, 70, 229` | `66, 69, 0, 10`| Transições e faixas secundárias do loop |
 
-### 3.2 Cores Funcionais da Frota (Status Operacionais)
+### Cores funcionais da frota
 
 | Status | Amostra | HEX | Significado Operacional |
 | :--- | :---: | :---: | :--- |
@@ -57,9 +53,26 @@ O símbolo do **ROTA** foi desenhado com geometria vetorial pura (`viewBox="0 0 
 | **Pendente / Alerta (Amber)**| 🟡 | `#F59E0B` | Solicitações aguardando gestor, CNH/IPVA a vencer e revisões |
 | **SVO / Desinfecção (Coral)**| 🔴 | `#E11D48` | Chamados de óbito e quarentena sanitária biológica obrigatória |
 
----
+### Tokens usados pela interface
 
-## 4. Tipografia Oficial
+As paletas acima preservam as referências de marca e os valores RGB/CMYK do material original. Os tokens de implementação em `FrontEnd/src/index.css` usam variações para aplicação na interface:
+
+| Token | HEX |
+| --- | --- |
+| `--color-rota-cobalt` | `#2563EB` |
+| `--color-rota-cyan` | `#0EA5E9` |
+| `--color-rota-indigo` | `#4F46E5` |
+| `--color-status-available` | `#059669` |
+| `--color-status-transit` | `#2563EB` |
+| `--color-status-pending` | `#D97706` |
+| `--color-status-quarantine` | `#E11D48` |
+| `--color-sidebar-bg` | `#090D16` |
+| `--color-sidebar-surface` | `#121826` |
+| `--color-sidebar-hover` | `#1E2638` |
+
+Consulte [Front-end](FRONTEND.md#cores-semânticas) para as classes semânticas e a aplicação da logo na barra lateral.
+
+## Tipografia
 
 A tipografia padrão do ecossistema ROTA é a **Space Grotesk** (Google Fonts), escolhida por suas formas geométricas técnicas e alta legibilidade para placas, hodômetros e códigos de solicitação:
 
@@ -68,9 +81,9 @@ A tipografia padrão do ecossistema ROTA é a **Space Grotesk** (Google Fonts), 
 * **Métricas e Dados Numéricos:** `Space Grotesk Bold (700)`
 * **Textos Corridos e Legendas:** `Space Grotesk Regular (400)`
 
----
+O `FrontEnd/index.html` carrega os pesos 300, 400, 500, 600 e 700. O peso 800 é uma referência gráfica para composições da marca.
 
-## 5. Arquivos e Formatos Disponíveis
+## Arquivos e formatos
 
 Todos os arquivos vetoriais de produção estão salvos e versionados no repositório em:
 [`FrontEnd/src/assets/branding/rota/`](../FrontEnd/src/assets/branding/rota/)
@@ -83,14 +96,14 @@ Todos os arquivos vetoriais de produção estão salvos e versionados no reposit
 | `rota-symbol-black.svg` | Símbolo monocromático preto | Documentos impressos em papel sulfite |
 | `rota-lockup-horizontal.svg` | Símbolo + Wordmark ROTA + Subtítulo | Cabeçalhos de relatórios e telas claras |
 | `rota-lockup-horizontal-white.svg`| Lockup horizontal para fundos escuros | Banners de apresentação e telas escuras |
-| `rota-favicon.svg` | Símbolo com traços espessados | Aba do navegador (`favicon`) e atalho mobile |
+| [`favicon.svg`](../FrontEnd/public/favicon.svg) | Ícone da aba do navegador, fora da pasta de branding | Arquivo usado pelo `FrontEnd/index.html` |
 
----
+O favicon fica em `FrontEnd/public/favicon.svg`. Os SVGs da marca são vetoriais e podem ser redimensionados mantendo a proporção.
 
-## 6. Regras de Aplicação & Não-Interferência
+## Regras de aplicação
 
 * **Área de Proteção:** Mantenha sempre um espaço livre ao redor do logo equivalente a `0.5X` (metade da altura do símbolo), livre de outros textos ou ícones.
-* **Tamanho Mínimo Digital:** 
+* **Tamanho Mínimo Digital:**
   * Lockup completo: mínimo de `140px` de largura.
   * Símbolo isolado (Favicon/PWA): legível a partir de `16px × 16px`.
 * **Proibições:**
@@ -98,3 +111,11 @@ Todos os arquivos vetoriais de produção estão salvos e versionados no reposit
   * ❌ Nunca troque as cores do gradiente por cores aleatórias.
   * ❌ Nunca adicione sombras projetadas pesadas estilo anos 2000.
   * ❌ Nunca aplique o símbolo colorido sobre fundos com baixo contraste (use a versão branca sobre fundos escuros ou preta sobre fundos coloridos saturados).
+
+A aplicação da versão colorida dentro de um contêiner branco, usada no menu escuro, segue a orientação de [Front-end](FRONTEND.md#aplicação-da-logo-rota).
+
+## Contexto das diretrizes
+
+As referências a biossegurança, rastreamento em tempo real, checklists, quarentena e à Portaria MS nº 1.405 fazem parte do contexto original do conceito visual e do escopo previsto. O material original não identifica a data ou o dispositivo específico da Portaria. A referência deve ser confirmada na especificação de requisitos antes de orientar regras operacionais.
+
+Este manual documenta a marca. Consulte [Projeto](PROJETO.md) para entender a proposta do sistema e [Back-end](BACKEND.md) para os contratos e as regras da API.
