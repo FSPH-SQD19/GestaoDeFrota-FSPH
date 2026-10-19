@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { loginController } from "../controller/auth_c";
 import { AuthToken } from "../middleware/auth_m";
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { autorizarPerfis } from "../middleware/RBAC_m";
 
 const router = Router();
