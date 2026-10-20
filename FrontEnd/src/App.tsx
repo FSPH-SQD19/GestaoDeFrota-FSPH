@@ -7,13 +7,16 @@ import { Sidebar } from './components/layout/Sidebar'
 import { Header } from './components/layout/Header'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
 import { VeiculosPage } from './pages/veiculos/VeiculosPage'
+import { SolicitacoesPage } from './pages/solicitacoes/SolicitacoesPage'
+import { podeAcessar, telaInicial, type TabId } from './config/navigation'
 import { Card, Badge } from './components/common'
-import { FileText, Users, PhoneCall, BarChart3, ShieldCheck } from 'lucide-react'
+import { FileText, Users, PhoneCall, BarChart3, ShieldCheck, Route } from 'lucide-react'
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, hasRole, user } = useAuth()
+  const roles = user?.roles ?? []
   const [authView, setAuthView] = useState<'login' | 'forgot'>('login')
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const [activeTab, setActiveTab] = useState<TabId>(() => telaInicial(roles))
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   if (isLoading) {
@@ -35,29 +38,45 @@ const AppContent: React.FC = () => {
     return <LoginPage onNavigateToForgot={() => setAuthView('forgot')} />
   }
 
+  // Se o perfil atual não tiver acesso à aba selecionada, cai na tela inicial do perfil
+  const currentTab: TabId = podeAcessar(activeTab, roles) ? activeTab : telaInicial(roles)
+
   // Shell Autenticado (Sidebar Flutuante + Header + Conteúdo)
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row font-sans text-slate-900 selection:bg-slate-900 selection:text-white">
       {/* Sidebar Flutuante Dark em Cápsula (Figma) */}
       <Sidebar
-        activeTab={activeTab}
+        activeTab={currentTab}
         onSelectTab={setActiveTab}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
       {/* Área Central de Conteúdo Responsiva */}
-      <div className="flex-1 flex flex-col min-w-0 px-4 sm:px-6 lg:px-10 py-4 lg:py-6 max-w-[1500px] w-full">
+      <div className="flex-1 flex flex-col min-w-0 px-4 sm:px-6 lg:px-10 py-4 lg:py-6 max-w-[1500px] w-full mx-auto">
         {/* Header Superior com Notificações e Pílula do Usuário */}
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen(true)} />
 
         {/* Conteúdo Dinâmico conforme a Aba Selecionada */}
         <main className="mt-4 flex-1">
-          {activeTab === 'dashboard' && <DashboardPage />}
-          {activeTab === 'veiculos' && <VeiculosPage />}
+          {currentTab === 'dashboard' && <DashboardPage />}
+          {currentTab === 'veiculos' && <VeiculosPage />}
+
+          {currentTab === 'viagens' && (
+            <Card className="p-10 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                <Route className="w-6 h-6" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">Minhas Viagens</h2>
+              <p className="text-sm text-slate-500 max-w-md mx-auto">
+                Viagens escaladas para você, checklist de saída e retorno, registro de odômetro e abastecimento (visão mobile / PWA).
+              </p>
+              <Badge variant="info">Módulo mobile / PWA em desenvolvimento</Badge>
+            </Card>
+          )}
 
           {/* Placeholders informativos para as abas restantes */}
-          {activeTab === 'motoristas' && (
+          {currentTab === 'motoristas' && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <Users className="w-6 h-6" />
@@ -70,7 +89,9 @@ const AppContent: React.FC = () => {
             </Card>
           )}
 
-          {activeTab === 'solicitacoes' && (
+          {currentTab === 'solicitacoes' && hasRole(['SOLICITANTE']) && <SolicitacoesPage />}
+
+          {currentTab === 'solicitacoes' && !hasRole(['SOLICITANTE']) && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <FileText className="w-6 h-6" />
@@ -83,7 +104,7 @@ const AppContent: React.FC = () => {
             </Card>
           )}
 
-          {activeTab === 'svo' && (
+          {currentTab === 'svo' && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
                 <PhoneCall className="w-6 h-6" />
@@ -96,7 +117,7 @@ const AppContent: React.FC = () => {
             </Card>
           )}
 
-          {activeTab === 'relatorios' && (
+          {currentTab === 'relatorios' && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <BarChart3 className="w-6 h-6" />
@@ -109,7 +130,7 @@ const AppContent: React.FC = () => {
             </Card>
           )}
 
-          {activeTab === 'usuarios' && (
+          {currentTab === 'usuarios' && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <ShieldCheck className="w-6 h-6" />
