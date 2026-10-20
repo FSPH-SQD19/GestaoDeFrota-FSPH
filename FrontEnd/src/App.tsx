@@ -7,11 +7,12 @@ import { Sidebar } from './components/layout/Sidebar'
 import { Header } from './components/layout/Header'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
 import { VeiculosPage } from './pages/veiculos/VeiculosPage'
+import { SolicitacoesPage } from './pages/solicitacoes/SolicitacoesPage'
 import { Card, Badge } from './components/common'
 import { FileText, Users, PhoneCall, BarChart3, ShieldCheck } from 'lucide-react'
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, hasRole } = useAuth()
   const [authView, setAuthView] = useState<'login' | 'forgot'>('login')
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -70,7 +71,9 @@ const AppContent: React.FC = () => {
             </Card>
           )}
 
-          {activeTab === 'solicitacoes' && (
+          {activeTab === 'solicitacoes' && hasRole(['SOLICITANTE']) && <SolicitacoesPage />}
+
+          {activeTab === 'solicitacoes' && !hasRole(['SOLICITANTE']) && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <FileText className="w-6 h-6" />
