@@ -92,16 +92,9 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
     throw new Error("Data de validade da CNH inválida.");
   }
 
-  // A validade é um dia civil em São Paulo, independente do fuso do servidor.
-  const partes = new Intl.DateTimeFormat("pt-BR", {
+  const hoje = new Date().toLocaleDateString("en-CA", {
     timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const hoje = ["year", "month", "day"]
-    .map((tipo) => partes.find((parte) => parte.type === tipo)!.value)
-    .join("-");
+  });
 
   if (dados.validadeCnh < hoje) {
     throw new Error("A CNH está vencida.");
