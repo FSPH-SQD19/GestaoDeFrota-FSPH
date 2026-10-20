@@ -1,3 +1,5 @@
+import { getAuthConfig } from '../../../src/config/auth'
+vi.mock('../../../src/config/auth', () => ({ getAuthConfig: vi.fn() }))
 import jwt, { type JwtPayload } from 'jsonwebtoken'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,7 +31,8 @@ const usuario = {
 describe('login service', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.stubEnv('JWT_SECRET', secret)
+    vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 })
+
     mocks.findUnique.mockResolvedValue(usuario)
     mocks.comparePassword.mockResolvedValue(true)
   })
@@ -74,10 +77,9 @@ describe('login service', () => {
     expect(() => jwt.verify(result.token, 'outra-chave')).toThrow()
   })
 
-  it('recusa gerar token sem JWT_SECRET', async () => {
-    vi.stubEnv('JWT_SECRET', undefined)
-
-    await expect(login(credentials)).rejects.toThrow('JWT_SECRET não definido')
+  it('recusa emitir token quando a chave local não pode ser carregada', async () => {
+    vi.mocked(getAuthConfig).mockImplementation(() => { throw new Error('Chave local indisponível') })
+    await expect(login(credentials)).rejects.toThrow('Chave local indisponível')
   })
 
   it('propaga a falha do banco para o controller', async () => {

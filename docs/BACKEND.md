@@ -30,6 +30,8 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 | GET | `/health` | Pública | Status do processo da API; não consulta o banco. |
 | POST | `/auth/login` | Pública | Login com e-mail e senha. |
 | POST | `/api/v1/auth/login` | Pública | Alias do mesmo login. |
+| GET | `/auth/perfil`, `/api/v1/auth/perfil` | JWT | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
+| GET | `/auth/admin`, `/api/v1/auth/admin` | JWT com `ADMIN` | Confirmação de acesso autorizado. |
 | GET | `/api/v1/veiculos` | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos. |
 | POST | `/api/v1/veiculos` | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo. |
 
@@ -44,7 +46,7 @@ Corpo do login:
 }
 ```
 
-O serviço exige usuário existente e ativo, compara a senha com bcrypt e assina um JWT válido por oito horas usando `JWT_SECRET`. A resposta contém `token` e `usuario`, com `id`, `nome`, `email` e `perfis`; não inclui o hash da senha.
+O serviço exige usuário existente e ativo, compara a senha com bcrypt e assina um JWT com validade fixa de oito horas. A chave é gerada automaticamente em `BackEnd/.runtime/auth.key`, ignorada pelo Git, e reutilizada após reinícios. No Docker, ela fica no volume persistente `backend_auth`. Não há variáveis de ambiente para JWT. Antes de abrir a porta HTTP, a API carrega e valida a chave; falhas de acesso ou arquivo inválido interrompem a inicialização. A resposta contém `token` e `usuario`, com `id`, `nome`, `email` e `perfis`; não inclui o hash da senha.
 
 Nas rotas protegidas, envie o token recebido no login:
 
@@ -53,6 +55,8 @@ Authorization: Bearer TOKEN_RECEBIDO_NO_LOGIN
 ```
 
 O middleware valida a assinatura, expiração, identificador e perfis do token. Para veículos, pelo menos um dos perfis deve ser `ADMIN` ou `GESTOR`.
+
+Auth e veículos usam `authenticate` e `requireRole` de `http_m.ts`, com identidade interna em `res.locals.usuario` no formato `{ id, perfis }`. `AuthToken` e `autorizarPerfis` são aliases de compatibilidade. As falhas desses middlewares passam por `HttpError` e pelo handler comum, retornando `{ statusCode, message, errors }`.
 
 A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Os nomes de perfis enviados pela API e usados pela interface devem seguir um mapeamento consistente.
 
