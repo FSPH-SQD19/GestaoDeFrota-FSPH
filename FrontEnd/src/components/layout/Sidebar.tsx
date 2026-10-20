@@ -1,37 +1,15 @@
 import React, { useState } from 'react'
-import {
-  LayoutGrid,
-  Car,
-  Users,
-  ClipboardList,
-  BarChart3,
-  UserCheck,
-  PhoneCall,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
+import { LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../contexts/auth'
-import type { UserRole } from '../../types/auth'
+import { NAV_SECTIONS, itensVisiveis, telaInicial, type TabId } from '../../config/navigation'
 import { cn } from '../../lib/utils'
 import rotaSymbol from '../../assets/branding/rota/rota-symbol-color.svg'
 
 interface SidebarProps {
-  activeTab: string
-  onSelectTab: (tabId: string) => void
+  activeTab: TabId
+  onSelectTab: (tabId: TabId) => void
   isMobileOpen?: boolean
   onCloseMobile?: () => void
-}
-
-interface NavSection {
-  title?: string
-  items: {
-    id: string
-    label: string
-    icon: React.ComponentType<{ className?: string }>
-    roles: UserRole[]
-    badge?: string | number
-  }[]
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -40,69 +18,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen = false,
   onCloseMobile,
 }) => {
-  const { hasRole, logout, user } = useAuth()
+  const { logout, user } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
-
-  const navSections: NavSection[] = [
-    {
-      title: 'PRINCIPAL',
-      items: [
-        {
-          id: 'dashboard',
-          label: 'Dashboard',
-          icon: LayoutGrid,
-          roles: ['ADMIN', 'GESTOR', 'MOTORISTA', 'ATENDENTE_SVO', 'SOLICITANTE'],
-        },
-        {
-          id: 'solicitacoes',
-          label: 'Solicitações',
-          icon: ClipboardList,
-          roles: ['ADMIN', 'GESTOR', 'SOLICITANTE'],
-          badge: '1',
-        },
-      ],
-    },
-    {
-      title: 'OPERAÇÃO DA FROTA',
-      items: [
-        {
-          id: 'veiculos',
-          label: 'Veículos',
-          icon: Car,
-          roles: ['ADMIN', 'GESTOR'],
-        },
-        {
-          id: 'motoristas',
-          label: 'Motoristas',
-          icon: Users,
-          roles: ['ADMIN', 'GESTOR'],
-        },
-        {
-          id: 'svo',
-          label: 'Módulo SVO',
-          icon: PhoneCall,
-          roles: ['ADMIN', 'ATENDENTE_SVO'],
-        },
-      ],
-    },
-    {
-      title: 'GESTÃO & AUDITORIA',
-      items: [
-        {
-          id: 'relatorios',
-          label: 'Relatórios',
-          icon: BarChart3,
-          roles: ['ADMIN', 'GESTOR'],
-        },
-        {
-          id: 'usuarios',
-          label: 'Usuários (RBAC)',
-          icon: UserCheck,
-          roles: ['ADMIN'],
-        },
-      ],
-    },
-  ]
+  const roles = user?.roles ?? []
 
   const userInitial = user?.nome ? user.nome.charAt(0).toUpperCase() : 'V'
   const activeRoleName = user?.roles?.[0] || 'GESTOR'
@@ -133,14 +51,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isMobileOpen ? 'translate-x-0' : '-translate-x-[120%] lg:translate-x-0'
         )}
       >
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col flex-1 min-h-0 min-w-0">
           {/* Header da Sidebar: Logo ROTA + Botão de Colapso (Rail Mode) */}
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className={cn('flex items-center gap-3 min-w-0', isCollapsed && 'justify-center w-full')}>
               {/* Emblema ROTA em Contêiner Branco de Alto Contraste */}
               <div
                 className="w-11 h-11 rounded-2xl bg-white shadow-md shadow-blue-500/10 p-2 flex items-center justify-center shrink-0 border border-white/90 group cursor-pointer"
-                onClick={() => onSelectTab('dashboard')}
+                onClick={() => onSelectTab(telaInicial(roles))}
                 title="ROTA · Frota FSPH"
               >
                 <img
@@ -199,9 +117,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="border-t border-slate-800/80 my-2" />
 
           {/* Navegação Estruturada por Seções */}
-          <nav className="space-y-4 overflow-y-auto max-h-[calc(100vh-21rem)] pr-0.5 custom-scrollbar">
-            {navSections.map((section, sIndex) => {
-              const visibleSectionItems = section.items.filter((item) => hasRole(item.roles))
+          <nav className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-0.5 custom-scrollbar">
+            {NAV_SECTIONS.map((section, sIndex) => {
+              const visibleSectionItems = itensVisiveis(section, roles)
               if (visibleSectionItems.length === 0) return null
 
               return (
@@ -215,6 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {visibleSectionItems.map((item) => {
                     const Icon = item.icon
                     const isActive = activeTab === item.id
+                    const label = item.label(roles)
+                    const badge = item.badge?.(roles)
 
                     return (
                       <button
@@ -224,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           onSelectTab(item.id)
                           if (onCloseMobile) onCloseMobile()
                         }}
-                        title={isCollapsed ? item.label : undefined}
+                        title={isCollapsed ? label : undefined}
                         className={cn(
                           'w-full flex items-center rounded-2xl text-sm font-semibold transition-all duration-150 relative cursor-pointer',
                           isCollapsed ? 'justify-center p-3' : 'justify-between px-3.5 py-2.5',
@@ -245,11 +165,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               isActive ? 'text-slate-950 stroke-[2.2]' : 'text-slate-400 stroke-[1.8]'
                             )}
                           />
-                          {!isCollapsed && <span>{item.label}</span>}
+                          {!isCollapsed && <span>{label}</span>}
                         </div>
 
                         {/* Badge de Contagem / Notificação */}
-                        {item.badge && (
+                        {badge && (
                           <>
                             {!isCollapsed ? (
                               <span
@@ -260,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'bg-rose-500 text-white shadow-xs'
                                 )}
                               >
-                                {item.badge}
+                                {badge}
                               </span>
                             ) : (
                               <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#090D16]" />
