@@ -60,7 +60,7 @@ model Fornecedor {
 
   @@map("fornecedores")
 }
-
+x
 model Veiculo {
   id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   propriedade      String   @default("PROPRIO") @db.VarChar(10)
