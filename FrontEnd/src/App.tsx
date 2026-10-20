@@ -48,7 +48,7 @@ const AppContent: React.FC = () => {
       />
 
       {/* Área Central de Conteúdo Responsiva */}
-      <div className="flex-1 flex flex-col min-w-0 px-4 sm:px-6 lg:px-10 py-4 lg:py-6 max-w-[1500px] w-full">
+      <div className="flex-1 flex flex-col min-w-0 px-4 sm:px-6 lg:px-10 py-4 lg:py-6 max-w-[1500px] w-full mx-auto">
         {/* Header Superior com Notificações e Pílula do Usuário */}
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen(true)} />
 
