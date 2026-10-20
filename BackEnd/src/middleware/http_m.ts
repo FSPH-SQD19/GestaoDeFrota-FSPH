@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
+import { getAuthConfig } from "../config/auth";
 
 export type ErroDetalhe = { campo: string; mensagem: string };
 
@@ -28,14 +29,16 @@ export function usuarioAutenticado(res: { locals: Record<string, unknown> }): Us
 }
 
 export const authenticate: RequestHandler = (req, res, next) => {
-    const [esquema, token] = (req.headers.authorization ?? "").split(" ");
-    if (esquema !== "Bearer" || !token) {
+    const [esquema, token, extra] = (req.headers.authorization ?? "").split(" ");
+    if (esquema !== "Bearer" || !token || extra !== undefined) {
         return next(new HttpError(401, "Autenticação necessária."));
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-        return next(new HttpError(500, "Configuração de autenticação ausente."));
+    let secret: string;
+    try {
+        secret = getAuthConfig().secret;
+    } catch {
+        return next(new HttpError(500, "Configuração de autenticação inválida."));
     }
 
     try {
@@ -43,6 +46,7 @@ export const authenticate: RequestHandler = (req, res, next) => {
         if (
             typeof payload === "string" ||
             typeof payload.sub !== "string" ||
+            !payload.sub.trim() ||
             !Array.isArray(payload.perfis) ||
             !payload.perfis.every((perfil: unknown) => typeof perfil === "string")
         ) {

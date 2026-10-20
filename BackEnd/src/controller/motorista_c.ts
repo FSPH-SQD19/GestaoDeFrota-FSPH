@@ -16,7 +16,7 @@ export async function listarMotoristasController(req: Request,res: Response) {
 
 export async function cadastrarMotoristaController(req: Request,res: Response) {
   try {
-    const {usuarioId,cpf,numeroCnh,categoriaCnh,validadeCnh} = req.body;
+    const {usuarioId,cpf,numeroCnh,categoriaCnh,validadeCnh} = req.body ?? {};
     if (
       typeof cpf !== "string" ||
       typeof numeroCnh !== "string" ||
@@ -30,16 +30,12 @@ export async function cadastrarMotoristaController(req: Request,res: Response) {
       return res.status(400).json({mensagem:"Informe CPF, número da CNH, categoria e validade."});
     }
 
-    if (
-      usuarioId !== undefined && (typeof usuarioId !== "string" || !usuarioId.trim())) {
-      return res.status(400).json({mensagem: "usuarioId inválido."});
-    }
-
     const motorista = await cadastrarMotorista({usuarioId,cpf,numeroCnh,categoriaCnh,validadeCnh,});
     return res.status(201).json(motorista);
   } catch (error) {
     if (error instanceof Error) {
       const errosValidacao = [
+        "usuarioId inválido.",
         "CPF inválido.",
         "Número da CNH deve conter 11 dígitos.",
         "Categoria da CNH inválida.",

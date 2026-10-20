@@ -1,21 +1,18 @@
 import { Router } from "express";
 import { loginController } from "../controller/auth_c";
-import { AuthToken } from "../middleware/auth_m";
-import { Request, Response } from "express";
-import { autorizarPerfis } from "../middleware/RBAC_m";
+import { authenticate, requireRole, usuarioAutenticado } from "../middleware/http_m";
 
 const router = Router();
 
 router.post("/login", loginController);
 
-router.get("/perfil", AuthToken, (req: Request, res: Response) => {
-  return res.json({usuario: res.locals.auth,});
+router.get("/perfil", authenticate, (_req, res) => {
+  const usuario = usuarioAutenticado(res);
+  return res.json({ usuario: { userId: usuario.id, perfis: usuario.perfis } });
 });
 
-router.get( "/admin",AuthToken,autorizarPerfis("ADMIN"),(req: Request, res: Response) => {
-    return res.json({ mensagem: "Acesso autorizado." });
-  }
-);
+router.get("/admin", authenticate, requireRole("ADMIN"), (_req, res) => {
+  return res.json({ mensagem: "Acesso autorizado." });
+});
 
-
-export default router
+export default router;

@@ -1,3 +1,5 @@
+import { getAuthConfig } from '../../../src/config/auth'
+vi.mock('../../../src/config/auth', () => ({ getAuthConfig: vi.fn() }))
 import type { AddressInfo } from 'node:net'
 import type { Server } from 'node:http'
 import jwt from 'jsonwebtoken'
@@ -86,7 +88,7 @@ async function chamar(caminho: string, { perfis, body }: Opcoes = {}) {
 }
 
 beforeAll(async () => {
-    vi.stubEnv('JWT_SECRET', secret)
+    vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 })
     server = app.listen(0)
     await new Promise((resolve) => server.once('listening', resolve))
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -95,7 +97,7 @@ beforeAll(async () => {
 afterAll(() => new Promise((resolve) => server.close(resolve)))
 
 beforeEach(() => {
-    vi.stubEnv('JWT_SECRET', secret)
+    vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 })
     mocks.findMany.mockResolvedValue([registro])
     mocks.count.mockResolvedValue(1)
     mocks.findUnique.mockResolvedValue(null)
@@ -233,8 +235,8 @@ describe('autenticação (JWT)', () => {
         expect(await comToken(valor)).toBe(401)
     })
 
-    it('retorna 500 quando JWT_SECRET não está configurado', async () => {
-        vi.stubEnv('JWT_SECRET', '')
+    it('retorna 500 quando o arquivo da chave está indisponível', async () => {
+        vi.mocked(getAuthConfig).mockImplementation(() => { throw new Error('Arquivo de chave indisponível') })
 
         expect(await comToken(`Bearer ${token(['ADMIN'])}`)).toBe(500)
     })

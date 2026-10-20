@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "../lib/prisma";
 
 interface MotoristaInput {
@@ -58,6 +59,10 @@ export async function listarMotoristas() {
 }
 
 export async function cadastrarMotorista(dados: MotoristaInput) {
+  if (!z.uuid().optional().safeParse(dados.usuarioId).success) {
+    throw new Error("usuarioId inválido.");
+  }
+
   const cpf = dados.cpf.replace(/\D/g, "");
   const numeroCnh = dados.numeroCnh.trim();
   const categoriaCnh = dados.categoriaCnh.trim().toUpperCase();
@@ -87,10 +92,18 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
     throw new Error("Data de validade da CNH inválida.");
   }
 
-  const hoje = new Date();
-  hoje.setUTCHours(0, 0, 0, 0);
+  // A validade é um dia civil em São Paulo, independente do fuso do servidor.
+  const partes = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const hoje = ["year", "month", "day"]
+    .map((tipo) => partes.find((parte) => parte.type === tipo)!.value)
+    .join("-");
 
-  if (validadeCnh < hoje) {
+  if (dados.validadeCnh < hoje) {
     throw new Error("A CNH está vencida.");
   }
 
