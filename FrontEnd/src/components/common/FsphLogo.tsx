@@ -1,21 +1,21 @@
-import React from 'react'
+import React from "react";
 
 interface FsphLogoProps {
-  className?: string
-  showText?: boolean
-  size?: 'sm' | 'md' | 'lg'
+  className?: string;
+  showText?: boolean;
+  size?: "sm" | "md" | "lg";
 }
 
 export const FsphLogo: React.FC<FsphLogoProps> = ({
-  className = '',
+  className = "",
   showText = true,
-  size = 'md',
+  size = "md",
 }) => {
   const iconSizes = {
-    sm: 'w-7 h-7',
-    md: 'w-9 h-9',
-    lg: 'w-12 h-12',
-  }
+    sm: "w-7 h-7",
+    md: "w-9 h-9",
+    lg: "w-12 h-12",
+  };
 
   return (
     <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
@@ -43,15 +43,36 @@ export const FsphLogo: React.FC<FsphLogoProps> = ({
             fill="url(#coral_grad)"
           />
           <defs>
-            <linearGradient id="blue_grad" x1="8" y1="8" x2="26" y2="40" gradientUnits="userSpaceOnUse">
+            <linearGradient
+              id="blue_grad"
+              x1="8"
+              y1="8"
+              x2="26"
+              y2="40"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop stopColor="#1E40AF" />
               <stop offset="1" stopColor="#3B82F6" />
             </linearGradient>
-            <linearGradient id="amber_grad" x1="22" y1="12" x2="34" y2="32" gradientUnits="userSpaceOnUse">
+            <linearGradient
+              id="amber_grad"
+              x1="22"
+              y1="12"
+              x2="34"
+              y2="32"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop stopColor="#D97706" />
               <stop offset="1" stopColor="#F59E0B" />
             </linearGradient>
-            <linearGradient id="coral_grad" x1="28" y1="10" x2="42" y2="40" gradientUnits="userSpaceOnUse">
+            <linearGradient
+              id="coral_grad"
+              x1="28"
+              y1="10"
+              x2="42"
+              y2="40"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop stopColor="#E11D48" />
               <stop offset="1" stopColor="#F43F5E" />
             </linearGradient>
@@ -70,5 +91,5 @@ export const FsphLogo: React.FC<FsphLogoProps> = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};

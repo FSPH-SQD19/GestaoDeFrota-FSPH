@@ -11,9 +11,21 @@ interface MotoristaInput {
 }
 
 const CATEGORIAS_CNH = [
-  "A", "B", "C", "D", "E",
-  "AB", "AC", "AD", "AE",
-  "BC", "BD", "BE", "CD", "CE", "DE",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "AB",
+  "AC",
+  "AD",
+  "AE",
+  "BC",
+  "BD",
+  "BE",
+  "CD",
+  "CE",
+  "DE",
 ];
 
 function validarCpf(cpf: string): boolean {
@@ -25,9 +37,8 @@ function validarCpf(cpf: string): boolean {
 
   const calcularDigito = (base: string, pesoInicial: number) => {
     const soma = [...base].reduce(
-      (total, digito, indice) =>
-        total + Number(digito) * (pesoInicial - indice),
-      0
+      (total, digito, indice) => total + Number(digito) * (pesoInicial - indice),
+      0,
     );
 
     const resto = (soma * 10) % 11;
@@ -37,10 +48,7 @@ function validarCpf(cpf: string): boolean {
   const primeiro = calcularDigito(numeros.slice(0, 9), 10);
   const segundo = calcularDigito(numeros.slice(0, 10), 11);
 
-  return (
-    primeiro === Number(numeros[9]) &&
-    segundo === Number(numeros[10])
-  );
+  return primeiro === Number(numeros[9]) && segundo === Number(numeros[10]);
 }
 
 export async function listarMotoristas() {
@@ -102,11 +110,7 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
 
   const existente = await prisma.motorista.findFirst({
     where: {
-      OR: [
-        { cpf },
-        { numeroCnh },
-        ...(dados.usuarioId ? [{ usuarioId: dados.usuarioId }] : []),
-      ],
+      OR: [{ cpf }, { numeroCnh }, ...(dados.usuarioId ? [{ usuarioId: dados.usuarioId }] : [])],
     },
     select: { id: true },
   });
@@ -146,10 +150,7 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
       },
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw new Error("CPF, CNH ou usuário já vinculado a um motorista.");
     }
 

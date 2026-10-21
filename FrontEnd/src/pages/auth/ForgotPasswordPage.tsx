@@ -1,27 +1,27 @@
-import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Mail, ArrowLeft, CheckCircle2 } from 'lucide-react'
-import { Input, Button } from '../../components/common'
-import rotaSymbol from '../../assets/branding/rota/rota-symbol-color.svg'
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Input, Button } from "../../components/common";
+import rotaSymbol from "../../assets/branding/rota/rota-symbol-color.svg";
 
 const forgotSchema = z.object({
   email: z
     .string()
-    .min(1, 'Informe seu e-mail institucional.')
-    .email('Formato de e-mail inválido (ex: nome@fsph.se.gov.br).'),
-})
+    .min(1, "Informe seu e-mail institucional.")
+    .email("Formato de e-mail inválido (ex: nome@fsph.se.gov.br)."),
+});
 
-type ForgotFormData = z.infer<typeof forgotSchema>
+type ForgotFormData = z.infer<typeof forgotSchema>;
 
 interface ForgotPasswordPageProps {
-  onBackToLogin: () => void
+  onBackToLogin: () => void;
 }
 
 export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackToLogin }) => {
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [submittedEmail, setSubmittedEmail] = useState('')
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
 
   const {
     register,
@@ -29,13 +29,13 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackTo
     formState: { errors, isSubmitting },
   } = useForm<ForgotFormData>({
     resolver: zodResolver(forgotSchema),
-  })
+  });
 
   const onSubmit = async (data: ForgotFormData) => {
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    setSubmittedEmail(data.email)
-    setIsSuccess(true)
-  }
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    setSubmittedEmail(data.email);
+    setIsSuccess(true);
+  };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-6 bg-[#F8F9FA] font-sans">
@@ -43,11 +43,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackTo
         {/* Logo Oficial ROTA */}
         <div className="mb-6 flex flex-col items-center justify-center">
           <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 p-2 flex items-center justify-center shadow-md mb-2.5">
-            <img
-              src={rotaSymbol}
-              alt="Rota FSPH"
-              className="w-full h-full object-contain"
-            />
+            <img src={rotaSymbol} alt="Rota FSPH" className="w-full h-full object-contain" />
           </div>
           <span className="text-xl font-black tracking-tight text-slate-900 leading-none">
             ROTA
@@ -59,8 +55,8 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackTo
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mb-8 max-w-xs">
           {isSuccess
-            ? 'Instruções enviadas com sucesso'
-            : 'Informe seu e-mail cadastrado para redefinir o acesso.'}
+            ? "Instruções enviadas com sucesso"
+            : "Informe seu e-mail cadastrado para redefinir o acesso."}
         </p>
 
         {isSuccess ? (
@@ -93,7 +89,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackTo
               placeholder="seu.email@fsph.se.gov.br"
               leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
               error={errors.email?.message}
-              {...register('email')}
+              {...register("email")}
               helperText="Você receberá um link seguro para cadastrar uma nova senha."
             />
 
@@ -121,5 +117,5 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackTo
         )}
       </div>
     </div>
-  )
-}
+  );
+};

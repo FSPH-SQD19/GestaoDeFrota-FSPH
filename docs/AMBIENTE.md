@@ -21,9 +21,9 @@ cd GestaoDeFrota-FSPH
 
 ## Arquivos de ambiente
 
-| Arquivo local | Modelo | Quem utiliza |
-| --- | --- | --- |
-| `.env` na raiz | `.env.example` | Docker Compose. |
+| Arquivo local  | Modelo                 | Quem utiliza                                                 |
+| -------------- | ---------------------- | ------------------------------------------------------------ |
+| `.env` na raiz | `.env.example`         | Docker Compose.                                              |
 | `BackEnd/.env` | `BackEnd/.env.example` | API e comandos Prisma executados pelo workspace do back-end. |
 
 Crie os arquivos locais a partir dos modelos apenas se ainda não existirem. No PowerShell, por exemplo:
@@ -35,21 +35,21 @@ if (!(Test-Path BackEnd/.env)) { Copy-Item BackEnd/.env.example BackEnd/.env }
 
 ### Variáveis da raiz
 
-| Variável | Finalidade | Valor de referência local |
-| --- | --- | --- |
-| `POSTGRES_DB` | Nome do banco. | `gestao_frota` |
-| `POSTGRES_USER` | Usuário do banco. | `postgres` |
-| `POSTGRES_PASSWORD` | Senha do banco. | Definir no ambiente local. |
-| `POSTGRES_PORT` | Porta do banco exposta no computador. | `5433` |
-| `BACKEND_PORT` | Porta da API exposta pelo Compose. | `3000` |
-| `FRONTEND_PORT` | Porta da interface exposta pelo Compose. | `5173` |
+| Variável            | Finalidade                               | Valor de referência local  |
+| ------------------- | ---------------------------------------- | -------------------------- |
+| `POSTGRES_DB`       | Nome do banco.                           | `gestao_frota`             |
+| `POSTGRES_USER`     | Usuário do banco.                        | `postgres`                 |
+| `POSTGRES_PASSWORD` | Senha do banco.                          | Definir no ambiente local. |
+| `POSTGRES_PORT`     | Porta do banco exposta no computador.    | `5433`                     |
+| `BACKEND_PORT`      | Porta da API exposta pelo Compose.       | `3000`                     |
+| `FRONTEND_PORT`     | Porta da interface exposta pelo Compose. | `5173`                     |
 
 ### Variáveis do back-end
 
-| Variável | Finalidade |
-| --- | --- |
-| `PORT` | Porta da API no desenvolvimento local; o código usa `3000` se não for informada. |
-| `DATABASE_URL` | Conexão PostgreSQL usada pelo Prisma. |
+| Variável                  | Finalidade                                                                                                                 |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                    | Porta da API no desenvolvimento local; o código usa `3000` se não for informada.                                           |
+| `DATABASE_URL`            | Conexão PostgreSQL usada pelo Prisma.                                                                                      |
 | `DATABASE_URL_MIGRATIONS` | URL direta para comandos Prisma de migração; opcional localmente e obrigatória como secret do ambiente GitHub `hml` no CD. |
 
 Exemplo de estrutura da URL para uma API executada no computador:
@@ -131,13 +131,13 @@ Versione o schema e a migration resultante. O schema está em `BackEnd/prisma/sc
 
 ## Endereços e problemas comuns
 
-| Situação | O que conferir |
-| --- | --- |
-| Interface | `http://localhost:5173`, ou a porta indicada pelo Vite/Compose. |
-| API | `http://localhost:3000/health`, ajustando a porta se necessário. Essa rota não verifica o banco. |
-| Porta ocupada no front-end | O Vite pode escolher outra porta; leia o endereço no terminal. |
-| Falha de conexão com o banco | Host, porta, credenciais, banco disponível e `DATABASE_URL`. |
-| Falha no login da API | Usuário ativo, hash bcrypt, migrations e acesso ao arquivo local da chave; veja [Back-end](BACKEND.md). |
-| Erro ao gerar Prisma no Windows | Pare a API antes de regenerar o cliente para liberar os arquivos em uso. |
+| Situação                        | O que conferir                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Interface                       | `http://localhost:5173`, ou a porta indicada pelo Vite/Compose.                                         |
+| API                             | `http://localhost:3000/health`, ajustando a porta se necessário. Essa rota não verifica o banco.        |
+| Porta ocupada no front-end      | O Vite pode escolher outra porta; leia o endereço no terminal.                                          |
+| Falha de conexão com o banco    | Host, porta, credenciais, banco disponível e `DATABASE_URL`.                                            |
+| Falha no login da API           | Usuário ativo, hash bcrypt, migrations e acesso ao arquivo local da chave; veja [Back-end](BACKEND.md). |
+| Erro ao gerar Prisma no Windows | Pare a API antes de regenerar o cliente para liberar os arquivos em uso.                                |
 
 Consulte [Front-end](FRONTEND.md) para entender as telas e os componentes. Os testes usam mocks do banco e podem ser executados sem PostgreSQL ou Docker; veja [Testes](TESTES.md).

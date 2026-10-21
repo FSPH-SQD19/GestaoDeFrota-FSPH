@@ -1,4 +1,4 @@
-import type React from 'react'
+import type React from "react";
 import {
   LayoutGrid,
   Car,
@@ -8,8 +8,8 @@ import {
   UserCheck,
   PhoneCall,
   Route,
-} from 'lucide-react'
-import type { UserRole } from '../types/auth'
+} from "lucide-react";
+import type { UserRole } from "../types/auth";
 
 /**
  * Fonte única das regras de navegação por perfil (RBAC no front-end).
@@ -18,125 +18,131 @@ import type { UserRole } from '../types/auth'
  */
 
 export type TabId =
-  | 'dashboard'
-  | 'solicitacoes'
-  | 'viagens'
-  | 'veiculos'
-  | 'motoristas'
-  | 'svo'
-  | 'relatorios'
-  | 'usuarios'
+  | "dashboard"
+  | "solicitacoes"
+  | "viagens"
+  | "veiculos"
+  | "motoristas"
+  | "svo"
+  | "relatorios"
+  | "usuarios";
 
 export interface NavItem {
-  id: TabId
-  icon: React.ComponentType<{ className?: string }>
-  roles: UserRole[]
+  id: TabId;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: UserRole[];
   /** Rótulo pode variar conforme o perfil (ex.: "Minhas Solicitações" para o solicitante). */
-  label: (roles: UserRole[]) => string
-  badge?: (roles: UserRole[]) => string | undefined
+  label: (roles: UserRole[]) => string;
+  badge?: (roles: UserRole[]) => string | undefined;
 }
 
 export interface NavSection {
-  title: string
-  items: NavItem[]
+  title: string;
+  items: NavItem[];
 }
 
-const isGestao = (roles: UserRole[]) => roles.includes('ADMIN') || roles.includes('GESTOR')
+const isGestao = (roles: UserRole[]) => roles.includes("ADMIN") || roles.includes("GESTOR");
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'PRINCIPAL',
+    title: "PRINCIPAL",
     items: [
       {
-        id: 'dashboard',
-        label: () => 'Dashboard',
+        id: "dashboard",
+        label: () => "Dashboard",
         icon: LayoutGrid,
-        roles: ['ADMIN', 'GESTOR'],
+        roles: ["ADMIN", "GESTOR"],
       },
       {
-        id: 'solicitacoes',
-        label: (roles) => (isGestao(roles) ? 'Solicitações' : 'Minhas Solicitações'),
+        id: "solicitacoes",
+        label: (roles) => (isGestao(roles) ? "Solicitações" : "Minhas Solicitações"),
         icon: ClipboardList,
-        roles: ['ADMIN', 'GESTOR', 'SOLICITANTE'],
+        roles: ["ADMIN", "GESTOR", "SOLICITANTE"],
         // Contador da fila de análise: só faz sentido para quem aprova.
-        badge: (roles) => (isGestao(roles) ? '1' : undefined),
+        badge: (roles) => (isGestao(roles) ? "1" : undefined),
       },
       {
-        id: 'viagens',
-        label: () => 'Minhas Viagens',
+        id: "viagens",
+        label: () => "Minhas Viagens",
         icon: Route,
-        roles: ['MOTORISTA'],
+        roles: ["MOTORISTA"],
       },
     ],
   },
   {
-    title: 'OPERAÇÃO DA FROTA',
+    title: "OPERAÇÃO DA FROTA",
     items: [
       {
-        id: 'veiculos',
-        label: () => 'Veículos',
+        id: "veiculos",
+        label: () => "Veículos",
         icon: Car,
-        roles: ['ADMIN', 'GESTOR'],
+        roles: ["ADMIN", "GESTOR"],
       },
       {
-        id: 'motoristas',
-        label: () => 'Motoristas',
+        id: "motoristas",
+        label: () => "Motoristas",
         icon: Users,
-        roles: ['ADMIN', 'GESTOR'],
+        roles: ["ADMIN", "GESTOR"],
       },
       {
-        id: 'svo',
-        label: () => 'Módulo SVO',
+        id: "svo",
+        label: () => "Módulo SVO",
         icon: PhoneCall,
-        roles: ['ADMIN', 'ATENDENTE_SVO'],
+        roles: ["ADMIN", "ATENDENTE_SVO"],
       },
     ],
   },
   {
-    title: 'GESTÃO & AUDITORIA',
+    title: "GESTÃO & AUDITORIA",
     items: [
       {
-        id: 'relatorios',
-        label: () => 'Relatórios',
+        id: "relatorios",
+        label: () => "Relatórios",
         icon: BarChart3,
-        roles: ['ADMIN', 'GESTOR'],
+        roles: ["ADMIN", "GESTOR"],
       },
       {
-        id: 'usuarios',
-        label: () => 'Usuários (RBAC)',
+        id: "usuarios",
+        label: () => "Usuários (RBAC)",
         icon: UserCheck,
-        roles: ['ADMIN'],
+        roles: ["ADMIN"],
       },
     ],
   },
-]
+];
 
 /** Tela aberta após o login, por perfil. */
 export const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
-  ADMIN: 'dashboard',
-  GESTOR: 'dashboard',
-  ATENDENTE_SVO: 'svo',
-  MOTORISTA: 'viagens',
-  SOLICITANTE: 'solicitacoes',
-}
+  ADMIN: "dashboard",
+  GESTOR: "dashboard",
+  ATENDENTE_SVO: "svo",
+  MOTORISTA: "viagens",
+  SOLICITANTE: "solicitacoes",
+};
 
 /** Ordem de prioridade quando o usuário possui mais de um perfil. */
-const PRIORIDADE_PERFIS: UserRole[] = ['ADMIN', 'GESTOR', 'ATENDENTE_SVO', 'MOTORISTA', 'SOLICITANTE']
+const PRIORIDADE_PERFIS: UserRole[] = [
+  "ADMIN",
+  "GESTOR",
+  "ATENDENTE_SVO",
+  "MOTORISTA",
+  "SOLICITANTE",
+];
 
 const ROLES_POR_TAB = new Map<TabId, UserRole[]>(
-  NAV_SECTIONS.flatMap((s) => s.items).map((item) => [item.id, item.roles])
-)
+  NAV_SECTIONS.flatMap((s) => s.items).map((item) => [item.id, item.roles]),
+);
 
 export function podeAcessar(tab: TabId, roles: UserRole[]): boolean {
-  const permitidos = ROLES_POR_TAB.get(tab)
-  return !!permitidos && roles.some((r) => permitidos.includes(r))
+  const permitidos = ROLES_POR_TAB.get(tab);
+  return !!permitidos && roles.some((r) => permitidos.includes(r));
 }
 
 export function telaInicial(roles: UserRole[]): TabId {
-  const principal = PRIORIDADE_PERFIS.find((r) => roles.includes(r))
-  return principal ? TELA_INICIAL_POR_PERFIL[principal] : 'dashboard'
+  const principal = PRIORIDADE_PERFIS.find((r) => roles.includes(r));
+  return principal ? TELA_INICIAL_POR_PERFIL[principal] : "dashboard";
 }
 
 export function itensVisiveis(section: NavSection, roles: UserRole[]): NavItem[] {
-  return section.items.filter((item) => podeAcessar(item.id, roles))
+  return section.items.filter((item) => podeAcessar(item.id, roles));
 }
