@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       dependencies: ${{ steps.dependencies.outcome }}
+      format: ${{ steps.format.outcome }}
       lint: ${{ steps.lint.outcome }}
       tests: ${{ steps.tests.outcome }}
       build: ${{ steps.build.outcome }}
@@ -32,13 +33,17 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
           cache-dependency-path: package-lock.json
 
       - name: Instalar dependencias dos workspaces
         id: dependencies
         run: npm ci
+
+      - name: Verificar formatação
+        id: format
+        run: npm run format:check
 
       - name: Verificar lint
         id: lint
@@ -96,6 +101,7 @@ jobs:
               `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
               '',
               `📦 Dependências · ${status(results.dependencies)}  `,
+              `💅 Formatação · ${status(results.format)}  `,
               `🔎 Lint · ${status(results.lint)}  `,
               `🧪 Testes e tipos · ${status(results.tests)}  `,
               `🏗️ Build · ${status(results.build)}`,

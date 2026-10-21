@@ -47,7 +47,12 @@ export const criarVeiculoSchema = z
       .min(1950, "Ano inválido.")
       .refine((ano) => ano <= anoMaximo(), "Ano inválido.")
       .optional(),
-    combustivel: z.string().trim().min(1).max(30, "Combustível deve ter no máximo 30 caracteres.").optional(),
+    combustivel: z
+      .string()
+      .trim()
+      .min(1)
+      .max(30, "Combustível deve ter no máximo 30 caracteres.")
+      .optional(),
     capacidadeMaxima: z
       .number({ error: "Capacidade deve ser numérica." })
       .int("Capacidade deve ser inteira.")
@@ -112,11 +117,11 @@ export async function listarVeiculos(filtros: ListarVeiculosFiltros) {
     ...(propriedade ? { propriedade } : {}),
     ...(busca
       ? {
-        OR: [
-          { placa: { contains: normalizarPlaca(busca) } },
-          { modelo: { contains: busca, mode: "insensitive" } },
-        ],
-      }
+          OR: [
+            { placa: { contains: normalizarPlaca(busca) } },
+            { modelo: { contains: busca, mode: "insensitive" } },
+          ],
+        }
       : {}),
   };
 

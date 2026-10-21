@@ -1,27 +1,27 @@
-import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { User as UserIcon, Key, AlertCircle } from 'lucide-react'
-import { useAuth } from '../../contexts/auth'
-import { Input, Button } from '../../components/common'
-import bgLogin from '../../assets/BG.png'
-import rotaSymbol from '../../assets/branding/rota/rota-symbol-color.svg'
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { User as UserIcon, Key, AlertCircle } from "lucide-react";
+import { useAuth } from "../../contexts/auth";
+import { Input, Button } from "../../components/common";
+import bgLogin from "../../assets/BG.png";
+import rotaSymbol from "../../assets/branding/rota/rota-symbol-color.svg";
 
 const loginSchema = z.object({
-  usuario: z.string().min(1, 'Informe seu usuário ou e-mail.'),
-  senha: z.string().min(4, 'A senha deve possuir pelo menos 4 caracteres.'),
-})
+  usuario: z.string().min(1, "Informe seu usuário ou e-mail."),
+  senha: z.string().min(4, "A senha deve possuir pelo menos 4 caracteres."),
+});
 
-type LoginFormData = z.infer<typeof loginSchema>
+type LoginFormData = z.infer<typeof loginSchema>;
 
 interface LoginPageProps {
-  onNavigateToForgot?: () => void
+  onNavigateToForgot?: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
-  const { login } = useAuth()
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { login } = useAuth();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -30,23 +30,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      usuario: '',
-      senha: '',
+      usuario: "",
+      senha: "",
     },
-  })
+  });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      setErrorMessage(null)
-      await login(data)
+      setErrorMessage(null);
+      await login(data);
     } catch (err) {
       if (err instanceof Error) {
-        setErrorMessage(err.message)
+        setErrorMessage(err.message);
       } else {
-        setErrorMessage('Ocorreu um erro ao tentar acessar. Verifique suas credenciais.')
+        setErrorMessage("Ocorreu um erro ao tentar acessar. Verifique suas credenciais.");
       }
     }
-  }
+  };
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#F8FAFC] font-sans text-slate-900">
@@ -78,11 +78,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
           {/* Logo Oficial ROTA */}
           <div className="mb-6 flex flex-col items-center justify-center">
             <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200/90 p-2.5 flex items-center justify-center shadow-md shadow-blue-500/10 mb-3 ring-4 ring-blue-50/70">
-              <img
-                src={rotaSymbol}
-                alt="Rota FSPH"
-                className="w-full h-full object-contain"
-              />
+              <img src={rotaSymbol} alt="Rota FSPH" className="w-full h-full object-contain" />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-2xl font-black tracking-tight text-slate-900 leading-none">
@@ -116,7 +112,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
               placeholder="seu.usuario"
               leftIcon={<UserIcon className="w-4 h-4 text-slate-400" />}
               error={errors.usuario?.message}
-              {...register('usuario')}
+              {...register("usuario")}
               autoComplete="username"
             />
 
@@ -126,7 +122,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
               placeholder="Digite sua senha"
               leftIcon={<Key className="w-4 h-4 text-slate-400" />}
               error={errors.senha?.message}
-              {...register('senha')}
+              {...register("senha")}
               autoComplete="current-password"
             />
 
@@ -156,5 +152,5 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
