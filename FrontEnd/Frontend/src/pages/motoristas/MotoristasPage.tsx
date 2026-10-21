@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
-  BadgeCheck,
   CalendarDays,
   Filter,
   MoreHorizontal,
@@ -17,17 +16,9 @@ import {
   categoriasCnh,
   cpfValido,
   formatarCpf,
-  importarMotoristasCsv,
   type Motorista,
   type StatusMotorista,
 } from './motoristas.rules'
-import {
-  calcularIndicadoresMock,
-  carregarMotoristasMock,
-  salvarMotoristasMock,
-  simularAtualizacaoStatusMotorista,
-  simularCadastroMotorista,
-} from './motoristas.mock'
 
 interface FormularioMotorista {
   nome: string
@@ -48,18 +39,6 @@ interface FiltrosMotoristas {
   contato: string
 }
 
-interface ResultadoImportacao {
-  importados: number
-  erros: string[]
-  errosRestantes: number
-}
-
-const dataRelativa = (dias: number) => {
-  const data = new Date()
-  data.setDate(data.getDate() + dias)
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`
-}
-
 const formularioVazio: FormularioMotorista = {
   nome: '',
   cpf: '',
@@ -69,6 +48,12 @@ const formularioVazio: FormularioMotorista = {
   contato: '',
   email: '',
   senha: '',
+}
+
+const dataRelativa = (dias: number) => {
+  const data = new Date()
+  data.setDate(data.getDate() + dias)
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`
 }
 
 const dataHojeIso = () => {
@@ -89,7 +74,22 @@ const diasAteVencimento = (data: string) => {
   return (paraDiaUtc(data) - paraDiaUtc(dataHojeIso())) / (1000 * 60 * 60 * 24)
 }
 
-const motoristasIniciais: Motorista[] = [
+const filtrosVazios: FiltrosMotoristas = {
+  id: '',
+  nome: '',
+  validadeCnh: '',
+  status: '',
+  contato: '',
+}
+
+const statusVariant: Record<StatusMotorista, 'info' | 'success' | 'warning' | 'neutral'> = {
+  'Em rota': 'info',
+  Disponível: 'success',
+  Indisponível: 'warning',
+  Inativo: 'neutral',
+}
+
+const motoristas: Motorista[] = [
   {
     id: 'MOT-001',
     nome: 'Carlos Alberto Santos',
@@ -152,28 +152,7 @@ const motoristasIniciais: Motorista[] = [
   },
 ]
 
-const filtrosVazios: FiltrosMotoristas = {
-  id: '',
-  nome: '',
-  validadeCnh: '',
-  status: '',
-  contato: '',
-}
-
-const statusVariant: Record<StatusMotorista, 'info' | 'success' | 'warning' | 'neutral'> = {
-  'Em rota': 'info',
-  Disponível: 'success',
-  Indisponível: 'warning',
-  Inativo: 'neutral',
-}
-
 export const MotoristasPage: React.FC = () => {
-  const [motoristasDemo, setMotoristasDemo] = useState(motoristasIniciais)
-  const [motoristasLocais, setMotoristasLocais] = useState(carregarMotoristasMock)
-  const motoristas = useMemo(
-    () => [...motoristasDemo, ...motoristasLocais],
-    [motoristasDemo, motoristasLocais]
-  )
   const [termoBusca, setTermoBusca] = useState('')
   const [filtros, setFiltros] = useState(filtrosVazios)
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
@@ -183,18 +162,16 @@ export const MotoristasPage: React.FC = () => {
   const [formulario, setFormulario] = useState(formularioVazio)
   const [cpfTocado, setCpfTocado] = useState(false)
   const [erroCadastro, setErroCadastro] = useState('')
-  const [cadastroSucesso, setCadastroSucesso] = useState(false)
-  const [erroStatus, setErroStatus] = useState('')
-  const [resultadoImportacao, setResultadoImportacao] = useState<ResultadoImportacao | null>(null)
-  const [erroImportacao, setErroImportacao] = useState('')
-  const [importando, setImportando] = useState(false)
-  const arquivoCsvRef = React.useRef<HTMLInputElement>(null)
+  const [cadastroValidado, setCadastroValidado] = useState(false)
 
-  useEffect(() => {
-    if (!cadastroSucesso) return
-    const timeout = window.setTimeout(() => setCadastroSucesso(false), 5000)
-    return () => window.clearTimeout(timeout)
-  }, [cadastroSucesso])
+  const atualizarFormulario = <K extends keyof FormularioMotorista,>(
+    campo: K,
+    valor: FormularioMotorista[K]
+  ) => {
+    setFormulario((atual) => ({ ...atual, [campo]: valor }))
+    setErroCadastro('')
+    setCadastroValidado(false)
+  }
 
   const digitosCpf = formulario.cpf.replace(/\D/g, '')
   const mostrarErroCpf =
@@ -207,23 +184,26 @@ export const MotoristasPage: React.FC = () => {
     setFormulario(formularioVazio)
     setCpfTocado(false)
     setErroCadastro('')
+    setCadastroValidado(false)
   }
 
   const cadastrarMotorista = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setCpfTocado(true)
     setErroCadastro('')
+    setCadastroValidado(false)
 
-    if (!cpfValido(formulario.cpf)) return
+    if (!cpfValido(formulario.cpf)) {
+      setErroCadastro('Informe um CPF válido.')
+      return
+    }
 
     if (!formulario.nome.trim()) {
       setErroCadastro('Informe o nome completo do motorista.')
       return
     }
 
-    const respostaMock = simularCadastroMotorista()
-    setCadastroSucesso(respostaMock.sucesso)
-    fecharCadastro()
+    setCadastroValidado(true)
   }
 
   const motoristasFiltrados = useMemo(() => {
@@ -248,10 +228,18 @@ export const MotoristasPage: React.FC = () => {
         motorista.contato.replace(/\D/g, '').includes(filtros.contato.replace(/\D/g, ''))
       )
     })
-  }, [filtroCnhAtencao, filtros, motoristas, termoBusca])
+  }, [filtroCnhAtencao, filtros, termoBusca])
 
-  const { emServico, disponiveis, cnHsVencidas, cnHsVencendo } =
-    calcularIndicadoresMock(motoristas)
+  const emServico = motoristas.filter((motorista) => motorista.status === 'Em rota').length
+  const disponiveis = motoristas.filter((motorista) => motorista.status === 'Disponível').length
+  const motoristasComCnhAtencao = motoristas.filter(
+    (motorista) =>
+      motorista.status !== 'Inativo' && diasAteVencimento(motorista.validadeCnh) <= 30
+  )
+  const cnHsVencidas = motoristasComCnhAtencao.filter(
+    (motorista) => diasAteVencimento(motorista.validadeCnh) <= 0
+  ).length
+  const cnHsVencendo = motoristasComCnhAtencao.length - cnHsVencidas
   const cardCnhClasses = cnHsVencidas > 0
     ? 'border-rose-200/80 bg-rose-50/30'
     : cnHsVencendo > 0
@@ -262,76 +250,6 @@ export const MotoristasPage: React.FC = () => {
     setFiltroCnhAtencao((ativo) => !ativo)
     setTermoBusca('')
     setFiltros(filtrosVazios)
-  }
-
-  const alternarStatus = (motorista: Motorista) => {
-    const novoStatus: StatusMotorista =
-      motorista.status === 'Inativo' ? 'Disponível' : 'Inativo'
-
-    if (motoristasLocais.some((atual) => atual.id === motorista.id)) {
-      try {
-        setMotoristasLocais(
-          simularAtualizacaoStatusMotorista(motoristasLocais, motorista.id, novoStatus)
-        )
-      } catch (error) {
-        console.error('Não foi possível atualizar o status do motorista neste navegador.', error)
-        setErroStatus('Não foi possível salvar a alteração neste navegador. Tente novamente.')
-        return
-      }
-    } else {
-      setMotoristasDemo((atuais) =>
-        atuais.map((atual) =>
-          atual.id === motorista.id ? { ...atual, status: novoStatus } : atual
-        )
-      )
-    }
-
-    setErroStatus('')
-    setMotoristaSelecionado((atual) =>
-      atual?.id === motorista.id ? { ...atual, status: novoStatus } : atual
-    )
-  }
-
-  const importarCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const arquivo = event.target.files?.[0]
-    event.target.value = ''
-    if (!arquivo) return
-
-    setErroImportacao('')
-    setResultadoImportacao(null)
-    if (!arquivo.name.toLocaleLowerCase('pt-BR').endsWith('.csv')) {
-      setErroImportacao('Selecione um arquivo com extensão .csv.')
-      return
-    }
-
-    setImportando(true)
-    try {
-      const conteudo = await arquivo.text()
-      const resultado = importarMotoristasCsv(conteudo, motoristas)
-      const novosMotoristas = resultado.motoristas
-      const motoristasAtualizados = [...motoristasLocais, ...novosMotoristas]
-      if (novosMotoristas.length > 0) {
-        salvarMotoristasMock(motoristasAtualizados)
-        setMotoristasLocais(motoristasAtualizados)
-        setTermoBusca('')
-        setFiltros(filtrosVazios)
-        setFiltroCnhAtencao(false)
-      }
-      setResultadoImportacao({
-        importados: novosMotoristas.length,
-        erros: resultado.erros,
-        errosRestantes: resultado.errosRestantes,
-      })
-    } catch (error) {
-      console.error('Não foi possível importar o arquivo CSV de motoristas.', error)
-      setErroImportacao(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível ler ou salvar os dados do arquivo CSV.'
-      )
-    } finally {
-      setImportando(false)
-    }
   }
 
   const colunas: Column<Motorista>[] = [
@@ -407,7 +325,6 @@ export const MotoristasPage: React.FC = () => {
         <button
           type="button"
           onClick={() => {
-            setErroStatus('')
             setMotoristaSelecionado(motorista)
           }}
           className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
@@ -447,27 +364,6 @@ export const MotoristasPage: React.FC = () => {
           Novo motorista
         </Button>
       </div>
-
-      {cadastroSucesso && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed right-6 top-6 z-[60] flex items-start gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-800 shadow-lg"
-        >
-          <div>
-            <p className="font-semibold">Motorista cadastrado com sucesso!</p>
-            <p className="mt-0.5 text-xs text-emerald-700">Simulação do frontend — os dados não foram salvos.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCadastroSucesso(false)}
-            className="rounded-md p-1 text-emerald-700 hover:bg-emerald-50"
-            aria-label="Fechar aviso de cadastro"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4.5">
@@ -534,58 +430,14 @@ export const MotoristasPage: React.FC = () => {
           </Button>
         </div>
 
-        <input
-          ref={arquivoCsvRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={importarCsv}
-          aria-label="Selecionar arquivo CSV de motoristas"
-        />
         <Button
           variant="primary"
           leftIcon={<Upload className="h-4 w-4" />}
-          onClick={() => arquivoCsvRef.current?.click()}
-          isLoading={importando}
-          disabled={importando}
           className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:ml-auto sm:w-48"
         >
           Importar CSV
         </Button>
       </div>
-
-      {(erroImportacao || resultadoImportacao) && (
-        <div
-          role={erroImportacao ? 'alert' : 'status'}
-          className={`rounded-xl border p-4 text-sm ${
-            erroImportacao
-              ? 'border-rose-200 bg-rose-50 text-rose-800'
-              : resultadoImportacao?.erros.length
-                ? 'border-amber-200 bg-amber-50 text-amber-900'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
-          }`}
-        >
-          {erroImportacao ? (
-            <p>{erroImportacao}</p>
-          ) : (
-            <>
-              <p className="font-semibold">
-                Importação concluída: {resultadoImportacao?.importados} motorista(s) importado(s).
-              </p>
-              {resultadoImportacao?.erros.map((erro) => (
-                <p key={erro} className="mt-1 text-xs">
-                  {erro}
-                </p>
-              ))}
-              {!!resultadoImportacao?.errosRestantes && (
-                <p className="mt-1 text-xs">
-                  E mais {resultadoImportacao.errosRestantes} linha(s) com erro.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      )}
 
       {filtrosAbertos && (
         <Card className="p-4">
@@ -653,7 +505,7 @@ export const MotoristasPage: React.FC = () => {
         columns={colunas}
         data={motoristasFiltrados}
         keyExtractor={(motorista) => motorista.id}
-        emptyMessage="Nenhum motorista encontrado com esses filtros ou busca."
+        emptyMessage="Nenhum motorista cadastrado."
       />
 
       <Modal
@@ -663,18 +515,9 @@ export const MotoristasPage: React.FC = () => {
         description={motoristaSelecionado ? `Cadastro ${motoristaSelecionado.id}` : undefined}
         footer={
           motoristaSelecionado && (
-            <>
-              <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
-                Fechar
-              </Button>
-              <Button
-                variant={motoristaSelecionado.status === 'Inativo' ? 'primary' : 'danger'}
-                leftIcon={<BadgeCheck className="h-4 w-4" />}
-                onClick={() => alternarStatus(motoristaSelecionado)}
-              >
-                {motoristaSelecionado.status === 'Inativo' ? 'Ativar motorista' : 'Inativar motorista'}
-              </Button>
-            </>
+            <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
+              Fechar
+            </Button>
           )
         }
       >
@@ -721,11 +564,6 @@ export const MotoristasPage: React.FC = () => {
                 </dd>
               </div>
             </dl>
-            {erroStatus && (
-              <p role="alert" className="text-sm font-medium text-rose-600">
-                {erroStatus}
-              </p>
-            )}
           </div>
         )}
       </Modal>
@@ -741,7 +579,7 @@ export const MotoristasPage: React.FC = () => {
             Cancelar
           </Button>
           <Button variant="primary" type="submit" form="formulario-novo-motorista">
-            Salvar cadastro
+            Salvar
           </Button>
         </>
       }
@@ -760,7 +598,7 @@ export const MotoristasPage: React.FC = () => {
               required
               value={formulario.nome}
               onChange={(event) =>
-                setFormulario((atual) => ({ ...atual, nome: event.target.value }))
+                atualizarFormulario('nome', event.target.value)
               }
               placeholder="Nome completo do motorista"
             />
@@ -775,8 +613,7 @@ export const MotoristasPage: React.FC = () => {
             error={mostrarErroCpf ? 'CPF inválido' : undefined}
             onBlur={() => setCpfTocado(true)}
             onChange={(event) => {
-              setFormulario((atual) => ({ ...atual, cpf: formatarCpf(event.target.value) }))
-              setErroCadastro('')
+              atualizarFormulario('cpf', formatarCpf(event.target.value))
             }}
           />
           <Input
@@ -785,7 +622,7 @@ export const MotoristasPage: React.FC = () => {
             required
             value={formulario.numeroCnh}
             onChange={(event) =>
-              setFormulario((atual) => ({ ...atual, numeroCnh: event.target.value }))
+              atualizarFormulario('numeroCnh', event.target.value)
             }
             placeholder="Número da habilitação"
           />
@@ -794,7 +631,7 @@ export const MotoristasPage: React.FC = () => {
             required
             value={formulario.categoriaCnh}
             onChange={(event) =>
-              setFormulario((atual) => ({ ...atual, categoriaCnh: event.target.value }))
+              atualizarFormulario('categoriaCnh', event.target.value)
             }
             placeholder="Selecione uma categoria"
             options={categoriasCnh.map((categoria) => ({
@@ -808,7 +645,7 @@ export const MotoristasPage: React.FC = () => {
             required
             value={formulario.validadeCnh}
             onChange={(event) =>
-              setFormulario((atual) => ({ ...atual, validadeCnh: event.target.value }))
+              atualizarFormulario('validadeCnh', event.target.value)
             }
           />
           <Input
@@ -819,7 +656,7 @@ export const MotoristasPage: React.FC = () => {
             required
             value={formulario.contato}
             onChange={(event) =>
-              setFormulario((atual) => ({ ...atual, contato: event.target.value }))
+              atualizarFormulario('contato', event.target.value)
             }
             placeholder="(00) 00000-0000"
           />
@@ -836,7 +673,7 @@ export const MotoristasPage: React.FC = () => {
               required
               value={formulario.email}
               onChange={(event) =>
-                setFormulario((atual) => ({ ...atual, email: event.target.value }))
+                atualizarFormulario('email', event.target.value)
               }
               placeholder="motorista@exemplo.com"
             />
@@ -848,7 +685,7 @@ export const MotoristasPage: React.FC = () => {
               required
               value={formulario.senha}
               onChange={(event) =>
-                setFormulario((atual) => ({ ...atual, senha: event.target.value }))
+                atualizarFormulario('senha', event.target.value)
               }
               placeholder="Mínimo de 8 caracteres"
             />
@@ -858,6 +695,11 @@ export const MotoristasPage: React.FC = () => {
         {erroCadastro && (
           <p role="alert" className="text-sm font-medium text-rose-600">
             {erroCadastro}
+          </p>
+        )}
+        {cadastroValidado && (
+          <p role="status" className="text-sm font-medium text-slate-600">
+            Dados válidos. Nenhum cadastro foi enviado.
           </p>
         )}
       </form>
