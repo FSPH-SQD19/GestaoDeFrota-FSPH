@@ -39,6 +39,16 @@ jobs:
       - name: Validar lint e compilar front e back
         run: npm run lint && npm run build
 
+      - name: Aplicar migrações pendentes no Neon
+        env:
+          DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}
+        run: |
+          if [ -z "$DATABASE_URL_MIGRATIONS" ]; then
+            echo "::error::Configure DATABASE_URL_MIGRATIONS no ambiente hml do GitHub."
+            exit 1
+          fi
+          npm exec --workspace=backend -- prisma migrate deploy
+
       - name: Publicar Worker de HML
         uses: cloudflare/wrangler-action@v4
         with:

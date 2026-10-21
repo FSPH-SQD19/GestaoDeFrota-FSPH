@@ -50,6 +50,7 @@ if (!(Test-Path BackEnd/.env)) { Copy-Item BackEnd/.env.example BackEnd/.env }
 | --- | --- |
 | `PORT` | Porta da API no desenvolvimento local; o código usa `3000` se não for informada. |
 | `DATABASE_URL` | Conexão PostgreSQL usada pelo Prisma. |
+| `DATABASE_URL_MIGRATIONS` | URL direta para comandos Prisma de migração; opcional localmente e obrigatória como secret do ambiente GitHub `hml` no CD. |
 
 Exemplo de estrutura da URL para uma API executada no computador:
 
@@ -80,6 +81,8 @@ npm run dev
 ```
 
 `migrate deploy` aplica as migrations versionadas ao banco configurado. Confira o destino de `DATABASE_URL` antes de executar. A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Para autenticar na API, cadastre um usuário ativo com senha em hash bcrypt e associe os perfis necessários.
+
+No CD de HML, o workflow aplica as migrations antes do deploy usando `DATABASE_URL_MIGRATIONS`. Cadastre a URL direta do Neon como secret em **GitHub → Settings → Environments → hml**. No Neon, selecione o banco `neondb`, a branch compartilhada com desenvolvimento, a role com permissões de migração e desative o connection pooling para copiar a URL direta. Como HML e desenvolvimento compartilham o banco, cada migration altera o schema usado pelos dois ambientes.
 
 ## Executar todos os serviços com Docker
 
