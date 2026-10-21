@@ -15,9 +15,10 @@ O job **Lint, testes e build** usa Ubuntu e Node.js 24. As etapas são:
 1. Obter o código do PR.
 2. Configurar Node.js e o cache de downloads do npm, usando o lockfile da raiz como referência.
 3. Executar `npm ci` na raiz, instalando os dois workspaces e gerando o Prisma Client pelo `postinstall` do back-end.
-4. Executar `npm run lint` nos dois projetos.
-5. Executar `npm test`, incluindo a checagem de tipos dos testes e as suítes unitárias dos dois projetos.
-6. Executar `npm run build` para compilar o back-end e o front-end.
+4. Verificar a formatação com `npm run format:check`.
+5. Executar `npm run lint` nos dois projetos.
+6. Executar `npm test`, incluindo a checagem de tipos dos testes e as suítes unitárias dos dois projetos.
+7. Executar `npm run build` para compilar o back-end e o front-end.
 
 Uma falha interrompe as etapas seguintes e deixa a verificação do PR com falha. Novos commits cancelam uma execução anterior ainda em andamento no mesmo PR. O job de qualidade tem limite de 15 minutos; o job de comentários tem limite de 5 minutos.
 
@@ -31,7 +32,7 @@ Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes co
 
 Após enviar o workflow e os arquivos necessários do projeto para a branch do PR, abra a aba **Checks** do PR ou a aba **Actions** do repositório. Se uma etapa falhar, abra seus logs, corrija a causa e envie um novo commit para executar novamente.
 
-Para reproduzir as mesmas verificações localmente, execute `npm ci` e depois `npm run check` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux.
+Para formatar arquivos localmente, execute `npm run format`. Para reproduzir as verificações da CI, execute `npm ci` e depois `npm run check` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux.
 
 ## Exigir a verificação antes do merge
 

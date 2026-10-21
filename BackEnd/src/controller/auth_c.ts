@@ -4,12 +4,7 @@ import { login } from "../service/auth_s";
 export async function loginController(req: Request, res: Response) {
   try {
     const { email, senha } = req.body ?? {};
-    if (
-      typeof email !== "string" ||
-      typeof senha !== "string" ||
-      !email.trim() ||
-      !senha
-    ) {
+    if (typeof email !== "string" || typeof senha !== "string" || !email.trim() || !senha) {
       return res.status(400).json({ error: "email e senha são obrigatórios" });
     }
 

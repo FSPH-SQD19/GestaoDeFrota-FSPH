@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Car,
   TrendingUp,
@@ -8,97 +8,97 @@ import {
   Clock,
   Activity,
   CheckCircle2,
-} from 'lucide-react'
-import { useAuth } from '../../contexts/auth'
-import { Card, Badge, Button } from '../../components/common'
+} from "lucide-react";
+import { useAuth } from "../../contexts/auth";
+import { Card, Badge, Button } from "../../components/common";
 
-type ViagemFilter = 'TODAS' | 'TRANSITO' | 'PENDENTE' | 'DESINFECCAO'
+type ViagemFilter = "TODAS" | "TRANSITO" | "PENDENTE" | "DESINFECCAO";
 
 export const DashboardPage: React.FC = () => {
-  const { user } = useAuth()
-  const [viagemFilter, setViagemFilter] = useState<ViagemFilter>('TODAS')
-  const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null)
-  const [today] = useState(() => new Date())
+  const { user } = useAuth();
+  const [viagemFilter, setViagemFilter] = useState<ViagemFilter>("TODAS");
+  const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
+  const [today] = useState(() => new Date());
 
-  const todayFormatted = new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(today)
+  const todayFormatted = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(today);
 
-  const formattedDate = todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1)
+  const formattedDate = todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1);
 
   // Dados do gráfico semanal com segmentação analítica (dashboard-designer Level 2)
   const weeklyData = [
-    { day: 'Seg', adm: 8, svo: 4, total: 12, height: '60%' },
-    { day: 'Ter', adm: 11, svo: 7, total: 18, height: '95%', isPeak: true },
-    { day: 'Qua', adm: 9, svo: 6, total: 15, height: '80%' },
-    { day: 'Qui', adm: 5, svo: 3, total: 8, height: '42%' },
-    { day: 'Sex', adm: 9, svo: 5, total: 14, height: '74%' },
-    { day: 'Sáb', adm: 2, svo: 4, total: 6, height: '32%' },
-    { day: 'Dom', adm: 1, svo: 3, total: 4, height: '22%' },
-  ]
+    { day: "Seg", adm: 8, svo: 4, total: 12, height: "60%" },
+    { day: "Ter", adm: 11, svo: 7, total: 18, height: "95%", isPeak: true },
+    { day: "Qua", adm: 9, svo: 6, total: 15, height: "80%" },
+    { day: "Qui", adm: 5, svo: 3, total: 8, height: "42%" },
+    { day: "Sex", adm: 9, svo: 5, total: 14, height: "74%" },
+    { day: "Sáb", adm: 2, svo: 4, total: 6, height: "32%" },
+    { day: "Dom", adm: 1, svo: 3, total: 4, height: "22%" },
+  ];
 
   // Lista de solicitações e viagens operacionais (Level 3 Operational Data)
   const solicitacoes = [
     {
-      id: 'TR-2026-087',
-      categoria: 'Administrativa / LACEN',
-      titulo: 'Remessa de Amostras Biológicas',
-      origemDestino: 'LACEN → Hemocentro (Hemose)',
-      veiculo: 'Renault Master (IAF-4820)',
-      motorista: 'Carlos Alberto Santos',
-      horario: '14:30',
-      status: 'Pendente' as const,
-      statusKey: 'PENDENTE',
-      esperaMinutos: '14 min',
+      id: "TR-2026-087",
+      categoria: "Administrativa / LACEN",
+      titulo: "Remessa de Amostras Biológicas",
+      origemDestino: "LACEN → Hemocentro (Hemose)",
+      veiculo: "Renault Master (IAF-4820)",
+      motorista: "Carlos Alberto Santos",
+      horario: "14:30",
+      status: "Pendente" as const,
+      statusKey: "PENDENTE",
+      esperaMinutos: "14 min",
     },
     {
-      id: 'SVO-2026-042',
-      categoria: 'SVO Especializada',
-      titulo: 'Ordem de Verificação Domiciliar',
-      origemDestino: 'Base SVO → Atalaia (Zona Sul)',
-      veiculo: 'Chevrolet S10 4x4 (QMA-9124)',
-      motorista: 'Marcos Vinícius Silva',
-      horario: '13:15',
-      status: 'Em trânsito' as const,
-      statusKey: 'TRANSITO',
-      previsaoRetorno: '15:10',
+      id: "SVO-2026-042",
+      categoria: "SVO Especializada",
+      titulo: "Ordem de Verificação Domiciliar",
+      origemDestino: "Base SVO → Atalaia (Zona Sul)",
+      veiculo: "Chevrolet S10 4x4 (QMA-9124)",
+      motorista: "Marcos Vinícius Silva",
+      horario: "13:15",
+      status: "Em trânsito" as const,
+      statusKey: "TRANSITO",
+      previsaoRetorno: "15:10",
     },
     {
-      id: 'TR-2026-086',
-      categoria: 'Administrativa / SES',
-      titulo: 'Deslocamento Técnico de Diretoria',
-      origemDestino: 'FSPH Sede → Secretaria de Estado da Saúde',
-      veiculo: 'Chevrolet Spin (BRA-2E19)',
-      motorista: 'João Paulo Lima',
-      horario: '11:00',
-      status: 'Aprovada' as const,
-      statusKey: 'TRANSITO',
-      previsaoRetorno: '16:00',
+      id: "TR-2026-086",
+      categoria: "Administrativa / SES",
+      titulo: "Deslocamento Técnico de Diretoria",
+      origemDestino: "FSPH Sede → Secretaria de Estado da Saúde",
+      veiculo: "Chevrolet Spin (BRA-2E19)",
+      motorista: "João Paulo Lima",
+      horario: "11:00",
+      status: "Aprovada" as const,
+      statusKey: "TRANSITO",
+      previsaoRetorno: "16:00",
     },
     {
-      id: 'SVO-2026-041',
-      categoria: 'SVO Especializada',
-      titulo: 'Protocolo de Desinfecção Terminal',
-      origemDestino: 'Pátio de Assepsia · Box 02',
-      veiculo: 'Chevrolet S10 Especializada (QKN-5582)',
-      motorista: 'Equipe de Higienização SVO',
-      horario: '09:40',
-      status: 'Desinfecção' as const,
-      statusKey: 'DESINFECCAO',
-      previsaoTermino: '15:30',
+      id: "SVO-2026-041",
+      categoria: "SVO Especializada",
+      titulo: "Protocolo de Desinfecção Terminal",
+      origemDestino: "Pátio de Assepsia · Box 02",
+      veiculo: "Chevrolet S10 Especializada (QKN-5582)",
+      motorista: "Equipe de Higienização SVO",
+      horario: "09:40",
+      status: "Desinfecção" as const,
+      statusKey: "DESINFECCAO",
+      previsaoTermino: "15:30",
     },
-  ]
+  ];
 
   const filteredSolicitacoes = solicitacoes.filter((item) => {
-    if (viagemFilter === 'TODAS') return true
-    if (viagemFilter === 'TRANSITO') return item.statusKey === 'TRANSITO'
-    if (viagemFilter === 'PENDENTE') return item.statusKey === 'PENDENTE'
-    if (viagemFilter === 'DESINFECCAO') return item.statusKey === 'DESINFECCAO'
-    return true
-  })
+    if (viagemFilter === "TODAS") return true;
+    if (viagemFilter === "TRANSITO") return item.statusKey === "TRANSITO";
+    if (viagemFilter === "PENDENTE") return item.statusKey === "PENDENTE";
+    if (viagemFilter === "DESINFECCAO") return item.statusKey === "DESINFECCAO";
+    return true;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -108,7 +108,7 @@ export const DashboardPage: React.FC = () => {
           {formattedDate}
         </p>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 mt-0.5">
-          Olá, {user?.nome || 'Gestor'}!
+          Olá, {user?.nome || "Gestor"}!
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
           Painel Geral de Operações · Frota Integrada &amp; SVO
@@ -124,9 +124,7 @@ export const DashboardPage: React.FC = () => {
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Viaturas Prontas
               </span>
-              <p className="text-sm font-semibold text-slate-800 mt-0.5">
-                Disponíveis na base
-              </p>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">Disponíveis na base</p>
             </div>
             <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/90 shadow-2xs">
               <Car className="w-4.5 h-4.5 stroke-[2]" />
@@ -154,9 +152,7 @@ export const DashboardPage: React.FC = () => {
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Em Deslocamento
               </span>
-              <p className="text-sm font-semibold text-slate-800 mt-0.5">
-                Viagens em trânsito
-              </p>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">Viagens em trânsito</p>
             </div>
             <div className="w-9 h-9 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/90 shadow-2xs">
               <TrendingUp className="w-4.5 h-4.5 stroke-[2]" />
@@ -184,9 +180,7 @@ export const DashboardPage: React.FC = () => {
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Fila de Espera
               </span>
-              <p className="text-sm font-semibold text-slate-800 mt-0.5">
-                Aguardando despacho
-              </p>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">Aguardando despacho</p>
             </div>
             <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100/90 shadow-2xs">
               <AlertTriangle className="w-4.5 h-4.5 stroke-[2]" />
@@ -214,9 +208,7 @@ export const DashboardPage: React.FC = () => {
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Biossegurança SVO
               </span>
-              <p className="text-sm font-semibold text-slate-800 mt-0.5">
-                Quarentena / Assepsia
-              </p>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">Quarentena / Assepsia</p>
             </div>
             <div className="w-9 h-9 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100/90 shadow-2xs">
               <ShieldAlert className="w-4.5 h-4.5 stroke-[2]" />
@@ -245,11 +237,12 @@ export const DashboardPage: React.FC = () => {
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
               <div>
-                <h2 className="text-base font-bold text-slate-900">
-                  Volume de Viagens na Semana
-                </h2>
+                <h2 className="text-base font-bold text-slate-900">Volume de Viagens na Semana</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  <span className="font-semibold text-blue-600">Pico Operacional: Terça-feira (18 viagens)</span> · LACEN e SVO
+                  <span className="font-semibold text-blue-600">
+                    Pico Operacional: Terça-feira (18 viagens)
+                  </span>{" "}
+                  · LACEN e SVO
                 </p>
               </div>
 
@@ -270,10 +263,10 @@ export const DashboardPage: React.FC = () => {
             <div className="mt-8">
               <div className="h-48 w-full flex items-end justify-between gap-3 px-2">
                 {weeklyData.map((item, index) => {
-                  const isHovered = hoveredBarIndex === index
-                  const total = item.adm + item.svo
-                  const admPercent = Math.round((item.adm / total) * 100)
-                  const svoPercent = 100 - admPercent
+                  const isHovered = hoveredBarIndex === index;
+                  const total = item.adm + item.svo;
+                  const admPercent = Math.round((item.adm / total) * 100);
+                  const svoPercent = 100 - admPercent;
 
                   return (
                     <div
@@ -285,7 +278,7 @@ export const DashboardPage: React.FC = () => {
                       {/* Tooltip Detalhado com Dados Analíticos */}
                       <div
                         className={`transition-all duration-150 bg-slate-900 text-white text-[11px] font-medium py-1.5 px-2.5 rounded-xl shadow-lg -mb-1 pointer-events-none z-10 flex flex-col items-center whitespace-nowrap ${
-                          isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                          isHovered ? "opacity-100 scale-100" : "opacity-0 scale-95"
                         }`}
                       >
                         <span className="font-bold text-white">{item.total} viagens</span>
@@ -311,20 +304,24 @@ export const DashboardPage: React.FC = () => {
                       {/* Rótulo do Dia da Semana */}
                       <span
                         className={`text-xs font-bold transition-colors ${
-                          item.isPeak ? 'text-blue-600' : 'text-slate-500 group-hover:text-slate-900'
+                          item.isPeak
+                            ? "text-blue-600"
+                            : "text-slate-500 group-hover:text-slate-900"
                         }`}
                       >
                         {item.day}
                       </span>
                     </div>
-                  )
+                  );
                 })}
               </div>
             </div>
           </div>
 
           <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Total consolidado: <strong>77 viagens</strong> nos últimos 7 dias</span>
+            <span>
+              Total consolidado: <strong>77 viagens</strong> nos últimos 7 dias
+            </span>
             <span className="font-medium text-blue-600">Meta semanal: 80% atendidas no prazo</span>
           </div>
         </Card>
@@ -354,8 +351,16 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="w-full h-3 bg-slate-200/70 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-blue-600" style={{ width: '50%' }} title="2 em trânsito" />
-                  <div className="h-full bg-emerald-500" style={{ width: '50%' }} title="2 disponíveis" />
+                  <div
+                    className="h-full bg-blue-600"
+                    style={{ width: "50%" }}
+                    title="2 em trânsito"
+                  />
+                  <div
+                    className="h-full bg-emerald-500"
+                    style={{ width: "50%" }}
+                    title="2 disponíveis"
+                  />
                 </div>
                 <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 mt-2">
                   <span className="flex items-center gap-1">
@@ -379,8 +384,16 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="w-full h-3 bg-slate-200/70 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-indigo-600" style={{ width: '67%' }} title="2 em atendimento externo" />
-                  <div className="h-full bg-rose-500" style={{ width: '33%' }} title="1 em desinfecção" />
+                  <div
+                    className="h-full bg-indigo-600"
+                    style={{ width: "67%" }}
+                    title="2 em atendimento externo"
+                  />
+                  <div
+                    className="h-full bg-rose-500"
+                    style={{ width: "33%" }}
+                    title="1 em desinfecção"
+                  />
                 </div>
                 <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 mt-2">
                   <span className="flex items-center gap-1">
@@ -396,7 +409,8 @@ export const DashboardPage: React.FC = () => {
               <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200/60 text-amber-900 text-xs">
                 <p className="font-semibold">Protocolo de Biossegurança Ativo</p>
                 <p className="text-[11px] text-amber-800 mt-0.5">
-                  Viaturas SVO passam obrigatoriamente por 45 min de desinfecção antes do retorno à disponibilidade.
+                  Viaturas SVO passam obrigatoriamente por 45 min de desinfecção antes do retorno à
+                  disponibilidade.
                 </p>
               </div>
             </div>
@@ -425,44 +439,44 @@ export const DashboardPage: React.FC = () => {
           <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/60 self-start sm:self-auto">
             <button
               type="button"
-              onClick={() => setViagemFilter('TODAS')}
+              onClick={() => setViagemFilter("TODAS")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                viagemFilter === 'TODAS'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                viagemFilter === "TODAS"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Todas (4)
             </button>
             <button
               type="button"
-              onClick={() => setViagemFilter('TRANSITO')}
+              onClick={() => setViagemFilter("TRANSITO")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                viagemFilter === 'TRANSITO'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                viagemFilter === "TRANSITO"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Em Trânsito (2)
             </button>
             <button
               type="button"
-              onClick={() => setViagemFilter('PENDENTE')}
+              onClick={() => setViagemFilter("PENDENTE")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                viagemFilter === 'PENDENTE'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                viagemFilter === "PENDENTE"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Pendentes (1)
             </button>
             <button
               type="button"
-              onClick={() => setViagemFilter('DESINFECCAO')}
+              onClick={() => setViagemFilter("DESINFECCAO")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                viagemFilter === 'DESINFECCAO'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                viagemFilter === "DESINFECCAO"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Assepsia (1)
@@ -483,9 +497,7 @@ export const DashboardPage: React.FC = () => {
                     {item.id}
                   </span>
                   <span className="text-xs font-semibold text-slate-400">·</span>
-                  <span className="text-xs font-semibold text-blue-600">
-                    {item.categoria}
-                  </span>
+                  <span className="text-xs font-semibold text-blue-600">{item.categoria}</span>
                   <span className="text-xs text-slate-400">·</span>
                   <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
                     <Clock className="w-3 h-3 text-slate-400" />
@@ -493,29 +505,27 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
 
-                <p className="text-sm font-bold text-slate-900">
-                  {item.titulo}
-                </p>
+                <p className="text-sm font-bold text-slate-900">{item.titulo}</p>
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                  <span><strong>Trajeto:</strong> {item.origemDestino}</span>
-                  <span><strong>Viatura:</strong> {item.veiculo}</span>
-                  <span><strong>Condutor:</strong> {item.motorista}</span>
+                  <span>
+                    <strong>Trajeto:</strong> {item.origemDestino}
+                  </span>
+                  <span>
+                    <strong>Viatura:</strong> {item.veiculo}
+                  </span>
+                  <span>
+                    <strong>Condutor:</strong> {item.motorista}
+                  </span>
                 </div>
               </div>
 
               {/* Status e Ação Operacional Direta */}
               <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                {item.status === 'Pendente' && (
-                  <Badge variant="warning">Aguardando Despacho</Badge>
-                )}
-                {item.status === 'Em trânsito' && (
-                  <Badge variant="info">Em Trânsito</Badge>
-                )}
-                {item.status === 'Aprovada' && (
-                  <Badge variant="success">Em Rota (Aprovada)</Badge>
-                )}
-                {item.status === 'Desinfecção' && (
+                {item.status === "Pendente" && <Badge variant="warning">Aguardando Despacho</Badge>}
+                {item.status === "Em trânsito" && <Badge variant="info">Em Trânsito</Badge>}
+                {item.status === "Aprovada" && <Badge variant="success">Em Rota (Aprovada)</Badge>}
+                {item.status === "Desinfecção" && (
                   <Badge variant="danger">Desinfecção Terminal</Badge>
                 )}
 
@@ -534,5 +544,5 @@ export const DashboardPage: React.FC = () => {
         </div>
       </Card>
     </div>
-  )
-}
+  );
+};

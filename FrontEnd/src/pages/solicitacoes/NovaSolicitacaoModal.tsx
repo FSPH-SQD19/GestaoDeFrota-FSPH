@@ -1,88 +1,92 @@
-import React, { useEffect } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { AlertTriangle, Send } from 'lucide-react'
-import { Button, Input, Modal, Select, Textarea } from '../../components/common'
+import React, { useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { AlertTriangle, Send } from "lucide-react";
+import { Button, Input, Modal, Select, Textarea } from "../../components/common";
 import {
   SETORES_FSPH,
   TIPO_TRANSPORTE_LABEL,
   type NovaSolicitacaoViagem,
   type TipoTransporte,
-} from '../../types/solicitacao'
+} from "../../types/solicitacao";
 
-const FORM_ID = 'nova-solicitacao-form'
+const FORM_ID = "nova-solicitacao-form";
 
-const tiposTransporte = Object.keys(TIPO_TRANSPORTE_LABEL) as [TipoTransporte, ...TipoTransporte[]]
+const tiposTransporte = Object.keys(TIPO_TRANSPORTE_LABEL) as [TipoTransporte, ...TipoTransporte[]];
 
 const solicitacaoSchema = z
   .object({
-    setorOrigem: z.string().min(1, 'Selecione o setor solicitante.'),
-    origem: z.string().trim().min(3, 'Informe o local de partida.').max(150),
-    destino: z.string().trim().min(3, 'Informe o destino da viagem.').max(150),
-    dataHoraPretendida: z.string().min(1, 'Informe a data e hora de saída.'),
+    setorOrigem: z.string().min(1, "Selecione o setor solicitante."),
+    origem: z.string().trim().min(3, "Informe o local de partida.").max(150),
+    destino: z.string().trim().min(3, "Informe o destino da viagem.").max(150),
+    dataHoraPretendida: z.string().min(1, "Informe a data e hora de saída."),
     dataHoraRetornoPrevista: z.string().optional(),
     quantidadePassageiros: z
       .string()
-      .regex(/^\d+$/, 'Informe um número inteiro.')
-      .refine((v) => Number(v) <= 15, 'Máximo de 15 passageiros por viagem.'),
-    tipoTransporte: z.enum(tiposTransporte, { message: 'Selecione o tipo de transporte.' }),
-    urgencia: z.enum(['NORMAL', 'URGENTE']),
+      .regex(/^\d+$/, "Informe um número inteiro.")
+      .refine((v) => Number(v) <= 15, "Máximo de 15 passageiros por viagem."),
+    tipoTransporte: z.enum(tiposTransporte, { message: "Selecione o tipo de transporte." }),
+    urgencia: z.enum(["NORMAL", "URGENTE"]),
     justificativa: z
       .string()
       .trim()
-      .min(10, 'Descreva a justificativa com pelo menos 10 caracteres.')
-      .max(500, 'A justificativa deve ter no máximo 500 caracteres.'),
-    observacoes: z.string().max(300, 'Máximo de 300 caracteres.').optional(),
+      .min(10, "Descreva a justificativa com pelo menos 10 caracteres.")
+      .max(500, "A justificativa deve ter no máximo 500 caracteres."),
+    observacoes: z.string().max(300, "Máximo de 300 caracteres.").optional(),
   })
   .superRefine((data, ctx) => {
-    const saida = new Date(data.dataHoraPretendida)
+    const saida = new Date(data.dataHoraPretendida);
     if (data.dataHoraPretendida && (Number.isNaN(saida.getTime()) || saida <= new Date())) {
       ctx.addIssue({
-        code: 'custom',
-        path: ['dataHoraPretendida'],
-        message: 'A data de saída deve ser futura.',
-      })
+        code: "custom",
+        path: ["dataHoraPretendida"],
+        message: "A data de saída deve ser futura.",
+      });
     }
     if (data.dataHoraRetornoPrevista) {
-      const retorno = new Date(data.dataHoraRetornoPrevista)
+      const retorno = new Date(data.dataHoraRetornoPrevista);
       if (Number.isNaN(retorno.getTime()) || retorno <= saida) {
         ctx.addIssue({
-          code: 'custom',
-          path: ['dataHoraRetornoPrevista'],
-          message: 'O retorno deve ser posterior à saída.',
-        })
+          code: "custom",
+          path: ["dataHoraRetornoPrevista"],
+          message: "O retorno deve ser posterior à saída.",
+        });
       }
     }
-    if (data.tipoTransporte !== 'MATERIAL_BIOLOGICO' && data.tipoTransporte !== 'DOCUMENTOS_INSUMOS' && Number(data.quantidadePassageiros) < 1) {
+    if (
+      data.tipoTransporte !== "MATERIAL_BIOLOGICO" &&
+      data.tipoTransporte !== "DOCUMENTOS_INSUMOS" &&
+      Number(data.quantidadePassageiros) < 1
+    ) {
       ctx.addIssue({
-        code: 'custom',
-        path: ['quantidadePassageiros'],
-        message: 'Informe ao menos 1 passageiro para este tipo de transporte.',
-      })
+        code: "custom",
+        path: ["quantidadePassageiros"],
+        message: "Informe ao menos 1 passageiro para este tipo de transporte.",
+      });
     }
-  })
+  });
 
-type SolicitacaoFormData = z.infer<typeof solicitacaoSchema>
+type SolicitacaoFormData = z.infer<typeof solicitacaoSchema>;
 
 const defaultValues: SolicitacaoFormData = {
-  setorOrigem: '',
-  origem: '',
-  destino: '',
-  dataHoraPretendida: '',
-  dataHoraRetornoPrevista: '',
-  quantidadePassageiros: '1',
-  tipoTransporte: 'PASSAGEIROS',
-  urgencia: 'NORMAL',
-  justificativa: '',
-  observacoes: '',
-}
+  setorOrigem: "",
+  origem: "",
+  destino: "",
+  dataHoraPretendida: "",
+  dataHoraRetornoPrevista: "",
+  quantidadePassageiros: "1",
+  tipoTransporte: "PASSAGEIROS",
+  urgencia: "NORMAL",
+  justificativa: "",
+  observacoes: "",
+};
 
 interface NovaSolicitacaoModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (dados: NovaSolicitacaoViagem) => Promise<void> | void
-  setorPadrao?: string
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (dados: NovaSolicitacaoViagem) => Promise<void> | void;
+  setorPadrao?: string;
 }
 
 export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
@@ -99,14 +103,14 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
     formState: { errors, isSubmitting },
   } = useForm<SolicitacaoFormData>({
     resolver: zodResolver(solicitacaoSchema),
-    defaultValues: { ...defaultValues, setorOrigem: setorPadrao ?? '' },
-  })
+    defaultValues: { ...defaultValues, setorOrigem: setorPadrao ?? "" },
+  });
 
   useEffect(() => {
-    if (isOpen) reset({ ...defaultValues, setorOrigem: setorPadrao ?? '' })
-  }, [isOpen, reset, setorPadrao])
+    if (isOpen) reset({ ...defaultValues, setorOrigem: setorPadrao ?? "" });
+  }, [isOpen, reset, setorPadrao]);
 
-  const urgencia = useWatch({ control, name: 'urgencia' })
+  const urgencia = useWatch({ control, name: "urgencia" });
 
   const submit = async (data: SolicitacaoFormData) => {
     await onSubmit({
@@ -122,8 +126,8 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
       urgencia: data.urgencia,
       justificativa: data.justificativa.trim(),
       observacoes: data.observacoes?.trim() || undefined,
-    })
-  }
+    });
+  };
 
   return (
     <Modal
@@ -158,21 +162,21 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
             placeholder="Selecione o setor"
             options={SETORES_FSPH.map((s) => ({ value: s, label: s }))}
             error={errors.setorOrigem?.message}
-            {...register('setorOrigem')}
+            {...register("setorOrigem")}
           />
           <Select
             label="Urgência"
             required
             options={[
-              { value: 'NORMAL', label: 'Normal' },
-              { value: 'URGENTE', label: 'Urgente' },
+              { value: "NORMAL", label: "Normal" },
+              { value: "URGENTE", label: "Urgente" },
             ]}
             error={errors.urgencia?.message}
-            {...register('urgencia')}
+            {...register("urgencia")}
           />
         </div>
 
-        {urgencia === 'URGENTE' && (
+        {urgencia === "URGENTE" && (
           <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
@@ -189,14 +193,14 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
             required
             placeholder="Ex: LACEN — Rua Campo do Brito"
             error={errors.origem?.message}
-            {...register('origem')}
+            {...register("origem")}
           />
           <Input
             label="Destino"
             required
             placeholder="Ex: Hospital Regional de Itabaiana"
             error={errors.destino?.message}
-            {...register('destino')}
+            {...register("destino")}
           />
         </div>
 
@@ -208,7 +212,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
             type="datetime-local"
             required
             error={errors.dataHoraPretendida?.message}
-            {...register('dataHoraPretendida')}
+            {...register("dataHoraPretendida")}
           />
           <Input
             id="dataHoraRetornoPrevista"
@@ -216,7 +220,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
             type="datetime-local"
             helperText="Opcional — deixe em branco se for só ida."
             error={errors.dataHoraRetornoPrevista?.message}
-            {...register('dataHoraRetornoPrevista')}
+            {...register("dataHoraRetornoPrevista")}
           />
         </div>
 
@@ -227,7 +231,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
             required
             options={tiposTransporte.map((t) => ({ value: t, label: TIPO_TRANSPORTE_LABEL[t] }))}
             error={errors.tipoTransporte?.message}
-            {...register('tipoTransporte')}
+            {...register("tipoTransporte")}
           />
           <Input
             id="quantidadePassageiros"
@@ -237,7 +241,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
             max={15}
             required
             error={errors.quantidadePassageiros?.message}
-            {...register('quantidadePassageiros')}
+            {...register("quantidadePassageiros")}
           />
         </div>
 
@@ -247,7 +251,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           rows={3}
           placeholder="Descreva o motivo da viagem..."
           error={errors.justificativa?.message}
-          {...register('justificativa')}
+          {...register("justificativa")}
         />
 
         <Textarea
@@ -255,9 +259,9 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           rows={2}
           placeholder="Contato no destino, cuidados com a carga, etc. (opcional)"
           error={errors.observacoes?.message}
-          {...register('observacoes')}
+          {...register("observacoes")}
         />
       </form>
     </Modal>
-  )
-}
+  );
+};

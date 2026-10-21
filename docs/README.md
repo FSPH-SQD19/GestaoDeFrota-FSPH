@@ -4,17 +4,17 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 
 ## Guias
 
-| Documento | Conteúdo |
-| --- | --- |
-| [Início](INICIO.md) | Comandos npm e divisão das pastas. |
-| [Projeto](PROJETO.md) | Contexto, escopo, regras de negócio, tecnologias, equipe e licença. |
-| [Ambiente](AMBIENTE.md) | Node.js, variáveis de ambiente, banco, migrations e Docker. |
-| [Front-end](FRONTEND.md) | Organização das telas, componentes, perfis e padrões de interface. |
-| [Back-end](BACKEND.md) | Organização da API, autenticação, endpoints e regras de veículos. |
-| [Testes](TESTES.md) | Como criar e executar testes, lint e cobertura. |
-| [CI](CI.md) | Verificações nos PRs e comentário automático do bot. |
-| [GitHub](GITHUB.md) | Fluxo da equipe: branch, commit, PR e merge na `master`. |
-| [Identidade visual](IDENTIDADE_VISUAL.md) | Marca ROTA, cores, tipografia, arquivos e aplicações. |
+| Documento                                 | Conteúdo                                                            |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| [Início](INICIO.md)                       | Comandos npm e divisão das pastas.                                  |
+| [Projeto](PROJETO.md)                     | Contexto, escopo, regras de negócio, tecnologias, equipe e licença. |
+| [Ambiente](AMBIENTE.md)                   | Node.js, variáveis de ambiente, banco, migrations e Docker.         |
+| [Front-end](FRONTEND.md)                  | Organização das telas, componentes, perfis e padrões de interface.  |
+| [Back-end](BACKEND.md)                    | Organização da API, autenticação, endpoints e regras de veículos.   |
+| [Testes](TESTES.md)                       | Como criar e executar testes, lint e cobertura.                     |
+| [CI](CI.md)                               | Verificações nos PRs e comentário automático do bot.                |
+| [GitHub](GITHUB.md)                       | Fluxo da equipe: branch, commit, PR e merge na `master`.            |
+| [Identidade visual](IDENTIDADE_VISUAL.md) | Marca ROTA, cores, tipografia, arquivos e aplicações.               |
 
 ## Por onde começar
 

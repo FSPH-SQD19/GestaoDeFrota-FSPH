@@ -1,110 +1,110 @@
-import React, { useState } from 'react'
-import { Plus, Search, Truck, Fuel, Eye } from 'lucide-react'
-import { Table, Badge, Button, Input, Select, Modal, Card } from '../../components/common'
-import type { Column } from '../../components/common/Table'
+import React, { useState } from "react";
+import { Plus, Search, Truck, Fuel, Eye } from "lucide-react";
+import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
+import type { Column } from "../../components/common/Table";
 
 interface VeiculoItem {
-  id: string
-  placa: string
-  modelo: string
-  tipoFrota: 'Administrativa' | 'SVO'
-  capacidade: number
-  combustivel: string
-  ano: number
-  status: 'Disponível' | 'Em viagem' | 'Manutenção' | 'Desinfecção'
+  id: string;
+  placa: string;
+  modelo: string;
+  tipoFrota: "Administrativa" | "SVO";
+  capacidade: number;
+  combustivel: string;
+  ano: number;
+  status: "Disponível" | "Em viagem" | "Manutenção" | "Desinfecção";
 }
 
 export const VeiculosPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [tabFilter, setTabFilter] = useState<'TODOS' | 'ADMIN' | 'SVO'>('TODOS')
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [tabFilter, setTabFilter] = useState<"TODOS" | "ADMIN" | "SVO">("TODOS");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const veiculos: VeiculoItem[] = [
     {
-      id: '1',
-      placa: 'IAF-4820',
-      modelo: 'Renault Master L3H2 Furgão',
-      tipoFrota: 'Administrativa',
+      id: "1",
+      placa: "IAF-4820",
+      modelo: "Renault Master L3H2 Furgão",
+      tipoFrota: "Administrativa",
       capacidade: 3,
-      combustivel: 'Diesel S10',
+      combustivel: "Diesel S10",
       ano: 2024,
-      status: 'Disponível',
+      status: "Disponível",
     },
     {
-      id: '2',
-      placa: 'QMA-9124',
-      modelo: 'Chevrolet S10 Cabine Dupla 2.8',
-      tipoFrota: 'SVO',
+      id: "2",
+      placa: "QMA-9124",
+      modelo: "Chevrolet S10 Cabine Dupla 2.8",
+      tipoFrota: "SVO",
       capacidade: 4,
-      combustivel: 'Diesel S10',
+      combustivel: "Diesel S10",
       ano: 2023,
-      status: 'Em viagem',
+      status: "Em viagem",
     },
     {
-      id: '3',
-      placa: 'NVL-3011',
-      modelo: 'Fiat Ducato Maxi Cargo 2.3',
-      tipoFrota: 'Administrativa',
+      id: "3",
+      placa: "NVL-3011",
+      modelo: "Fiat Ducato Maxi Cargo 2.3",
+      tipoFrota: "Administrativa",
       capacidade: 3,
-      combustivel: 'Diesel',
+      combustivel: "Diesel",
       ano: 2022,
-      status: 'Disponível',
+      status: "Disponível",
     },
     {
-      id: '4',
-      placa: 'QKN-5582',
-      modelo: 'Chevrolet S10 4x4 Especializada SVO',
-      tipoFrota: 'SVO',
+      id: "4",
+      placa: "QKN-5582",
+      modelo: "Chevrolet S10 4x4 Especializada SVO",
+      tipoFrota: "SVO",
       capacidade: 4,
-      combustivel: 'Diesel S10',
+      combustivel: "Diesel S10",
       ano: 2024,
-      status: 'Desinfecção',
+      status: "Desinfecção",
     },
     {
-      id: '5',
-      placa: 'QNE-1934',
-      modelo: 'Toyota Hilux 4x4 Administrativa',
-      tipoFrota: 'Administrativa',
+      id: "5",
+      placa: "QNE-1934",
+      modelo: "Toyota Hilux 4x4 Administrativa",
+      tipoFrota: "Administrativa",
       capacidade: 5,
-      combustivel: 'Diesel',
+      combustivel: "Diesel",
       ano: 2023,
-      status: 'Em viagem',
+      status: "Em viagem",
     },
     {
-      id: '6',
-      placa: 'BRA-2E19',
-      modelo: 'Chevrolet Spin 1.8 LTZ',
-      tipoFrota: 'Administrativa',
+      id: "6",
+      placa: "BRA-2E19",
+      modelo: "Chevrolet Spin 1.8 LTZ",
+      tipoFrota: "Administrativa",
       capacidade: 7,
-      combustivel: 'Flex',
+      combustivel: "Flex",
       ano: 2024,
-      status: 'Em viagem',
+      status: "Em viagem",
     },
     {
-      id: '7',
-      placa: 'QZB-8812',
-      modelo: 'Chevrolet S10 Especializada SVO',
-      tipoFrota: 'SVO',
+      id: "7",
+      placa: "QZB-8812",
+      modelo: "Chevrolet S10 Especializada SVO",
+      tipoFrota: "SVO",
       capacidade: 4,
-      combustivel: 'Diesel S10',
+      combustivel: "Diesel S10",
       ano: 2024,
-      status: 'Em viagem',
+      status: "Em viagem",
     },
-  ]
+  ];
 
   const filteredVeiculos = veiculos.filter((v) => {
     const matchesSearch =
       v.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.modelo.toLowerCase().includes(searchTerm.toLowerCase())
+      v.modelo.toLowerCase().includes(searchTerm.toLowerCase());
 
-    if (tabFilter === 'ADMIN') return matchesSearch && v.tipoFrota === 'Administrativa'
-    if (tabFilter === 'SVO') return matchesSearch && v.tipoFrota === 'SVO'
-    return matchesSearch
-  })
+    if (tabFilter === "ADMIN") return matchesSearch && v.tipoFrota === "Administrativa";
+    if (tabFilter === "SVO") return matchesSearch && v.tipoFrota === "SVO";
+    return matchesSearch;
+  });
 
   const columns: Column<VeiculoItem>[] = [
     {
-      header: 'Identificação / Placa',
+      header: "Identificação / Placa",
       render: (v) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700 font-bold shrink-0">
@@ -120,7 +120,7 @@ export const VeiculosPage: React.FC = () => {
       ),
     },
     {
-      header: 'Modelo do Veículo',
+      header: "Modelo do Veículo",
       render: (v) => (
         <div>
           <span className="font-bold text-slate-900 text-sm block">{v.modelo}</span>
@@ -132,39 +132,39 @@ export const VeiculosPage: React.FC = () => {
       ),
     },
     {
-      header: 'Frota Alocada',
+      header: "Frota Alocada",
       render: (v) => (
-        <Badge variant={v.tipoFrota === 'SVO' ? 'danger' : 'info'} size="md">
-          {v.tipoFrota === 'SVO' ? 'Frota SVO (Óbitos)' : 'Frota Administrativa'}
+        <Badge variant={v.tipoFrota === "SVO" ? "danger" : "info"} size="md">
+          {v.tipoFrota === "SVO" ? "Frota SVO (Óbitos)" : "Frota Administrativa"}
         </Badge>
       ),
     },
     {
-      header: 'Capacidade',
+      header: "Capacidade",
       render: (v) => (
         <span className="text-xs text-slate-700 font-bold bg-slate-100 px-2.5 py-1 rounded-lg">
-          {v.tipoFrota === 'SVO' ? `${v.capacidade} urnas (Portaria)` : `${v.capacidade} ocupantes`}
+          {v.tipoFrota === "SVO" ? `${v.capacidade} urnas (Portaria)` : `${v.capacidade} ocupantes`}
         </span>
       ),
     },
     {
-      header: 'Status Operacional',
+      header: "Status Operacional",
       render: (v) => {
         const variantMap = {
-          Disponível: 'success' as const,
-          'Em viagem': 'info' as const,
-          Manutenção: 'warning' as const,
-          Desinfecção: 'danger' as const,
-        }
+          Disponível: "success" as const,
+          "Em viagem": "info" as const,
+          Manutenção: "warning" as const,
+          Desinfecção: "danger" as const,
+        };
         return (
           <Badge variant={variantMap[v.status]} dot size="md">
-            {v.status === 'Desinfecção' ? 'Em Desinfecção Sanitária' : v.status}
+            {v.status === "Desinfecção" ? "Em Desinfecção Sanitária" : v.status}
           </Badge>
-        )
+        );
       },
     },
     {
-      header: 'Ações',
+      header: "Ações",
       render: () => (
         <button
           type="button"
@@ -175,7 +175,7 @@ export const VeiculosPage: React.FC = () => {
         </button>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -243,33 +243,33 @@ export const VeiculosPage: React.FC = () => {
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl shrink-0">
           <button
             type="button"
-            onClick={() => setTabFilter('TODOS')}
+            onClick={() => setTabFilter("TODOS")}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              tabFilter === 'TODOS'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
+              tabFilter === "TODOS"
+                ? "bg-white text-slate-900 shadow-2xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             Todos ({veiculos.length})
           </button>
           <button
             type="button"
-            onClick={() => setTabFilter('ADMIN')}
+            onClick={() => setTabFilter("ADMIN")}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              tabFilter === 'ADMIN'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
+              tabFilter === "ADMIN"
+                ? "bg-blue-600 text-white shadow-2xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             Administrativa (4)
           </button>
           <button
             type="button"
-            onClick={() => setTabFilter('SVO')}
+            onClick={() => setTabFilter("SVO")}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              tabFilter === 'SVO'
-                ? 'bg-rose-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
+              tabFilter === "SVO"
+                ? "bg-rose-600 text-white shadow-2xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             SVO (3)
@@ -308,14 +308,21 @@ export const VeiculosPage: React.FC = () => {
       >
         <div className="space-y-4">
           <Input label="Placa (Padrão Mercosul ou CTB)" placeholder="Ex: BRA2E19" required />
-          <Input label="Modelo e Fabricante" placeholder="Ex: Chevrolet S10 2.8 Turbo 4x4" required />
+          <Input
+            label="Modelo e Fabricante"
+            placeholder="Ex: Chevrolet S10 2.8 Turbo 4x4"
+            required
+          />
           <Select
             label="Tipo de Frota"
             required
             defaultValue="Administrativa"
             options={[
-              { value: 'Administrativa', label: 'Frota Administrativa (LACEN, Hemose, Diretoria)' },
-              { value: 'SVO', label: 'Frota Especializada SVO (Com protocolo de desinfecção biológica)' },
+              { value: "Administrativa", label: "Frota Administrativa (LACEN, Hemose, Diretoria)" },
+              {
+                value: "SVO",
+                label: "Frota Especializada SVO (Com protocolo de desinfecção biológica)",
+              },
             ]}
           />
           <div className="grid grid-cols-2 gap-3">
@@ -326,5 +333,5 @@ export const VeiculosPage: React.FC = () => {
         </div>
       </Modal>
     </div>
-  )
-}
+  );
+};
