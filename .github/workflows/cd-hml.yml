@@ -42,6 +42,7 @@ jobs:
       - name: Aplicar migrações pendentes no Neon
         env:
           DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_MIGRATIONS }}
         run: |
           if [ -z "$DATABASE_URL_MIGRATIONS" ]; then
             echo "::error::Configure DATABASE_URL_MIGRATIONS no ambiente hml do GitHub."

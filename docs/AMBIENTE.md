@@ -82,7 +82,7 @@ npm run dev
 
 `migrate deploy` aplica as migrations versionadas ao banco configurado. Confira o destino de `DATABASE_URL` antes de executar. A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Para autenticar na API, cadastre um usuário ativo com senha em hash bcrypt e associe os perfis necessários.
 
-No CD de HML, o workflow aplica as migrations antes do deploy usando `DATABASE_URL_MIGRATIONS`. Cadastre a URL direta do Neon como secret em **GitHub → Settings → Environments → hml**. No Neon, selecione o banco `neondb`, a branch compartilhada com desenvolvimento, a role com permissões de migração e desative o connection pooling para copiar a URL direta. Como HML e desenvolvimento compartilham o banco, cada migration altera o schema usado pelos dois ambientes.
+No CD de HML, o workflow aplica as migrations antes do deploy usando `DATABASE_URL_MIGRATIONS`. O mesmo valor também é fornecido como `DATABASE_URL`, exigido pela declaração `env("DATABASE_URL")` no schema Prisma. Cadastre a URL direta do Neon como secret em **GitHub → Settings → Environments → hml**. No Neon, selecione o banco `neondb`, a branch compartilhada com desenvolvimento, a role com permissões de migração e desative o connection pooling para copiar a URL direta. Como HML e desenvolvimento compartilham o banco, cada migration altera o schema usado pelos dois ambientes.
 
 ## Executar todos os serviços com Docker
 
