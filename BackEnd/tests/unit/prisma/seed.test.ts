@@ -15,6 +15,7 @@ vi.mock('@prisma/client', () => ({
         $disconnect = mocks.$disconnect
     },
 }))
+vi.mock('@prisma/adapter-pg', () => ({ PrismaPg: class {} }))
 vi.mock('../../../src/service/password_s', () => ({ hashPassword: mocks.hashPassword }))
 vi.mock('dotenv/config', () => ({}))
 
@@ -29,6 +30,7 @@ function upsert(rows: Map<string, Row>, key: string, { create, update }: Upsert)
 }
 
 it('executa o seed duas vezes sem duplicar usuários, perfis ou vínculos e atualiza os registros existentes', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgresql://usuario:senha@localhost:5432/teste')
     const perfis = new Map<string, Row>()
     const usuarios = new Map<string, Row>()
     const vinculos = new Map<string, Row>()

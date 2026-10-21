@@ -25,3 +25,13 @@ export function getAuthConfig(): AuthConfig {
     config ??= loadAuthConfig();
     return config;
 }
+
+export function configureAuthConfig(secret: string): void {
+    if (!/^[a-f0-9]{128}$/.test(secret)) {
+        throw new Error("JWT_SECRET deve conter 64 bytes aleatórios em hexadecimal.");
+    }
+    if (config && config.secret !== secret) {
+        throw new Error("JWT_SECRET mudou durante a execução do Worker.");
+    }
+    config ??= { secret, expiresIn: 8 * 60 * 60 };
+}

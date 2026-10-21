@@ -1,11 +1,24 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient;
-};
+export let prisma: PrismaClient;
+let configuredConnectionString: string | undefined;
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+export function initializePrisma(connectionString: string): PrismaClient {
+  if (!connectionString) {
+    throw new Error("DATABASE_URL não configurada.");
+  }
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+  if (prisma) {
+    if (configuredConnectionString !== connectionString) {
+      throw new Error("O Prisma já foi inicializado com outra conexão.");
+    }
+    return prisma;
+  }
+
+  configuredConnectionString = connectionString;
+  prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString, max: 5 }),
+  });
+  return prisma;
 }

@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "gestao-frota",
+  "main": "BackEnd/src/worker.ts",
+  "compatibility_date": "2026-10-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./FrontEnd/dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/health",
+      "/auth",
+      "/auth/*",
+      "/api/*",
+      "/motoristas",
+      "/motoristas/*"
+    ]
+  },
+  "env": {
+    "hml": {
+      "name": "gestao-frota-hml",
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "SUBSTITUIR_PELO_ID_DO_HYPERDRIVE"
+        }
+      ],
+      "assets": {
+        "directory": "./FrontEnd/dist",
+        "binding": "ASSETS",
+        "run_worker_first": [
+          "/health",
+          "/auth",
+          "/auth/*",
+          "/api/*",
+          "/motoristas",
+          "/motoristas/*"
+        ]
+      }
+    }
+  }
+}

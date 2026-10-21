@@ -1,8 +1,10 @@
 import "dotenv/config";
 import { app } from "./app";
 import { getAuthConfig } from "./config/auth";
+import { initializePrisma } from "./lib/prisma";
 
 getAuthConfig();
+initializePrisma(process.env.DATABASE_URL ?? "");
 
 const port = Number(process.env.PORT ?? 3000);
 
