@@ -2,7 +2,8 @@
 @source not "../tests";
 
 @theme {
-  --font-sans: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans:
+    "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   /* Paleta ROTA · FSPH (Diretrizes UI/UX Pro Max & Dashboard Designer) */
   --color-rota-cobalt: #2563eb;
@@ -21,7 +22,8 @@
   --color-sidebar-hover: #1e2638;
 }
 
-html, body {
+html,
+body {
   font-family: var(--font-sans);
   background-color: #f8fafc;
   color: #0f172a;

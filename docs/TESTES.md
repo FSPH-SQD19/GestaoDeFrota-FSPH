@@ -121,64 +121,66 @@ O Tailwind ignora `FrontEnd/tests` ao detectar classes, evitando que classes usa
 
 Um teste costuma ter três partes: **preparação** dos dados, **execução** da ação e **verificação** do resultado. Cada `it` deve explicar o comportamento esperado.
 
-| Recurso | Uso |
-| --- | --- |
-| `describe` | Agrupa os testes de uma função ou componente. |
-| `it` | Define um cenário de teste. |
-| `expect` | Verifica um resultado ou uma interação. |
-| `vi.fn` | Cria uma função simulada e registra suas chamadas. |
-| `vi.mock` | Substitui um módulo, como o acesso ao banco. |
-| `beforeEach` | Executa a preparação antes de cada cenário. |
+| Recurso      | Uso                                                |
+| ------------ | -------------------------------------------------- |
+| `describe`   | Agrupa os testes de uma função ou componente.      |
+| `it`         | Define um cenário de teste.                        |
+| `expect`     | Verifica um resultado ou uma interação.            |
+| `vi.fn`      | Cria uma função simulada e registra suas chamadas. |
+| `vi.mock`    | Substitui um módulo, como o acesso ao banco.       |
+| `beforeEach` | Executa a preparação antes de cada cenário.        |
 
 ### Exemplo no back-end: serviço com acesso ao banco
 
 O exemplo abaixo segue o teste existente em `BackEnd/tests/unit/service/auditoria_s.test.ts`. Use-o como modelo para novos serviços; não é necessário criar uma cópia desse teste.
 
 ```ts
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Disponibiliza o mock para a substituição do módulo feita pelo Vitest.
-const mocks = vi.hoisted(() => ({ create: vi.fn() }))
+const mocks = vi.hoisted(() => ({ create: vi.fn() }));
 
-vi.mock('../../../src/lib/prisma', () => ({
+vi.mock("../../../src/lib/prisma", () => ({
   prisma: { auditoriaSistema: { create: mocks.create } },
-}))
+}));
 
-import { registrarAuditoria } from '../../../src/service/auditoria_s'
+import { registrarAuditoria } from "../../../src/service/auditoria_s";
 
-describe('registrarAuditoria', () => {
-  beforeEach(() => vi.resetAllMocks())
+describe("registrarAuditoria", () => {
+  beforeEach(() => vi.resetAllMocks());
 
-  it('usa null nos campos opcionais quando não são informados', async () => {
+  it("usa null nos campos opcionais quando não são informados", async () => {
     // Preparação
     const input = {
-      acao: 'CRIAR',
-      tabelaAfetada: 'veiculos',
-      dadosNovos: { placa: 'ABC1D23' },
-    }
-    const registro = { id: 'auditoria-teste' }
-    mocks.create.mockResolvedValue(registro)
+      acao: "CRIAR",
+      tabelaAfetada: "veiculos",
+      dadosNovos: { placa: "ABC1D23" },
+    };
+    const registro = { id: "auditoria-teste" };
+    mocks.create.mockResolvedValue(registro);
 
     // Execução
-    const resultado = await registrarAuditoria(input)
+    const resultado = await registrarAuditoria(input);
 
     // Verificação
-    expect(resultado).toBe(registro)
+    expect(resultado).toBe(registro);
     expect(mocks.create).toHaveBeenCalledWith({
       data: { ...input, usuarioId: null, registroId: null },
-    })
-  })
+    });
+  });
 
-  it('propaga uma falha da persistência', async () => {
-    mocks.create.mockRejectedValue(new Error('Falha simulada'))
+  it("propaga uma falha da persistência", async () => {
+    mocks.create.mockRejectedValue(new Error("Falha simulada"));
 
-    await expect(registrarAuditoria({
-      acao: 'CRIAR',
-      tabelaAfetada: 'veiculos',
-      dadosNovos: { placa: 'ABC1D23' },
-    })).rejects.toThrow('Falha simulada')
-  })
-})
+    await expect(
+      registrarAuditoria({
+        acao: "CRIAR",
+        tabelaAfetada: "veiculos",
+        dadosNovos: { placa: "ABC1D23" },
+      }),
+    ).rejects.toThrow("Falha simulada");
+  });
+});
 ```
 
 O Prisma é substituído pelo mock, portanto nenhuma conexão ou gravação real acontece. O segundo cenário ilustra como adicionar um caso de erro. Para testar funções puras, importe a função diretamente e dispense o mock de banco.
@@ -190,34 +192,38 @@ Use `await` nas operações assíncronas, inclusive em `expect(...).resolves` e 
 O exemplo abaixo usa o componente real `Button` e segue `FrontEnd/tests/unit/components/Button.test.tsx`. Para testar outro componente, crie um arquivo próprio e adapte a renderização, a ação e o resultado esperado.
 
 ```tsx
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
-import { Button } from '../../../src/components/common/Button'
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { Button } from "../../../src/components/common/Button";
 
-describe('Button', () => {
-  it('chama a ação ao clicar em Salvar', async () => {
-    const onClick = vi.fn()
-    const user = userEvent.setup()
-    render(<Button onClick={onClick}>Salvar</Button>)
+describe("Button", () => {
+  it("chama a ação ao clicar em Salvar", async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(<Button onClick={onClick}>Salvar</Button>);
 
-    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
 
-    expect(onClick).toHaveBeenCalledOnce()
-  })
+    expect(onClick).toHaveBeenCalledOnce();
+  });
 
-  it('impede o clique quando está desabilitado', async () => {
-    const onClick = vi.fn()
-    const user = userEvent.setup()
-    render(<Button disabled onClick={onClick}>Salvar</Button>)
-    const button = screen.getByRole('button', { name: 'Salvar' })
+  it("impede o clique quando está desabilitado", async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Button disabled onClick={onClick}>
+        Salvar
+      </Button>,
+    );
+    const button = screen.getByRole("button", { name: "Salvar" });
 
-    expect(button).toBeDisabled()
-    await user.click(button)
+    expect(button).toBeDisabled();
+    await user.click(button);
 
-    expect(onClick).not.toHaveBeenCalled()
-  })
-})
+    expect(onClick).not.toHaveBeenCalled();
+  });
+});
 ```
 
 O jsdom fornece o ambiente DOM. O arquivo `FrontEnd/tests/setup.ts` já carrega os matchers, como `toBeDisabled` e `toBeInTheDocument`, e limpa o DOM e os armazenamentos entre os testes. Não é preciso repetir esse setup em cada arquivo.
@@ -271,15 +277,15 @@ O funcionamento do workflow, os gatilhos, as permissões e o comentário automá
 
 Ao executar os testes, o Vitest mostra os arquivos e cenários que passaram ou falharam. Em uma falha de asserção, compare `Expected` (esperado) com `Received` (recebido) e confira a linha indicada. Comandos bem-sucedidos terminam com código de saída `0`; falhas retornam código diferente de zero.
 
-| Situação | O que conferir |
-| --- | --- |
-| Nenhum teste encontrado | Pasta `tests/unit`, extensão `.test.ts` ou `.test.tsx` e workspace escolhido. |
-| Erro de TypeScript antes dos testes | Saída de `test:types`; corrija os tipos apontados antes de executar novamente. |
-| Módulo não encontrado | Caminho do import relativo ao arquivo de teste e dependências instaladas na raiz. |
-| Tentativa de acessar banco real | Mock de `src/lib/prisma`, com o caminho correto, antes de carregar o serviço testado. |
-| Elemento não encontrado | Papel, nome ou rótulo renderizado; use `findByRole` se a atualização for assíncrona. |
+| Situação                                  | O que conferir                                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Nenhum teste encontrado                   | Pasta `tests/unit`, extensão `.test.ts` ou `.test.tsx` e workspace escolhido.                   |
+| Erro de TypeScript antes dos testes       | Saída de `test:types`; corrija os tipos apontados antes de executar novamente.                  |
+| Módulo não encontrado                     | Caminho do import relativo ao arquivo de teste e dependências instaladas na raiz.               |
+| Tentativa de acessar banco real           | Mock de `src/lib/prisma`, com o caminho correto, antes de carregar o serviço testado.           |
+| Elemento não encontrado                   | Papel, nome ou rótulo renderizado; use `findByRole` se a atualização for assíncrona.            |
 | Teste passa sozinho e falha com os demais | Estado compartilhado, implementações de mocks, timers ou variáveis de ambiente não restaurados. |
-| Lint falha com aviso | Os scripts usam `--deny-warnings`; avisos também precisam ser resolvidos. |
+| Lint falha com aviso                      | Os scripts usam `--deny-warnings`; avisos também precisam ser resolvidos.                       |
 
 ## Referências
 

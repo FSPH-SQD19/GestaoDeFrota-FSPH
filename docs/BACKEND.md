@@ -25,15 +25,15 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 
 ## Endpoints disponíveis
 
-| Método | Caminho | Autenticação | Resultado |
-| --- | --- | --- | --- |
-| GET | `/health` | Pública | Status do processo da API; não consulta o banco. |
-| POST | `/auth/login` | Pública | Login com e-mail e senha. |
-| POST | `/api/v1/auth/login` | Pública | Alias do mesmo login. |
-| GET | `/auth/perfil`, `/api/v1/auth/perfil` | JWT | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
-| GET | `/auth/admin`, `/api/v1/auth/admin` | JWT com `ADMIN` | Confirmação de acesso autorizado. |
-| GET | `/api/v1/veiculos` | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos. |
-| POST | `/api/v1/veiculos` | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo. |
+| Método | Caminho                               | Autenticação                | Resultado                                                    |
+| ------ | ------------------------------------- | --------------------------- | ------------------------------------------------------------ |
+| GET    | `/health`                             | Pública                     | Status do processo da API; não consulta o banco.             |
+| POST   | `/auth/login`                         | Pública                     | Login com e-mail e senha.                                    |
+| POST   | `/api/v1/auth/login`                  | Pública                     | Alias do mesmo login.                                        |
+| GET    | `/auth/perfil`, `/api/v1/auth/perfil` | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
+| GET    | `/auth/admin`, `/api/v1/auth/admin`   | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
+| GET    | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
+| POST   | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
 
 ## Autenticação
 
@@ -70,15 +70,15 @@ Exemplo de consulta:
 GET /api/v1/veiculos?page=1&pageSize=10&tipoFrota=SVO&status=DISPONIVEL
 ```
 
-| Parâmetro | Regra |
-| --- | --- |
-| `page` | Inteiro a partir de 1; padrão 1. |
-| `pageSize` | Inteiro entre 1 e 100; padrão 10. |
-| `tipoFrota` | `ADMINISTRATIVA` ou `SVO`. |
-| `status` | `DISPONIVEL`, `EM_VIAGEM`, `MANUTENCAO` ou `DESINFECCAO`. |
-| `propriedade` | `PROPRIO` ou `LOCADO`. |
-| `ativo` | Texto `true` ou `false`; padrão `true`. |
-| `busca` | Até 100 caracteres, por placa ou modelo. |
+| Parâmetro     | Regra                                                     |
+| ------------- | --------------------------------------------------------- |
+| `page`        | Inteiro a partir de 1; padrão 1.                          |
+| `pageSize`    | Inteiro entre 1 e 100; padrão 10.                         |
+| `tipoFrota`   | `ADMINISTRATIVA` ou `SVO`.                                |
+| `status`      | `DISPONIVEL`, `EM_VIAGEM`, `MANUTENCAO` ou `DESINFECCAO`. |
+| `propriedade` | `PROPRIO` ou `LOCADO`.                                    |
+| `ativo`       | Texto `true` ou `false`; padrão `true`.                   |
+| `busca`       | Até 100 caracteres, por placa ou modelo.                  |
 
 A listagem ordena por placa e retorna `{ data, meta }`. Os metadados são `page`, `pageSize`, `total` e `totalPages`. O serviço serializa `odometroAtual` como número.
 
@@ -100,18 +100,18 @@ Exemplo de corpo:
 }
 ```
 
-| Campo | Validação |
-| --- | --- |
-| `placa` | Obrigatória; normaliza letras para maiúsculas e remove espaços/hífens. Aceita formatos `ABC1234` e `ABC1D23`. |
-| `modelo` | Obrigatório; de 2 a 100 caracteres após remover espaços nas extremidades. |
-| `tipoFrota` | Obrigatório; `ADMINISTRATIVA` ou `SVO`. |
-| `propriedade` | `PROPRIO` ou `LOCADO`; padrão `PROPRIO`. |
-| `fornecedorId` | UUID opcional; obrigatório para `LOCADO`. Se informado, precisa identificar fornecedor ativo. |
-| `ano` | Opcional; inteiro de 1950 até o ano atual mais um. |
-| `combustivel` | Opcional; de 1 a 30 caracteres após remover espaços nas extremidades. |
-| `capacidadeMaxima` | Inteiro de 1 a 50; padrão 4. |
-| `odometroAtual` | Número de 0 a 99999999.99; padrão 0. |
-| `status` | Mesmos valores da listagem; padrão `DISPONIVEL`. `DESINFECCAO` é exclusivo de `SVO`. |
+| Campo              | Validação                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `placa`            | Obrigatória; normaliza letras para maiúsculas e remove espaços/hífens. Aceita formatos `ABC1234` e `ABC1D23`. |
+| `modelo`           | Obrigatório; de 2 a 100 caracteres após remover espaços nas extremidades.                                     |
+| `tipoFrota`        | Obrigatório; `ADMINISTRATIVA` ou `SVO`.                                                                       |
+| `propriedade`      | `PROPRIO` ou `LOCADO`; padrão `PROPRIO`.                                                                      |
+| `fornecedorId`     | UUID opcional; obrigatório para `LOCADO`. Se informado, precisa identificar fornecedor ativo.                 |
+| `ano`              | Opcional; inteiro de 1950 até o ano atual mais um.                                                            |
+| `combustivel`      | Opcional; de 1 a 30 caracteres após remover espaços nas extremidades.                                         |
+| `capacidadeMaxima` | Inteiro de 1 a 50; padrão 4.                                                                                  |
+| `odometroAtual`    | Número de 0 a 99999999.99; padrão 0.                                                                          |
+| `status`           | Mesmos valores da listagem; padrão `DISPONIVEL`. `DESINFECCAO` é exclusivo de `SVO`.                          |
 
 Placa duplicada retorna `409`; fornecedor ausente do banco ou inativo retorna `422`. O sucesso retorna `201`, o veículo e o header `Location`.
 
@@ -123,20 +123,18 @@ Após salvar, o serviço tenta registrar auditoria com usuário, ação, tabela,
 {
   "statusCode": 400,
   "message": "Dados inválidos.",
-  "errors": [
-    { "campo": "placa", "mensagem": "Placa inválida." }
-  ]
+  "errors": [{ "campo": "placa", "mensagem": "Placa inválida." }]
 }
 ```
 
-| Código | Situação |
-| --- | --- |
-| `400` | Corpo, filtros ou JSON inválidos. |
-| `401` | Token ausente, inválido ou expirado. |
-| `403` | Perfil sem acesso à operação. |
-| `409` | Placa já cadastrada. |
-| `422` | Fornecedor não encontrado ou inativo. |
-| `500` | Configuração ausente ou falha interna. |
+| Código | Situação                               |
+| ------ | -------------------------------------- |
+| `400`  | Corpo, filtros ou JSON inválidos.      |
+| `401`  | Token ausente, inválido ou expirado.   |
+| `403`  | Perfil sem acesso à operação.          |
+| `409`  | Placa já cadastrada.                   |
+| `422`  | Fornecedor não encontrado ou inativo.  |
+| `500`  | Configuração ausente ou falha interna. |
 
 ## Desenvolvimento e verificação
 
@@ -152,4 +150,3 @@ npm run build --workspace=backend
 Centralize o acesso ao banco em `BackEnd/src/lib/prisma.ts` e mantenha alterações do schema acompanhadas de migrations. Veja [Ambiente](AMBIENTE.md) para configurar a API e [Testes](TESTES.md) para adicionar cenários.
 
 A API valida o ano do veículo até o ano atual mais um; a constraint da migration limita o banco ao intervalo de 1950 a 2100. Ao alterar validações, confira os dois níveis.
-
