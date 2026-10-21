@@ -43,7 +43,6 @@ if (!(Test-Path BackEnd/.env)) { Copy-Item BackEnd/.env.example BackEnd/.env }
 | `POSTGRES_PORT` | Porta do banco exposta no computador. | `5433` |
 | `BACKEND_PORT` | Porta da API exposta pelo Compose. | `3000` |
 | `FRONTEND_PORT` | Porta da interface exposta pelo Compose. | `5173` |
-| `JWT_SECRET` | Chave usada pela API para assinar e verificar tokens. | Gerar uma chave própria. |
 
 ### Variáveis do back-end
 
@@ -51,7 +50,6 @@ if (!(Test-Path BackEnd/.env)) { Copy-Item BackEnd/.env.example BackEnd/.env }
 | --- | --- |
 | `PORT` | Porta da API no desenvolvimento local; o código usa `3000` se não for informada. |
 | `DATABASE_URL` | Conexão PostgreSQL usada pelo Prisma. |
-| `JWT_SECRET` | Chave para autenticação com JWT. |
 
 Exemplo de estrutura da URL para uma API executada no computador:
 
@@ -61,13 +59,7 @@ postgresql://USUARIO:SENHA@localhost:5433/gestao_frota?schema=public
 
 Dentro do Compose, a API usa o host `database` e a porta interna `5432`. O Compose monta a URL com as variáveis da raiz; não lê `BackEnd/.env` para essa configuração.
 
-Os valores dos arquivos `.env.example` são referências de desenvolvimento. Substitua a chave JWT de exemplo por uma chave própria. Para gerar uma:
-
-```bash
-node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
-```
-
-O serviço de autenticação define a validade dos tokens em `8h`. Não comite arquivos `.env` ou credenciais reais.
+Os valores dos arquivos `.env.example` são referências de desenvolvimento. A autenticação não usa variáveis de ambiente. Na primeira inicialização, a API gera uma chave aleatória em `BackEnd/.runtime/auth.key`, ignorada pelo Git e pelo contexto de build Docker, e a reutiliza nas próximas execuções. A validade dos tokens é fixa em oito horas. Se a chave estiver inválida ou não puder ser carregada, a API interrompe a inicialização antes de abrir a porta HTTP. Não comite arquivos `.env` ou credenciais reais.
 
 ## Executar com npm e banco local
 
@@ -77,7 +69,7 @@ Configure `BackEnd/.env` e tenha um PostgreSQL com PostGIS acessível. A migrati
 docker compose up -d database
 ```
 
-O Compose exige `JWT_SECRET` na raiz para resolver sua configuração, mesmo quando o comando seleciona somente o banco.
+O Compose não exige configuração de autenticação no `.env`. O volume `backend_auth` armazena a chave da API e a preserva entre recriações do contêiner. Remover esse volume ou o arquivo local da chave invalida os tokens existentes e exige novo login.
 
 Na raiz do projeto:
 
@@ -142,7 +134,7 @@ Versione o schema e a migration resultante. O schema está em `BackEnd/prisma/sc
 | API | `http://localhost:3000/health`, ajustando a porta se necessário. Essa rota não verifica o banco. |
 | Porta ocupada no front-end | O Vite pode escolher outra porta; leia o endereço no terminal. |
 | Falha de conexão com o banco | Host, porta, credenciais, banco disponível e `DATABASE_URL`. |
-| Falha no login da API | Usuário ativo, hash bcrypt, migrations e `JWT_SECRET`; veja [Back-end](BACKEND.md). |
+| Falha no login da API | Usuário ativo, hash bcrypt, migrations e acesso ao arquivo local da chave; veja [Back-end](BACKEND.md). |
 | Erro ao gerar Prisma no Windows | Pare a API antes de regenerar o cliente para liberar os arquivos em uso. |
 
 Consulte [Front-end](FRONTEND.md) para entender as telas e os componentes. Os testes usam mocks do banco e podem ser executados sem PostgreSQL ou Docker; veja [Testes](TESTES.md).

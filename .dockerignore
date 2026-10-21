@@ -1,4 +1,5 @@
 .git
+**/.runtime
 **/node_modules
 **/dist
 **/coverage

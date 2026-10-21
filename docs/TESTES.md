@@ -90,6 +90,11 @@ BackEnd/
     service/auditoria_s.test.ts     Dados enviados à persistência da auditoria
     service/veiculo_s.test.ts       Filtros, validações, criação e erros de veículos
     routes/veiculo_r.test.ts        Requisições HTTP, autenticação e respostas de veículos
+    routes/auth_r.test.ts           Login, perfil e admin nos dois prefixos de auth
+    middleware/auth.test.ts         Contrato comum de autenticação e autorização
+    config/auth.test.ts             Geração e persistência da chave local, validade fixa de oito horas
+    config/server.test.ts           Inicialização interrompida se a chave local falhar
+    prisma/seed.test.ts             Reexecução do seed com persistência em memória
 FrontEnd/
   .oxlintrc.json                    Configuração React/TypeScript
   vitest.config.ts                  Ambiente jsdom, setup e cobertura

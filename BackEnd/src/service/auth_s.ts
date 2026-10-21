@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 import { comparePassword } from "./password_s";
+import { getAuthConfig } from "../config/auth";
 
 interface LoginInput{
     email: string;
@@ -33,10 +34,7 @@ if(!senhaValida){
 }
 
 const perfis = usuario.perfis.map((usuarioPerfil) => usuarioPerfil.perfil.nome);
-const secret = process.env.JWT_SECRET;
-if(!secret){
-    throw new Error("JWT_SECRET não definido");
-}
+const { secret, expiresIn } = getAuthConfig();
 
 
 
@@ -44,7 +42,7 @@ const token = jwt.sign({
     perfis
 }, secret,{
     subject: usuario.id,
-    expiresIn: "8h"
+    expiresIn
 }
 );
 

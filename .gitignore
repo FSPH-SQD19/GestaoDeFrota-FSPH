@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Chave de autenticação gerada localmente
+**/.runtime/
+
 # Dependencies
 **/node_modules/
 
