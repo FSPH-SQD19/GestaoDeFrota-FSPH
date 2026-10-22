@@ -1,8 +1,6 @@
 import { Abastecimento, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
-import { registrarAuditoria } from "./auditoria_s";
 
 export const listarAbastecimentosSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -44,9 +42,11 @@ export function serializarAbastecimento(abastecimento: Abastecimento): Abastecim
 export async function listarAbastecimentos(filtros: ListarAbastecimentosFiltros) {
   const { page, pageSize, veiculoId, dataInicio, dataFim } = filtros;
 
+  const fimExclusivo = dataFim ? new Date(dataFim.getTime() + 24 * 60 * 60 * 1000) : undefined;
+
   const where: Prisma.AbastecimentoWhereInput = {
     ...(veiculoId ? { veiculoId } : {}),
-    dataHora: { gte: dataInicio, lte: dataFim },
+    dataHora: { gte: dataInicio, lt: fimExclusivo },
   };
 
   const [abastecimentos, total] = await Promise.all([
