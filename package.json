@@ -27,5 +27,8 @@
   ],
   "overrides": {
     "deepmerge-ts": "^8.0.2"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }

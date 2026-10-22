@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Search, Truck, Fuel, Eye } from "lucide-react";
 import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
 import type { Column } from "../../components/common/Table";
@@ -18,88 +18,46 @@ export const VeiculosPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [tabFilter, setTabFilter] = useState<"TODOS" | "ADMIN" | "SVO">("TODOS");
   const [isModalOpen, setIsModalOpen] = useState(false);
+// Novos estados para gerenciar os dados da API
+  const [veiculos, setVeiculos] = useState<VeiculoItem[]>([]);
+  const [carregando, setCarregando] = useState(true);
 
-  const veiculos: VeiculoItem[] = [
-    {
-      id: "1",
-      placa: "IAF-4820",
-      modelo: "Renault Master L3H2 Furgão",
-      tipoFrota: "Administrativa",
-      capacidade: 3,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Disponível",
-    },
-    {
-      id: "2",
-      placa: "QMA-9124",
-      modelo: "Chevrolet S10 Cabine Dupla 2.8",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2023,
-      status: "Em viagem",
-    },
-    {
-      id: "3",
-      placa: "NVL-3011",
-      modelo: "Fiat Ducato Maxi Cargo 2.3",
-      tipoFrota: "Administrativa",
-      capacidade: 3,
-      combustivel: "Diesel",
-      ano: 2022,
-      status: "Disponível",
-    },
-    {
-      id: "4",
-      placa: "QKN-5582",
-      modelo: "Chevrolet S10 4x4 Especializada SVO",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Desinfecção",
-    },
-    {
-      id: "5",
-      placa: "QNE-1934",
-      modelo: "Toyota Hilux 4x4 Administrativa",
-      tipoFrota: "Administrativa",
-      capacidade: 5,
-      combustivel: "Diesel",
-      ano: 2023,
-      status: "Em viagem",
-    },
-    {
-      id: "6",
-      placa: "BRA-2E19",
-      modelo: "Chevrolet Spin 1.8 LTZ",
-      tipoFrota: "Administrativa",
-      capacidade: 7,
-      combustivel: "Flex",
-      ano: 2024,
-      status: "Em viagem",
-    },
-    {
-      id: "7",
-      placa: "QZB-8812",
-      modelo: "Chevrolet S10 Especializada SVO",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Em viagem",
-    },
-  ];
+  // Função para buscar os veículos da API do Express (porta 3000)
+  const buscarVeiculos = async (termo = '') => {
+    try {
+      setCarregando(true);
+      const url = termo 
+        ? `http://localhost:3000/veiculos?busca=${encodeURIComponent(termo)}` 
+        : 'http://localhost:3000/veiculos';
+
+      const resposta = await fetch(url);
+      const dados = await resposta.json();
+      setVeiculos(dados);
+    } catch (erro) {
+      console.error('Erro ao buscar veículos da API:', erro);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  // Carrega a lista assim que a página abre
+  useEffect(() => {
+    buscarVeiculos();
+  }, []);
+
+  // Busca dinâmica conforme o usuário digita no input
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      buscarVeiculos(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   const filteredVeiculos = veiculos.filter((v) => {
-    const matchesSearch =
-      v.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.modelo.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (tabFilter === "ADMIN") return matchesSearch && v.tipoFrota === "Administrativa";
-    if (tabFilter === "SVO") return matchesSearch && v.tipoFrota === "SVO";
-    return matchesSearch;
+    if (tabFilter === "ADMIN") return v.tipoFrota === "Administrativa";
+    if (tabFilter === "SVO") return v.tipoFrota === "SVO";
+    return true;
   });
 
   const columns: Column<VeiculoItem>[] = [
@@ -205,7 +163,7 @@ export const VeiculosPage: React.FC = () => {
         <Card className="p-4.5 rounded-2xl border border-slate-200/80 bg-white">
           <span className="text-xs text-slate-500 font-medium">Total de Veículos</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">7</span>
+            <span className="text-2xl font-bold text-slate-900">{veiculos.length}</span>
             <span className="text-xs text-slate-400">cadastrados</span>
           </div>
         </Card>
@@ -213,7 +171,9 @@ export const VeiculosPage: React.FC = () => {
         <Card className="p-4.5 rounded-2xl border border-blue-200/80 bg-blue-50/30">
           <span className="text-xs text-blue-700 font-semibold">Frota Administrativa</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-blue-900">4</span>
+            <span className="text-2xl font-bold text-blue-900">
+              {veiculos.filter(v => v.tipoFrota === "Administrativa").length}
+            </span>
             <span className="text-xs text-blue-600 font-medium">veículos (LACEN / Hemose)</span>
           </div>
         </Card>
@@ -221,7 +181,9 @@ export const VeiculosPage: React.FC = () => {
         <Card className="p-4.5 rounded-2xl border border-rose-200/80 bg-rose-50/30">
           <span className="text-xs text-rose-700 font-semibold">Frota Especializada SVO</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-rose-900">3</span>
+            <span className="text-2xl font-bold text-rose-900">
+              {veiculos.filter(v => v.tipoFrota === "SVO").length}
+            </span>
             <span className="text-xs text-rose-600 font-medium">viaturas (Limite 4 urnas)</span>
           </div>
         </Card>
@@ -261,7 +223,7 @@ export const VeiculosPage: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Administrativa (4)
+            Administrativa ({veiculos.filter(v => v.tipoFrota === "Administrativa").length})
           </button>
           <button
             type="button"
@@ -272,18 +234,24 @@ export const VeiculosPage: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            SVO (3)
+            SVO ({veiculos.filter(v => v.tipoFrota === "SVO").length})
           </button>
         </div>
       </div>
 
-      {/* Tabela Reutilizável de Veículos */}
-      <Table
-        columns={columns}
-        data={filteredVeiculos}
-        keyExtractor={(item) => item.id}
-        emptyMessage="Nenhum veículo encontrado com esse filtro ou busca."
-      />
+      {/* Indicador visual de carregamento ou Tabela Reutilizável */}
+      {carregando ? (
+        <div className="p-8 text-center text-slate-500 bg-white rounded-2xl border border-slate-200/80">
+          Carregando veículos da API...
+        </div>
+      ) : (
+        <Table
+          columns={columns}
+          data={filteredVeiculos}
+          keyExtractor={(item) => item.id}
+          emptyMessage="Nenhum veículo encontrado com esse filtro ou busca."
+        />
+      )}
 
       {/* Modal Reutilizável de Cadastro de Veículo */}
       <Modal
