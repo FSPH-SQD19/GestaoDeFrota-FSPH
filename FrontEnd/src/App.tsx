@@ -8,9 +8,10 @@ import { Header } from "./components/layout/Header";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { VeiculosPage } from "./pages/veiculos/VeiculosPage";
 import { SolicitacoesPage } from "./pages/solicitacoes/SolicitacoesPage";
+import { UsuariosPage } from "./pages/usuarios/UsuariosPage";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
 import { Card, Badge } from "./components/common";
-import { FileText, Users, PhoneCall, BarChart3, ShieldCheck, Route } from "lucide-react";
+import { FileText, Users, PhoneCall, BarChart3, Route } from "lucide-react";
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading, hasRole, user } = useAuth();
@@ -135,19 +136,7 @@ const AppContent: React.FC = () => {
             </Card>
           )}
 
-          {currentTab === "usuarios" && (
-            <Card className="p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Controle de Usuários e RBAC</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Gestão de permissões por perfil (Administrador, Gestor de Frota, Motorista,
-                Atendente SVO, Solicitante).
-              </p>
-              <Badge variant="neutral">Exclusivo para perfil Administrador</Badge>
-            </Card>
-          )}
+          {currentTab === "usuarios" && <UsuariosPage />}
         </main>
       </div>
     </div>
