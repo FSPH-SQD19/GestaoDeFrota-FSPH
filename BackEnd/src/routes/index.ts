@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { criarVeiculoController, listarVeiculosController } from "../controller/veiculo_c";
-import { listarAbastecimentosController } from "../controller/abastecimento_c";
+import { listarAbastecimentosController, criarAbastecimentoController } from "../controller/abastecimento_c";
 import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
 import authRoutes from "./auth_r";
@@ -25,6 +25,7 @@ router.use("/api/v1/veiculos", veiculos);
 //Consultar abastecimento
 abastecimento.use(authenticate, requireRole("ADMIN", "GESTOR"));
 abastecimento.get("/", listarAbastecimentosController);
+abastecimento.post("/", criarAbastecimentoController);
 
 router.use("/api/v1/abastecimentos", abastecimento)
 
