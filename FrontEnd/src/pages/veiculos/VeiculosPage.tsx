@@ -2,15 +2,21 @@ import React, { useState, useEffect } from "react";
 import { Plus, Search, Truck, Fuel, Eye } from "lucide-react";
 import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
 import type { Column } from "../../components/common/Table";
+import { z } from "zod"; 
 
-interface VeiculoItem {
+const veiculoSchema = z.object({
+  placa: z.string().min(7, "A placa deve ter pelo menos 7 caracteres").max(8, "Placa inválida"),
+  modelo: z.string().min(3, "Informe o modelo e fabricante do veículo"),
+  tipoFrota: z.enum(["Administrativa", "SVO"]),
+  capacidade: z.coerce.number().min(1, "A capacidade deve ser maior que zero"),
+  combustivel: z.string().min(2, "Informe o tipo de combustível"),
+  ano: z.coerce.number().min(2000, "Ano inválido").max(2030, "Ano inválido"),
+});
+
+type VeiculoFormData = z.infer<typeof veiculoSchema>;
+
+interface VeiculoItem extends VeiculoFormData {
   id: string;
-  placa: string;
-  modelo: string;
-  tipoFrota: "Administrativa" | "SVO";
-  capacidade: number;
-  combustivel: string;
-  ano: number;
   status: "Disponível" | "Em viagem" | "Manutenção" | "Desinfecção";
 }
 
@@ -18,11 +24,51 @@ export const VeiculosPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [tabFilter, setTabFilter] = useState<"TODOS" | "ADMIN" | "SVO">("TODOS");
   const [isModalOpen, setIsModalOpen] = useState(false);
-// Novos estados para gerenciar os dados da API
+
   const [veiculos, setVeiculos] = useState<VeiculoItem[]>([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Função para buscar os veículos da API do Express (porta 3000)
+  //Estados para controlar os inputs do formulário e erros
+  const [formData, setFormData] = useState({
+  placa: "",
+  modelo: "",
+  tipoFrota: "Administrativa" as "Administrativa" | "SVO",
+  capacidade: 4,
+  combustivel: "",
+  ano: 2024,
+});
+const [erroValidacao, setErroValidacao] = useState<string | null>(null);
+const [enviando, setEnviando] = useState(false);
+
+// Função para validar e enviar POST para o Express
+const handleSalvarVeiculo = async () => {
+  try {
+    setErroValidacao(null);
+    const dadosValidados = veiculoSchema.parse(formData);
+    setEnviando(true);
+
+    const resposta = await fetch('http://localhost:3000/veiculos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...dadosValidados, status: "Disponível" }),
+    });
+
+    if (!resposta.ok) throw new Error('Erro ao salvar veículo no servidor.');
+
+    setIsModalOpen(false);
+    setFormData({ placa: "", modelo: "", tipoFrota: "Administrativa", capacidade: 4, combustivel: "", ano: 2024 });
+    buscarVeiculos();
+  } catch (erro: any) {
+    if (erro instanceof z.ZodError) {
+      setErroValidacao(erro.issues[0].message);
+    } else {
+      setErroValidacao('Erro de conexão com o servidor Express.');
+    }
+  } finally {
+    setEnviando(false);
+  }
+};
+
   const buscarVeiculos = async (termo = '') => {
     try {
       setCarregando(true);
@@ -267,37 +313,71 @@ export const VeiculosPage: React.FC = () => {
             <Button
               variant="primary"
               className="bg-slate-900 hover:bg-slate-800 text-white"
-              onClick={() => setIsModalOpen(false)}
+              onClick={handleSalvarVeiculo} // Chama a função de salvamento
+              disabled={enviando}          // Bloqueia enquanto envia
             >
-              Salvar Veículo
+              {enviando ? "Salvando..." : "Salvar Veículo"} {/* ⬅️ ALTERADO: Feedback */}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Input label="Placa (Padrão Mercosul ou CTB)" placeholder="Ex: BRA2E19" required />
+          {/* Caixa de alerta de erro do Zod */}
+          {erroValidacao && (
+            <div className="p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
+              {erroValidacao}
+            </div>
+          )}
+
+          <Input 
+            label="Placa (Padrão Mercosul ou CTB)" 
+            placeholder="Ex: BRA2E19" 
+            required 
+            value={formData.placa}
+            onChange={(e) => setFormData({ ...formData, placa: e.target.value })}
+          />
           <Input
             label="Modelo e Fabricante"
             placeholder="Ex: Chevrolet S10 2.8 Turbo 4x4"
             required
+            value={formData.modelo}
+            onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
           />
           <Select
             label="Tipo de Frota"
             required
-            defaultValue="Administrativa"
+            value={formData.tipoFrota}
+            onChange={(e: any) => setFormData({ ...formData, tipoFrota: e.target.value })}
             options={[
               { value: "Administrativa", label: "Frota Administrativa (LACEN, Hemose, Diretoria)" },
-              {
-                value: "SVO",
-                label: "Frota Especializada SVO (Com protocolo de desinfecção biológica)",
-              },
+              { value: "SVO", label: "Frota Especializada SVO (Com protocolo de desinfecção biológica)" },
             ]}
           />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Capacidade Máxima" type="number" placeholder="Ex: 4" required />
-            <Input label="Ano Fabricação" type="number" placeholder="Ex: 2024" required />
+            <Input 
+              label="Capacidade Máxima" 
+              type="number" 
+              placeholder="Ex: 4" 
+              required 
+              value={formData.capacidade}
+              onChange={(e) => setFormData({ ...formData, capacidade: Number(e.target.value) })}
+            />
+            <Input 
+              label="Ano Fabricação" 
+              type="number" 
+              placeholder="Ex: 2024" 
+              required 
+              value={formData.ano}
+              onChange={(e) => setFormData({ ...formData, ano: Number(e.target.value) })}
+            />
           </div>
-          <Input label="Tipo de Combustível" placeholder="Ex: Diesel S10 / Flex" required />
+          <Input 
+            label="Tipo de Combustível" 
+            placeholder="Ex: Diesel S10 / Flex" 
+            required 
+            value={formData.combustivel}
+            onChange={(e) => setFormData({ ...formData, combustivel: e.target.value })}
+          />
         </div>
       </Modal>
     </div>
