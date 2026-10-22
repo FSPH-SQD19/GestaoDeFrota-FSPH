@@ -18,16 +18,9 @@ export async function validarCnh(usuarioId: string): Promise<boolean> {
         throw new Error("Motorista não encontrado.");
     }
 
-    const cnhVencida = await prisma.motorista.findFirst({
-        where: {
-            id: usuarioId,
-            validadeCnh: {
-                lt: hoje
-            }
-        }
-    });
+    
 
-    if (cnhVencida) {
+    if (!motorista.validadeCnh || motorista.validadeCnh < hoje) {
         throw new Error("CNH vencida. Alocação bloqueada.");
     }
 
