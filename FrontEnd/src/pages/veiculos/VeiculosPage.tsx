@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Search, Truck, Fuel, Eye } from "lucide-react";
 import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
 import type { Column } from "../../components/common/Table";
-import { z } from "zod"; 
+import { z } from "zod";
 
 const veiculoSchema = z.object({
   placa: z.string().min(7, "A placa deve ter pelo menos 7 caracteres").max(8, "Placa inválida"),
@@ -30,57 +30,64 @@ export const VeiculosPage: React.FC = () => {
 
   //Estados para controlar os inputs do formulário e erros
   const [formData, setFormData] = useState({
-  placa: "",
-  modelo: "",
-  tipoFrota: "Administrativa" as "Administrativa" | "SVO",
-  capacidade: 4,
-  combustivel: "",
-  ano: 2024,
-});
-const [erroValidacao, setErroValidacao] = useState<string | null>(null);
-const [enviando, setEnviando] = useState(false);
+    placa: "",
+    modelo: "",
+    tipoFrota: "Administrativa" as "Administrativa" | "SVO",
+    capacidade: 4,
+    combustivel: "",
+    ano: 2024,
+  });
+  const [erroValidacao, setErroValidacao] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
-// Função para validar e enviar POST para o Express
-const handleSalvarVeiculo = async () => {
-  try {
-    setErroValidacao(null);
-    const dadosValidados = veiculoSchema.parse(formData);
-    setEnviando(true);
+  // Função para validar e enviar POST para o Express
+  const handleSalvarVeiculo = async () => {
+    try {
+      setErroValidacao(null);
+      const dadosValidados = veiculoSchema.parse(formData);
+      setEnviando(true);
 
-    const resposta = await fetch('http://localhost:3000/veiculos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...dadosValidados, status: "Disponível" }),
-    });
+      const resposta = await fetch("http://localhost:3000/veiculos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...dadosValidados, status: "Disponível" }),
+      });
 
-    if (!resposta.ok) throw new Error('Erro ao salvar veículo no servidor.');
+      if (!resposta.ok) throw new Error("Erro ao salvar veículo no servidor.");
 
-    setIsModalOpen(false);
-    setFormData({ placa: "", modelo: "", tipoFrota: "Administrativa", capacidade: 4, combustivel: "", ano: 2024 });
-    buscarVeiculos();
-  } catch (erro: any) {
-    if (erro instanceof z.ZodError) {
-      setErroValidacao(erro.issues[0].message);
-    } else {
-      setErroValidacao('Erro de conexão com o servidor Express.');
+      setIsModalOpen(false);
+      setFormData({
+        placa: "",
+        modelo: "",
+        tipoFrota: "Administrativa",
+        capacidade: 4,
+        combustivel: "",
+        ano: 2024,
+      });
+      buscarVeiculos();
+    } catch (erro: any) {
+      if (erro instanceof z.ZodError) {
+        setErroValidacao(erro.issues[0].message);
+      } else {
+        setErroValidacao("Erro de conexão com o servidor Express.");
+      }
+    } finally {
+      setEnviando(false);
     }
-  } finally {
-    setEnviando(false);
-  }
-};
+  };
 
-  const buscarVeiculos = async (termo = '') => {
+  const buscarVeiculos = async (termo = "") => {
     try {
       setCarregando(true);
-      const url = termo 
-        ? `http://localhost:3000/veiculos?busca=${encodeURIComponent(termo)}` 
-        : 'http://localhost:3000/veiculos';
+      const url = termo
+        ? `http://localhost:3000/veiculos?busca=${encodeURIComponent(termo)}`
+        : "http://localhost:3000/veiculos";
 
       const resposta = await fetch(url);
       const dados = await resposta.json();
       setVeiculos(dados);
     } catch (erro) {
-      console.error('Erro ao buscar veículos da API:', erro);
+      console.error("Erro ao buscar veículos da API:", erro);
     } finally {
       setCarregando(false);
     }
@@ -218,7 +225,7 @@ const handleSalvarVeiculo = async () => {
           <span className="text-xs text-blue-700 font-semibold">Frota Administrativa</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-blue-900">
-              {veiculos.filter(v => v.tipoFrota === "Administrativa").length}
+              {veiculos.filter((v) => v.tipoFrota === "Administrativa").length}
             </span>
             <span className="text-xs text-blue-600 font-medium">veículos (LACEN / Hemose)</span>
           </div>
@@ -228,7 +235,7 @@ const handleSalvarVeiculo = async () => {
           <span className="text-xs text-rose-700 font-semibold">Frota Especializada SVO</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-rose-900">
-              {veiculos.filter(v => v.tipoFrota === "SVO").length}
+              {veiculos.filter((v) => v.tipoFrota === "SVO").length}
             </span>
             <span className="text-xs text-rose-600 font-medium">viaturas (Limite 4 urnas)</span>
           </div>
@@ -269,7 +276,7 @@ const handleSalvarVeiculo = async () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Administrativa ({veiculos.filter(v => v.tipoFrota === "Administrativa").length})
+            Administrativa ({veiculos.filter((v) => v.tipoFrota === "Administrativa").length})
           </button>
           <button
             type="button"
@@ -280,7 +287,7 @@ const handleSalvarVeiculo = async () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            SVO ({veiculos.filter(v => v.tipoFrota === "SVO").length})
+            SVO ({veiculos.filter((v) => v.tipoFrota === "SVO").length})
           </button>
         </div>
       </div>
@@ -314,7 +321,7 @@ const handleSalvarVeiculo = async () => {
               variant="primary"
               className="bg-slate-900 hover:bg-slate-800 text-white"
               onClick={handleSalvarVeiculo} // Chama a função de salvamento
-              disabled={enviando}          // Bloqueia enquanto envia
+              disabled={enviando} // Bloqueia enquanto envia
             >
               {enviando ? "Salvando..." : "Salvar Veículo"} {/* ⬅️ ALTERADO: Feedback */}
             </Button>
@@ -329,10 +336,10 @@ const handleSalvarVeiculo = async () => {
             </div>
           )}
 
-          <Input 
-            label="Placa (Padrão Mercosul ou CTB)" 
-            placeholder="Ex: BRA2E19" 
-            required 
+          <Input
+            label="Placa (Padrão Mercosul ou CTB)"
+            placeholder="Ex: BRA2E19"
+            required
             value={formData.placa}
             onChange={(e) => setFormData({ ...formData, placa: e.target.value })}
           />
@@ -350,31 +357,34 @@ const handleSalvarVeiculo = async () => {
             onChange={(e: any) => setFormData({ ...formData, tipoFrota: e.target.value })}
             options={[
               { value: "Administrativa", label: "Frota Administrativa (LACEN, Hemose, Diretoria)" },
-              { value: "SVO", label: "Frota Especializada SVO (Com protocolo de desinfecção biológica)" },
+              {
+                value: "SVO",
+                label: "Frota Especializada SVO (Com protocolo de desinfecção biológica)",
+              },
             ]}
           />
           <div className="grid grid-cols-2 gap-3">
-            <Input 
-              label="Capacidade Máxima" 
-              type="number" 
-              placeholder="Ex: 4" 
-              required 
+            <Input
+              label="Capacidade Máxima"
+              type="number"
+              placeholder="Ex: 4"
+              required
               value={formData.capacidade}
               onChange={(e) => setFormData({ ...formData, capacidade: Number(e.target.value) })}
             />
-            <Input 
-              label="Ano Fabricação" 
-              type="number" 
-              placeholder="Ex: 2024" 
-              required 
+            <Input
+              label="Ano Fabricação"
+              type="number"
+              placeholder="Ex: 2024"
+              required
               value={formData.ano}
               onChange={(e) => setFormData({ ...formData, ano: Number(e.target.value) })}
             />
           </div>
-          <Input 
-            label="Tipo de Combustível" 
-            placeholder="Ex: Diesel S10 / Flex" 
-            required 
+          <Input
+            label="Tipo de Combustível"
+            placeholder="Ex: Diesel S10 / Flex"
+            required
             value={formData.combustivel}
             onChange={(e) => setFormData({ ...formData, combustivel: e.target.value })}
           />
