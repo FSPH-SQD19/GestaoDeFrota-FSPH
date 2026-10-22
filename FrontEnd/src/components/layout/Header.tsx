@@ -1,27 +1,27 @@
-import React, { useState } from 'react'
-import { Bell, Menu, Shield } from 'lucide-react'
-import { useAuth } from '../../contexts/auth'
-import type { UserRole } from '../../types/auth'
+import React, { useState } from "react";
+import { Bell, Menu, Shield } from "lucide-react";
+import { useAuth } from "../../contexts/auth";
+import type { UserRole } from "../../types/auth";
 
 interface HeaderProps {
-  onToggleMobileMenu?: () => void
+  onToggleMobileMenu?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
-  const { user, switchRoleForTesting } = useAuth()
-  const [showRoleMenu, setShowRoleMenu] = useState(false)
+  const { user, switchRoleForTesting } = useAuth();
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  const activeRole = user?.roles[0] || 'GESTOR'
+  const activeRole = user?.roles[0] || "GESTOR";
 
   const roleLabels: Record<UserRole, string> = {
-    ADMIN: 'Administrador',
-    GESTOR: 'Gestor de frota',
-    MOTORISTA: 'Motorista',
-    ATENDENTE_SVO: 'Atendente SVO',
-    SOLICITANTE: 'Solicitante Setor',
-  }
+    ADMIN: "Administrador",
+    GESTOR: "Gestor de frota",
+    MOTORISTA: "Motorista",
+    ATENDENTE_SVO: "Atendente SVO",
+    SOLICITANTE: "Solicitante Setor",
+  };
 
-  const userInitial = user?.nome ? user.nome.charAt(0).toUpperCase() : 'V'
+  const userInitial = user?.nome ? user.nome.charAt(0).toUpperCase() : "V";
 
   return (
     <header className="w-full flex items-center justify-between pb-4 select-none">
@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
             <div className="flex flex-col text-left pr-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-900 leading-tight">
-                  {user?.nome || 'Vitor'}
+                  {user?.nome || "Vitor"}
                 </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               </div>
@@ -85,31 +85,33 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                 <span>Simular Perfil (RBAC)</span>
               </div>
               <div className="divide-y divide-slate-100 mt-1">
-                {(['GESTOR', 'ADMIN', 'MOTORISTA', 'ATENDENTE_SVO', 'SOLICITANTE'] as UserRole[]).map(
-                  (role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => {
-                        switchRoleForTesting(role)
-                        setShowRoleMenu(false)
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center justify-between ${
-                        activeRole === role
-                          ? 'bg-black text-white'
-                          : 'text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span>{roleLabels[role]}</span>
-                      {activeRole === role && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-                    </button>
-                  )
-                )}
+                {(
+                  ["GESTOR", "ADMIN", "MOTORISTA", "ATENDENTE_SVO", "SOLICITANTE"] as UserRole[]
+                ).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => {
+                      switchRoleForTesting(role);
+                      setShowRoleMenu(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center justify-between ${
+                      activeRole === role
+                        ? "bg-black text-white"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>{roleLabels[role]}</span>
+                    {activeRole === role && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
           )}
         </div>
       </div>
     </header>
-  )
-}
+  );
+};

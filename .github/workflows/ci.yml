@@ -13,18 +13,93 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  format:
+    name: Corrigir formatação
+    if: >-
+      ${{ github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - name: Obter branch do PR
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Instalar Prettier
+        run: npm ci --ignore-scripts
+
+      - name: Aplicar formatação
+        run: npm run format
+
+      - name: Enviar correção ao PR
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          git commit -m "style: format code with Prettier"
+
+          encoded_token="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${encoded_token}" \
+            push origin "HEAD:refs/heads/${PR_BRANCH}"
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   quality:
     name: Lint, testes e build
+    needs: format
+    if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
       dependencies: ${{ steps.dependencies.outcome }}
+      format: ${{ steps.format.outcome }}
+      autofix: ${{ needs.format.result }}
+      format_changed: ${{ needs.format.outputs.changed }}
+      format_sha: ${{ needs.format.outputs.sha }}
       lint: ${{ steps.lint.outcome }}
       tests: ${{ steps.tests.outcome }}
       build: ${{ steps.build.outcome }}
 
     steps:
-      - name: Obter codigo
+      - name: Obter branch atualizada do PR
+        if: >-
+          ${{ github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      - name: Obter código
+        if: >-
+          ${{ github.event_name != 'pull_request'
+              || github.event.pull_request.head.repo.full_name != github.repository }}
         uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -32,13 +107,17 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
           cache-dependency-path: package-lock.json
 
       - name: Instalar dependencias dos workspaces
         id: dependencies
         run: npm ci
+
+      - name: Verificar formatação
+        id: format
+        run: npm run format:check
 
       - name: Verificar lint
         id: lint
@@ -52,9 +131,34 @@ jobs:
         id: build
         run: npm run build
 
+  rerun:
+    name: Revalidar commit formatado
+    needs: [format, quality]
+    if: >-
+      ${{ always() && !cancelled() && github.event_name == 'pull_request'
+          && needs.format.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+
+    steps:
+      - name: Iniciar CI no commit atualizado
+        uses: actions/github-script@v9
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              ref: process.env.PR_BRANCH,
+            });
+
   comment:
     name: Comentar resultado no PR
-    needs: quality
+    needs: [format, quality, rerun]
     if: >-
       ${{ always() && !cancelled() && github.event_name == 'pull_request'
           && github.event.pull_request.head.repo.full_name == github.repository }}
@@ -68,7 +172,9 @@ jobs:
         uses: actions/github-script@v9
         env:
           STEP_RESULTS: ${{ toJSON(needs.quality.outputs) }}
-          CI_RESULT: ${{ needs.quality.result }}
+          CI_RESULT: ${{ (needs.quality.result == 'failure' || needs.format.result == 'failure' || needs.rerun.result == 'failure') && 'failure' || (needs.quality.result == 'cancelled' || needs.format.result == 'cancelled' || needs.rerun.result == 'cancelled') && 'cancelled' || 'success' }}
+          FORMAT_CHANGED: ${{ needs.format.outputs.changed }}
+          RERUN_RESULT: ${{ needs.rerun.result }}
         with:
           script: |
             const marker = '<!-- gestao-frota-ci -->';
@@ -80,13 +186,22 @@ jobs:
               skipped: '⏭️ não executado',
             };
             const status = (outcome) => statuses[outcome] ?? statuses.skipped;
+            const formatChanged = process.env.FORMAT_CHANGED === 'true';
+            const autoformatStatus = formatChanged
+              ? '✅ commit enviado'
+              : status(results.autofix);
+            const rerunStatus = formatChanged
+              ? process.env.RERUN_RESULT === 'success'
+                ? '✅ iniciada'
+                : status(process.env.RERUN_RESULT)
+              : '⏭️ não necessária';
             const conclusions = {
               success: '✅ CI aprovada',
               failure: '❌ CI com falha',
               cancelled: '🚫 CI cancelada',
               skipped: '⏭️ CI não executada',
             };
-            const sha = context.payload.pull_request.head.sha;
+            const sha = results.format_sha || context.payload.pull_request.head.sha;
             const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
             const body = [
@@ -96,6 +211,9 @@ jobs:
               `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
               '',
               `📦 Dependências · ${status(results.dependencies)}  `,
+              `🧹 Correção automática · ${autoformatStatus}  `,
+              `💅 Formatação · ${status(results.format)}  `,
+              `🔄 CI do commit corrigido · ${rerunStatus}  `,
               `🔎 Lint · ${status(results.lint)}  `,
               `🧪 Testes e tipos · ${status(results.tests)}  `,
               `🏗️ Build · ${status(results.build)}`,
