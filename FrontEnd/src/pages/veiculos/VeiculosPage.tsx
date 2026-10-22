@@ -18,23 +18,23 @@ export const VeiculosPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [tabFilter, setTabFilter] = useState<"TODOS" | "ADMIN" | "SVO">("TODOS");
   const [isModalOpen, setIsModalOpen] = useState(false);
-// Novos estados para gerenciar os dados da API
+  // Novos estados para gerenciar os dados da API
   const [veiculos, setVeiculos] = useState<VeiculoItem[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   // Função para buscar os veículos da API do Express (porta 3000)
-  const buscarVeiculos = async (termo = '') => {
+  const buscarVeiculos = async (termo = "") => {
     try {
       setCarregando(true);
-      const url = termo 
-        ? `http://localhost:3000/veiculos?busca=${encodeURIComponent(termo)}` 
-        : 'http://localhost:3000/veiculos';
+      const url = termo
+        ? `http://localhost:3000/veiculos?busca=${encodeURIComponent(termo)}`
+        : "http://localhost:3000/veiculos";
 
       const resposta = await fetch(url);
       const dados = await resposta.json();
       setVeiculos(dados);
     } catch (erro) {
-      console.error('Erro ao buscar veículos da API:', erro);
+      console.error("Erro ao buscar veículos da API:", erro);
     } finally {
       setCarregando(false);
     }
@@ -172,7 +172,7 @@ export const VeiculosPage: React.FC = () => {
           <span className="text-xs text-blue-700 font-semibold">Frota Administrativa</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-blue-900">
-              {veiculos.filter(v => v.tipoFrota === "Administrativa").length}
+              {veiculos.filter((v) => v.tipoFrota === "Administrativa").length}
             </span>
             <span className="text-xs text-blue-600 font-medium">veículos (LACEN / Hemose)</span>
           </div>
@@ -182,7 +182,7 @@ export const VeiculosPage: React.FC = () => {
           <span className="text-xs text-rose-700 font-semibold">Frota Especializada SVO</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-rose-900">
-              {veiculos.filter(v => v.tipoFrota === "SVO").length}
+              {veiculos.filter((v) => v.tipoFrota === "SVO").length}
             </span>
             <span className="text-xs text-rose-600 font-medium">viaturas (Limite 4 urnas)</span>
           </div>
@@ -223,7 +223,7 @@ export const VeiculosPage: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Administrativa ({veiculos.filter(v => v.tipoFrota === "Administrativa").length})
+            Administrativa ({veiculos.filter((v) => v.tipoFrota === "Administrativa").length})
           </button>
           <button
             type="button"
@@ -234,7 +234,7 @@ export const VeiculosPage: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            SVO ({veiculos.filter(v => v.tipoFrota === "SVO").length})
+            SVO ({veiculos.filter((v) => v.tipoFrota === "SVO").length})
           </button>
         </div>
       </div>
