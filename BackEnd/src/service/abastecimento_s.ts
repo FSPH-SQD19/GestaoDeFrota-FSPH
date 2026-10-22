@@ -4,13 +4,15 @@ import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
 import { registrarAuditoria } from "./auditoria_s";
 
-export const listarAbastecimentosSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
-  veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }).optional(),
-  dataInicio: z.coerce.date().optional(),
-  dataFim: z.coerce.date().optional(),
-}).superRefine((filtros, ctx) => {
+export const listarAbastecimentosSchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+    veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }).optional(),
+    dataInicio: z.coerce.date().optional(),
+    dataFim: z.coerce.date().optional(),
+  })
+  .superRefine((filtros, ctx) => {
     if (filtros.dataInicio && filtros.dataFim && filtros.dataInicio > filtros.dataFim) {
       ctx.addIssue({
         code: "custom",
@@ -25,9 +27,18 @@ export const criarAbastecimentoSchema = z.object({
   motoristaId: z.uuid({ error: "motoristaId deve ser um UUID válido." }).optional(),
   fornecedorId: z.uuid({ error: "fornecedorId deve ser um UUID válido." }).optional(),
   dataHora: z.coerce.date().optional(),
-  odometro: z.number({ error: "Odômetro deve ser numérico." }).min(0, "Odômetro não pode ser negativo.").max(99999999.99, "Valor inválido."),
-  litros: z.number({ error: "Litros deve ser numérico." }).positive("Litros deve ser maior que 0.").max(999999.99, "Quantidade de litros inválida."),
-  valorTotal: z.number({ error: "Valor Total deve ser numérico."}).positive("Valor Total deve ser maior que 0.").max(99999999.99, "Valor inválido."),
+  odometro: z
+    .number({ error: "Odômetro deve ser numérico." })
+    .min(0, "Odômetro não pode ser negativo.")
+    .max(99999999.99, "Valor inválido."),
+  litros: z
+    .number({ error: "Litros deve ser numérico." })
+    .positive("Litros deve ser maior que 0.")
+    .max(999999.99, "Quantidade de litros inválida."),
+  valorTotal: z
+    .number({ error: "Valor Total deve ser numérico." })
+    .positive("Valor Total deve ser maior que 0.")
+    .max(99999999.99, "Valor inválido."),
 });
 
 export type CriarAbastecimentoInput = z.infer<typeof criarAbastecimentoSchema>;
@@ -98,7 +109,7 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
     if (!motorista?.ativo) {
       throw new HttpError(422, "Motorista não encontrado ou inativo.", [
         { campo: "motoristaId", mensagem: "Informe um motorista ativo." },
-    ]);
+      ]);
     }
   }
 
@@ -110,25 +121,28 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
     if (!fornecedor?.ativo) {
       throw new HttpError(422, "Fornecedor não encontrado ou inativo.", [
         { campo: "fornecedorId", mensagem: "Informe um fornecedor ativo." },
-    ]);
+      ]);
     }
   }
 
   const dataHora = input.dataHora ?? new Date();
 
   const anterior = await prisma.abastecimento.findFirst({
-    where: { 
+    where: {
       veiculoId: input.veiculoId,
       dataHora: { lt: dataHora },
-      odometro: { not: null}
+      odometro: { not: null },
     },
     orderBy: { dataHora: "desc" },
-    select: { odometro: true }
+    select: { odometro: true },
   });
 
   if (anterior?.odometro && anterior.odometro.gte(input.odometro)) {
-    throw new HttpError(422,  "Odômetro inválido.", [
-      { campo: "odometro", mensagem: `Deve ser maior que o último registrado (${anterior.odometro} km).` },
+    throw new HttpError(422, "Odômetro inválido.", [
+      {
+        campo: "odometro",
+        mensagem: `Deve ser maior que o último registrado (${anterior.odometro} km).`,
+      },
     ]);
   }
 
@@ -155,7 +169,7 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
 
   const kmPorLitroArredondado = kmPorLitro ? kmPorLitro.toDecimalPlaces(2) : null;
 
-    return {
+  return {
     ...resposta,
     kmPorLitro: decimalParaNumero(kmPorLitroArredondado),
   };
