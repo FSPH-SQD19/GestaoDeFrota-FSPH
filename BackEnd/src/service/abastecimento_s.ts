@@ -78,7 +78,7 @@ export function calcularKmPorLitro(
   litros: NumeroDecimal,
 ): number | null {
   if (odometro === null || odometroAnterior === null || litros === null) return null;
-  
+
   const numLitros = new Prisma.Decimal(litros).toNumber();
   if (numLitros <= 0) return null;
 
@@ -86,7 +86,7 @@ export function calcularKmPorLitro(
     .minus(new Prisma.Decimal(odometroAnterior))
     .dividedBy(numLitros)
     .toDecimalPlaces(2);
-    
+
   return kmPorLitro.toNumber();
 }
 
@@ -110,22 +110,23 @@ export async function listarAbastecimentos(filtros: ListarAbastecimentosFiltros)
     prisma.abastecimento.count({ where }),
   ]);
 
-const data = await Promise.all(
-  abastecimentos.map(async (item) => {
-    const anterior = item.odometro !== null
-      ? await prisma.abastecimento.findFirst({
-          where: { veiculoId: item.veiculoId, odometro: { lt: item.odometro } },
-          orderBy: { odometro: "desc" },
-          select: { odometro: true },
-        })
-      : null;
+  const data = await Promise.all(
+    abastecimentos.map(async (item) => {
+      const anterior =
+        item.odometro !== null
+          ? await prisma.abastecimento.findFirst({
+              where: { veiculoId: item.veiculoId, odometro: { lt: item.odometro } },
+              orderBy: { odometro: "desc" },
+              select: { odometro: true },
+            })
+          : null;
 
-    return {
-      ...serializarAbastecimento(item),
-      kmPorLitro: calcularKmPorLitro(item.odometro, anterior?.odometro ?? null, item.litros),
-    };
-  })
-);
+      return {
+        ...serializarAbastecimento(item),
+        kmPorLitro: calcularKmPorLitro(item.odometro, anterior?.odometro ?? null, item.litros),
+      };
+    }),
+  );
 
   return {
     data,
@@ -182,12 +183,12 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
 
   const proximo = await prisma.abastecimento.findFirst({
     where: {
-       veiculoId: input.veiculoId,
+      veiculoId: input.veiculoId,
       dataHora: { gt: dataHora },
       odometro: { not: null },
     },
     orderBy: [{ dataHora: "asc" }, { odometro: "asc" }],
-    select: { odometro: true }
+    select: { odometro: true },
   });
 
   if (anterior?.odometro && anterior.odometro.gte(input.odometro)) {
@@ -201,31 +202,31 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
 
   if (proximo?.odometro && new Prisma.Decimal(proximo.odometro).lte(input.odometro)) {
     throw new HttpError(422, "Odômetro inválido.", [
-    {
-      campo: "odometro",
-      mensagem: `Deve ser menor que o registrado depois (${proximo.odometro} km).`,
-    },
-  ]);
+      {
+        campo: "odometro",
+        mensagem: `Deve ser menor que o registrado depois (${proximo.odometro} km).`,
+      },
+    ]);
   }
 
-  const abastecimento = await prisma.$transaction(async(tx) => {
+  const abastecimento = await prisma.$transaction(async (tx) => {
     const criado = await tx.abastecimento.create({
-    data: { ...input, dataHora },
+      data: { ...input, dataHora },
+    });
+
+    await tx.auditoriaSistema.create({
+      data: {
+        usuarioId,
+        acao: "CRIAR",
+        tabelaAfetada: "abastecimentos",
+        registroId: criado.id,
+        dadosNovos: JSON.parse(JSON.stringify(serializarAbastecimento(criado))),
+      },
+    });
+
+    return criado;
   });
 
-  await tx.auditoriaSistema.create({
-    data: {
-      usuarioId,
-      acao: "CRIAR",
-      tabelaAfetada: "abastecimentos",
-      registroId: criado.id,
-      dadosNovos: JSON.parse(JSON.stringify(serializarAbastecimento(criado))),
-    },
-  });
-
-  return criado;
-});
-  
   const resposta = serializarAbastecimento(abastecimento);
 
   return {
