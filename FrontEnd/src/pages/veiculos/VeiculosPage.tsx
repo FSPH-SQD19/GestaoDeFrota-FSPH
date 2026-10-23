@@ -1,16 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Search, Truck, Fuel, Eye } from "lucide-react";
 import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
 import type { Column } from "../../components/common/Table";
+import { z } from "zod";
 
-interface VeiculoItem {
+const veiculoSchema = z.object({
+  placa: z.string().min(7, "A placa deve ter pelo menos 7 caracteres").max(8, "Placa inválida"),
+  modelo: z.string().min(3, "Informe o modelo e fabricante do veículo"),
+  tipoFrota: z.enum(["Administrativa", "SVO"]),
+  capacidade: z.coerce.number().min(1, "A capacidade deve ser maior que zero"),
+  combustivel: z.string().min(2, "Informe o tipo de combustível"),
+  ano: z.coerce.number().min(2000, "Ano inválido").max(2030, "Ano inválido"),
+});
+
+type VeiculoFormData = z.infer<typeof veiculoSchema>;
+
+interface VeiculoItem extends VeiculoFormData {
   id: string;
-  placa: string;
-  modelo: string;
-  tipoFrota: "Administrativa" | "SVO";
-  capacidade: number;
-  combustivel: string;
-  ano: number;
   status: "Disponível" | "Em viagem" | "Manutenção" | "Desinfecção";
 }
 
@@ -19,87 +25,92 @@ export const VeiculosPage: React.FC = () => {
   const [tabFilter, setTabFilter] = useState<"TODOS" | "ADMIN" | "SVO">("TODOS");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const veiculos: VeiculoItem[] = [
-    {
-      id: "1",
-      placa: "IAF-4820",
-      modelo: "Renault Master L3H2 Furgão",
-      tipoFrota: "Administrativa",
-      capacidade: 3,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Disponível",
-    },
-    {
-      id: "2",
-      placa: "QMA-9124",
-      modelo: "Chevrolet S10 Cabine Dupla 2.8",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2023,
-      status: "Em viagem",
-    },
-    {
-      id: "3",
-      placa: "NVL-3011",
-      modelo: "Fiat Ducato Maxi Cargo 2.3",
-      tipoFrota: "Administrativa",
-      capacidade: 3,
-      combustivel: "Diesel",
-      ano: 2022,
-      status: "Disponível",
-    },
-    {
-      id: "4",
-      placa: "QKN-5582",
-      modelo: "Chevrolet S10 4x4 Especializada SVO",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Desinfecção",
-    },
-    {
-      id: "5",
-      placa: "QNE-1934",
-      modelo: "Toyota Hilux 4x4 Administrativa",
-      tipoFrota: "Administrativa",
-      capacidade: 5,
-      combustivel: "Diesel",
-      ano: 2023,
-      status: "Em viagem",
-    },
-    {
-      id: "6",
-      placa: "BRA-2E19",
-      modelo: "Chevrolet Spin 1.8 LTZ",
-      tipoFrota: "Administrativa",
-      capacidade: 7,
-      combustivel: "Flex",
-      ano: 2024,
-      status: "Em viagem",
-    },
-    {
-      id: "7",
-      placa: "QZB-8812",
-      modelo: "Chevrolet S10 Especializada SVO",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Em viagem",
-    },
-  ];
+  const [veiculos, setVeiculos] = useState<VeiculoItem[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  //Estados para controlar os inputs do formulário e erros
+  const [formData, setFormData] = useState({
+    placa: "",
+    modelo: "",
+    tipoFrota: "Administrativa" as "Administrativa" | "SVO",
+    capacidade: 4,
+    combustivel: "",
+    ano: 2024,
+  });
+  const [erroValidacao, setErroValidacao] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  // Função para validar e enviar POST para o Express
+  const handleSalvarVeiculo = async () => {
+    try {
+      setErroValidacao(null);
+      const dadosValidados = veiculoSchema.parse(formData);
+      setEnviando(true);
+
+      const resposta = await fetch("http://localhost:3000/veiculos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...dadosValidados, status: "Disponível" }),
+      });
+
+      if (!resposta.ok) throw new Error("Erro ao salvar veículo no servidor.");
+
+      setIsModalOpen(false);
+      setFormData({
+        placa: "",
+        modelo: "",
+        tipoFrota: "Administrativa",
+        capacidade: 4,
+        combustivel: "",
+        ano: 2024,
+      });
+      buscarVeiculos();
+    } catch (erro: any) {
+      if (erro instanceof z.ZodError) {
+        setErroValidacao(erro.issues[0].message);
+      } else {
+        setErroValidacao("Erro de conexão com o servidor Express.");
+      }
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const buscarVeiculos = async (termo = "") => {
+    try {
+      setCarregando(true);
+      const url = termo
+        ? `http://localhost:3000/veiculos?busca=${encodeURIComponent(termo)}`
+        : "http://localhost:3000/veiculos";
+
+      const resposta = await fetch(url);
+      const dados = await resposta.json();
+      setVeiculos(dados);
+    } catch (erro) {
+      console.error("Erro ao buscar veículos da API:", erro);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  // Carrega a lista assim que a página abre
+  useEffect(() => {
+    buscarVeiculos();
+  }, []);
+
+  // Busca dinâmica conforme o usuário digita no input
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      buscarVeiculos(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   const filteredVeiculos = veiculos.filter((v) => {
-    const matchesSearch =
-      v.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.modelo.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (tabFilter === "ADMIN") return matchesSearch && v.tipoFrota === "Administrativa";
-    if (tabFilter === "SVO") return matchesSearch && v.tipoFrota === "SVO";
-    return matchesSearch;
+    if (tabFilter === "ADMIN") return v.tipoFrota === "Administrativa";
+    if (tabFilter === "SVO") return v.tipoFrota === "SVO";
+    return true;
   });
 
   const columns: Column<VeiculoItem>[] = [
@@ -205,7 +216,7 @@ export const VeiculosPage: React.FC = () => {
         <Card className="p-4.5 rounded-2xl border border-slate-200/80 bg-white">
           <span className="text-xs text-slate-500 font-medium">Total de Veículos</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">7</span>
+            <span className="text-2xl font-bold text-slate-900">{veiculos.length}</span>
             <span className="text-xs text-slate-400">cadastrados</span>
           </div>
         </Card>
@@ -213,7 +224,9 @@ export const VeiculosPage: React.FC = () => {
         <Card className="p-4.5 rounded-2xl border border-blue-200/80 bg-blue-50/30">
           <span className="text-xs text-blue-700 font-semibold">Frota Administrativa</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-blue-900">4</span>
+            <span className="text-2xl font-bold text-blue-900">
+              {veiculos.filter((v) => v.tipoFrota === "Administrativa").length}
+            </span>
             <span className="text-xs text-blue-600 font-medium">veículos (LACEN / Hemose)</span>
           </div>
         </Card>
@@ -221,7 +234,9 @@ export const VeiculosPage: React.FC = () => {
         <Card className="p-4.5 rounded-2xl border border-rose-200/80 bg-rose-50/30">
           <span className="text-xs text-rose-700 font-semibold">Frota Especializada SVO</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-rose-900">3</span>
+            <span className="text-2xl font-bold text-rose-900">
+              {veiculos.filter((v) => v.tipoFrota === "SVO").length}
+            </span>
             <span className="text-xs text-rose-600 font-medium">viaturas (Limite 4 urnas)</span>
           </div>
         </Card>
@@ -261,7 +276,7 @@ export const VeiculosPage: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Administrativa (4)
+            Administrativa ({veiculos.filter((v) => v.tipoFrota === "Administrativa").length})
           </button>
           <button
             type="button"
@@ -272,18 +287,24 @@ export const VeiculosPage: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            SVO (3)
+            SVO ({veiculos.filter((v) => v.tipoFrota === "SVO").length})
           </button>
         </div>
       </div>
 
-      {/* Tabela Reutilizável de Veículos */}
-      <Table
-        columns={columns}
-        data={filteredVeiculos}
-        keyExtractor={(item) => item.id}
-        emptyMessage="Nenhum veículo encontrado com esse filtro ou busca."
-      />
+      {/* Indicador visual de carregamento ou Tabela Reutilizável */}
+      {carregando ? (
+        <div className="p-8 text-center text-slate-500 bg-white rounded-2xl border border-slate-200/80">
+          Carregando veículos da API...
+        </div>
+      ) : (
+        <Table
+          columns={columns}
+          data={filteredVeiculos}
+          keyExtractor={(item) => item.id}
+          emptyMessage="Nenhum veículo encontrado com esse filtro ou busca."
+        />
+      )}
 
       {/* Modal Reutilizável de Cadastro de Veículo */}
       <Modal
@@ -299,24 +320,41 @@ export const VeiculosPage: React.FC = () => {
             <Button
               variant="primary"
               className="bg-slate-900 hover:bg-slate-800 text-white"
-              onClick={() => setIsModalOpen(false)}
+              onClick={handleSalvarVeiculo} // Chama a função de salvamento
+              disabled={enviando} // Bloqueia enquanto envia
             >
-              Salvar Veículo
+              {enviando ? "Salvando..." : "Salvar Veículo"} {/* ⬅️ ALTERADO: Feedback */}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Input label="Placa (Padrão Mercosul ou CTB)" placeholder="Ex: BRA2E19" required />
+          {/* Caixa de alerta de erro do Zod */}
+          {erroValidacao && (
+            <div className="p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
+              {erroValidacao}
+            </div>
+          )}
+
+          <Input
+            label="Placa (Padrão Mercosul ou CTB)"
+            placeholder="Ex: BRA2E19"
+            required
+            value={formData.placa}
+            onChange={(e) => setFormData({ ...formData, placa: e.target.value })}
+          />
           <Input
             label="Modelo e Fabricante"
             placeholder="Ex: Chevrolet S10 2.8 Turbo 4x4"
             required
+            value={formData.modelo}
+            onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
           />
           <Select
             label="Tipo de Frota"
             required
-            defaultValue="Administrativa"
+            value={formData.tipoFrota}
+            onChange={(e: any) => setFormData({ ...formData, tipoFrota: e.target.value })}
             options={[
               { value: "Administrativa", label: "Frota Administrativa (LACEN, Hemose, Diretoria)" },
               {
@@ -326,10 +364,30 @@ export const VeiculosPage: React.FC = () => {
             ]}
           />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Capacidade Máxima" type="number" placeholder="Ex: 4" required />
-            <Input label="Ano Fabricação" type="number" placeholder="Ex: 2024" required />
+            <Input
+              label="Capacidade Máxima"
+              type="number"
+              placeholder="Ex: 4"
+              required
+              value={formData.capacidade}
+              onChange={(e) => setFormData({ ...formData, capacidade: Number(e.target.value) })}
+            />
+            <Input
+              label="Ano Fabricação"
+              type="number"
+              placeholder="Ex: 2024"
+              required
+              value={formData.ano}
+              onChange={(e) => setFormData({ ...formData, ano: Number(e.target.value) })}
+            />
           </div>
-          <Input label="Tipo de Combustível" placeholder="Ex: Diesel S10 / Flex" required />
+          <Input
+            label="Tipo de Combustível"
+            placeholder="Ex: Diesel S10 / Flex"
+            required
+            value={formData.combustivel}
+            onChange={(e) => setFormData({ ...formData, combustivel: e.target.value })}
+          />
         </div>
       </Modal>
     </div>
