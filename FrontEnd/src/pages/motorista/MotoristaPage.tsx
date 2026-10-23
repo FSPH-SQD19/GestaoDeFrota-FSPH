@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState } from "react";
 import {
   CalendarDays,
   Filter,
@@ -9,252 +9,253 @@ import {
   Upload,
   UserRound,
   X,
-} from 'lucide-react'
-import { Badge, Button, Card, Input, Modal, Select, Table } from '../../components/common'
-import type { Column } from '../../components/common/Table'
+} from "lucide-react";
+import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
+import type { Column } from "../../components/common/Table";
 import {
   categoriasCnh,
   cpfValido,
   formatarCpf,
   type Motorista,
   type StatusMotorista,
-} from './MotoristaRules'
+} from "./MotoristaRules";
 
 interface FormularioMotorista {
-  nome: string
-  cpf: string
-  numeroCnh: string
-  categoriaCnh: string
-  validadeCnh: string
-  contato: string
-  email: string
-  senha: string
+  nome: string;
+  cpf: string;
+  numeroCnh: string;
+  categoriaCnh: string;
+  validadeCnh: string;
+  contato: string;
+  email: string;
+  senha: string;
 }
 
 interface FiltrosMotoristas {
-  id: string
-  nome: string
-  validadeCnh: string
-  status: string
-  contato: string
+  id: string;
+  nome: string;
+  validadeCnh: string;
+  status: string;
+  contato: string;
 }
 
 const formularioVazio: FormularioMotorista = {
-  nome: '',
-  cpf: '',
-  numeroCnh: '',
-  categoriaCnh: '',
-  validadeCnh: '',
-  contato: '',
-  email: '',
-  senha: '',
-}
+  nome: "",
+  cpf: "",
+  numeroCnh: "",
+  categoriaCnh: "",
+  validadeCnh: "",
+  contato: "",
+  email: "",
+  senha: "",
+};
 
 const dataRelativa = (dias: number) => {
-  const data = new Date()
-  data.setDate(data.getDate() + dias)
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`
-}
+  const data = new Date();
+  data.setDate(data.getDate() + dias);
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+};
 
 const dataHojeIso = () => {
-  const data = new Date()
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`
-}
+  const data = new Date();
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+};
 
 const formatarData = (data: string) =>
-  new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(`${data}T00:00:00Z`))
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${data}T00:00:00Z`));
 
 const diasAteVencimento = (data: string) => {
   const paraDiaUtc = (dataIso: string) => {
-    const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dataIso)
-    if (!partes) return Number.NaN
-    return Date.UTC(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3]))
-  }
+    const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dataIso);
+    if (!partes) return Number.NaN;
+    return Date.UTC(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3]));
+  };
 
-  return (paraDiaUtc(data) - paraDiaUtc(dataHojeIso())) / (1000 * 60 * 60 * 24)
-}
+  return (paraDiaUtc(data) - paraDiaUtc(dataHojeIso())) / (1000 * 60 * 60 * 24);
+};
 
 const filtrosVazios: FiltrosMotoristas = {
-  id: '',
-  nome: '',
-  validadeCnh: '',
-  status: '',
-  contato: '',
-}
+  id: "",
+  nome: "",
+  validadeCnh: "",
+  status: "",
+  contato: "",
+};
 
-const statusVariant: Record<StatusMotorista, 'info' | 'success' | 'warning' | 'neutral'> = {
-  'Em rota': 'info',
-  Disponível: 'success',
-  Indisponível: 'warning',
-  Inativo: 'neutral',
-}
+const statusVariant: Record<StatusMotorista, "info" | "success" | "warning" | "neutral"> = {
+  "Em rota": "info",
+  Disponível: "success",
+  Indisponível: "warning",
+  Inativo: "neutral",
+};
 
 const motoristas: Motorista[] = [
   {
-    id: 'MOT-001',
-    nome: 'Carlos Alberto Santos',
-    cpf: '123.456.789-00',
-    numeroCnh: '01234567890',
-    categoriaCnh: 'D',
+    id: "MOT-001",
+    nome: "Carlos Alberto Santos",
+    cpf: "123.456.789-00",
+    numeroCnh: "01234567890",
+    categoriaCnh: "D",
     validadeCnh: dataRelativa(20),
-    status: 'Em rota',
-    contato: '(79) 99912-3456',
+    status: "Em rota",
+    contato: "(79) 99912-3456",
   },
   {
-    id: 'MOT-002',
-    nome: 'Mariana Oliveira Costa',
-    cpf: '234.567.890-11',
-    numeroCnh: '12345678901',
-    categoriaCnh: 'D',
+    id: "MOT-002",
+    nome: "Mariana Oliveira Costa",
+    cpf: "234.567.890-11",
+    numeroCnh: "12345678901",
+    categoriaCnh: "D",
     validadeCnh: dataRelativa(180),
-    status: 'Disponível',
-    contato: '(79) 99823-4567',
+    status: "Disponível",
+    contato: "(79) 99823-4567",
   },
   {
-    id: 'MOT-003',
-    nome: 'João Pedro Nascimento',
-    cpf: '345.678.901-22',
-    numeroCnh: '23456789012',
-    categoriaCnh: 'E',
+    id: "MOT-003",
+    nome: "João Pedro Nascimento",
+    cpf: "345.678.901-22",
+    numeroCnh: "23456789012",
+    categoriaCnh: "E",
     validadeCnh: dataRelativa(-10),
-    status: 'Indisponível',
-    contato: '(79) 99734-5678',
+    status: "Indisponível",
+    contato: "(79) 99734-5678",
   },
   {
-    id: 'MOT-004',
-    nome: 'Ana Paula Rodrigues',
-    cpf: '456.789.012-33',
-    numeroCnh: '34567890123',
-    categoriaCnh: 'D',
+    id: "MOT-004",
+    nome: "Ana Paula Rodrigues",
+    cpf: "456.789.012-33",
+    numeroCnh: "34567890123",
+    categoriaCnh: "D",
     validadeCnh: dataRelativa(8),
-    status: 'Disponível',
-    contato: '(79) 99645-6789',
+    status: "Disponível",
+    contato: "(79) 99645-6789",
   },
   {
-    id: 'MOT-005',
-    nome: 'Roberto Lima Ferreira',
-    cpf: '567.890.123-44',
-    numeroCnh: '45678901234',
-    categoriaCnh: 'C',
+    id: "MOT-005",
+    nome: "Roberto Lima Ferreira",
+    cpf: "567.890.123-44",
+    numeroCnh: "45678901234",
+    categoriaCnh: "C",
     validadeCnh: dataRelativa(365),
-    status: 'Inativo',
-    contato: '(79) 99556-7890',
+    status: "Inativo",
+    contato: "(79) 99556-7890",
   },
   {
-    id: 'MOT-006',
-    nome: 'Fernanda Souza Almeida',
-    cpf: '678.901.234-55',
-    numeroCnh: '56789012345',
-    categoriaCnh: 'D',
+    id: "MOT-006",
+    nome: "Fernanda Souza Almeida",
+    cpf: "678.901.234-55",
+    numeroCnh: "56789012345",
+    categoriaCnh: "D",
     validadeCnh: dataRelativa(30),
-    status: 'Em rota',
-    contato: '(79) 99467-8901',
+    status: "Em rota",
+    contato: "(79) 99467-8901",
   },
-]
+];
 
 export const MotoristasPage: React.FC = () => {
-  const [termoBusca, setTermoBusca] = useState('')
-  const [filtros, setFiltros] = useState(filtrosVazios)
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
-  const [filtroCnhAtencao, setFiltroCnhAtencao] = useState(false)
-  const [motoristaSelecionado, setMotoristaSelecionado] = useState<Motorista | null>(null)
-  const [modalCadastroAberto, setModalCadastroAberto] = useState(false)
-  const [formulario, setFormulario] = useState(formularioVazio)
-  const [cpfTocado, setCpfTocado] = useState(false)
-  const [erroCadastro, setErroCadastro] = useState('')
-  const [cadastroValidado, setCadastroValidado] = useState(false)
+  const [termoBusca, setTermoBusca] = useState("");
+  const [filtros, setFiltros] = useState(filtrosVazios);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [filtroCnhAtencao, setFiltroCnhAtencao] = useState(false);
+  const [motoristaSelecionado, setMotoristaSelecionado] = useState<Motorista | null>(null);
+  const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
+  const [formulario, setFormulario] = useState(formularioVazio);
+  const [cpfTocado, setCpfTocado] = useState(false);
+  const [erroCadastro, setErroCadastro] = useState("");
+  const [cadastroValidado, setCadastroValidado] = useState(false);
 
-  const atualizarFormulario = <K extends keyof FormularioMotorista,>(
+  const atualizarFormulario = <K extends keyof FormularioMotorista>(
     campo: K,
-    valor: FormularioMotorista[K]
+    valor: FormularioMotorista[K],
   ) => {
-    setFormulario((atual) => ({ ...atual, [campo]: valor }))
-    setErroCadastro('')
-    setCadastroValidado(false)
-  }
+    setFormulario((atual) => ({ ...atual, [campo]: valor }));
+    setErroCadastro("");
+    setCadastroValidado(false);
+  };
 
-  const digitosCpf = formulario.cpf.replace(/\D/g, '')
+  const digitosCpf = formulario.cpf.replace(/\D/g, "");
   const mostrarErroCpf =
-    digitosCpf.length > 0 &&
-    (cpfTocado || digitosCpf.length === 11) &&
-    !cpfValido(formulario.cpf)
+    digitosCpf.length > 0 && (cpfTocado || digitosCpf.length === 11) && !cpfValido(formulario.cpf);
 
   const fecharCadastro = () => {
-    setModalCadastroAberto(false)
-    setFormulario(formularioVazio)
-    setCpfTocado(false)
-    setErroCadastro('')
-    setCadastroValidado(false)
-  }
+    setModalCadastroAberto(false);
+    setFormulario(formularioVazio);
+    setCpfTocado(false);
+    setErroCadastro("");
+    setCadastroValidado(false);
+  };
 
   const cadastrarMotorista = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setCpfTocado(true)
-    setErroCadastro('')
-    setCadastroValidado(false)
+    event.preventDefault();
+    setCpfTocado(true);
+    setErroCadastro("");
+    setCadastroValidado(false);
 
     if (!cpfValido(formulario.cpf)) {
-      setErroCadastro('Informe um CPF válido.')
-      return
+      setErroCadastro("Informe um CPF válido.");
+      return;
     }
 
     if (!formulario.nome.trim()) {
-      setErroCadastro('Informe o nome completo do motorista.')
-      return
+      setErroCadastro("Informe o nome completo do motorista.");
+      return;
     }
 
-    setCadastroValidado(true)
-  }
+    setCadastroValidado(true);
+  };
 
   const motoristasFiltrados = useMemo(() => {
-    const busca = termoBusca.trim().toLocaleLowerCase('pt-BR')
+    const busca = termoBusca.trim().toLocaleLowerCase("pt-BR");
 
     return motoristas.filter((motorista) => {
-      const diasParaVencimento = diasAteVencimento(motorista.validadeCnh)
-      const cnhPrecisaAtencao =
-        motorista.status !== 'Inativo' && diasParaVencimento <= 30
+      const diasParaVencimento = diasAteVencimento(motorista.validadeCnh);
+      const cnhPrecisaAtencao = motorista.status !== "Inativo" && diasParaVencimento <= 30;
       const correspondeBusca =
         !busca ||
-        motorista.id.toLocaleLowerCase('pt-BR').includes(busca) ||
-        motorista.nome.toLocaleLowerCase('pt-BR').includes(busca)
+        motorista.id.toLocaleLowerCase("pt-BR").includes(busca) ||
+        motorista.nome.toLocaleLowerCase("pt-BR").includes(busca);
 
       return (
         (!filtroCnhAtencao || cnhPrecisaAtencao) &&
         correspondeBusca &&
-        motorista.id.toLocaleLowerCase('pt-BR').includes(filtros.id.trim().toLocaleLowerCase('pt-BR')) &&
-        motorista.nome.toLocaleLowerCase('pt-BR').includes(filtros.nome.trim().toLocaleLowerCase('pt-BR')) &&
+        motorista.id
+          .toLocaleLowerCase("pt-BR")
+          .includes(filtros.id.trim().toLocaleLowerCase("pt-BR")) &&
+        motorista.nome
+          .toLocaleLowerCase("pt-BR")
+          .includes(filtros.nome.trim().toLocaleLowerCase("pt-BR")) &&
         (!filtros.validadeCnh || motorista.validadeCnh === filtros.validadeCnh) &&
         (!filtros.status || motorista.status === filtros.status) &&
-        motorista.contato.replace(/\D/g, '').includes(filtros.contato.replace(/\D/g, ''))
-      )
-    })
-  }, [filtroCnhAtencao, filtros, termoBusca])
+        motorista.contato.replace(/\D/g, "").includes(filtros.contato.replace(/\D/g, ""))
+      );
+    });
+  }, [filtroCnhAtencao, filtros, termoBusca]);
 
-  const emServico = motoristas.filter((motorista) => motorista.status === 'Em rota').length
-  const disponiveis = motoristas.filter((motorista) => motorista.status === 'Disponível').length
+  const emServico = motoristas.filter((motorista) => motorista.status === "Em rota").length;
+  const disponiveis = motoristas.filter((motorista) => motorista.status === "Disponível").length;
   const motoristasComCnhAtencao = motoristas.filter(
-    (motorista) =>
-      motorista.status !== 'Inativo' && diasAteVencimento(motorista.validadeCnh) <= 30
-  )
+    (motorista) => motorista.status !== "Inativo" && diasAteVencimento(motorista.validadeCnh) <= 30,
+  );
   const cnHsVencidas = motoristasComCnhAtencao.filter(
-    (motorista) => diasAteVencimento(motorista.validadeCnh) <= 0
-  ).length
-  const cnHsVencendo = motoristasComCnhAtencao.length - cnHsVencidas
-  const cardCnhClasses = cnHsVencidas > 0
-    ? 'border-rose-200/80 bg-rose-50/30'
-    : cnHsVencendo > 0
-      ? 'border-amber-200/80 bg-amber-50/30'
-      : 'border-slate-200/80 bg-white'
+    (motorista) => diasAteVencimento(motorista.validadeCnh) <= 0,
+  ).length;
+  const cnHsVencendo = motoristasComCnhAtencao.length - cnHsVencidas;
+  const cardCnhClasses =
+    cnHsVencidas > 0
+      ? "border-rose-200/80 bg-rose-50/30"
+      : cnHsVencendo > 0
+        ? "border-amber-200/80 bg-amber-50/30"
+        : "border-slate-200/80 bg-white";
 
   const alternarFiltroCnhAtencao = () => {
-    setFiltroCnhAtencao((ativo) => !ativo)
-    setTermoBusca('')
-    setFiltros(filtrosVazios)
-  }
+    setFiltroCnhAtencao((ativo) => !ativo);
+    setTermoBusca("");
+    setFiltros(filtrosVazios);
+  };
 
   const colunas: Column<Motorista>[] = [
     {
-      header: 'ID',
+      header: "ID",
       render: (motorista) => (
         <span className="font-mono text-xs font-bold tracking-wide text-slate-700">
           {motorista.id}
@@ -262,7 +263,7 @@ export const MotoristasPage: React.FC = () => {
       ),
     },
     {
-      header: 'Nome',
+      header: "Nome",
       render: (motorista) => (
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
@@ -273,29 +274,37 @@ export const MotoristasPage: React.FC = () => {
       ),
     },
     {
-      header: 'Vencimento da CNH',
+      header: "Vencimento da CNH",
       render: (motorista) => {
-        const dias = diasAteVencimento(motorista.validadeCnh)
-        const vencida = dias <= 0
-        const proxima = dias > 0 && dias <= 30
+        const dias = diasAteVencimento(motorista.validadeCnh);
+        const vencida = dias <= 0;
+        const proxima = dias > 0 && dias <= 30;
 
         return (
           <div className="flex items-center gap-2 text-xs">
             <CalendarDays className="h-4 w-4 text-slate-400" />
-            <span className={vencida ? 'font-semibold text-rose-700' : proxima ? 'font-semibold text-amber-700' : 'text-slate-600'}>
+            <span
+              className={
+                vencida
+                  ? "font-semibold text-rose-700"
+                  : proxima
+                    ? "font-semibold text-amber-700"
+                    : "text-slate-600"
+              }
+            >
               {formatarData(motorista.validadeCnh)}
             </span>
             {(vencida || proxima) && (
-              <Badge variant={vencida ? 'danger' : 'warning'} size="sm">
-                {vencida ? 'Vencida' : 'Próxima'}
+              <Badge variant={vencida ? "danger" : "warning"} size="sm">
+                {vencida ? "Vencida" : "Próxima"}
               </Badge>
             )}
           </div>
-        )
+        );
       },
     },
     {
-      header: 'Status',
+      header: "Status",
       render: (motorista) => (
         <Badge variant={statusVariant[motorista.status]} dot size="md">
           {motorista.status}
@@ -303,11 +312,11 @@ export const MotoristasPage: React.FC = () => {
       ),
     },
     {
-      header: 'Contato',
-      render: (motorista) => (
+      header: "Contato",
+      render: (motorista) =>
         motorista.contato ? (
           <a
-            href={`tel:${motorista.contato.replace(/\D/g, '')}`}
+            href={`tel:${motorista.contato.replace(/\D/g, "")}`}
             className="inline-flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900"
           >
             <Phone className="h-3.5 w-3.5 text-slate-400" />
@@ -315,17 +324,16 @@ export const MotoristasPage: React.FC = () => {
           </a>
         ) : (
           <span className="text-xs text-slate-400">—</span>
-        )
-      ),
+        ),
     },
     {
-      header: '',
-      className: 'w-12',
+      header: "",
+      className: "w-12",
       render: (motorista) => (
         <button
           type="button"
           onClick={() => {
-            setMotoristaSelecionado(motorista)
+            setMotoristaSelecionado(motorista);
           }}
           className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
           title={`Ver detalhes de ${motorista.nome}`}
@@ -335,13 +343,13 @@ export const MotoristasPage: React.FC = () => {
         </button>
       ),
     },
-  ]
+  ];
 
   const atualizarFiltro = (campo: keyof FiltrosMotoristas, valor: string) => {
-    setFiltros((atuais) => ({ ...atuais, [campo]: valor }))
-  }
+    setFiltros((atuais) => ({ ...atuais, [campo]: valor }));
+  };
 
-  const filtrosAtivos = Object.values(filtros).some(Boolean)
+  const filtrosAtivos = Object.values(filtros).some(Boolean);
 
   return (
     <div className="animate-in space-y-6 fade-in duration-200">
@@ -387,24 +395,32 @@ export const MotoristasPage: React.FC = () => {
           onClick={alternarFiltroCnhAtencao}
           aria-pressed={filtroCnhAtencao}
           className={`rounded-2xl border p-4.5 text-left transition-all hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${cardCnhClasses} ${
-            filtroCnhAtencao ? 'ring-2 ring-slate-400 ring-offset-2' : ''
+            filtroCnhAtencao ? "ring-2 ring-slate-400 ring-offset-2" : ""
           }`}
         >
-          <span className={`text-xs font-semibold ${cnHsVencidas > 0 ? 'text-rose-700' : cnHsVencendo > 0 ? 'text-amber-700' : 'text-slate-600'}`}>
+          <span
+            className={`text-xs font-semibold ${cnHsVencidas > 0 ? "text-rose-700" : cnHsVencendo > 0 ? "text-amber-700" : "text-slate-600"}`}
+          >
             CNH com atenção
           </span>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-            <span className={`text-2xl font-bold ${cnHsVencidas > 0 ? 'text-rose-900' : cnHsVencendo > 0 ? 'text-amber-900' : 'text-slate-900'}`}>
-              {cnHsVencidas} vencida{cnHsVencidas === 1 ? '' : 's'}
+            <span
+              className={`text-2xl font-bold ${cnHsVencidas > 0 ? "text-rose-900" : cnHsVencendo > 0 ? "text-amber-900" : "text-slate-900"}`}
+            >
+              {cnHsVencidas} vencida{cnHsVencidas === 1 ? "" : "s"}
             </span>
-            <span className={`text-xs font-medium ${cnHsVencidas > 0 ? 'text-rose-700' : cnHsVencendo > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
+            <span
+              className={`text-xs font-medium ${cnHsVencidas > 0 ? "text-rose-700" : cnHsVencendo > 0 ? "text-amber-700" : "text-slate-500"}`}
+            >
               · {cnHsVencendo} vencendo em 30 dias
             </span>
           </div>
-          <span className={`mt-1 block text-xs ${cnHsVencidas > 0 ? 'text-rose-600' : cnHsVencendo > 0 ? 'text-amber-600' : 'text-slate-500'}`}>
+          <span
+            className={`mt-1 block text-xs ${cnHsVencidas > 0 ? "text-rose-600" : cnHsVencendo > 0 ? "text-amber-600" : "text-slate-500"}`}
+          >
             {filtroCnhAtencao
-              ? 'Filtro aplicado — clique para limpar'
-              : 'Clique para ver motoristas com CNH vencida ou próxima'}
+              ? "Filtro aplicado — clique para limpar"
+              : "Clique para ver motoristas com CNH vencida ou próxima"}
           </span>
         </button>
       </div>
@@ -420,7 +436,7 @@ export const MotoristasPage: React.FC = () => {
             />
           </div>
           <Button
-            variant={filtrosAtivos ? 'secondary' : 'outline'}
+            variant={filtrosAtivos ? "secondary" : "outline"}
             leftIcon={<Filter className="h-4 w-4" />}
             rightIcon={filtrosAtivos ? <span className="text-xs font-bold">●</span> : undefined}
             onClick={() => setFiltrosAbertos((abertos) => !abertos)}
@@ -444,7 +460,9 @@ export const MotoristasPage: React.FC = () => {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-slate-900">Filtrar motoristas</h2>
-              <p className="text-xs text-slate-500">Refine os resultados por cada informação da tabela.</p>
+              <p className="text-xs text-slate-500">
+                Refine os resultados por cada informação da tabela.
+              </p>
             </div>
             <button
               type="button"
@@ -460,37 +478,37 @@ export const MotoristasPage: React.FC = () => {
               label="ID"
               placeholder="Ex.: MOT-001"
               value={filtros.id}
-              onChange={(event) => atualizarFiltro('id', event.target.value)}
+              onChange={(event) => atualizarFiltro("id", event.target.value)}
             />
             <Input
               label="Nome"
               placeholder="Nome do motorista"
               value={filtros.nome}
-              onChange={(event) => atualizarFiltro('nome', event.target.value)}
+              onChange={(event) => atualizarFiltro("nome", event.target.value)}
             />
             <Input
               label="Vencimento da CNH"
               type="date"
               value={filtros.validadeCnh}
-              onChange={(event) => atualizarFiltro('validadeCnh', event.target.value)}
+              onChange={(event) => atualizarFiltro("validadeCnh", event.target.value)}
             />
             <Select
               label="Status"
               value={filtros.status}
-              onChange={(event) => atualizarFiltro('status', event.target.value)}
+              onChange={(event) => atualizarFiltro("status", event.target.value)}
               options={[
-                { value: '', label: 'Todos os status' },
-                { value: 'Em rota', label: 'Em rota' },
-                { value: 'Disponível', label: 'Disponível' },
-                { value: 'Indisponível', label: 'Indisponível' },
-                { value: 'Inativo', label: 'Inativo' },
+                { value: "", label: "Todos os status" },
+                { value: "Em rota", label: "Em rota" },
+                { value: "Disponível", label: "Disponível" },
+                { value: "Indisponível", label: "Indisponível" },
+                { value: "Inativo", label: "Inativo" },
               ]}
             />
             <Input
               label="Contato"
               placeholder="Telefone"
               value={filtros.contato}
-              onChange={(event) => atualizarFiltro('contato', event.target.value)}
+              onChange={(event) => atualizarFiltro("contato", event.target.value)}
             />
           </div>
           <div className="mt-3 flex justify-end">
@@ -539,11 +557,15 @@ export const MotoristasPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Número da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.numeroCnh}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {motoristaSelecionado.numeroCnh}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Categoria da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.categoriaCnh}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {motoristaSelecionado.categoriaCnh}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Validade da CNH</dt>
@@ -553,7 +575,9 @@ export const MotoristasPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Contato</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.contato}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {motoristaSelecionado.contato}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Status</dt>
@@ -570,140 +594,122 @@ export const MotoristasPage: React.FC = () => {
 
       <Modal
         isOpen={modalCadastroAberto}
-      onClose={fecharCadastro}
+        onClose={fecharCadastro}
         title="Novo motorista"
-      description="Preencha os dados pessoais, da CNH e da conta de acesso."
+        description="Preencha os dados pessoais, da CNH e da conta de acesso."
         footer={
-        <>
-          <Button variant="ghost" onClick={fecharCadastro}>
-            Cancelar
-          </Button>
-          <Button variant="primary" type="submit" form="formulario-novo-motorista">
-            Salvar
-          </Button>
-        </>
-      }
+          <>
+            <Button variant="ghost" onClick={fecharCadastro}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form="formulario-novo-motorista">
+              Salvar
+            </Button>
+          </>
+        }
       >
-      <form
-        id="formulario-novo-motorista"
-        onSubmit={cadastrarMotorista}
-        className="space-y-5"
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Input
-              label="Nome completo"
-              autoComplete="name"
-              maxLength={150}
-              required
-              value={formulario.nome}
-              onChange={(event) =>
-                atualizarFormulario('nome', event.target.value)
-              }
-              placeholder="Nome completo do motorista"
-            />
-          </div>
-          <Input
-            label="CPF"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="000.000.000-00"
-            required
-            value={formulario.cpf}
-            error={mostrarErroCpf ? 'CPF inválido' : undefined}
-            onBlur={() => setCpfTocado(true)}
-            onChange={(event) => {
-              atualizarFormulario('cpf', formatarCpf(event.target.value))
-            }}
-          />
-          <Input
-            label="Número da CNH"
-            maxLength={20}
-            required
-            value={formulario.numeroCnh}
-            onChange={(event) =>
-              atualizarFormulario('numeroCnh', event.target.value)
-            }
-            placeholder="Número da habilitação"
-          />
-          <Select
-            label="Categoria da CNH"
-            required
-            value={formulario.categoriaCnh}
-            onChange={(event) =>
-              atualizarFormulario('categoriaCnh', event.target.value)
-            }
-            placeholder="Selecione uma categoria"
-            options={categoriasCnh.map((categoria) => ({
-              value: categoria,
-              label: categoria,
-            }))}
-          />
-          <Input
-            label="Validade da CNH"
-            type="date"
-            required
-            value={formulario.validadeCnh}
-            onChange={(event) =>
-              atualizarFormulario('validadeCnh', event.target.value)
-            }
-          />
-          <Input
-            label="Telefone para contato"
-            type="tel"
-            autoComplete="tel"
-            maxLength={20}
-            required
-            value={formulario.contato}
-            onChange={(event) =>
-              atualizarFormulario('contato', event.target.value)
-            }
-            placeholder="(00) 00000-0000"
-          />
-        </div>
-
-        <div className="border-t border-slate-100 pt-4">
-          <h4 className="mb-3 text-sm font-semibold text-slate-900">Conta de acesso</h4>
+        <form id="formulario-novo-motorista" onSubmit={cadastrarMotorista} className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Input
+                label="Nome completo"
+                autoComplete="name"
+                maxLength={150}
+                required
+                value={formulario.nome}
+                onChange={(event) => atualizarFormulario("nome", event.target.value)}
+                placeholder="Nome completo do motorista"
+              />
+            </div>
             <Input
-              label="E-mail"
-              type="email"
-              autoComplete="email"
-              maxLength={150}
+              label="CPF"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="000.000.000-00"
               required
-              value={formulario.email}
-              onChange={(event) =>
-                atualizarFormulario('email', event.target.value)
-              }
-              placeholder="motorista@exemplo.com"
+              value={formulario.cpf}
+              error={mostrarErroCpf ? "CPF inválido" : undefined}
+              onBlur={() => setCpfTocado(true)}
+              onChange={(event) => {
+                atualizarFormulario("cpf", formatarCpf(event.target.value));
+              }}
             />
             <Input
-              label="Senha inicial"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
+              label="Número da CNH"
+              maxLength={20}
               required
-              value={formulario.senha}
-              onChange={(event) =>
-                atualizarFormulario('senha', event.target.value)
-              }
-              placeholder="Mínimo de 8 caracteres"
+              value={formulario.numeroCnh}
+              onChange={(event) => atualizarFormulario("numeroCnh", event.target.value)}
+              placeholder="Número da habilitação"
+            />
+            <Select
+              label="Categoria da CNH"
+              required
+              value={formulario.categoriaCnh}
+              onChange={(event) => atualizarFormulario("categoriaCnh", event.target.value)}
+              placeholder="Selecione uma categoria"
+              options={categoriasCnh.map((categoria) => ({
+                value: categoria,
+                label: categoria,
+              }))}
+            />
+            <Input
+              label="Validade da CNH"
+              type="date"
+              required
+              value={formulario.validadeCnh}
+              onChange={(event) => atualizarFormulario("validadeCnh", event.target.value)}
+            />
+            <Input
+              label="Telefone para contato"
+              type="tel"
+              autoComplete="tel"
+              maxLength={20}
+              required
+              value={formulario.contato}
+              onChange={(event) => atualizarFormulario("contato", event.target.value)}
+              placeholder="(00) 00000-0000"
             />
           </div>
-        </div>
 
-        {erroCadastro && (
-          <p role="alert" className="text-sm font-medium text-rose-600">
-            {erroCadastro}
-          </p>
-        )}
-        {cadastroValidado && (
-          <p role="status" className="text-sm font-medium text-slate-600">
-            Dados válidos. Nenhum cadastro foi enviado.
-          </p>
-        )}
-      </form>
+          <div className="border-t border-slate-100 pt-4">
+            <h4 className="mb-3 text-sm font-semibold text-slate-900">Conta de acesso</h4>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="E-mail"
+                type="email"
+                autoComplete="email"
+                maxLength={150}
+                required
+                value={formulario.email}
+                onChange={(event) => atualizarFormulario("email", event.target.value)}
+                placeholder="motorista@exemplo.com"
+              />
+              <Input
+                label="Senha inicial"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                required
+                value={formulario.senha}
+                onChange={(event) => atualizarFormulario("senha", event.target.value)}
+                placeholder="Mínimo de 8 caracteres"
+              />
+            </div>
+          </div>
+
+          {erroCadastro && (
+            <p role="alert" className="text-sm font-medium text-rose-600">
+              {erroCadastro}
+            </p>
+          )}
+          {cadastroValidado && (
+            <p role="status" className="text-sm font-medium text-slate-600">
+              Dados válidos. Nenhum cadastro foi enviado.
+            </p>
+          )}
+        </form>
       </Modal>
     </div>
-  )
-}
+  );
+};
