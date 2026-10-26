@@ -47,6 +47,14 @@ O arquivo `.env` da raiz configura o serviço `database` do Compose:
 | `BACKEND_PORT` | Porta da API exposta pelo Compose. | `3000` |
 | `FRONTEND_PORT` | Porta da interface exposta pelo Compose. | `5173` |
 
+O arquivo `BackEnd/.env` configura a API Node e os comandos Prisma executados no computador:
+
+| Variável | Finalidade |
+| --- | --- |
+| `PORT` | Porta da API; o padrão é `3000`. |
+| `DATABASE_URL` | Conexão ao PostgreSQL local usada pela API e pelo Prisma. |
+| `DATABASE_URL_MIGRATIONS` | Opcional localmente; no deploy de HML, o GitHub Actions usa esse secret com a URL direta do Neon para aplicar migrations. |
+
 O arquivo `BackEnd/.env` usa `localhost:5433` para a API Node e para os comandos Prisma executados no computador. Dentro dos contêineres, o Compose configura a URL com o host `database` e a porta interna `5432`.
 
 Para iniciar apenas o banco local, instale as dependências, aplique as migrations e inicie a API e a interface:
