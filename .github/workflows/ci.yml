@@ -201,6 +201,27 @@ jobs:
               cancelled: '🚫 CI cancelada',
               skipped: '⏭️ CI não executada',
             };
+            const gifs = {
+              approved: {
+                alt: 'Macaco comemorando a aprovação da CI',
+                url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYWQ0ZnBoMmQ5Njd6cWtsNDRycWV0dnN3bDU1ZTRnYmt1OTI4ZGNiYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/VkpfO6W4D7yB7vSjXy/giphy.gif',
+              },
+              failed: {
+                alt: 'Macaco reagindo à reprovação da CI',
+                url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYWQ0ZnBoMmQ5Njd6cWtsNDRycWV0dnN3bDU1ZTRnYmt1OTI4ZGNiYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/NAdEYIRFMCBhMGkXSq/giphy.gif',
+              },
+              formatting: {
+                alt: 'Macaco corrigindo a formatação',
+                url: 'https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NGdtdnJ4c2FtYWJsdGN0amtudHl0dTBlMG52MGE3NzNiOGNjc3ptcCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/JIX9t2j0ZTN9S/giphy.gif',
+              },
+            };
+            const gif = formatChanged
+              ? gifs.formatting
+              : process.env.CI_RESULT === 'success'
+                ? gifs.approved
+                : process.env.CI_RESULT === 'failure'
+                  ? gifs.failed
+                  : null;
             const sha = results.format_sha || context.payload.pull_request.head.sha;
             const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
@@ -209,7 +230,7 @@ jobs:
               '## 👁️ O olho que tudo vê',
               '',
               `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
-              '',
+              ...(gif ? [`![${gif.alt}](${gif.url})`, ''] : []),
               `📦 Dependências · ${status(results.dependencies)}  `,
               `🧹 Correção automática · ${autoformatStatus}  `,
               `💅 Formatação · ${status(results.format)}  `,
