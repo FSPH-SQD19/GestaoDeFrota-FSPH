@@ -83,9 +83,9 @@ Os limites e fluxos específicos são definidos pela especificação de requisit
 | Formulários e validação | React Hook Form e Zod; o back-end também usa Zod no módulo de veículos.            |
 | Componentes e ícones    | Componentes próprios em `FrontEnd/src/components/common` e Lucide React.           |
 | API                     | Express, TypeScript, JWT e bcrypt.                                                 |
-| Banco e ORM             | PostgreSQL e Prisma 6; o Compose usa uma imagem PostGIS.                           |
+| Banco e ORM             | PostgreSQL + PostGIS local em desenvolvimento; Neon PostgreSQL em HML, com Prisma 6. |
 | Qualidade e CI          | Oxlint, Vitest, Testing Library, jsdom, checagem de tipos e GitHub Actions.        |
-| Execução                | npm workspaces, Docker Compose e Nginx para servir o build da interface no Docker. |
+| Execução                | npm workspaces e Docker Compose em desenvolvimento; HML usa Neon por `DATABASE_URL`.       |
 
 ### Referência da especificação
 
@@ -123,7 +123,7 @@ Back-end (Node.js + TypeScript)
    |
    | Regras de negócio, autenticação e autorização
    v
-PostgreSQL + PostGIS
+PostgreSQL + PostGIS (local em desenvolvimento / Neon em HML)
 ```
 
 A API é organizada em módulos e deve concentrar as validações, permissões, regras de alocação e controles de integridade. O banco relacional armazena os dados operacionais; as extensões geoespaciais dão suporte a consultas de localização e cálculo de rotas.
@@ -149,7 +149,7 @@ Os pré-requisitos, a clonagem, a configuração dos arquivos `.env`, a execuç�
 
 As variáveis configuradas estão descritas em [Ambiente](AMBIENTE.md#arquivos-de-ambiente), incluindo:
 
-- URL de conexão com o PostgreSQL.
+- URL PostgreSQL local em desenvolvimento e variável `DATABASE_URL` apontando para Neon em HML.
 - Porta da API e endereço da aplicação front-end.
 - Chave secreta de JWT, usada para assinar e verificar tokens de acesso.
 - Configurações específicas do ambiente e dos serviços.
