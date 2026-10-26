@@ -21,7 +21,8 @@ export const listarAbastecimentosSchema = z
     }
   });
 
-export const criarAbastecimentoSchema = z.object({
+export const criarAbastecimentoSchema = z
+  .object({
   veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }),
   motoristaId: z.uuid({ error: "motoristaId deve ser um UUID válido." }).optional(),
   fornecedorId: z.uuid({ error: "fornecedorId deve ser um UUID válido." }).optional(),
