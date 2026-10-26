@@ -10,28 +10,31 @@ O [workflow](../.github/workflows/ci.yml) está em `.github/workflows/ci.yml` e 
 
 ## Etapas da verificação
 
-O job **Lint, testes e build** usa Ubuntu e Node.js 24. As etapas são:
+O job **Corrigir formatação** usa Ubuntu e Node.js 24 nos PRs de branches do próprio repositório. Ele instala as dependências sem executar scripts, roda `npm run format` e envia um commit automático se houver alterações.
 
-1. Obter o código do PR.
+Depois, o job **Lint, testes e build** também usa Ubuntu e Node.js 24. As etapas são:
+
+1. Obter o branch atualizado do PR ou o código do evento manual/fork.
 2. Configurar Node.js e o cache de downloads do npm, usando o lockfile da raiz como referência.
 3. Executar `npm ci` na raiz, instalando os dois workspaces e gerando o Prisma Client pelo `postinstall` do back-end.
-4. Executar `npm run lint` nos dois projetos.
-5. Executar `npm test`, incluindo a checagem de tipos dos testes e as suítes unitárias dos dois projetos.
-6. Executar `npm run build` para compilar o back-end e o front-end.
+4. Verificar a formatação com `npm run format:check`.
+5. Executar `npm run lint` nos dois projetos.
+6. Executar `npm test`, incluindo a checagem de tipos dos testes e as suítes unitárias dos dois projetos.
+7. Executar `npm run build` para compilar o back-end e o front-end.
 
-Uma falha interrompe as etapas seguintes e deixa a verificação do PR com falha. Novos commits cancelam uma execução anterior ainda em andamento no mesmo PR. O job de qualidade tem limite de 15 minutos; o job de comentários tem limite de 5 minutos.
+Se o workflow enviar um commit de formatação, ele inicia uma nova execução da CI para validar esse commit. Novos commits cancelam uma execução anterior ainda em andamento no mesmo PR. O job de qualidade tem limite de 15 minutos; os jobs de correção e comentário têm limite de 10 e 5 minutos, e o disparo da nova execução tem limite de 5 minutos.
 
 Os testes usam mocks para o banco e dados sintéticos para autenticação. O workflow não precisa de PostgreSQL, Docker ou secrets cadastrados no GitHub. Use `npm run test:coverage` para gerar relatórios de cobertura localmente.
 
 ## Acompanhar o resultado
 
-Ao terminar a verificação de um PR da equipe (branch no próprio repositório), o bot `github-actions` publica o comentário **O olho que tudo vê**, com o resultado geral e o status de dependências, lint, testes/tipos e build. O resumo inclui o commit e o link da execução. Nas próximas execuções, o mesmo comentário é atualizado.
+Ao terminar a verificação de um PR da equipe (branch no próprio repositório), o bot `github-actions` publica o comentário **O olho que tudo vê**, com um GIF de macaco conforme o resultado: aprovação, falha ou correção automática de formatação. O comentário também resume a correção automática, a formatação, dependências, lint, testes/tipos e build. Em execuções canceladas, não há GIF. O resumo inclui o commit e o link da execução. Nas próximas execuções, o mesmo comentário é atualizado.
 
-Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes como não executadas. Execuções canceladas não publicam o resumo. O job de comentários usa `pull-requests: write`; o job que instala e executa o código continua com permissão apenas de leitura. Execuções manuais e PRs de forks não publicam esse comentário.
+Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes como não executadas. O job de qualidade ainda executa para mostrar os resultados das verificações. Execuções canceladas não publicam o resumo. O job de correção tem `contents: write` apenas para enviar a formatação ao branch do PR; ele só executa em branches do próprio repositório. Em PRs de forks, a CI verifica a formatação, mas não pode enviar correções. O job de comentários usa `pull-requests: write`; o job de qualidade continua com permissão apenas de leitura. Execuções manuais e PRs de forks não publicam esse comentário.
 
 Após enviar o workflow e os arquivos necessários do projeto para a branch do PR, abra a aba **Checks** do PR ou a aba **Actions** do repositório. Se uma etapa falhar, abra seus logs, corrija a causa e envie um novo commit para executar novamente.
 
-Para reproduzir as mesmas verificações localmente, execute `npm ci` e depois `npm run check` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux.
+Para formatar arquivos localmente, execute `npm run format`. Para reproduzir as verificações da CI, execute `npm ci` e depois `npm run check` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux.
 
 ## Exigir a verificação antes do merge
 

@@ -77,33 +77,33 @@ Os limites e fluxos específicos são definidos pela especificação de requisit
 
 ### Ferramentas do projeto
 
-| Camada | Ferramentas |
-| --- | --- |
-| Front-end | React 19, TypeScript, Vite 8 e Tailwind CSS 4. |
-| Formulários e validação | React Hook Form e Zod; o back-end também usa Zod no módulo de veículos. |
-| Componentes e ícones | Componentes próprios em `FrontEnd/src/components/common` e Lucide React. |
-| API | Express, TypeScript, JWT e bcrypt. |
-| Banco e ORM | PostgreSQL e Prisma 6; o Compose usa uma imagem PostGIS. |
-| Qualidade e CI | Oxlint, Vitest, Testing Library, jsdom, checagem de tipos e GitHub Actions. |
-| Execução | npm workspaces, Docker Compose e Nginx para servir o build da interface no Docker. |
+| Camada                  | Ferramentas                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| Front-end               | React 19, TypeScript, Vite 8 e Tailwind CSS 4.                                     |
+| Formulários e validação | React Hook Form e Zod; o back-end também usa Zod no módulo de veículos.            |
+| Componentes e ícones    | Componentes próprios em `FrontEnd/src/components/common` e Lucide React.           |
+| API                     | Express, TypeScript, JWT e bcryptjs.                                               |
+| Banco e ORM             | PostgreSQL + PostGIS local em desenvolvimento; Neon PostgreSQL em HML, com Prisma 6. |
+| Qualidade e CI          | Oxlint, Vitest, Testing Library, jsdom, checagem de tipos e GitHub Actions.        |
+| Execução                | npm workspaces e Docker Compose em desenvolvimento; HML usa Cloudflare Workers, Hyperdrive e Neon. |
 
 ### Referência da especificação
 
 A stack definida na especificação inclui:
 
-| Camada | Tecnologias |
-|---|---|
-| Front-end | React, TypeScript e Vite |
-| Estilização e componentes | Tailwind CSS e Shadcn/UI ou componentes compatíveis |
-| Formulários e validação | React Hook Form e Zod |
-| Comunicação com a API | Axios e TanStack Query |
-| Back-end | Node.js 20+ e TypeScript |
-| API | Express.js (ou Fastify, conforme decisão de implementação) |
-| Autenticação | JWT e Bcrypt |
-| Persistência e ORM | PostgreSQL e Prisma ORM (ou TypeORM, conforme decisão de implementação) |
-| Dados geoespaciais e rotas | PostGIS e pgRouting |
-| Ambiente de desenvolvimento | Docker e Docker Compose |
-| Qualidade e integração contínua | GitHub Actions, TypeScript, ESLint e Prettier |
+| Camada                          | Tecnologias                                                             |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| Front-end                       | React, TypeScript e Vite                                                |
+| Estilização e componentes       | Tailwind CSS e Shadcn/UI ou componentes compatíveis                     |
+| Formulários e validação         | React Hook Form e Zod                                                   |
+| Comunicação com a API           | Axios e TanStack Query                                                  |
+| Back-end                        | Node.js 20+ e TypeScript                                                |
+| API                             | Express.js (ou Fastify, conforme decisão de implementação)              |
+| Autenticação                    | JWT e Bcrypt                                                            |
+| Persistência e ORM              | PostgreSQL e Prisma ORM (ou TypeORM, conforme decisão de implementação) |
+| Dados geoespaciais e rotas      | PostGIS e pgRouting                                                     |
+| Ambiente de desenvolvimento     | Docker e Docker Compose                                                 |
+| Qualidade e integração contínua | GitHub Actions, TypeScript, ESLint e Prettier                           |
 
 Essa referência reúne as ferramentas e alternativas consideradas na especificação. Os manifests e arquivos de configuração definem as dependências utilizadas pelo projeto.
 
@@ -119,11 +119,11 @@ Front-end (React + TypeScript + Vite)
    |
    | Requisições HTTP / API REST
    v
-Back-end (Node.js + TypeScript)
+Back-end (Express + TypeScript; Node.js local e Cloudflare Worker em HML)
    |
    | Regras de negócio, autenticação e autorização
    v
-PostgreSQL + PostGIS
+PostgreSQL + PostGIS local → Neon em HML via Hyperdrive
 ```
 
 A API é organizada em módulos e deve concentrar as validações, permissões, regras de alocação e controles de integridade. O banco relacional armazena os dados operacionais; as extensões geoespaciais dão suporte a consultas de localização e cálculo de rotas.
@@ -149,7 +149,7 @@ Os pré-requisitos, a clonagem, a configuração dos arquivos `.env`, a execuç�
 
 As variáveis configuradas estão descritas em [Ambiente](AMBIENTE.md#arquivos-de-ambiente), incluindo:
 
-- URL de conexão com o PostgreSQL.
+- URL PostgreSQL local em desenvolvimento; em HML, Hyperdrive conecta o Worker ao Neon e `DATABASE_URL_MIGRATIONS` fornece a conexão direta usada pelo workflow de migrations.
 - Porta da API e endereço da aplicação front-end.
 - Chave secreta de JWT, usada para assinar e verificar tokens de acesso.
 - Configurações específicas do ambiente e dos serviços.

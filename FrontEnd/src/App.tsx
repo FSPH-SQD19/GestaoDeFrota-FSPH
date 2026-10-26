@@ -1,23 +1,23 @@
-import React, { useState } from 'react'
-import { AuthProvider } from './contexts/AuthContext'
-import { useAuth } from './contexts/auth'
-import { LoginPage } from './pages/auth/LoginPage'
-import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
-import { Sidebar } from './components/layout/Sidebar'
-import { Header } from './components/layout/Header'
-import { DashboardPage } from './pages/dashboard/DashboardPage'
-import { VeiculosPage } from './pages/veiculos/VeiculosPage'
-import { SolicitacoesPage } from './pages/solicitacoes/SolicitacoesPage'
-import { podeAcessar, telaInicial, type TabId } from './config/navigation'
-import { Card, Badge } from './components/common'
-import { FileText, Users, PhoneCall, BarChart3, ShieldCheck, Route } from 'lucide-react'
+import React, { useState } from "react";
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./contexts/auth";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
+import { Sidebar } from "./components/layout/Sidebar";
+import { Header } from "./components/layout/Header";
+import { DashboardPage } from "./pages/dashboard/DashboardPage";
+import { VeiculosPage } from "./pages/veiculos/VeiculosPage";
+import { SolicitacoesPage } from "./pages/solicitacoes/SolicitacoesPage";
+import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
+import { Card, Badge } from "./components/common";
+import { FileText, Users, PhoneCall, BarChart3, ShieldCheck, Route } from "lucide-react";
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading, hasRole, user } = useAuth()
-  const roles = user?.roles ?? []
-  const [authView, setAuthView] = useState<'login' | 'forgot'>('login')
-  const [activeTab, setActiveTab] = useState<TabId>(() => telaInicial(roles))
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { isAuthenticated, isLoading, hasRole, user } = useAuth();
+  const roles = user?.roles ?? [];
+  const [authView, setAuthView] = useState<"login" | "forgot">("login");
+  const [activeTab, setActiveTab] = useState<TabId>(() => telaInicial(roles));
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -27,19 +27,19 @@ const AppContent: React.FC = () => {
           <span className="text-xs text-slate-500 font-medium">Carregando sistema FSPH...</span>
         </div>
       </div>
-    )
+    );
   }
 
   // Visualização de telas não autenticadas (Login / Esqueci a Senha)
   if (!isAuthenticated) {
-    if (authView === 'forgot') {
-      return <ForgotPasswordPage onBackToLogin={() => setAuthView('login')} />
+    if (authView === "forgot") {
+      return <ForgotPasswordPage onBackToLogin={() => setAuthView("login")} />;
     }
-    return <LoginPage onNavigateToForgot={() => setAuthView('forgot')} />
+    return <LoginPage onNavigateToForgot={() => setAuthView("forgot")} />;
   }
 
   // Se o perfil atual não tiver acesso à aba selecionada, cai na tela inicial do perfil
-  const currentTab: TabId = podeAcessar(activeTab, roles) ? activeTab : telaInicial(roles)
+  const currentTab: TabId = podeAcessar(activeTab, roles) ? activeTab : telaInicial(roles);
 
   // Shell Autenticado (Sidebar Flutuante + Header + Conteúdo)
   return (
@@ -59,85 +59,91 @@ const AppContent: React.FC = () => {
 
         {/* Conteúdo Dinâmico conforme a Aba Selecionada */}
         <main className="mt-4 flex-1">
-          {currentTab === 'dashboard' && <DashboardPage />}
-          {currentTab === 'veiculos' && <VeiculosPage />}
+          {currentTab === "dashboard" && <DashboardPage />}
+          {currentTab === "veiculos" && <VeiculosPage />}
 
-          {currentTab === 'viagens' && (
+          {currentTab === "viagens" && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
                 <Route className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Minhas Viagens</h2>
               <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Viagens escaladas para você, checklist de saída e retorno, registro de odômetro e abastecimento (visão mobile / PWA).
+                Viagens escaladas para você, checklist de saída e retorno, registro de odômetro e
+                abastecimento (visão mobile / PWA).
               </p>
               <Badge variant="info">Módulo mobile / PWA em desenvolvimento</Badge>
             </Card>
           )}
 
           {/* Placeholders informativos para as abas restantes */}
-          {currentTab === 'motoristas' && (
+          {currentTab === "motoristas" && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <Users className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Gestão de Motoristas</h2>
               <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Cadastro de condutores, controle de validade de CNH com alertas de bloqueio e escalas operacionais.
+                Cadastro de condutores, controle de validade de CNH com alertas de bloqueio e
+                escalas operacionais.
               </p>
               <Badge variant="info">Módulo em desenvolvimento</Badge>
             </Card>
           )}
 
-          {currentTab === 'solicitacoes' && hasRole(['SOLICITANTE']) && <SolicitacoesPage />}
+          {currentTab === "solicitacoes" && hasRole(["SOLICITANTE"]) && <SolicitacoesPage />}
 
-          {currentTab === 'solicitacoes' && !hasRole(['SOLICITANTE']) && (
+          {currentTab === "solicitacoes" && !hasRole(["SOLICITANTE"]) && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <FileText className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Solicitações de Viagem</h2>
               <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Aprovação e recusa de viagens da frota administrativa pelos setores da FSPH (LACEN, Hemose, etc.).
+                Aprovação e recusa de viagens da frota administrativa pelos setores da FSPH (LACEN,
+                Hemose, etc.).
               </p>
               <Badge variant="warning">1 solicitação aguardando aprovação</Badge>
             </Card>
           )}
 
-          {currentTab === 'svo' && (
+          {currentTab === "svo" && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
                 <PhoneCall className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Módulo Especializado SVO</h2>
               <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Triagem médica por telefone, emissão de ordens de coleta de óbitos, controle do limite de capacidade (S10) e desinfecção obrigatória.
+                Triagem médica por telefone, emissão de ordens de coleta de óbitos, controle do
+                limite de capacidade (S10) e desinfecção obrigatória.
               </p>
               <Badge variant="danger">Restrito: Atendente SVO & Administrador</Badge>
             </Card>
           )}
 
-          {currentTab === 'relatorios' && (
+          {currentTab === "relatorios" && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <BarChart3 className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Relatórios & Indicadores</h2>
               <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Relatórios de consumo médio de combustível (km/L), manutenções e auditoria do sistema para prestação de contas.
+                Relatórios de consumo médio de combustível (km/L), manutenções e auditoria do
+                sistema para prestação de contas.
               </p>
               <Badge variant="neutral">Exportação em PDF e Excel</Badge>
             </Card>
           )}
 
-          {currentTab === 'usuarios' && (
+          {currentTab === "usuarios" && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Controle de Usuários e RBAC</h2>
               <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Gestão de permissões por perfil (Administrador, Gestor de Frota, Motorista, Atendente SVO, Solicitante).
+                Gestão de permissões por perfil (Administrador, Gestor de Frota, Motorista,
+                Atendente SVO, Solicitante).
               </p>
               <Badge variant="neutral">Exclusivo para perfil Administrador</Badge>
             </Card>
@@ -145,15 +151,15 @@ const AppContent: React.FC = () => {
         </main>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -1,16 +1,15 @@
-# Ambiente de desenvolvimento
+# Ambiente de desenvolvimento e homologação
 
 [Índice da documentação](README.md)
 
-Configuração para executar o projeto localmente ou com Docker. Para consultar apenas os comandos npm, veja [Início](INICIO.md).
+O desenvolvimento usa PostgreSQL com PostGIS local, iniciado pelo Docker Compose. A homologação roda na Cloudflare Workers e acessa o Neon PostgreSQL por meio do Hyperdrive.
 
 ## Pré-requisitos
 
 - Git.
 - Node.js compatível com `engines` do `package.json`: `^22.12.0 || ^24.0.0 || >=26.0.0`. O CI usa a linha 24; os Dockerfiles usam a linha 22.
 - npm, com instalação das dependências pela raiz usando `npm ci`.
-- PostgreSQL com PostGIS disponível para aplicar a migration inicial e usar as funcionalidades reais da API que consultam ou gravam dados.
-- Docker Desktop ou Docker Engine com Compose, se optar por iniciar o banco ou todos os serviços em contêineres.
+- Docker Desktop ou Docker Engine com Compose para o banco local e para executar os serviços em contêineres.
 
 Para clonar o projeto:
 
@@ -23,121 +22,96 @@ cd GestaoDeFrota-FSPH
 
 | Arquivo local | Modelo | Quem utiliza |
 | --- | --- | --- |
-| `.env` na raiz | `.env.example` | Docker Compose. |
-| `BackEnd/.env` | `BackEnd/.env.example` | API e comandos Prisma executados pelo workspace do back-end. |
+| `.env` na raiz | `.env.example` | Credenciais do PostgreSQL local e portas do Docker Compose. |
+| `BackEnd/.env` | `BackEnd/.env.example` | API Node local e comandos Prisma executados no computador. |
 
-Crie os arquivos locais a partir dos modelos apenas se ainda não existirem. No PowerShell, por exemplo:
+Crie os arquivos locais a partir dos modelos apenas se ainda não existirem:
 
 ```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 if (!(Test-Path BackEnd/.env)) { Copy-Item BackEnd/.env.example BackEnd/.env }
 ```
 
-### Variáveis da raiz
+Os arquivos `.env` são ignorados pelo Git. Não versione credenciais reais.
 
-| Variável | Finalidade | Valor de referência local |
+## Desenvolvimento local
+
+O arquivo `.env` da raiz configura o serviço `database` do Compose:
+
+| Variável | Finalidade | Padrão local |
 | --- | --- | --- |
 | `POSTGRES_DB` | Nome do banco. | `gestao_frota` |
 | `POSTGRES_USER` | Usuário do banco. | `postgres` |
-| `POSTGRES_PASSWORD` | Senha do banco. | Definir no ambiente local. |
-| `POSTGRES_PORT` | Porta do banco exposta no computador. | `5433` |
+| `POSTGRES_PASSWORD` | Senha do banco. | `postgres` |
+| `POSTGRES_PORT` | Porta exposta no computador. | `5433` |
 | `BACKEND_PORT` | Porta da API exposta pelo Compose. | `3000` |
 | `FRONTEND_PORT` | Porta da interface exposta pelo Compose. | `5173` |
 
-### Variáveis do back-end
+O arquivo `BackEnd/.env` usa `localhost:5433` para a API Node e para os comandos Prisma executados no computador. Dentro dos contêineres, o Compose configura a URL com o host `database` e a porta interna `5432`.
 
-| Variável | Finalidade |
-| --- | --- |
-| `PORT` | Porta da API no desenvolvimento local; o código usa `3000` se não for informada. |
-| `DATABASE_URL` | Conexão PostgreSQL usada pelo Prisma. |
-| `DATABASE_URL_MIGRATIONS` | URL direta para comandos Prisma de migração; opcional localmente e obrigatória como secret do ambiente GitHub `hml` no CD. |
-
-Exemplo de estrutura da URL para uma API executada no computador:
-
-```text
-postgresql://USUARIO:SENHA@localhost:5433/gestao_frota?schema=public
-```
-
-Dentro do Compose, a API usa o host `database` e a porta interna `5432`. O Compose monta a URL com as variáveis da raiz; não lê `BackEnd/.env` para essa configuração.
-
-Os valores dos arquivos `.env.example` são referências de desenvolvimento. A autenticação não usa variáveis de ambiente. Na primeira inicialização, a API gera uma chave aleatória em `BackEnd/.runtime/auth.key`, ignorada pelo Git e pelo contexto de build Docker, e a reutiliza nas próximas execuções. A validade dos tokens é fixa em oito horas. Se a chave estiver inválida ou não puder ser carregada, a API interrompe a inicialização antes de abrir a porta HTTP. Não comite arquivos `.env` ou credenciais reais.
-
-## Executar com npm e banco local
-
-Configure `BackEnd/.env` e tenha um PostgreSQL com PostGIS acessível. A migration inicial executa `CREATE EXTENSION IF NOT EXISTS postgis`, portanto o servidor precisa ter a extensão instalada e o usuário precisa poder criá-la. Como alternativa, após configurar o `.env` da raiz, inicie somente o banco do Compose:
-
-```bash
-docker compose up -d database
-```
-
-O Compose não exige configuração de autenticação no `.env`. O volume `backend_auth` armazena a chave da API e a preserva entre recriações do contêiner. Remover esse volume ou o arquivo local da chave invalida os tokens existentes e exige novo login.
-
-Na raiz do projeto:
+Para iniciar apenas o banco local, instale as dependências, aplique as migrations e inicie a API e a interface:
 
 ```bash
 npm ci
+docker compose up -d database
 npm exec --workspace=backend -- prisma migrate deploy
 npm run dev
 ```
 
-`migrate deploy` aplica as migrations versionadas ao banco configurado. Confira o destino de `DATABASE_URL` antes de executar. A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Para autenticar na API, cadastre um usuário ativo com senha em hash bcrypt e associe os perfis necessários.
-
-No CD de HML, o workflow aplica as migrations antes do deploy usando `DATABASE_URL_MIGRATIONS`. O mesmo valor também é fornecido como `DATABASE_URL`, exigido pela declaração `env("DATABASE_URL")` no schema Prisma. Cadastre a URL direta do Neon como secret em **GitHub → Settings → Environments → hml**. No Neon, selecione o banco `neondb`, a branch compartilhada com desenvolvimento, a role com permissões de migração e desative o connection pooling para copiar a URL direta. Como HML e desenvolvimento compartilham o banco, cada migration altera o schema usado pelos dois ambientes.
-
-## Executar todos os serviços com Docker
-
-Configure o `.env` da raiz e execute:
+Para iniciar todos os serviços com Docker:
 
 ```bash
 docker compose up --build
 ```
 
-Para executar em segundo plano:
-
-```bash
-docker compose up --build -d
-```
-
-Depois que o banco e a API estiverem disponíveis, aplique as migrations versionadas:
+Depois que os contêineres iniciarem, aplique as migrations ao banco local:
 
 ```bash
 docker compose exec backend npx prisma migrate deploy
 ```
 
-Comandos de acompanhamento:
-
-```bash
-docker compose logs -f
-docker compose down
-```
-
-O Compose inicia `database`, `backend` e `frontend`. O banco usa a imagem PostGIS configurada em `docker-compose.yml` e mantém os dados no volume `postgres_data`. O front-end é compilado e servido pelo Nginx; mudanças no código exigem reconstruir a imagem. Para recarregamento durante o desenvolvimento, use npm.
-
-## Prisma
-
-O cliente é gerado no `postinstall` do back-end durante a instalação. Após alterar o schema, pare a API e regenere o cliente pela raiz:
-
-```bash
-npm run prisma:generate --workspace=backend
-```
-
-Para criar uma migration durante o desenvolvimento, com o banco de desenvolvimento configurado:
+Para criar uma migration durante o desenvolvimento, use o banco local:
 
 ```bash
 npm run prisma:migrate --workspace=backend
 ```
 
-Versione o schema e a migration resultante. O schema está em `BackEnd/prisma/schema.prisma`, as migrations em `BackEnd/prisma/migrations` e a configuração em `BackEnd/prisma.config.ts`.
+## Homologação com Neon
+
+O deploy da branch `hml` roda o back-end como Cloudflare Worker. Em runtime, o Worker usa a binding `HYPERDRIVE`; a configuração dessa binding na Cloudflare precisa apontar para o banco Neon de HML. A connection string não fica no repositório nem é enviada como variável do Worker.
+
+O GitHub Actions executa lint e build, aplica as migrations e publica o Worker. Configure estes secrets no ambiente **GitHub → Settings → Environments → hml**:
+
+| Secret | Uso |
+| --- | --- |
+| `DATABASE_URL_MIGRATIONS` | URL direta do Neon usada por `prisma migrate deploy`; use a connection string sem pooling. O workflow também a fornece como `DATABASE_URL` para o Prisma. |
+| `CLOUDFLARE_API_TOKEN` | Autentica a publicação do Worker. |
+| `CLOUDFLARE_ACCOUNT_ID` | Identifica a conta Cloudflare. |
+| `JWT_SECRET` | Chave aleatória de 64 bytes codificada em 128 caracteres hexadecimais minúsculos. |
+
+O ID da binding Hyperdrive fica em `wrangler.jsonc`. Confirme no painel da Cloudflare que essa configuração está ligada ao Neon e à branch de banco destinada à HML. O workflow aplica migrations versionadas antes do deploy; use `migrate deploy` em HML e reserve `migrate dev` para desenvolvimento local.
+
+## Prisma e autenticação
+
+O cliente Prisma é gerado no `postinstall` do back-end durante a instalação. Após alterar o schema, regenere o cliente:
+
+```bash
+npm run prisma:generate --workspace=backend
+```
+
+O schema está em `BackEnd/prisma/schema.prisma`, as migrations em `BackEnd/prisma/migrations` e a configuração em `BackEnd/prisma.config.ts`.
+
+Na API Node local, a primeira inicialização gera uma chave em `BackEnd/.runtime/auth.key` e reutiliza essa chave nas próximas execuções. No Docker, o volume `backend_auth` preserva o arquivo. O Worker de HML recebe `JWT_SECRET` como secret da Cloudflare. Trocar a chave invalida os tokens existentes e exige novo login. A validade dos tokens é fixa em oito horas.
 
 ## Endereços e problemas comuns
 
 | Situação | O que conferir |
 | --- | --- |
 | Interface | `http://localhost:5173`, ou a porta indicada pelo Vite/Compose. |
-| API | `http://localhost:3000/health`, ajustando a porta se necessário. Essa rota não verifica o banco. |
-| Porta ocupada no front-end | O Vite pode escolher outra porta; leia o endereço no terminal. |
-| Falha de conexão com o banco | Host, porta, credenciais, banco disponível e `DATABASE_URL`. |
-| Falha no login da API | Usuário ativo, hash bcrypt, migrations e acesso ao arquivo local da chave; veja [Back-end](BACKEND.md). |
+| API local | `http://localhost:3000/health`, ajustando a porta se necessário. Essa rota não verifica o banco. |
+| Falha no banco local | Docker ativo, serviço `database`, porta `5433` e `BackEnd/.env`. |
+| Falha no deploy de HML | Secrets do ambiente GitHub `hml`, token e conta Cloudflare, além do acesso ao Neon pela binding Hyperdrive. |
+| Falha no login local | Usuário ativo, hash bcrypt, migrations e acesso ao arquivo local da chave; veja [Back-end](BACKEND.md). |
 | Erro ao gerar Prisma no Windows | Pare a API antes de regenerar o cliente para liberar os arquivos em uso. |
 
-Consulte [Front-end](FRONTEND.md) para entender as telas e os componentes. Os testes usam mocks do banco e podem ser executados sem PostgreSQL ou Docker; veja [Testes](TESTES.md).
+Consulte [Front-end](FRONTEND.md) para entender as telas. Os testes usam mocks do banco e podem ser executados sem conexão ao Neon ou Docker; veja [Testes](TESTES.md).

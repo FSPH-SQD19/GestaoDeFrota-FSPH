@@ -14,7 +14,7 @@ export function registrarAuditoria({
   acao,
   tabelaAfetada,
   registroId = null,
-  dadosNovos
+  dadosNovos,
 }: RegistrarAuditoriaInput) {
   return prisma.auditoriaSistema.create({
     data: {
@@ -22,7 +22,7 @@ export function registrarAuditoria({
       acao,
       tabelaAfetada,
       registroId,
-      dadosNovos
-    }
+      dadosNovos,
+    },
   });
 }
