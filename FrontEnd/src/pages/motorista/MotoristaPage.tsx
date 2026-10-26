@@ -50,12 +50,6 @@ const formularioVazio: FormularioMotorista = {
   senha: "",
 };
 
-const dataRelativa = (dias: number) => {
-  const data = new Date();
-  data.setDate(data.getDate() + dias);
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-};
-
 const dataHojeIso = () => {
   const data = new Date();
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
@@ -89,68 +83,7 @@ const statusVariant: Record<StatusMotorista, "info" | "success" | "warning" | "n
   Inativo: "neutral",
 };
 
-const motoristas: Motorista[] = [
-  {
-    id: "MOT-001",
-    nome: "Carlos Alberto Santos",
-    cpf: "123.456.789-00",
-    numeroCnh: "01234567890",
-    categoriaCnh: "D",
-    validadeCnh: dataRelativa(20),
-    status: "Em rota",
-    contato: "(79) 99912-3456",
-  },
-  {
-    id: "MOT-002",
-    nome: "Mariana Oliveira Costa",
-    cpf: "234.567.890-11",
-    numeroCnh: "12345678901",
-    categoriaCnh: "D",
-    validadeCnh: dataRelativa(180),
-    status: "Disponível",
-    contato: "(79) 99823-4567",
-  },
-  {
-    id: "MOT-003",
-    nome: "João Pedro Nascimento",
-    cpf: "345.678.901-22",
-    numeroCnh: "23456789012",
-    categoriaCnh: "E",
-    validadeCnh: dataRelativa(-10),
-    status: "Indisponível",
-    contato: "(79) 99734-5678",
-  },
-  {
-    id: "MOT-004",
-    nome: "Ana Paula Rodrigues",
-    cpf: "456.789.012-33",
-    numeroCnh: "34567890123",
-    categoriaCnh: "D",
-    validadeCnh: dataRelativa(8),
-    status: "Disponível",
-    contato: "(79) 99645-6789",
-  },
-  {
-    id: "MOT-005",
-    nome: "Roberto Lima Ferreira",
-    cpf: "567.890.123-44",
-    numeroCnh: "45678901234",
-    categoriaCnh: "C",
-    validadeCnh: dataRelativa(365),
-    status: "Inativo",
-    contato: "(79) 99556-7890",
-  },
-  {
-    id: "MOT-006",
-    nome: "Fernanda Souza Almeida",
-    cpf: "678.901.234-55",
-    numeroCnh: "56789012345",
-    categoriaCnh: "D",
-    validadeCnh: dataRelativa(30),
-    status: "Em rota",
-    contato: "(79) 99467-8901",
-  },
-];
+const motoristas: Motorista[] = [];
 
 export const MotoristasPage: React.FC = () => {
   const [termoBusca, setTermoBusca] = useState("");
