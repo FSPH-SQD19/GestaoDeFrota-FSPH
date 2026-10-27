@@ -28,7 +28,6 @@ Os testes usam mocks para o banco e dados sintéticos para autenticação. O wor
 
 ## Acompanhar o resultado
 
-
 Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes como não executadas. O job de qualidade ainda executa para mostrar os resultados das verificações. Execuções canceladas não publicam o resumo. O job de correção tem `contents: write` apenas para enviar a formatação ao branch do PR; ele só executa em branches do próprio repositório. Em PRs de forks, a CI verifica a formatação, mas não pode enviar correções. O job de comentários usa `pull-requests: write`; o job de qualidade continua com permissão apenas de leitura. Execuções manuais e PRs de forks não publicam esse comentário.
 
 Após enviar o workflow e os arquivos necessários do projeto para a branch do PR, abra a aba **Checks** do PR ou a aba **Actions** do repositório. Se uma etapa falhar, abra seus logs, corrija a causa e envie um novo commit para executar novamente.
