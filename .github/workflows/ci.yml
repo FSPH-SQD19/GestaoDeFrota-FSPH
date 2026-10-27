@@ -201,20 +201,20 @@ jobs:
             const gifs = {
               approved: {
                 alt: 'Gato comemorando a aprovação da CI',
-                width: 480,
-                height: 480,
+                width: 200,
+                height: 200,
                 url: 'https://github.com/user-attachments/assets/8ab88a93-7ca3-4a94-a586-5e1c1ce37731',
               },
               failed: {
                 alt: 'Gato reagindo à reprovação da CI',
-                width: 480,
-                height: 476,
+                width: 200,
+                height: 198,
                 url: 'https://github.com/user-attachments/assets/0f7fe24e-468d-4668-afe5-5c436bf4f276',
               },
               formatting: {
                 alt: 'Gato corrigindo a formatação',
-                width: 480,
-                height: 480,
+                width: 200,
+                height: 200,
                 url: 'https://github.com/user-attachments/assets/fdd33a1a-7f26-4c8b-8897-b1ba4e3edb59',
               },
             };
@@ -229,7 +229,7 @@ jobs:
             const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
             const resultLines = [
-              `<strong>${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}</strong>`,
+              `<h3>${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}</h3>`,
               `📦 Dependências · ${status(results.dependencies)}`,
               `🧹 Correção automática · ${autoformatStatus}`,
               `💅 Formatação · ${status(results.format)}`,
@@ -242,16 +242,20 @@ jobs:
               marker,
               '## 👁️ O olho que tudo vê',
               '',
-              '<table width="100%">',
+              '<table width="100%" style="table-layout:fixed;">',
+              '  <colgroup>',
+              '    <col width="480">',
+              '    <col width="480">',
+              '  </colgroup>',
               '  <tbody>',
               '    <tr>',
-              '      <td width="50%" align="center" valign="middle">',
+              '      <td width="480" valign="top">',
+              `        ${resultLines}`,
+              '      </td>',
+              '      <td width="480" align="center" valign="middle">',
               ...(gif
                 ? [`        <img width="${gif.width}" height="${gif.height}" alt="${gif.alt}" src="${gif.url}" />`]
                 : ['        <em>Sem GIF para este estado</em>']),
-              '      </td>',
-              '      <td width="50%" valign="top">',
-              `        ${resultLines}`,
               '      </td>',
               '    </tr>',
               '  </tbody>',
