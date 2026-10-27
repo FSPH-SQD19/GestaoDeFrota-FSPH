@@ -40,11 +40,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Instalar Prettier
-        run: npm ci --ignore-scripts
-
       - name: Aplicar formatação
-        run: npm run format
+        run: npm exec --yes --package=prettier@3.9.10 -- prettier --write .
 
       - name: Enviar correção ao PR
         id: commit
@@ -117,7 +114,7 @@ jobs:
 
       - name: Verificar formatação
         id: format
-        run: npm run format:check
+        run: npm exec --yes --package=prettier@3.9.10 -- prettier --check .
 
       - name: Verificar lint
         id: lint
@@ -230,7 +227,9 @@ jobs:
               '## 👁️ O olho que tudo vê',
               '',
               `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
-              ...(gif ? [`![${gif.alt}](${gif.url})`, ''] : []),
+              ...(gif
+                ? [`<img width="220" height="293" alt="${gif.alt}" src="${gif.url}" />`, '']
+                : []),
               `📦 Dependências · ${status(results.dependencies)}  `,
               `🧹 Correção automática · ${autoformatStatus}  `,
               `💅 Formatação · ${status(results.format)}  `,
