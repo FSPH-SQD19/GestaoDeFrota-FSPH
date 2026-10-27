@@ -28,8 +28,6 @@ Os testes usam mocks para o banco e dados sintéticos para autenticação. O wor
 
 ## Acompanhar o resultado
 
-Ao terminar a verificação de um PR da equipe (branch no próprio repositório), o bot `github-actions` publica o comentário **O olho que tudo vê**, com um GIF de gato conforme o resultado: aprovação, falha ou correção automática de formatação. Os GIFs são inseridos como imagens HTML nos tamanhos enviados: 480 × 480 para aprovação e correção, e 480 × 476 para falha. O comentário também resume a correção automática, a formatação, dependências, lint, testes/tipos e build. Em execuções canceladas, não há GIF. O resumo inclui o commit e o link da execução. Nas próximas execuções, o mesmo comentário é atualizado.
-
 Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes como não executadas. O job de qualidade ainda executa para mostrar os resultados das verificações. Execuções canceladas não publicam o resumo. O job de correção tem `contents: write` apenas para enviar a formatação ao branch do PR; ele só executa em branches do próprio repositório. Em PRs de forks, a CI verifica a formatação, mas não pode enviar correções. O job de comentários usa `pull-requests: write`; o job de qualidade continua com permissão apenas de leitura. Execuções manuais e PRs de forks não publicam esse comentário.
 
 Após enviar o workflow e os arquivos necessários do projeto para a branch do PR, abra a aba **Checks** do PR ou a aba **Actions** do repositório. Se uma etapa falhar, abra seus logs, corrija a causa e envie um novo commit para executar novamente.
