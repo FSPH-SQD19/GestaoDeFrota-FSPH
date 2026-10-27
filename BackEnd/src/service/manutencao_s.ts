@@ -1,6 +1,8 @@
 import { Prisma, type Manutencao } from "@prisma/client";
 import { z } from "zod";
-import { temNoMaximoDuasCasas } from "./abastecimento_s";
+import { prisma } from "../lib/prisma";
+import { temNoMaximoDuasCasas, decimalParaNumero } from "./abastecimento_s";
+import { HttpError } from "../middleware/http_m";
 
 export const TIPOS_MANUTENCAO = ["PREVENTIVA", "CORRETIVA"] as const;
 
@@ -43,3 +45,98 @@ export const criarManutencaoSchema = z
 
 export type ListarManutencoesFiltros = z.infer<typeof listarManutencoesSchema>;
 export type CriarManutencaoInput = z.infer<typeof criarManutencaoSchema>;
+
+export type ManutencaoResposta = Omit<Manutencao, "odometroRegistro" | "custoTotal"> & {
+  odometroRegistro: number | null;
+  custoTotal: number | null;
+};
+
+export function serializarManutencao(manutencao: Manutencao): ManutencaoResposta {
+  return {
+    ...manutencao,
+    odometroRegistro: decimalParaNumero(manutencao.odometroRegistro),
+    custoTotal: decimalParaNumero(manutencao.custoTotal),
+  };
+}
+
+export async function listarManutencoes(filtros: ListarManutencoesFiltros) {
+  const { page, pageSize, veiculoId, tipo, dataInicio, dataFim } = filtros;
+
+  const where: Prisma.ManutencaoWhereInput = {
+    ...(veiculoId ? { veiculoId } : {}),
+    tipo: tipo,
+    dataManutencao: { gte: dataInicio, lte: dataFim },
+  };
+ 
+  const [manutencoes, total] = await Promise.all([
+    prisma.manutencao.findMany({
+      where,
+      orderBy: [{ dataManutencao: "desc" }, { id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.manutencao.count({ where }),
+  ]);
+
+  return {
+  data: manutencoes.map(serializarManutencao),
+  meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+};
+}
+
+const TIPO_CORRETIVA = "CORRETIVA";
+const STATUS_EM_MANUTENCAO = "MANUTENCAO";
+
+export async function criarManutencao(input: CriarManutencaoInput, usuarioId: string) {
+  const veiculo = await prisma.veiculo.findUnique({
+    where: { id: input.veiculoId },
+    select: { ativo: true, status: true },
+  });
+  if (!veiculo?.ativo) {
+    throw new HttpError(422, "Veículo não encontrado ou inativo.", [
+      { campo: "veiculoId", mensagem: "Informe um veículo ativo." }
+    ])
+  }
+
+  if (input.tipo === TIPO_CORRETIVA && !["DISPONIVEL", STATUS_EM_MANUTENCAO].includes(veiculo.status)) {
+  throw new HttpError(422, "Status não está entre os permitidos", [
+    { campo: "veiculoId", mensagem: "" },
+  ]);
+}
+
+  if (input.fornecedorId) {
+    const fornecedor = await prisma.fornecedor.findUnique({
+      where: { id: input.fornecedorId },
+      select: { ativo: true },
+    });
+    if (!fornecedor?.ativo) {
+      throw new HttpError(422, "Fornecedor não encontrado ou inativo.", [
+        { campo: "fornecedorId", mensagem: "Informe um fornecedor ativo." },
+      ]);
+    }
+  }
+
+  const manutencao = await prisma.$transaction(async(tx) => {
+    const criada = await tx.manutencao.create({ data: input });
+
+    if (input.tipo === TIPO_CORRETIVA) {
+      await tx.veiculo.update({
+        where: { id: input.veiculoId },
+        data: { status: STATUS_EM_MANUTENCAO },
+      })
+    }
+
+    await tx.auditoriaSistema.create({
+      data: {
+        usuarioId,
+        acao: "CRIAR",
+        tabelaAfetada: "manutencoes",
+        registroId: criada.id,
+        dadosNovos: JSON.parse(JSON.stringify(serializarManutencao(criada))),
+      },
+    });
+  return criada;
+});
+
+  return serializarManutencao(manutencao);
+}
