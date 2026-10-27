@@ -200,16 +200,22 @@ jobs:
             };
             const gifs = {
               approved: {
-                alt: 'Macaco comemorando a aprovação da CI',
-                url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYWQ0ZnBoMmQ5Njd6cWtsNDRycWV0dnN3bDU1ZTRnYmt1OTI4ZGNiYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/VkpfO6W4D7yB7vSjXy/giphy.gif',
+                alt: 'Gato comemorando a aprovação da CI',
+                width: 480,
+                height: 480,
+                url: 'https://github.com/user-attachments/assets/8ab88a93-7ca3-4a94-a586-5e1c1ce37731',
               },
               failed: {
-                alt: 'Macaco reagindo à reprovação da CI',
-                url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYWQ0ZnBoMmQ5Njd6cWtsNDRycWV0dnN3bDU1ZTRnYmt1OTI4ZGNiYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/NAdEYIRFMCBhMGkXSq/giphy.gif',
+                alt: 'Gato reagindo à reprovação da CI',
+                width: 480,
+                height: 476,
+                url: 'https://github.com/user-attachments/assets/0f7fe24e-468d-4668-afe5-5c436bf4f276',
               },
               formatting: {
-                alt: 'Macaco corrigindo a formatação',
-                url: 'https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NGdtdnJ4c2FtYWJsdGN0amtudHl0dTBlMG52MGE3NzNiOGNjc3ptcCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/JIX9t2j0ZTN9S/giphy.gif',
+                alt: 'Gato corrigindo a formatação',
+                width: 480,
+                height: 480,
+                url: 'https://github.com/user-attachments/assets/fdd33a1a-7f26-4c8b-8897-b1ba4e3edb59',
               },
             };
             const gif = formatChanged
@@ -228,7 +234,7 @@ jobs:
               '',
               `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
               ...(gif
-                ? [`<img width="220" height="293" alt="${gif.alt}" src="${gif.url}" />`, '']
+                ? [`<img width="${gif.width}" height="${gif.height}" alt="${gif.alt}" src="${gif.url}" />`, '']
                 : []),
               `📦 Dependências · ${status(results.dependencies)}  `,
               `🧹 Correção automática · ${autoformatStatus}  `,
