@@ -229,7 +229,7 @@ jobs:
             const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
             const resultLines = [
-              `<strong>${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}</strong>`,
+              `<h3>${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}</h3>`,
               `📦 Dependências · ${status(results.dependencies)}`,
               `🧹 Correção automática · ${autoformatStatus}`,
               `💅 Formatação · ${status(results.format)}`,
