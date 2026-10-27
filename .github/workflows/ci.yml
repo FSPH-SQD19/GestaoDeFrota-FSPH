@@ -201,20 +201,20 @@ jobs:
             const gifs = {
               approved: {
                 alt: 'Gato comemorando a aprovação da CI',
-                width: 400,
-                height: 400,
+                width: 200,
+                height: 200,
                 url: 'https://github.com/user-attachments/assets/8ab88a93-7ca3-4a94-a586-5e1c1ce37731',
               },
               failed: {
                 alt: 'Gato reagindo à reprovação da CI',
-                width: 400,
-                height: 397,
+                width: 200,
+                height: 198,
                 url: 'https://github.com/user-attachments/assets/0f7fe24e-468d-4668-afe5-5c436bf4f276',
               },
               formatting: {
                 alt: 'Gato corrigindo a formatação',
-                width: 400,
-                height: 400,
+                width: 200,
+                height: 200,
                 url: 'https://github.com/user-attachments/assets/fdd33a1a-7f26-4c8b-8897-b1ba4e3edb59',
               },
             };
