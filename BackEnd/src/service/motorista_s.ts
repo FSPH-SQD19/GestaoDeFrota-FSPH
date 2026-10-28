@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { validarDataValidadeCnh } from "./validarCNH_s";
 
 interface MotoristaInput {
   usuarioId?: string;
@@ -9,6 +10,7 @@ interface MotoristaInput {
   categoriaCnh: string;
   validadeCnh: string;
 }
+
 interface AtualizarMotoristaInput {
   validadeCnh?: string;
   ativo?: boolean;
@@ -87,34 +89,20 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
     throw new Error("Número da CNH deve conter 11 dígitos.");
   }
 
-  if (!CATEGORIAS_CNH.includes(categoriaCnh)) {
+  if (!(CATEGORIAS_CNH as readonly string[]).includes(categoriaCnh)) {
     throw new Error("Categoria da CNH inválida.");
   }
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.validadeCnh)) {
-    throw new Error("Data de validade deve estar no formato AAAA-MM-DD.");
-  }
-
-  const validadeCnh = new Date(`${dados.validadeCnh}T00:00:00.000Z`);
-
-  if (
-    Number.isNaN(validadeCnh.getTime()) ||
-    validadeCnh.toISOString().slice(0, 10) !== dados.validadeCnh
-  ) {
-    throw new Error("Data de validade da CNH inválida.");
-  }
-
-  const hoje = new Date().toLocaleDateString("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  });
-
-  if (dados.validadeCnh < hoje) {
-    throw new Error("A CNH está vencida.");
-  }
+  // A validação de formato, data real e vencimento fica centralizada em validarCNH_s.ts.
+  const validadeCnh = validarDataValidadeCnh(dados.validadeCnh);
 
   const existente = await prisma.motorista.findFirst({
     where: {
-      OR: [{ cpf }, { numeroCnh }, ...(dados.usuarioId ? [{ usuarioId: dados.usuarioId }] : [])],
+      OR: [
+        { cpf },
+        { numeroCnh },
+        ...(dados.usuarioId ? [{ usuarioId: dados.usuarioId }] : []),
+      ],
     },
     select: { id: true },
   });
@@ -154,14 +142,21 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
       },
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
       throw new Error("CPF, CNH ou usuário já vinculado a um motorista.");
     }
 
     throw error;
   }
 }
-export async function atualizarMotorista(id: string, dados: AtualizarMotoristaInput) {
+
+export async function atualizarMotorista(
+  id: string,
+  dados: AtualizarMotoristaInput,
+) {
   if (!z.uuid().safeParse(id).success) {
     throw new Error("ID do motorista inválido.");
   }
@@ -173,28 +168,8 @@ export async function atualizarMotorista(id: string, dados: AtualizarMotoristaIn
   const dadosAtualizados: { validadeCnh?: Date; ativo?: boolean } = {};
 
   if (dados.validadeCnh !== undefined) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.validadeCnh)) {
-      throw new Error("Data de validade deve estar no formato AAAA-MM-DD.");
-    }
-
-    const validadeCnh = new Date(`${dados.validadeCnh}T00:00:00.000Z`);
-
-    if (
-      Number.isNaN(validadeCnh.getTime()) ||
-      validadeCnh.toISOString().slice(0, 10) !== dados.validadeCnh
-    ) {
-      throw new Error("Data de validade da CNH inválida.");
-    }
-
-    const hoje = new Date().toLocaleDateString("en-CA", {
-      timeZone: "America/Sao_Paulo",
-    });
-
-    if (dados.validadeCnh < hoje) {
-      throw new Error("A CNH está vencida.");
-    }
-
-    dadosAtualizados.validadeCnh = validadeCnh;
+    // Reutiliza a validação compartilhada para evitar regras duplicadas.
+    dadosAtualizados.validadeCnh = validarDataValidadeCnh(dados.validadeCnh);
   }
 
   if (dados.ativo !== undefined) {
@@ -216,7 +191,10 @@ export async function atualizarMotorista(id: string, dados: AtualizarMotoristaIn
       },
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
       throw new Error("Motorista não encontrado.");
     }
 
