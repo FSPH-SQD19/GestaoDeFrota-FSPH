@@ -9,6 +9,10 @@ interface MotoristaInput {
   categoriaCnh: string;
   validadeCnh: string;
 }
+interface AtualizarMotoristaInput {
+  validadeCnh?: string;
+  ativo?: boolean;
+}
 
 const CATEGORIAS_CNH = [
   "A",
@@ -152,6 +156,71 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw new Error("CPF, CNH ou usuário já vinculado a um motorista.");
+    }
+
+    throw error;
+  }
+}
+export async function atualizarMotorista(
+  id: string,
+  dados: AtualizarMotoristaInput,
+) {
+  if (!z.uuid().safeParse(id).success) {
+    throw new Error("ID do motorista inválido.");
+  }
+
+  if (dados.validadeCnh === undefined && dados.ativo === undefined) {
+    throw new Error("Informe a validade da CNH ou o status ativo.");
+  }
+
+  const dadosAtualizados: { validadeCnh?: Date; ativo?: boolean } = {};
+
+  if (dados.validadeCnh !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.validadeCnh)) {
+      throw new Error("Data de validade deve estar no formato AAAA-MM-DD.");
+    }
+
+    const validadeCnh = new Date(`${dados.validadeCnh}T00:00:00.000Z`);
+
+    if (
+      Number.isNaN(validadeCnh.getTime()) ||
+      validadeCnh.toISOString().slice(0, 10) !== dados.validadeCnh
+    ) {
+      throw new Error("Data de validade da CNH inválida.");
+    }
+
+    const hoje = new Date().toLocaleDateString("en-CA", {
+      timeZone: "America/Sao_Paulo",
+    });
+
+    if (dados.validadeCnh < hoje) {
+      throw new Error("A CNH está vencida.");
+    }
+
+    dadosAtualizados.validadeCnh = validadeCnh;
+  }
+
+  if (dados.ativo !== undefined) {
+    dadosAtualizados.ativo = dados.ativo;
+  }
+
+  try {
+    return await prisma.motorista.update({
+      where: { id },
+      data: dadosAtualizados,
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      throw new Error("Motorista não encontrado.");
     }
 
     throw error;
