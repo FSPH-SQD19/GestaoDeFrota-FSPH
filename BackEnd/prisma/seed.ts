@@ -38,6 +38,35 @@ const usuarios = [
   },
 ];
 
+const usuarioMotorista = await prisma.usuario.findUniqueOrThrow({
+  where: { email: "motorista@frota.com" },
+});
+
+await prisma.motorista.upsert({
+  where: { cpf: "123.456.789-09" },
+  update: {
+    usuarioId: usuarioMotorista.id,
+    numeroCnh: "TESTE123456",
+    categoriaCnh: "B",
+    validadeCnh: new Date("2025-12-31T00:00:00.000Z"),
+    telefone: "(79) 99999-1234",
+    status: "DISPONIVEL",
+    ativo: true,
+  },
+  create: {
+    usuarioId: usuarioMotorista.id,
+    cpf: "123.456.789-09",
+    numeroCnh: "TESTE123456",
+    categoriaCnh: "B",
+    validadeCnh: new Date("2025-12-31T00:00:00.000Z"),
+    telefone: "(79) 99999-1234",
+    status: "DISPONIVEL",
+    ativo: true,
+  },
+});
+
+console.log("Motorista de teste criado/atualizado.");
+
 async function main() {
   for (const perfil of perfis) {
     await prisma.perfil.upsert({
