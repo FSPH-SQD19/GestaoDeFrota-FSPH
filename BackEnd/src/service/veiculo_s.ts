@@ -194,29 +194,38 @@ function erroPlacaDuplicada() {
     { campo: "placa", mensagem: "Placa já cadastrada." },
   ]);
 }
-export const atualizarVeiculoSchema = criarVeiculoSchema
-  .partial()
-  .extend({
-    ativo: z.boolean({ error: "Ativo deve ser verdadeiro ou falso." }).optional(),
-  })
-  .superRefine((veiculo, ctx) => {
-    if (
-      veiculo.propriedade === "LOCADO" &&
-      veiculo.fornecedorId === undefined
-    ) {
-      // A propriedade pode estar mudando para LOCADO.
-      // A validação final considera também os dados atuais do veículo.
-      return;
-    }
 
-    if (
-      veiculo.status === "DESINFECCAO" &&
-      veiculo.tipoFrota === "ADMINISTRATIVA"
-    ) {
+export const atualizarVeiculoSchema = z
+  .object({
+    placa: placaSchema.optional(),
+
+    modelo: z.string().trim().min(1).optional(),
+
+    tipoFrota: z.enum(TIPOS_FROTA).optional(),
+
+    propriedade: z.enum(PROPRIEDADES).optional(),
+
+    fornecedorId: z.string().uuid().nullable().optional(),
+
+    ano: z.number().int().optional().nullable(),
+
+    combustivel: z.string().trim().min(1).optional().nullable(),
+
+    capacidadeMaxima: z.number().int().positive().optional(),
+
+    odometroAtual: z.number().nonnegative().optional(),
+
+    status: z.enum(STATUS_VEICULO).optional(),
+
+    ativo: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((dados, ctx) => {
+    if (dados.status === "DESINFECCAO" && dados.tipoFrota === "ADMINISTRATIVA") {
       ctx.addIssue({
         code: "custom",
         path: ["status"],
-        message: "Status DESINFECCAO é exclusivo da frota SVO.",
+        message: "O status DESINFECCAO só pode ser utilizado na frota SVO.",
       });
     }
   });
@@ -277,7 +286,6 @@ export async function atualizarVeiculo(
     ...input,
   };
 
-  // Não modifica o registro original: apenas atualiza os campos recebidos.
   let veiculo: Veiculo;
 
   try {
@@ -312,11 +320,12 @@ export async function atualizarVeiculo(
       dadosNovos: JSON.parse(JSON.stringify(resposta)),
     });
   } catch (erro) {
-      console.error(
-        "Falha ao registrar auditoria do veículo",
-        veiculo.id,
-        erro,
-      );
-    }
+    console.error(
+      "Falha ao registrar auditoria do veículo",
+      veiculo.id,
+      erro,
+    );
+  }
+
   return resposta;
 }
