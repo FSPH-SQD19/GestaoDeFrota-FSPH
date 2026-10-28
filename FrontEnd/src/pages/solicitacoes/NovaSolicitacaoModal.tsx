@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertTriangle, Send } from "lucide-react";
+import { AlertCircle, AlertTriangle, Send } from "lucide-react";
 import { Button, Input, Modal, Select, Textarea } from "../../components/common";
 import {
   SETORES_FSPH,
@@ -95,6 +95,8 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   onSubmit,
   setorPadrao,
 }) => {
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -107,38 +109,54 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   });
 
   useEffect(() => {
-    if (isOpen) reset({ ...defaultValues, setorOrigem: setorPadrao ?? "" });
+    if (isOpen) {
+      reset({ ...defaultValues, setorOrigem: setorPadrao ?? "" });
+    }
   }, [isOpen, reset, setorPadrao]);
+
+  const handleClose = () => {
+    setErroEnvio(null);
+    onClose();
+  };
 
   const urgencia = useWatch({ control, name: "urgencia" });
 
   const submit = async (data: SolicitacaoFormData) => {
-    await onSubmit({
-      setorOrigem: data.setorOrigem,
-      origem: data.origem.trim(),
-      destino: data.destino.trim(),
-      dataHoraPretendida: new Date(data.dataHoraPretendida).toISOString(),
-      dataHoraRetornoPrevista: data.dataHoraRetornoPrevista
-        ? new Date(data.dataHoraRetornoPrevista).toISOString()
-        : undefined,
-      quantidadePassageiros: Number(data.quantidadePassageiros),
-      tipoTransporte: data.tipoTransporte,
-      urgencia: data.urgencia,
-      justificativa: data.justificativa.trim(),
-      observacoes: data.observacoes?.trim() || undefined,
-    });
+    setErroEnvio(null);
+    try {
+      await onSubmit({
+        setorOrigem: data.setorOrigem,
+        origem: data.origem.trim(),
+        destino: data.destino.trim(),
+        dataHoraPretendida: new Date(data.dataHoraPretendida).toISOString(),
+        dataHoraRetornoPrevista: data.dataHoraRetornoPrevista
+          ? new Date(data.dataHoraRetornoPrevista).toISOString()
+          : undefined,
+        quantidadePassageiros: Number(data.quantidadePassageiros),
+        tipoTransporte: data.tipoTransporte,
+        urgencia: data.urgencia,
+        justificativa: data.justificativa.trim(),
+        observacoes: data.observacoes?.trim() || undefined,
+      });
+    } catch (err) {
+      setErroEnvio(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível enviar a solicitação. Tente novamente.",
+      );
+    }
   };
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       size="lg"
       title="Nova Solicitação de Viagem"
       description="Preencha os dados da viagem. O Gestor de Frota analisará e alocará veículo e motorista."
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          <Button variant="ghost" onClick={handleClose} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button
@@ -154,6 +172,16 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
       }
     >
       <form id={FORM_ID} onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
+        {erroEnvio && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+            <span>{erroEnvio}</span>
+          </div>
+        )}
+
         {/* Setor e urgência */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select

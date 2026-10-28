@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -12,23 +12,40 @@ import {
   XCircle,
   ClipboardList,
   Siren,
+  AlertCircle,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
-import { Badge, Button, Card, Input, Modal, Table } from "../../components/common";
+import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { cn } from "../../lib/utils";
 import {
+  aprovarSolicitacaoApi,
+  criarSolicitacaoApi,
+  listarSolicitacoesApi,
+  recusarSolicitacaoApi,
+} from "../../services/solicitacoesService";
+import {
+  SETORES_FSPH,
   STATUS_SOLICITACAO_LABEL,
   STATUS_SOLICITACAO_VARIANT,
   TIPO_TRANSPORTE_LABEL,
+  type AprovarSolicitacaoInput,
+  type ContagemPorStatus,
+  type MotoristaDisponivelOption,
   type NovaSolicitacaoViagem,
+  type RecusarSolicitacaoInput,
   type SolicitacaoViagem,
   type StatusSolicitacao,
+  type UrgenciaSolicitacao,
+  type VeiculoDisponivelOption,
 } from "../../types/solicitacao";
+import { AnalisarSolicitacaoModal, type ModoAnaliseSolicitacao } from "./AnalisarSolicitacaoModal";
 import { NovaSolicitacaoModal } from "./NovaSolicitacaoModal";
-import { criarSolicitacoesMock } from "./solicitacoesMock";
 
 type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA";
+type FiltroUrgencia = "TODAS" | UrgenciaSolicitacao;
 
 const FILTROS: { id: FiltroStatus; label: string; status: StatusSolicitacao[] | null }[] = [
   { id: "TODAS", label: "Todas", status: null },
@@ -37,6 +54,8 @@ const FILTROS: { id: FiltroStatus; label: string; status: StatusSolicitacao[] | 
   { id: "CONCLUIDA", label: "Concluídas", status: ["CONCLUIDA"] },
   { id: "RECUSADA", label: "Recusadas", status: ["RECUSADA"] },
 ];
+
+const PAGE_SIZE = 20;
 
 const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -50,66 +69,233 @@ function formatarDataHora(iso?: string): string {
   return iso ? dataHoraFmt.format(new Date(iso)) : "—";
 }
 
-function gerarProtocolo(total: number): string {
-  const ano = new Date().getFullYear();
-  return `SV-${ano}-${String(143 + total).padStart(4, "0")}`;
+function pesoFilaGestor(s: SolicitacaoViagem): number {
+  if (s.status === "PENDENTE" && s.urgencia === "URGENTE") return 0;
+  if (s.status === "PENDENTE") return 1;
+  return 2;
 }
 
 export const SolicitacoesPage: React.FC = () => {
-  const { user } = useAuth();
-  const solicitanteNome = user?.nome ?? "Solicitante";
+  const { token, hasRole } = useAuth();
+  const isGestor = hasRole(["GESTOR", "ADMIN"]);
 
-  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoViagem[]>(() =>
-    criarSolicitacoesMock(solicitanteNome),
-  );
+  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoViagem[]>([]);
+  const [porStatusApi, setPorStatusApi] = useState<ContagemPorStatus | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [reloadTick, setReloadTick] = useState(0);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
+
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("TODAS");
+  const [filtroSetor, setFiltroSetor] = useState<string>("TODOS");
+  const [filtroUrgencia, setFiltroUrgencia] = useState<FiltroUrgencia>("TODAS");
+
   const [isNovaOpen, setIsNovaOpen] = useState(false);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
+  const [analiseAlvo, setAnaliseAlvo] = useState<{
+    solicitacao: SolicitacaoViagem;
+    modoInicial: ModoAnaliseSolicitacao;
+  } | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ativa = true;
+    void listarSolicitacoesApi(
+      {
+        page,
+        pageSize: PAGE_SIZE,
+      },
+      token,
+    )
+      .then((resposta) => {
+        if (!ativa) return;
+        setErroCarregamento(null);
+        setSolicitacoes(resposta.data);
+        setPorStatusApi(resposta.meta.porStatus);
+        setTotalPages(Math.max(1, resposta.meta.totalPages));
+      })
+      .catch((err: unknown) => {
+        if (!ativa) return;
+        setErroCarregamento(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar as solicitações de viagem.",
+        );
+      })
+      .finally(() => {
+        if (ativa) setCarregando(false);
+      });
+
+    return () => {
+      ativa = false;
+    };
+  }, [page, token, reloadTick]);
+
+  const handleRecarregar = () => {
+    setCarregando(true);
+    setErroCarregamento(null);
+    setReloadTick((t) => t + 1);
+  };
+
+  const opcoesSetor = useMemo(() => {
+    const conjunto = new Set<string>(SETORES_FSPH);
+    for (const item of solicitacoes) {
+      if (item.setorOrigem) conjunto.add(item.setorOrigem);
+    }
+    return [
+      { value: "TODOS", label: "Todos os setores" },
+      ...Array.from(conjunto).map((s) => ({ value: s, label: s })),
+    ];
+  }, [solicitacoes]);
+
+  const pendentesUrgentes = useMemo(
+    () => solicitacoes.filter((s) => s.status === "PENDENTE" && s.urgencia === "URGENTE"),
+    [solicitacoes],
+  );
 
   const contagem = useMemo(() => {
     const por = (s: StatusSolicitacao[]) => solicitacoes.filter((x) => s.includes(x.status)).length;
+    const totalLista = solicitacoes.length;
+
+    if (porStatusApi) {
+      const totalApi =
+        porStatusApi.PENDENTE +
+        porStatusApi.APROVADA +
+        porStatusApi.EM_TRANSITO +
+        porStatusApi.CONCLUIDA +
+        porStatusApi.RECUSADA;
+
+      if (totalApi >= totalLista) {
+        return {
+          total: totalApi,
+          pendentes: porStatusApi.PENDENTE,
+          aprovadas: porStatusApi.APROVADA + porStatusApi.EM_TRANSITO,
+          recusadas: porStatusApi.RECUSADA,
+        };
+      }
+    }
+
     return {
-      total: solicitacoes.length,
+      total: totalLista,
       pendentes: por(["PENDENTE"]),
       aprovadas: por(["APROVADA", "EM_TRANSITO"]),
       recusadas: por(["RECUSADA"]),
     };
-  }, [solicitacoes]);
+  }, [solicitacoes, porStatusApi]);
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const statusFiltro = FILTROS.find((f) => f.id === filtro)?.status;
     return solicitacoes
       .filter((s) => !statusFiltro || statusFiltro.includes(s.status))
+      .filter((s) => filtroSetor === "TODOS" || s.setorOrigem === filtroSetor)
+      .filter((s) => filtroUrgencia === "TODAS" || s.urgencia === filtroUrgencia)
       .filter(
         (s) =>
           !termo ||
           s.protocolo.toLowerCase().includes(termo) ||
           s.destino.toLowerCase().includes(termo) ||
-          s.origem.toLowerCase().includes(termo),
+          s.origem.toLowerCase().includes(termo) ||
+          s.solicitanteNome.toLowerCase().includes(termo) ||
+          s.setorOrigem.toLowerCase().includes(termo),
       )
-      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
-  }, [solicitacoes, busca, filtro]);
+      .sort((a, b) => {
+        if (isGestor) {
+          const diffPeso = pesoFilaGestor(a) - pesoFilaGestor(b);
+          if (diffPeso !== 0) return diffPeso;
+        }
+        return b.criadoEm.localeCompare(a.criadoEm);
+      });
+  }, [solicitacoes, busca, filtro, filtroSetor, filtroUrgencia, isGestor]);
 
   const handleNovaSolicitacao = async (dados: NovaSolicitacaoViagem) => {
-    // Simula latência de rede até a integração com a API.
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const nova: SolicitacaoViagem = {
-      ...dados,
-      id: `sol-${Date.now()}`,
-      protocolo: gerarProtocolo(solicitacoes.length),
-      solicitanteNome,
-      status: "PENDENTE",
-      criadoEm: new Date().toISOString(),
-    };
-    setSolicitacoes((prev) => [nova, ...prev]);
+    const nova = await criarSolicitacaoApi(dados, token);
+    setSolicitacoes((prev) => [nova, ...prev.filter((item) => item.id !== nova.id)]);
+    setPorStatusApi((prev) =>
+      prev
+        ? {
+            ...prev,
+            PENDENTE: prev.PENDENTE + 1,
+          }
+        : null,
+    );
     setIsNovaOpen(false);
     setFiltro("TODAS");
     setMensagemSucesso(
       `Solicitação ${nova.protocolo} enviada! Aguarde a análise do Gestor de Frota.`,
     );
+  };
+
+  const handleAprovarSolicitacao = async (
+    solicitacaoId: string,
+    dados: AprovarSolicitacaoInput,
+    resumo: { veiculo: VeiculoDisponivelOption; motorista: MotoristaDisponivelOption },
+  ) => {
+    const atualizada = await aprovarSolicitacaoApi(solicitacaoId, dados, token);
+    const enriquecida: SolicitacaoViagem = {
+      ...atualizada,
+      status: "APROVADA",
+      veiculoAlocado: atualizada.veiculoAlocado ?? {
+        placa: resumo.veiculo.placa,
+        modelo: resumo.veiculo.modelo,
+      },
+      motoristaAlocado: atualizada.motoristaAlocado ?? {
+        nome: resumo.motorista.nome,
+      },
+    };
+
+    setSolicitacoes((prev) => prev.map((item) => (item.id === solicitacaoId ? enriquecida : item)));
+    setPorStatusApi((prev) =>
+      prev
+        ? {
+            ...prev,
+            PENDENTE: Math.max(0, prev.PENDENTE - 1),
+            APROVADA: prev.APROVADA + 1,
+          }
+        : null,
+    );
+    setAnaliseAlvo(null);
+    setMensagemSucesso(
+      `Solicitação ${enriquecida.protocolo} aprovada! Veículo ${resumo.veiculo.placa} e motorista ${resumo.motorista.nome} alocados.`,
+    );
+  };
+
+  const handleRecusarSolicitacao = async (
+    solicitacaoId: string,
+    dados: RecusarSolicitacaoInput,
+  ) => {
+    const atualizada = await recusarSolicitacaoApi(solicitacaoId, dados, token);
+    const enriquecida: SolicitacaoViagem = {
+      ...atualizada,
+      status: "RECUSADA",
+      motivoRecusa: atualizada.motivoRecusa ?? dados.motivoRecusa,
+    };
+
+    setSolicitacoes((prev) => prev.map((item) => (item.id === solicitacaoId ? enriquecida : item)));
+    setPorStatusApi((prev) =>
+      prev
+        ? {
+            ...prev,
+            PENDENTE: Math.max(0, prev.PENDENTE - 1),
+            RECUSADA: prev.RECUSADA + 1,
+          }
+        : null,
+    );
+    setAnaliseAlvo(null);
+    setMensagemSucesso(
+      `Solicitação ${enriquecida.protocolo} recusada e justificativa enviada ao setor solicitante.`,
+    );
+  };
+
+  const abrirAnalise = (
+    solicitacao: SolicitacaoViagem,
+    modoInicial: ModoAnaliseSolicitacao = "APROVAR",
+  ) => {
+    setMensagemSucesso(null);
+    setSelecionada(null);
+    setAnaliseAlvo({ solicitacao, modoInicial });
   };
 
   const columns: Column<SolicitacaoViagem>[] = [
@@ -128,6 +314,23 @@ export const SolicitacoesPage: React.FC = () => {
         </div>
       ),
     },
+    ...(isGestor
+      ? [
+          {
+            header: "Setor / Solicitante",
+            render: (s: SolicitacaoViagem) => (
+              <div className="min-w-[150px]">
+                <span className="inline-block text-xs font-bold text-slate-900">
+                  {s.setorOrigem}
+                </span>
+                <span className="block text-xs text-slate-500 truncate max-w-[180px]">
+                  {s.solicitanteNome}
+                </span>
+              </div>
+            ),
+          },
+        ]
+      : []),
     {
       header: "Itinerário",
       render: (s) => (
@@ -166,15 +369,37 @@ export const SolicitacoesPage: React.FC = () => {
     {
       header: "Ações",
       render: (s) => (
-        <button
-          type="button"
-          onClick={() => setSelecionada(s)}
-          className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-          title="Ver detalhes da viagem"
-          aria-label={`Ver detalhes da solicitação ${s.protocolo}`}
-        >
-          <Eye className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {isGestor && s.status === "PENDENTE" && (
+            <>
+              <button
+                type="button"
+                onClick={() => abrirAnalise(s, "APROVAR")}
+                className="px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
+                aria-label={`Aprovar solicitação ${s.protocolo}`}
+              >
+                Aprovar
+              </button>
+              <button
+                type="button"
+                onClick={() => abrirAnalise(s, "RECUSAR")}
+                className="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
+                aria-label={`Recusar solicitação ${s.protocolo}`}
+              >
+                Recusar
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setSelecionada(s)}
+            className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Ver detalhes da viagem"
+            aria-label={`Ver detalhes da solicitação ${s.protocolo}`}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ];
@@ -185,10 +410,12 @@ export const SolicitacoesPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Minhas Solicitações de Viagem
+            {isGestor ? "Gestão de Solicitações de Viagem" : "Minhas Solicitações de Viagem"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Solicite transporte oficial e acompanhe o andamento das suas viagens.
+            {isGestor
+              ? "Analise a fila de pedidos dos setores da FSPH, priorize demandas urgentes e aloque veículo e motorista."
+              : "Solicite transporte oficial e acompanhe o andamento das suas viagens."}
           </p>
         </div>
         <Button
@@ -223,6 +450,26 @@ export const SolicitacoesPage: React.FC = () => {
         </div>
       )}
 
+      {erroCarregamento && (
+        <div
+          role="alert"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm"
+        >
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            {erroCarregamento}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+            onClick={handleRecarregar}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
       {/* Indicadores */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
@@ -246,38 +493,121 @@ export const SolicitacoesPage: React.FC = () => {
         <MetricCard icon={XCircle} label="Recusadas" value={contagem.recusadas} tone="danger" />
       </div>
 
+      {/* Destaque de Fila Prioritária (URGENTE) para Gestor / Admin */}
+      {isGestor && pendentesUrgentes.length > 0 && (
+        <Card className="p-4 sm:p-5 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                <Siren className="w-5 h-5" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-rose-950">
+                  Fila de Análise Prioritária — {pendentesUrgentes.length} pedido(s) URGENTE(S)
+                  aguardando decisão
+                </h2>
+                <p className="text-xs text-rose-800">
+                  Solicitações urgentes possuem prioridade de alocação na frota administrativa.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {pendentesUrgentes.map((urg) => (
+              <div
+                key={urg.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-white border border-rose-200/80 shadow-2xs"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-xs text-slate-900">
+                      {urg.protocolo}
+                    </span>
+                    <Badge variant="danger">Urgente</Badge>
+                    <span className="text-xs font-semibold text-slate-600">{urg.setorOrigem}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-900 truncate">
+                    {urg.origem} → {urg.destino}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Saída: {formatarDataHora(urg.dataHoraPretendida)} · Solicitante:{" "}
+                    {urg.solicitanteNome}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+                    onClick={() => abrirAnalise(urg, "APROVAR")}
+                    aria-label={`Analisar pedido urgente ${urg.protocolo}`}
+                  >
+                    Analisar agora
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Filtros */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="w-full lg:max-w-md">
-          <Input
-            placeholder="Buscar por protocolo, origem ou destino..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            leftIcon={<Search className="w-4 h-4 text-slate-400" />}
-            aria-label="Buscar solicitações"
-          />
-        </div>
-        <div
-          className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl overflow-x-auto"
-          role="tablist"
-        >
-          {FILTROS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              role="tab"
-              aria-selected={filtro === f.id}
-              onClick={() => setFiltro(f.id)}
-              className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
-                filtro === f.id
-                  ? "bg-white text-slate-900 shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900",
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="w-full lg:max-w-md">
+            <Input
+              placeholder="Buscar por protocolo, origem ou destino..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+              aria-label="Buscar solicitações"
+            />
+          </div>
+
+          {isGestor && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full lg:w-auto lg:min-w-[420px]">
+              <Select
+                aria-label="Filtrar por setor"
+                value={filtroSetor}
+                onChange={(e) => setFiltroSetor(e.target.value)}
+                options={opcoesSetor}
+              />
+              <Select
+                aria-label="Filtrar por urgência"
+                value={filtroUrgencia}
+                onChange={(e) => setFiltroUrgencia(e.target.value as FiltroUrgencia)}
+                options={[
+                  { value: "TODAS", label: "Todas as urgências" },
+                  { value: "URGENTE", label: "Apenas urgentes" },
+                  { value: "NORMAL", label: "Urgência normal" },
+                ]}
+              />
+            </div>
+          )}
+
+          <div
+            className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl overflow-x-auto"
+            role="tablist"
+          >
+            {FILTROS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={filtro === f.id}
+                onClick={() => setFiltro(f.id)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
+                  filtro === f.id
+                    ? "bg-white text-slate-900 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900",
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -285,8 +615,36 @@ export const SolicitacoesPage: React.FC = () => {
         columns={columns}
         data={filtradas}
         keyExtractor={(s) => s.id}
+        isLoading={carregando}
         emptyMessage="Nenhuma solicitação encontrada com esse filtro ou busca."
       />
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <span className="text-xs text-slate-500">
+            Página <strong className="text-slate-800">{page}</strong> de{" "}
+            <strong className="text-slate-800">{totalPages}</strong>
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || carregando}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || carregando}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Próxima
+            </Button>
+          </div>
+        </div>
+      )}
 
       <NovaSolicitacaoModal
         isOpen={isNovaOpen}
@@ -295,7 +653,22 @@ export const SolicitacoesPage: React.FC = () => {
         setorPadrao="LACEN"
       />
 
-      <DetalhesSolicitacaoModal solicitacao={selecionada} onClose={() => setSelecionada(null)} />
+      <DetalhesSolicitacaoModal
+        solicitacao={selecionada}
+        isGestor={isGestor}
+        onClose={() => setSelecionada(null)}
+        onAnalisar={(s, modo) => abrirAnalise(s, modo)}
+      />
+
+      <AnalisarSolicitacaoModal
+        key={`${analiseAlvo?.solicitacao.id ?? "closed"}-${analiseAlvo?.modoInicial ?? "APROVAR"}`}
+        solicitacao={analiseAlvo?.solicitacao ?? null}
+        modoInicial={analiseAlvo?.modoInicial ?? "APROVAR"}
+        token={token}
+        onClose={() => setAnaliseAlvo(null)}
+        onAprovar={handleAprovarSolicitacao}
+        onRecusar={handleRecusarSolicitacao}
+      />
     </div>
   );
 };
@@ -355,8 +728,10 @@ const InfoItem: React.FC<{ label: string; children: React.ReactNode }> = ({ labe
 
 const DetalhesSolicitacaoModal: React.FC<{
   solicitacao: SolicitacaoViagem | null;
+  isGestor: boolean;
   onClose: () => void;
-}> = ({ solicitacao: s, onClose }) => (
+  onAnalisar: (solicitacao: SolicitacaoViagem, modo: ModoAnaliseSolicitacao) => void;
+}> = ({ solicitacao: s, isGestor, onClose, onAnalisar }) => (
   <Modal
     isOpen={s !== null}
     onClose={onClose}
@@ -364,9 +739,21 @@ const DetalhesSolicitacaoModal: React.FC<{
     title={s ? `Solicitação ${s.protocolo}` : ""}
     description={s ? `Enviada em ${formatarDataHora(s.criadoEm)} por ${s.solicitanteNome}` : ""}
     footer={
-      <Button variant="outline" onClick={onClose}>
-        Fechar
-      </Button>
+      <>
+        {isGestor && s?.status === "PENDENTE" && (
+          <>
+            <Button variant="danger" onClick={() => onAnalisar(s, "RECUSAR")}>
+              Recusar
+            </Button>
+            <Button variant="primary" onClick={() => onAnalisar(s, "APROVAR")}>
+              Aprovar e Alocar
+            </Button>
+          </>
+        )}
+        <Button variant="outline" onClick={onClose}>
+          Fechar
+        </Button>
+      </>
     }
   >
     {s && (

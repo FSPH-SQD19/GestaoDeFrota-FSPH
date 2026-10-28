@@ -1,6 +1,5 @@
 // Tipos da Solicitação de Viagem (frota administrativa).
-// Alinhados ao model `SolicitacaoViagem` do Prisma; campos extras serão
-// incorporados ao schema quando o endpoint do back-end for criado.
+// Alinhados ao contrato de `/api/v1/solicitacoes` no back-end.
 
 export type StatusSolicitacao = "PENDENTE" | "APROVADA" | "EM_TRANSITO" | "CONCLUIDA" | "RECUSADA";
 
@@ -11,6 +10,7 @@ export type TipoTransporte = "PASSAGEIROS" | "MATERIAL_BIOLOGICO" | "DOCUMENTOS_
 export interface SolicitacaoViagem {
   id: string;
   protocolo: string;
+  solicitanteId?: string;
   solicitanteNome: string;
   setorOrigem: string;
   origem: string;
@@ -28,6 +28,8 @@ export interface SolicitacaoViagem {
   /** ISO 8601 */
   criadoEm: string;
   motivoRecusa?: string;
+  veiculoAlocadoId?: string | null;
+  motoristaAlocadoId?: string | null;
   veiculoAlocado?: { placa: string; modelo: string };
   motoristaAlocado?: { nome: string };
 }
@@ -45,6 +47,56 @@ export type NovaSolicitacaoViagem = Pick<
   | "justificativa"
   | "observacoes"
 >;
+
+export type ContagemPorStatus = Record<StatusSolicitacao, number>;
+
+export interface MetaPaginacaoSolicitacoes {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  porStatus: ContagemPorStatus;
+}
+
+export interface ListaSolicitacoesResposta {
+  data: SolicitacaoViagem[];
+  meta: MetaPaginacaoSolicitacoes;
+}
+
+export interface ListarSolicitacoesParams {
+  page?: number;
+  pageSize?: number;
+  status?: StatusSolicitacao[];
+  urgencia?: UrgenciaSolicitacao;
+  tipoTransporte?: TipoTransporte;
+  busca?: string;
+}
+
+export interface VeiculoDisponivelOption {
+  id: string;
+  placa: string;
+  modelo: string;
+  capacidadeMaxima: number;
+  combustivel?: string | null;
+}
+
+export interface MotoristaDisponivelOption {
+  id: string;
+  nome: string;
+  cpf: string;
+  numeroCnh: string;
+  categoriaCnh: string;
+  validadeCnh: string;
+}
+
+export interface AprovarSolicitacaoInput {
+  veiculoAlocadoId: string;
+  motoristaAlocadoId: string;
+}
+
+export interface RecusarSolicitacaoInput {
+  motivoRecusa: string;
+}
 
 export const STATUS_SOLICITACAO_LABEL: Record<StatusSolicitacao, string> = {
   PENDENTE: "Aguardando aprovação",
