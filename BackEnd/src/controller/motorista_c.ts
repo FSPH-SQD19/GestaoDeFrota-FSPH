@@ -1,9 +1,5 @@
 import { Request, Response } from "express";
-import {
-  listarMotoristas,
-  cadastrarMotorista,
-  atualizarMotorista,
-} from "../service/motorista_s";
+import { listarMotoristas, cadastrarMotorista, atualizarMotorista } from "../service/motorista_s";
 
 export async function listarMotoristasController(req: Request, res: Response) {
   try {
