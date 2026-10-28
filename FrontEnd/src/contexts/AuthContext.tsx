@@ -1,28 +1,46 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import type { User, UserRole, LoginCredentials, AuthState } from "../types/auth";
 import { AuthContext } from "./auth";
+import {
+  api,
+  AUTH_TOKEN_KEY,
+  AUTH_USER_KEY,
+  clearAuthSession,
+  setUnauthorizedHandler,
+} from "../services/api";
 
-const STORAGE_KEY_USER = "@fsph_frota_user";
-const STORAGE_KEY_TOKEN = "@fsph_frota_token";
+const validRoles = new Set<string>(["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"]);
 
-const validRoles = new Set(["ADMIN", "GESTOR", "MOTORISTA", "ATENDENTE_SVO", "SOLICITANTE"]);
+interface LoginApiResponse {
+  token: string;
+  usuario: {
+    id: string;
+    nome: string;
+    email: string;
+    perfis: string[];
+  };
+}
 
 function clearSession() {
-  try {
-    localStorage.removeItem(STORAGE_KEY_USER);
-    localStorage.removeItem(STORAGE_KEY_TOKEN);
-  } catch {
-    // A sessão em memória continua funcionando quando o navegador bloqueia o armazenamento.
-  }
+  clearAuthSession();
 }
 
 function saveSession(user: User, token: string) {
   try {
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-    localStorage.setItem(STORAGE_KEY_TOKEN, token);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
   } catch {
     // O usuário precisará entrar novamente após recarregar a página.
   }
+}
+
+function mapPerfis(perfis: string[]): UserRole[] {
+  const roles = perfis.filter((perfil): perfil is UserRole => validRoles.has(perfil));
+  if (roles.length === 0) {
+    throw new Error("Usuário sem perfil autorizado para o sistema.");
+  }
+  return roles;
 }
 
 function isStoredUser(value: unknown): value is User {
@@ -40,8 +58,8 @@ function isStoredUser(value: unknown): value is User {
 
 function readSession(): AuthState {
   try {
-    const storedUser = localStorage.getItem(STORAGE_KEY_USER);
-    const storedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
     if (storedUser && storedToken) {
       const user: unknown = JSON.parse(storedUser);
       if (isStoredUser(user)) {
@@ -60,57 +78,20 @@ function readSession(): AuthState {
   };
 }
 
+function mensagemErroLogin(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { error?: string; mensagem?: string } | undefined;
+    if (typeof data?.error === "string" && data.error.trim()) return data.error;
+    if (typeof data?.mensagem === "string" && data.mensagem.trim()) return data.mensagem;
+    if (error.response?.status === 401) return "Credenciais inválidas";
+    if (error.response?.status === 400) return "email e senha são obrigatórios";
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Ocorreu um erro ao tentar acessar. Verifique suas credenciais.";
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(readSession);
-  const login = async ({ usuario, senha }: LoginCredentials) => {
-    // Simulação com delay de rede (ou chamada à API se backend estiver pronto)
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    if (!usuario || !senha) {
-      throw new Error("Informe o usuário e a senha.");
-    }
-
-    // Criar usuário padrão do protótipo (Vitor - Gestor de Frota)
-    // Suporta qualquer login de teste ou credenciais
-    let userRoles: UserRole[] = ["GESTOR", "ADMIN"];
-    let userName = "Vitor Santos";
-
-    const lowerUser = usuario.toLowerCase();
-    if (lowerUser.includes("motorista")) {
-      userRoles = ["MOTORISTA"];
-      userName = "Carlos Alberto (Motorista)";
-    } else if (lowerUser.includes("svo")) {
-      userRoles = ["ATENDENTE_SVO"];
-      userName = "Ana Paula (Atendente SVO)";
-    } else if (lowerUser.includes("solicitante")) {
-      userRoles = ["SOLICITANTE"];
-      userName = "Marina Costa (LACEN)";
-    } else if (lowerUser.includes("admin")) {
-      userRoles = ["ADMIN"];
-      userName = "Administrador FSPH";
-    } else {
-      userRoles = ["GESTOR", "ADMIN"];
-      userName = "Vitor Santos";
-    }
-
-    const mockUser: User = {
-      id: `usr-${Date.now()}`,
-      nome: userName,
-      email: `${usuario.toLowerCase().replace(/\s+/g, ".")}@fsph.se.gov.br`,
-      roles: userRoles,
-    };
-
-    const mockToken = `mock-jwt-token-${Date.now()}`;
-
-    saveSession(mockUser, mockToken);
-
-    setState({
-      user: mockUser,
-      token: mockToken,
-      isAuthenticated: true,
-      isLoading: false,
-    });
-  };
 
   const logout = () => {
     clearSession();
@@ -122,7 +103,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Verificação RBAC: checa se o usuário possui algum dos papéis necessários
+  useEffect(() => {
+    setUnauthorizedHandler(logout);
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
+  const login = async ({ usuario, senha }: LoginCredentials) => {
+    if (!usuario?.trim() || !senha) {
+      throw new Error("Informe o usuário e a senha.");
+    }
+
+    try {
+      const { data } = await api.post<LoginApiResponse>("/api/v1/auth/login", {
+        email: usuario.trim(),
+        senha,
+      });
+
+      const user: User = {
+        id: data.usuario.id,
+        nome: data.usuario.nome,
+        email: data.usuario.email,
+        roles: mapPerfis(data.usuario.perfis),
+      };
+
+      saveSession(user, data.token);
+      setState({
+        user,
+        token: data.token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error) {
+      throw new Error(mensagemErroLogin(error));
+    }
+  };
+
   const hasRole = (requiredRoles: UserRole[]): boolean => {
     if (!state.user) return false;
     if (requiredRoles.length === 0) return true;
