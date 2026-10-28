@@ -40,11 +40,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Instalar Prettier
-        run: npm ci --ignore-scripts
-
       - name: Aplicar formatação
-        run: npm run format
+        run: npm exec --yes --package=prettier@3.9.10 -- prettier --write .
 
       - name: Enviar correção ao PR
         id: commit
@@ -117,7 +114,7 @@ jobs:
 
       - name: Verificar formatação
         id: format
-        run: npm run format:check
+        run: npm exec --yes --package=prettier@3.9.10 -- prettier --check .
 
       - name: Verificar lint
         id: lint
@@ -203,16 +200,22 @@ jobs:
             };
             const gifs = {
               approved: {
-                alt: 'Macaco comemorando a aprovação da CI',
-                url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYWQ0ZnBoMmQ5Njd6cWtsNDRycWV0dnN3bDU1ZTRnYmt1OTI4ZGNiYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/VkpfO6W4D7yB7vSjXy/giphy.gif',
+                alt: 'Gato comemorando a aprovação da CI',
+                width: 200,
+                height: 200,
+                url: 'https://github.com/user-attachments/assets/8ab88a93-7ca3-4a94-a586-5e1c1ce37731',
               },
               failed: {
-                alt: 'Macaco reagindo à reprovação da CI',
-                url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYWQ0ZnBoMmQ5Njd6cWtsNDRycWV0dnN3bDU1ZTRnYmt1OTI4ZGNiYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/NAdEYIRFMCBhMGkXSq/giphy.gif',
+                alt: 'Gato reagindo à reprovação da CI',
+                width: 200,
+                height: 198,
+                url: 'https://github.com/user-attachments/assets/0f7fe24e-468d-4668-afe5-5c436bf4f276',
               },
               formatting: {
-                alt: 'Macaco corrigindo a formatação',
-                url: 'https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NGdtdnJ4c2FtYWJsdGN0amtudHl0dTBlMG52MGE3NzNiOGNjc3ptcCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/JIX9t2j0ZTN9S/giphy.gif',
+                alt: 'Gato corrigindo a formatação',
+                width: 200,
+                height: 200,
+                url: 'https://github.com/user-attachments/assets/fdd33a1a-7f26-4c8b-8897-b1ba4e3edb59',
               },
             };
             const gif = formatChanged
@@ -225,19 +228,38 @@ jobs:
             const sha = results.format_sha || context.payload.pull_request.head.sha;
             const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
+            const resultLines = [
+              `<h3>${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}</h3>`,
+              `📦 Dependências · ${status(results.dependencies)}`,
+              `🧹 Correção automática · ${autoformatStatus}`,
+              `💅 Formatação · ${status(results.format)}`,
+              `🔄 CI do commit corrigido · ${rerunStatus}`,
+              `🔎 Lint · ${status(results.lint)}`,
+              `🧪 Testes e tipos · ${status(results.tests)}`,
+              `🏗️ Build · ${status(results.build)}`,
+            ].join('<br>');
             const body = [
               marker,
               '## 👁️ O olho que tudo vê',
               '',
-              `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
-              ...(gif ? [`![${gif.alt}](${gif.url})`, ''] : []),
-              `📦 Dependências · ${status(results.dependencies)}  `,
-              `🧹 Correção automática · ${autoformatStatus}  `,
-              `💅 Formatação · ${status(results.format)}  `,
-              `🔄 CI do commit corrigido · ${rerunStatus}  `,
-              `🔎 Lint · ${status(results.lint)}  `,
-              `🧪 Testes e tipos · ${status(results.tests)}  `,
-              `🏗️ Build · ${status(results.build)}`,
+              '<table width="100%" style="table-layout:fixed;">',
+              '  <colgroup>',
+              '    <col width="480">',
+              '    <col width="480">',
+              '  </colgroup>',
+              '  <tbody>',
+              '    <tr>',
+              '      <td width="480" valign="top">',
+              `        ${resultLines}`,
+              '      </td>',
+              '      <td width="480" align="center" valign="middle">',
+              ...(gif
+                ? [`        <img width="${gif.width}" height="${gif.height}" alt="${gif.alt}" src="${gif.url}" />`]
+                : ['        <em>Sem GIF para este estado</em>']),
+              '      </td>',
+              '    </tr>',
+              '  </tbody>',
+              '</table>',
               '',
               `Commit: [${sha.slice(0, 7)}](${repoUrl}/commit/${sha}) · [Ver execução completa](${runUrl})`,
             ].join('\n');
