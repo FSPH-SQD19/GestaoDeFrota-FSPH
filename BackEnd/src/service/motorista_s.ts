@@ -161,10 +161,7 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
     throw error;
   }
 }
-export async function atualizarMotorista(
-  id: string,
-  dados: AtualizarMotoristaInput,
-) {
+export async function atualizarMotorista(id: string, dados: AtualizarMotoristaInput) {
   if (!z.uuid().safeParse(id).success) {
     throw new Error("ID do motorista inválido.");
   }

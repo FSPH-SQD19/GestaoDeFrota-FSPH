@@ -93,4 +93,5 @@ async function main() {
     const perfil = await prisma.perfil.findUniqueOrThrow({
       where: { nome: dados.perfil },
     });
-}}
+  }
+}
