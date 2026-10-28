@@ -21,16 +21,18 @@ cd GestaoDeFrota-FSPH
 
 ## Arquivos de ambiente
 
-| Arquivo local  | Modelo                 | Quem utiliza                                          |
-| -------------- | ---------------------- | ----------------------------------------------------- |
-| `.env` na raiz | `.env.example`         | PostgreSQL local e Docker Compose de desenvolvimento. |
-| `BackEnd/.env` | `BackEnd/.env.example` | API e comandos Prisma executados localmente.          |
+| Arquivo local   | Modelo                  | Quem utiliza                                          |
+| --------------- | ----------------------- | ----------------------------------------------------- |
+| `.env` na raiz  | `.env.example`          | PostgreSQL local e Docker Compose de desenvolvimento. |
+| `BackEnd/.env`  | `BackEnd/.env.example`  | API e comandos Prisma executados localmente.          |
+| `FrontEnd/.env` | `FrontEnd/.env.example` | URL da API no Vite (`VITE_API_URL`).                  |
 
 Crie os arquivos locais a partir dos modelos apenas se ainda não existirem:
 
 ```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 if (!(Test-Path BackEnd/.env)) { Copy-Item BackEnd/.env.example BackEnd/.env }
+if (!(Test-Path FrontEnd/.env)) { Copy-Item FrontEnd/.env.example FrontEnd/.env }
 ```
 
 Os arquivos `.env` são ignorados pelo Git. Não versione credenciais reais.
@@ -49,6 +51,8 @@ O arquivo `.env` da raiz define as credenciais do PostgreSQL local iniciado pelo
 | `FRONTEND_PORT`     | Porta da interface exposta pelo Compose. | `5173`         |
 
 O arquivo `BackEnd/.env` usa `localhost:5433` para a API e os comandos Prisma executados no computador. Dentro dos contêineres, o Compose define a URL com o host `database` e a porta interna `5432`.
+
+O arquivo `FrontEnd/.env` define `VITE_API_URL` (padrão `http://localhost:3000`) para o cliente Axios em `FrontEnd/src/services/api.ts`. Sem o arquivo, o front-end usa o mesmo endereço padrão.
 
 Para iniciar apenas o banco local:
 
