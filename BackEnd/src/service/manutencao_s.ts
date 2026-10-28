@@ -6,6 +6,10 @@ import { HttpError } from "../middleware/http_m";
 
 export const TIPOS_MANUTENCAO = ["PREVENTIVA", "CORRETIVA"] as const;
 
+const TIPO_CORRETIVA = "CORRETIVA";
+const STATUS_EM_MANUTENCAO = "MANUTENCAO";
+const STATUS_DISPONIVEL = "DISPONIVEL";
+
 export const listarManutencoesSchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
@@ -27,22 +31,27 @@ export const listarManutencoesSchema = z
     }
   });
 
-export const criarManutencaoSchema = z.object({
-  veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }),
-  fornecedorId: z.uuid({ error: "fornecedorId deve ser um UUID válido." }).optional(),
-  tipo: z.enum(TIPOS_MANUTENCAO, { error: "Tipo de manutenção deve ser PREVENTIVA ou CORRETIVA." }),
-  descricao: z.string().trim().min(3, "Descrição deve ter ao menos 3 caracteres.").optional(),
-  odometroRegistro: z
-    .number({ error: "Odômetro deve ser numérico." })
-    .min(0, "Odômetro não pode ser negativo.")
-    .max(99999999.99, "Valor inválido.")
-    .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
-  custoTotal: z
-    .number({ error: "Valor Total deve ser numérico." })
-    .positive("Valor Total deve ser maior que 0.")
-    .max(9999999999.99, "Valor inválido.")
-    .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
-  dataManutencao: z.coerce.date(),
+export const criarManutencaoSchema = z
+    .object({
+    veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }),
+    fornecedorId: z.uuid({ error: "fornecedorId deve ser um UUID válido." }).optional(),
+    tipo: z.enum(TIPOS_MANUTENCAO, { error: "Tipo de manutenção deve ser PREVENTIVA ou CORRETIVA." }),
+    descricao: z.string().trim().min(3, "Descrição deve ter ao menos 3 caracteres.").optional(),
+    odometroRegistro: z
+        .number({ error: "Odômetro deve ser numérico." })
+        .min(0, "Odômetro não pode ser negativo.")
+        .max(99999999.99, "Valor inválido.")
+        .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
+    custoTotal: z
+        .number({ error: "Custo Total deve ser numérico." })
+        .positive("Custo Total deve ser maior que 0.")
+        .max(9999999999.99, "Valor inválido.")
+        .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
+    dataManutencao: z.coerce.date({ error: "Data inválida" }),
+});
+
+export const manutencaoIdSchema = z.object({
+  id: z.uuid({ error: "id deve ser um UUID válido." }),
 });
 
 export type ListarManutencoesFiltros = z.infer<typeof listarManutencoesSchema>;
@@ -86,9 +95,6 @@ export async function listarManutencoes(filtros: ListarManutencoesFiltros) {
   };
 }
 
-const TIPO_CORRETIVA = "CORRETIVA";
-const STATUS_EM_MANUTENCAO = "MANUTENCAO";
-
 export async function criarManutencao(input: CriarManutencaoInput, usuarioId: string) {
   const veiculo = await prisma.veiculo.findUnique({
     where: { id: input.veiculoId },
@@ -96,18 +102,16 @@ export async function criarManutencao(input: CriarManutencaoInput, usuarioId: st
   });
   if (!veiculo?.ativo) {
     throw new HttpError(422, "Veículo não encontrado ou inativo.", [
-      { campo: "veiculoId", mensagem: "Informe um veículo ativo." },
+      { campo: "veiculoId", mensagem: "Informe um veículo ativo." }
     ]);
   }
 
-  if (
-    input.tipo === TIPO_CORRETIVA &&
-    !["DISPONIVEL", STATUS_EM_MANUTENCAO].includes(veiculo.status)
-  ) {
-    throw new HttpError(422, "Status não está entre os permitidos", [
-      { campo: "veiculoId", mensagem: "" },
-    ]);
-  }
+  if (input.tipo === TIPO_CORRETIVA && !["DISPONIVEL", STATUS_EM_MANUTENCAO].includes(veiculo.status)) {
+  throw new HttpError(422, "Status não está entre os permitidos", [
+    { campo: "veiculoId",
+      mensagem: `Veículo com status ${veiculo.status} não pode entrar em manutenção corretiva.` },
+  ]);
+}
 
   if (input.fornecedorId) {
     const fornecedor = await prisma.fornecedor.findUnique({
@@ -145,3 +149,46 @@ export async function criarManutencao(input: CriarManutencaoInput, usuarioId: st
 
   return serializarManutencao(manutencao);
 }
+
+export async function concluirManutencao(id: string, usuarioId: string) {
+  const manutencao = await prisma.manutencao.findUnique({
+    where: { id },
+    select: { veiculoId: true, tipo: true },
+  }); 
+  if (!manutencao) {
+    throw new HttpError(404, "Manutenção não encontrada.")
+  }
+  if (manutencao.tipo !== TIPO_CORRETIVA) {
+    throw new HttpError(422, "Apenas manutenções corretivas podem ser concluídas.", [
+      { campo: "id", mensagem: "Manutenções preventivas não bloqueiam o veículo." }
+    ]);
+  } 
+
+  const veiculo = await prisma.veiculo.findUnique({
+    where: { id: manutencao.veiculoId },
+    select: { status: true },
+  });
+  if (veiculo?.status !== STATUS_EM_MANUTENCAO) {
+  throw new HttpError(422, "Veículo não está em manutenção.", [
+    { campo: "id", mensagem: "O veículo desta manutenção não está em manutenção." },
+  ]);
+}
+
+  await prisma.$transaction(async(tx) => {
+    await tx.veiculo.update({
+      where: { id: manutencao.veiculoId },
+      data: {status: STATUS_DISPONIVEL}
+    })
+    await tx.auditoriaSistema.create({
+      data: {
+        usuarioId,
+        acao: "CONCLUIR",
+        tabelaAfetada: "manutencoes",
+        registroId: id,
+        dadosNovos: { veiculoId: manutencao.veiculoId, statusVeiculo: STATUS_DISPONIVEL },
+      },
+    });
+  });
+  return { id, veiculoId: manutencao.veiculoId, statusVeiculo: STATUS_DISPONIVEL };
+}
+

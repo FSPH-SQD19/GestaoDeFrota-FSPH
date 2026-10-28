@@ -14,11 +14,13 @@ import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
 import authRoutes from "./auth_r";
 import motoristaRoutes from "./motorista_r";
+import { concluirManutencaoController, criarManutencaoController, listarManutencoesController } from "../controller/manutencao_c";
 
 const router = Router();
 const veiculos = Router();
 const abastecimento = Router();
 const solicitacoes = Router();
+const manutencoes = Router();
 
 // Consultar carrinhos (VrumVrum)
 veiculos.use(authenticate, requireRole("ADMIN", "GESTOR"));
@@ -50,5 +52,12 @@ router.get("/api/v1/relatorios", authenticate, requireRole("ADMIN", "GESTOR"), a
   const periodo = validar(periodoRelatorioSchema, req.query);
   return res.json(await gerarRelatorio(periodo));
 });
+//Registro dge manutencoes
+manutencoes.use(authenticate, requireRole("ADMIN", "GESTOR"));
+manutencoes.get("/", listarManutencoesController);
+manutencoes.post("/", criarManutencaoController);
+manutencoes.patch("/:id/concluir", concluirManutencaoController)
+
+router.use("/api/v1/manutencoes", manutencoes)
 
 export default router;
