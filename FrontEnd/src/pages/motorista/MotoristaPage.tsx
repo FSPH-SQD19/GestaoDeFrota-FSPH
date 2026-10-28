@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Filter,
@@ -19,16 +19,15 @@ import {
   type Motorista,
   type StatusMotorista,
 } from "./MotoristaRules";
+import { useAuth } from "../../contexts/auth";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 interface FormularioMotorista {
-  nome: string;
   cpf: string;
   numeroCnh: string;
   categoriaCnh: string;
   validadeCnh: string;
-  contato: string;
-  email: string;
-  senha: string;
 }
 
 interface FiltrosMotoristas {
@@ -40,14 +39,10 @@ interface FiltrosMotoristas {
 }
 
 const formularioVazio: FormularioMotorista = {
-  nome: "",
   cpf: "",
   numeroCnh: "",
   categoriaCnh: "",
   validadeCnh: "",
-  contato: "",
-  email: "",
-  senha: "",
 };
 
 const dataHojeIso = () => {
@@ -83,9 +78,109 @@ const statusVariant: Record<StatusMotorista, "info" | "success" | "warning" | "n
   Inativo: "neutral",
 };
 
-const motoristas: Motorista[] = [];
+interface MotoristaApi {
+  id: string;
+  cpf: string;
+  numeroCnh: string;
+  categoriaCnh: string | null;
+  validadeCnh: string;
+  telefone: string | null;
+  status: string;
+  ativo: boolean;
+  usuario: { nome: string; email: string } | null;
+}
+
+function mapearMotoristaApi(valor: unknown): Motorista {
+  if (!valor || typeof valor !== "object") {
+    throw new Error("A API retornou um cadastro de motorista inválido.");
+  }
+
+  const motoristaApi = valor as Partial<MotoristaApi>;
+  if (
+    typeof motoristaApi.id !== "string" ||
+    typeof motoristaApi.cpf !== "string" ||
+    typeof motoristaApi.numeroCnh !== "string" ||
+    typeof motoristaApi.validadeCnh !== "string" ||
+    typeof motoristaApi.status !== "string"
+  ) {
+    throw new Error("A API retornou dados incompletos de um motorista.");
+  }
+
+  const statusApi = motoristaApi.status.toUpperCase();
+  const status: StatusMotorista =
+    motoristaApi.ativo === false || statusApi === "INATIVO"
+      ? "Inativo"
+      : statusApi === "DISPONIVEL"
+        ? "Disponível"
+        : statusApi === "EM_ROTA" || statusApi === "EM_SERVICO"
+          ? "Em rota"
+          : statusApi === "INDISPONIVEL"
+            ? "Indisponível"
+            : (() => {
+                throw new Error(`Status de motorista não suportado pela tela: ${motoristaApi.status}`);
+              })();
+
+  const validadeCnh = motoristaApi.validadeCnh.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(validadeCnh)) {
+    throw new Error("A API retornou uma validade de CNH inválida.");
+  }
+
+  return {
+    id: motoristaApi.id,
+    nome:
+      motoristaApi.usuario && typeof motoristaApi.usuario.nome === "string"
+        ? motoristaApi.usuario.nome
+        : "Sem usuário associado",
+    cpf: motoristaApi.cpf,
+    numeroCnh: motoristaApi.numeroCnh,
+    categoriaCnh:
+      typeof motoristaApi.categoriaCnh === "string" ? motoristaApi.categoriaCnh : "",
+    validadeCnh,
+    status,
+    contato: typeof motoristaApi.telefone === "string" ? motoristaApi.telefone : "",
+    email:
+      motoristaApi.usuario && typeof motoristaApi.usuario.email === "string"
+        ? motoristaApi.usuario.email
+        : undefined,
+  };
+}
+
+async function mensagemErroApi(resposta: Response): Promise<string> {
+  const corpo = (await resposta.json().catch(() => null)) as
+    | { mensagem?: string; message?: string }
+    | null;
+
+  return (
+    corpo?.mensagem ??
+    corpo?.message ??
+    (resposta.status === 401 || resposta.status === 403
+      ? "A API recusou a autenticação. Entre com uma sessão válida para consultar motoristas."
+      : `Não foi possível consultar os motoristas (HTTP ${resposta.status}).`)
+  );
+}
+
+async function buscarMotoristas(token: string): Promise<Motorista[]> {
+  const resposta = await fetch(`${API_URL}/motoristas`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!resposta.ok) {
+    throw new Error(await mensagemErroApi(resposta));
+  }
+
+  const dados: unknown = await resposta.json();
+  if (!Array.isArray(dados)) {
+    throw new Error("A API retornou uma lista de motoristas inválida.");
+  }
+
+  return dados.map(mapearMotoristaApi);
+}
 
 export const MotoristasPage: React.FC = () => {
+  const { token } = useAuth();
+  const [motoristas, setMotoristas] = useState<Motorista[]>([]);
+  const [carregandoMotoristas, setCarregandoMotoristas] = useState(Boolean(token));
+  const [erroLista, setErroLista] = useState("");
   const [termoBusca, setTermoBusca] = useState("");
   const [filtros, setFiltros] = useState(filtrosVazios);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
@@ -96,6 +191,37 @@ export const MotoristasPage: React.FC = () => {
   const [cpfTocado, setCpfTocado] = useState(false);
   const [erroCadastro, setErroCadastro] = useState("");
   const [cadastroValidado, setCadastroValidado] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+
+    let ativa = true;
+    void buscarMotoristas(token)
+      .then((dados) => {
+        if (ativa) {
+          setErroLista("");
+          setMotoristas(dados);
+        }
+      })
+      .catch((error: unknown) => {
+        if (ativa) {
+          setMotoristas([]);
+          setErroLista(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível conectar à API para consultar os motoristas.",
+          );
+        }
+      })
+      .finally(() => {
+        if (ativa) setCarregandoMotoristas(false);
+      });
+
+    return () => {
+      ativa = false;
+    };
+  }, [token]);
 
   const atualizarFormulario = <K extends keyof FormularioMotorista>(
     campo: K,
@@ -116,9 +242,10 @@ export const MotoristasPage: React.FC = () => {
     setCpfTocado(false);
     setErroCadastro("");
     setCadastroValidado(false);
+    setSalvando(false);
   };
 
-  const cadastrarMotorista = (event: React.FormEvent<HTMLFormElement>) => {
+  const cadastrarMotorista = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setCpfTocado(true);
     setErroCadastro("");
@@ -129,12 +256,53 @@ export const MotoristasPage: React.FC = () => {
       return;
     }
 
-    if (!formulario.nome.trim()) {
-      setErroCadastro("Informe o nome completo do motorista.");
+    if (!token) {
+      setErroCadastro("Sua sessão expirou. Entre novamente para cadastrar o motorista.");
       return;
     }
 
-    setCadastroValidado(true);
+    setSalvando(true);
+
+    try {
+      const resposta = await fetch(`${API_URL}/motoristas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          cpf: formulario.cpf.replace(/\D/g, ""),
+          numeroCnh: formulario.numeroCnh.trim(),
+          categoriaCnh: formulario.categoriaCnh,
+          validadeCnh: formulario.validadeCnh,
+        }),
+      });
+
+      if (!resposta.ok) {
+        throw new Error(await mensagemErroApi(resposta));
+      }
+
+      setCadastroValidado(true);
+      try {
+        const dados = await buscarMotoristas(token);
+        setErroLista("");
+        setMotoristas(dados);
+      } catch (error) {
+        setErroLista(
+          error instanceof Error
+            ? error.message
+            : "O cadastro foi realizado, mas não foi possível atualizar a lista.",
+        );
+      }
+    } catch (error) {
+      setErroCadastro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível conectar à API para cadastrar o motorista.",
+      );
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const motoristasFiltrados = useMemo(() => {
@@ -162,7 +330,7 @@ export const MotoristasPage: React.FC = () => {
         motorista.contato.replace(/\D/g, "").includes(filtros.contato.replace(/\D/g, ""))
       );
     });
-  }, [filtroCnhAtencao, filtros, termoBusca]);
+  }, [filtroCnhAtencao, filtros, motoristas, termoBusca]);
 
   const emServico = motoristas.filter((motorista) => motorista.status === "Em rota").length;
   const disponiveis = motoristas.filter((motorista) => motorista.status === "Disponível").length;
@@ -456,7 +624,13 @@ export const MotoristasPage: React.FC = () => {
         columns={colunas}
         data={motoristasFiltrados}
         keyExtractor={(motorista) => motorista.id}
-        emptyMessage="Nenhum motorista cadastrado."
+        isLoading={carregandoMotoristas}
+        emptyMessage={
+          erroLista ||
+          (!token
+            ? "Sua sessão expirou. Entre novamente para consultar os motoristas."
+            : "Nenhum motorista cadastrado.")
+        }
       />
 
       <Modal
@@ -529,31 +703,25 @@ export const MotoristasPage: React.FC = () => {
         isOpen={modalCadastroAberto}
         onClose={fecharCadastro}
         title="Novo motorista"
-        description="Preencha os dados pessoais, da CNH e da conta de acesso."
+        description="Informe o CPF e os dados da CNH para cadastrar o motorista."
         footer={
           <>
             <Button variant="ghost" onClick={fecharCadastro}>
               Cancelar
             </Button>
-            <Button variant="primary" type="submit" form="formulario-novo-motorista">
-              Salvar
+            <Button
+              variant="primary"
+              type="submit"
+              form="formulario-novo-motorista"
+              disabled={salvando || cadastroValidado}
+            >
+              {salvando ? "Salvando..." : cadastroValidado ? "Salvo" : "Salvar"}
             </Button>
           </>
         }
       >
         <form id="formulario-novo-motorista" onSubmit={cadastrarMotorista} className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <Input
-                label="Nome completo"
-                autoComplete="name"
-                maxLength={150}
-                required
-                value={formulario.nome}
-                onChange={(event) => atualizarFormulario("nome", event.target.value)}
-                placeholder="Nome completo do motorista"
-              />
-            </div>
             <Input
               label="CPF"
               inputMode="numeric"
@@ -569,11 +737,14 @@ export const MotoristasPage: React.FC = () => {
             />
             <Input
               label="Número da CNH"
-              maxLength={20}
+              inputMode="numeric"
+              maxLength={11}
+              minLength={11}
+              pattern="[0-9]{11}"
               required
               value={formulario.numeroCnh}
               onChange={(event) => atualizarFormulario("numeroCnh", event.target.value)}
-              placeholder="Número da habilitação"
+              placeholder="11 dígitos"
             />
             <Select
               label="Categoria da CNH"
@@ -589,46 +760,11 @@ export const MotoristasPage: React.FC = () => {
             <Input
               label="Validade da CNH"
               type="date"
+              min={dataHojeIso()}
               required
               value={formulario.validadeCnh}
               onChange={(event) => atualizarFormulario("validadeCnh", event.target.value)}
             />
-            <Input
-              label="Telefone para contato"
-              type="tel"
-              autoComplete="tel"
-              maxLength={20}
-              required
-              value={formulario.contato}
-              onChange={(event) => atualizarFormulario("contato", event.target.value)}
-              placeholder="(00) 00000-0000"
-            />
-          </div>
-
-          <div className="border-t border-slate-100 pt-4">
-            <h4 className="mb-3 text-sm font-semibold text-slate-900">Conta de acesso</h4>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input
-                label="E-mail"
-                type="email"
-                autoComplete="email"
-                maxLength={150}
-                required
-                value={formulario.email}
-                onChange={(event) => atualizarFormulario("email", event.target.value)}
-                placeholder="motorista@exemplo.com"
-              />
-              <Input
-                label="Senha inicial"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                value={formulario.senha}
-                onChange={(event) => atualizarFormulario("senha", event.target.value)}
-                placeholder="Mínimo de 8 caracteres"
-              />
-            </div>
           </div>
 
           {erroCadastro && (
@@ -638,7 +774,7 @@ export const MotoristasPage: React.FC = () => {
           )}
           {cadastroValidado && (
             <p role="status" className="text-sm font-medium text-slate-600">
-              Dados válidos. Nenhum cadastro foi enviado.
+              Motorista cadastrado com sucesso.
             </p>
           )}
         </form>
