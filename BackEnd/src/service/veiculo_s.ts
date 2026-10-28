@@ -194,3 +194,129 @@ function erroPlacaDuplicada() {
     { campo: "placa", mensagem: "Placa já cadastrada." },
   ]);
 }
+export const atualizarVeiculoSchema = criarVeiculoSchema
+  .partial()
+  .extend({
+    ativo: z.boolean({ error: "Ativo deve ser verdadeiro ou falso." }).optional(),
+  })
+  .superRefine((veiculo, ctx) => {
+    if (
+      veiculo.propriedade === "LOCADO" &&
+      veiculo.fornecedorId === undefined
+    ) {
+      // A propriedade pode estar mudando para LOCADO.
+      // A validação final considera também os dados atuais do veículo.
+      return;
+    }
+
+    if (
+      veiculo.status === "DESINFECCAO" &&
+      veiculo.tipoFrota === "ADMINISTRATIVA"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["status"],
+        message: "Status DESINFECCAO é exclusivo da frota SVO.",
+      });
+    }
+  });
+
+export type AtualizarVeiculoInput = z.infer<
+  typeof atualizarVeiculoSchema
+>;
+
+export async function atualizarVeiculo(
+  id: string,
+  input: AtualizarVeiculoInput,
+  usuarioId: string,
+) {
+  const atual = await prisma.veiculo.findUnique({
+    where: { id },
+  });
+
+  if (!atual) {
+    throw new HttpError(404, "Veículo não encontrado.");
+  }
+
+  // Combina os dados existentes com os dados enviados no PATCH.
+  const tipoFrota = input.tipoFrota ?? atual.tipoFrota;
+  const propriedade = input.propriedade ?? atual.propriedade;
+  const fornecedorId =
+    input.fornecedorId !== undefined
+      ? input.fornecedorId
+      : atual.fornecedorId;
+  const status = input.status ?? atual.status;
+
+  if (propriedade === "LOCADO" && !fornecedorId) {
+    throw new HttpError(422, "Veículo locado exige uma locadora.");
+  }
+
+  if (status === "DESINFECCAO" && tipoFrota !== "SVO") {
+    throw new HttpError(
+      422,
+      "Status DESINFECCAO é exclusivo da frota SVO.",
+    );
+  }
+
+  if (fornecedorId) {
+    const fornecedor = await prisma.fornecedor.findUnique({
+      where: { id: fornecedorId },
+      select: { ativo: true },
+    });
+
+    if (!fornecedor?.ativo) {
+      throw new HttpError(422, "Fornecedor não encontrado ou inativo.");
+    }
+  }
+
+  if (Object.keys(input).length === 0) {
+    throw new HttpError(400, "Informe ao menos um campo para atualizar.");
+  }
+
+  const dadosAtualizados = {
+    ...input,
+  };
+
+  // Não modifica o registro original: apenas atualiza os campos recebidos.
+  let veiculo: Veiculo;
+
+  try {
+    veiculo = await prisma.veiculo.update({
+      where: { id },
+      data: dadosAtualizados,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw erroPlacaDuplicada();
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      throw new HttpError(404, "Veículo não encontrado.");
+    }
+    throw error;
+  }
+
+  const resposta = serializarVeiculo(veiculo);
+
+  try {
+    await registrarAuditoria({
+      usuarioId,
+      acao: "ATUALIZAR",
+      tabelaAfetada: "veiculos",
+      registroId: veiculo.id,
+      dadosNovos: JSON.parse(JSON.stringify(resposta)),
+    });
+  } catch (erro) {
+      console.error(
+        "Falha ao registrar auditoria do veículo",
+        veiculo.id,
+        erro,
+      );
+    }
+  return resposta;
+}
