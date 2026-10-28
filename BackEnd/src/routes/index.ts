@@ -44,6 +44,4 @@ solicitacoes.post("/", criarSolicitacaoController);
 
 router.use("/api/v1/solicitacoes", solicitacoes);
 
-
-
 export default router;
