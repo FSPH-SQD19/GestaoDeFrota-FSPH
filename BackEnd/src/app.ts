@@ -4,7 +4,6 @@ import routes from "./routes";
 import { errorHandler } from "./middleware/http_m";
 import veiculoRoutes from "./routes/veiculo_r";
 
-
 export const app = express();
 
 app.use(cors());

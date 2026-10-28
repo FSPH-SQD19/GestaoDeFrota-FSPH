@@ -89,9 +89,7 @@ async function main() {
       },
     });
 
-    console.log(
-      `Usuário criado/atualizado: ${dados.email} (${dados.perfil})`
-    );
+    console.log(`Usuário criado/atualizado: ${dados.email} (${dados.perfil})`);
   }
 
   // 3. Buscar o usuário motorista já criado
