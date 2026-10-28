@@ -230,9 +230,7 @@ export const atualizarVeiculoSchema = z
     }
   });
 
-export type AtualizarVeiculoInput = z.infer<
-  typeof atualizarVeiculoSchema
->;
+export type AtualizarVeiculoInput = z.infer<typeof atualizarVeiculoSchema>;
 
 export async function atualizarVeiculo(
   id: string,
@@ -250,10 +248,7 @@ export async function atualizarVeiculo(
   // Combina os dados existentes com os dados enviados no PATCH.
   const tipoFrota = input.tipoFrota ?? atual.tipoFrota;
   const propriedade = input.propriedade ?? atual.propriedade;
-  const fornecedorId =
-    input.fornecedorId !== undefined
-      ? input.fornecedorId
-      : atual.fornecedorId;
+  const fornecedorId = input.fornecedorId !== undefined ? input.fornecedorId : atual.fornecedorId;
   const status = input.status ?? atual.status;
 
   if (propriedade === "LOCADO" && !fornecedorId) {
@@ -261,10 +256,7 @@ export async function atualizarVeiculo(
   }
 
   if (status === "DESINFECCAO" && tipoFrota !== "SVO") {
-    throw new HttpError(
-      422,
-      "Status DESINFECCAO é exclusivo da frota SVO.",
-    );
+    throw new HttpError(422, "Status DESINFECCAO é exclusivo da frota SVO.");
   }
 
   if (fornecedorId) {
@@ -294,16 +286,10 @@ export async function atualizarVeiculo(
       data: dadosAtualizados,
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw erroPlacaDuplicada();
     }
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       throw new HttpError(404, "Veículo não encontrado.");
     }
     throw error;
@@ -320,12 +306,7 @@ export async function atualizarVeiculo(
       dadosNovos: JSON.parse(JSON.stringify(resposta)),
     });
   } catch (erro) {
-    console.error(
-      "Falha ao registrar auditoria do veículo",
-      veiculo.id,
-      erro,
-    );
+    console.error("Falha ao registrar auditoria do veículo", veiculo.id, erro);
   }
-
   return resposta;
 }

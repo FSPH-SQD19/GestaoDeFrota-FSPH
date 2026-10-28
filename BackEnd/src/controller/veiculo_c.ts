@@ -37,10 +37,7 @@ export async function criarVeiculoController(req: Request, res: Response) {
   const veiculo = await criarVeiculo(dados, usuarioAutenticado(res).id);
   return res.status(201).location(`/api/v1/veiculos/${veiculo.id}`).json(veiculo);
 }
-export async function atualizarVeiculoController(
-  req: Request,
-  res: Response,
-) {
+export async function atualizarVeiculoController(req: Request, res: Response) {
   const id = req.params.id;
 
   if (typeof id !== "string" || !id) {
@@ -49,11 +46,7 @@ export async function atualizarVeiculoController(
 
   const dados = validar(atualizarVeiculoSchema, req.body ?? {});
 
-  const veiculo = await atualizarVeiculo(
-    id,
-    dados,
-    usuarioAutenticado(res).id,
-  );
+  const veiculo = await atualizarVeiculo(id, dados, usuarioAutenticado(res).id);
 
   return res.status(200).json(veiculo);
 }
