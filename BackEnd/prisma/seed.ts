@@ -93,4 +93,82 @@ async function main() {
     const perfil = await prisma.perfil.findUniqueOrThrow({
       where: { nome: dados.perfil },
     });
-}}
+
+    await prisma.usuarioPerfil.upsert({
+      where: {
+        usuarioId_perfilId: {
+          usuarioId: usuario.id,
+          perfilId: perfil.id,
+        },
+      },
+      update: {},
+      create: {
+        usuarioId: usuario.id,
+        perfilId: perfil.id,
+      },
+    });
+
+    console.log(`Usuário criado/atualizado: ${dados.email} (${dados.perfil})`);
+  }
+
+  // 3. Buscar o usuário motorista criado acima.
+  const usuarioMotorista = await prisma.usuario.findUniqueOrThrow({
+    where: { email: "motorista@frota.com" },
+  });
+
+  // CPF válido para testes, armazenado apenas com dígitos.
+  // CNH com 11 dígitos, conforme a validação usada pelo serviço.
+  const cpfMotorista = "52998224725";
+  const numeroCnhMotorista = "12345678901";
+  const validadeCnhMotorista = new Date("2035-12-31T00:00:00.000Z");
+
+  // 4. Criar ou atualizar o motorista de teste.
+  await prisma.motorista.upsert({
+    where: { cpf: cpfMotorista },
+    update: {
+      usuarioId: usuarioMotorista.id,
+      numeroCnh: numeroCnhMotorista,
+      categoriaCnh: "B",
+      validadeCnh: validadeCnhMotorista,
+      telefone: "(79) 99999-1234",
+      status: "DISPONIVEL",
+      ativo: true,
+    },
+    create: {
+      usuarioId: usuarioMotorista.id,
+      cpf: cpfMotorista,
+      numeroCnh: numeroCnhMotorista,
+      categoriaCnh: "B",
+      validadeCnh: validadeCnhMotorista,
+      telefone: "(79) 99999-1234",
+      status: "DISPONIVEL",
+      ativo: true,
+    },
+  });
+
+  console.log("Motorista de teste criado/atualizado:");
+  console.log("Nome: Motorista Teste");
+  console.log("E-mail: motorista@frota.com");
+  console.log(`CPF de teste: ${cpfMotorista}`);
+  console.log(`CNH de teste: ${numeroCnhMotorista}`);
+  console.log("Validade da CNH: 2035-12-31");
+  console.log("Telefone: (79) 99999-1234");
+  console.log("Status: DISPONIVEL");
+  console.log("Ativo: true");
+
+  console.log("\nSeed concluído com sucesso.");
+  console.log("Credenciais de teste:");
+  console.log("ADMIN: admin@frota.com / Admin@123");
+  console.log("GESTOR: gestor@frota.com / Gestor@123");
+  console.log("MOTORISTA: motorista@frota.com / Motorista@123");
+  console.log("SVO: svo@frota.com / Svo@123");
+}
+
+main()
+  .catch((erro: unknown) => {
+    console.error("Erro ao executar seed:", erro);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
