@@ -128,11 +128,7 @@ export async function cadastrarMotorista(
 
   const existente = await prisma.motorista.findFirst({
     where: {
-      OR: [
-        { cpf },
-        { numeroCnh },
-        ...(dados.usuarioId ? [{ usuarioId: dados.usuarioId }] : []),
-      ],
+      OR: [{ cpf }, { numeroCnh }, ...(dados.usuarioId ? [{ usuarioId: dados.usuarioId }] : [])],
     },
     select: { id: true },
   });
@@ -181,10 +177,7 @@ export async function cadastrarMotorista(
 
     return motorista;
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw new Error("CPF, CNH ou usuário já vinculado a um motorista.");
     }
 
@@ -291,10 +284,7 @@ export async function excluirMotorista(
       id: motorista.id,
     };
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       throw new Error("Motorista não encontrado.");
     }
 

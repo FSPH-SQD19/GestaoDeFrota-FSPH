@@ -7,10 +7,7 @@ export function validarDataValidadeCnh(valor: string): Date {
 
   const validadeCnh = new Date(`${valor}T00:00:00.000Z`);
 
-  if (
-    Number.isNaN(validadeCnh.getTime()) ||
-    validadeCnh.toISOString().slice(0, 10) !== valor
-  ) {
+  if (Number.isNaN(validadeCnh.getTime()) || validadeCnh.toISOString().slice(0, 10) !== valor) {
     throw new Error("Data de validade da CNH inválida.");
   }
 
@@ -48,10 +45,7 @@ export async function validarCnh(motoristaId: string): Promise<boolean> {
     throw new Error("Motorista não encontrado.");
   }
 
-  if (
-    !motorista.validadeCnh ||
-    motorista.validadeCnh.toISOString().slice(0, 10) < hoje
-  ) {
+  if (!motorista.validadeCnh || motorista.validadeCnh.toISOString().slice(0, 10) < hoje) {
     throw new Error("CNH vencida. Alocação bloqueada.");
   }
 
