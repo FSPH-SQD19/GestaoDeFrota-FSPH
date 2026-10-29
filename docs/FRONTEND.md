@@ -151,7 +151,7 @@ Os cinco perfis estão definidos em `src/types/auth.ts` e representam as seguint
 1. `ADMIN` — Acesso irrestrito a configurações, auditoria e usuários.
 2. `GESTOR` — Gestor de Frota da FSPH (aprova viagens, escala motoristas e gerencia viaturas).
 3. `MOTORISTA` — Condutor oficial (diários de bordo, checklists e viagens atribuídas).
-4. `ATENDENTE_SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO.
+4. `SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO (nome alinhado à API).
 5. `SOLICITANTE` — Setores assistenciais (LACEN, Hemocentro, SES) que solicitam transporte.
 
 ### Exibir elementos por perfil
