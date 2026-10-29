@@ -8,7 +8,6 @@ import {
 
 import { AuthToken } from "../middleware/auth_m";
 
-
 const router = Router();
 
 router.get("/", AuthToken, listarFornecedoresController);
