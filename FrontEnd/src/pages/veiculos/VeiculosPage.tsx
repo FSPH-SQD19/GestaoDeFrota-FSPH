@@ -17,7 +17,7 @@ type VeiculoFormData = z.infer<typeof veiculoSchema>;
 
 interface VeiculoItem extends VeiculoFormData {
   id: string;
-  status: "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCCAO";
+  status: "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
 }
 
 export const VeiculosPage: React.FC = () => {
@@ -33,7 +33,7 @@ export const VeiculosPage: React.FC = () => {
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [contagens, setContagens] = useState({ todos: 0, admin: 0, svo: 0 });
 
-  // Estados para controlar os inputs do formulário e erros
+  
   const [formData, setFormData] = useState({
     placa: "",
     modelo: "",
@@ -45,22 +45,23 @@ export const VeiculosPage: React.FC = () => {
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  // Função para validar e enviar POST para o Express com o endpoint e token corretos[cite: 1, 3]
+  
   const handleSalvarVeiculo = async () => {
     try {
       setErroValidacao(null);
       const dadosValidados = veiculoSchema.parse(formData);
       setEnviando(true);
 
-      const token = localStorage.getItem("token"); // Recupera o token de autenticação
+      const token = localStorage.getItem("@fsph_frota_token");
+      
 
       const resposta = await fetch('http://localhost:3000/api/v1/veiculos', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Token Bearer exigido pela API[cite: 1]
+          'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({ ...dadosValidados, status: "DISPONIVEL" }), // Status em maiúsculo[cite: 3]
+        body: JSON.stringify({ ...dadosValidados, status: "DISPONIVEL" }),
       });
 
       if (!resposta.ok) throw new Error('Erro ao salvar veículo no servidor.');
@@ -83,7 +84,8 @@ export const VeiculosPage: React.FC = () => {
   const buscarVeiculos = async (termo = "", pagina = 1) => {
     try {
       setCarregando(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("@fsph_frota_token");
+      
 
       const params = new URLSearchParams({ page: String(pagina), limit: String(LIMIT) });
       if (termo) params.set("busca", termo);
@@ -92,13 +94,13 @@ export const VeiculosPage: React.FC = () => {
 
       const resposta = await fetch(`http://localhost:3000/api/v1/veiculos?${params}`, {
         headers: {
-          'Authorization': `Bearer ${token}` // Token Bearer no GET[cite: 1]
+          'Authorization': `Bearer ${token}` 
         }
       });
       if (!resposta.ok) throw new Error(`Erro ${resposta.status}`);
       const dados = await resposta.json();
       
-      // A API retorna { data, meta }, extraímos o array de .data[cite: 2]
+      
       setVeiculos(dados.data || []);
       setMeta(dados.meta);
     } catch (erro) {
@@ -108,9 +110,10 @@ export const VeiculosPage: React.FC = () => {
     }
   };
 
-  // Busca os totais reais de cada frota (lê apenas o meta.total)
+  
   const buscarContagens = async () => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("@fsph_frota_token");
+    
 
     const total = async (tipo?: string) => {
       const q = new URLSearchParams({ page: "1", limit: "1" });
@@ -130,17 +133,15 @@ export const VeiculosPage: React.FC = () => {
     }
   };
 
-  // Carrega os totais das frotas assim que a página abre
+  
   useEffect(() => {
     buscarContagens();
   }, []);
 
-  // Ao mudar a busca ou a aba, volta para a primeira página
   useEffect(() => {
     setPage(1);
   }, [searchTerm, tabFilter]);
 
-  // Busca dinâmica conforme o usuário digita, troca de aba ou de página
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       buscarVeiculos(searchTerm, page);
@@ -197,16 +198,15 @@ export const VeiculosPage: React.FC = () => {
     {
       header: "Status Operacional",
       render: (v) => {
-        // Mapeamento ajustado para os novos valores em maiúsculo do backend
         const variantMap: Record<string, "success" | "info" | "warning" | "danger"> = {
           DISPONIVEL: "success",
           EM_VIAGEM: "info",
           MANUTENCAO: "warning",
-          DESINFECCCAO: "danger",
+          DESINFECCAO: "danger",
         };
         return (
           <Badge variant={variantMap[v.status] || "success"} dot size="md">
-            {v.status === "DESINFECCCAO" ? "Em Desinfecção Sanitária" : v.status}
+            {v.status === "DESINFECCAO" ? "Em Desinfecção Sanitária" : v.status}
           </Badge>
         );
       },
