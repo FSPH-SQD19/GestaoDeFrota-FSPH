@@ -1,17 +1,40 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn() }));
+const mocks = vi.hoisted(() => {
+  const transactionClient = {
+    perfil: { findUnique: vi.fn() },
+    usuario: { create: vi.fn() },
+    motorista: { create: vi.fn() },
+  };
+
+  return {
+    findFirst: vi.fn(),
+    hashPassword: vi.fn(),
+    transactionClient,
+    transaction: vi.fn(
+      async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
+        callback(transactionClient),
+    ),
+  };
+});
+
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
-    motorista: { findFirst: mocks.findFirst, create: mocks.create },
-    usuario: { findUnique: mocks.findUnique },
+    $transaction: mocks.transaction,
+    motorista: { findFirst: mocks.findFirst },
   },
+}));
+vi.mock("../../../src/service/password_s", () => ({
+  hashPassword: mocks.hashPassword,
 }));
 
 import { cadastrarMotorista } from "../../../src/service/motorista_s";
 
-const usuarioId = "00000000-0000-4000-8000-000000000001";
 const entrada = {
+  nome: "  Motorista de Teste  ",
+  email: "  MOTORISTA@example.com ",
+  senha: "senha123",
+  telefone: "(79) 99999-1234",
   cpf: "123.456.789-09",
   numeroCnh: "12345678901",
   categoriaCnh: "b",
@@ -22,8 +45,11 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-20T15:00:00Z"));
   mocks.findFirst.mockResolvedValue(null);
-  mocks.findUnique.mockResolvedValue({ id: usuarioId });
-  mocks.create.mockResolvedValue({ id: "motorista-sintetico" });
+  mocks.hashPassword.mockResolvedValue("hash-seguro");
+  mocks.transactionClient.perfil.findUnique.mockResolvedValue({ id: "perfil-motorista" });
+  mocks.transactionClient.usuario.create.mockResolvedValue({ id: "usuario-sintetico" });
+  mocks.transactionClient.motorista.create.mockResolvedValue({ id: "motorista-sintetico" });
+  mocks.transaction.mockImplementation(async (callback) => callback(mocks.transactionClient));
 });
 afterEach(() => vi.useRealTimers());
 
@@ -41,9 +67,11 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
       await expect(cadastrarMotorista({ ...entrada, validadeCnh })).resolves.toEqual({
         id: "motorista-sintetico",
       });
-      expect(mocks.create).toHaveBeenCalledWith(
+      expect(mocks.transactionClient.motorista.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ validadeCnh: new Date(`${validadeCnh}T00:00:00.000Z`) }),
+          data: expect.objectContaining({
+            validadeCnh: new Date(`${validadeCnh}T00:00:00.000Z`),
+          }),
         }),
       );
     },
@@ -61,13 +89,13 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
         "A CNH está vencida.",
       );
       expect(mocks.findFirst).not.toHaveBeenCalled();
-      expect(mocks.create).not.toHaveBeenCalled();
+      expect(mocks.transaction).not.toHaveBeenCalled();
     },
   );
 
   it("aceita validade futura", async () => {
     await cadastrarMotorista({ ...entrada, validadeCnh: "2027-01-01" });
-    expect(mocks.create).toHaveBeenCalledOnce();
+    expect(mocks.transaction).toHaveBeenCalledOnce();
   });
 
   it.each(["2026-02-30", "2026-13-01", "20/10/2026"])(
@@ -79,38 +107,56 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
   );
 });
 
-describe("validação de usuarioId no serviço", () => {
+describe("cadastro conjunto do motorista e sua conta", () => {
   it.each([
-    "abc",
-    "",
-    "   ",
-    "00000000000040008000000000000001",
-    "00000000-0000-4000-8000-00000000000z",
-  ])("recusa UUID inválido %j antes de acessar o Prisma", async (usuarioIdInvalido) => {
-    await expect(cadastrarMotorista({ ...entrada, usuarioId: usuarioIdInvalido })).rejects.toThrow(
-      "usuarioId inválido.",
-    );
+    [{ ...entrada, nome: "  " }, "Nome inválido."],
+    [{ ...entrada, email: "email-inválido" }, "E-mail inválido."],
+    [{ ...entrada, senha: "123" }, "A senha deve possuir pelo menos 4 caracteres."],
+    [{ ...entrada, telefone: "9999" }, "Telefone deve conter DDD e 8 ou 9 dígitos."],
+  ])("valida os dados de acesso antes de consultar o banco", async (dados, mensagem) => {
+    await expect(cadastrarMotorista(dados)).rejects.toThrow(mensagem);
     expect(mocks.findFirst).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.hashPassword).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
-  it("consulta e vincula usuário com UUID válido", async () => {
-    await cadastrarMotorista({ ...entrada, usuarioId });
-    expect(mocks.findUnique).toHaveBeenCalledWith({
-      where: { id: usuarioId },
+  it("cria a conta com perfil MOTORISTA e o motorista na mesma transação", async () => {
+    await cadastrarMotorista(entrada);
+
+    expect(mocks.hashPassword).toHaveBeenCalledWith("senha123");
+    expect(mocks.transactionClient.perfil.findUnique).toHaveBeenCalledWith({
+      where: { nome: "MOTORISTA" },
       select: { id: true },
     });
-    expect(mocks.create).toHaveBeenCalledWith(
+    expect(mocks.transactionClient.usuario.create).toHaveBeenCalledWith({
+      data: {
+        nome: "Motorista de Teste",
+        email: "motorista@example.com",
+        senhaHash: "hash-seguro",
+        ativo: true,
+        perfis: { create: { perfilId: "perfil-motorista" } },
+      },
+      select: { id: true },
+    });
+    expect(mocks.transactionClient.motorista.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ usuarioId, cpf: "12345678909", categoriaCnh: "B" }),
+        data: expect.objectContaining({
+          usuarioId: "usuario-sintetico",
+          telefone: "(79) 99999-1234",
+          cpf: "12345678909",
+          categoriaCnh: "B",
+        }),
+        include: { usuario: { select: { id: true, nome: true, email: true } } },
       }),
     );
+    expect(mocks.transaction).toHaveBeenCalledOnce();
   });
 
-  it("permite omitir o vínculo com usuário", async () => {
-    await cadastrarMotorista(entrada);
-    expect(mocks.findUnique).not.toHaveBeenCalled();
-    expect(mocks.create).toHaveBeenCalledOnce();
+  it("não cria conta nem motorista se o perfil MOTORISTA não existir", async () => {
+    mocks.transactionClient.perfil.findUnique.mockResolvedValue(null);
+
+    await expect(cadastrarMotorista(entrada)).rejects.toThrow("Perfil MOTORISTA não encontrado.");
+    expect(mocks.transactionClient.usuario.create).not.toHaveBeenCalled();
+    expect(mocks.transactionClient.motorista.create).not.toHaveBeenCalled();
   });
 });

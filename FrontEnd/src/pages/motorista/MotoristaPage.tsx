@@ -24,6 +24,10 @@ import { useAuth } from "../../contexts/auth";
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 interface FormularioMotorista {
+  nome: string;
+  email: string;
+  senha: string;
+  telefone: string;
   cpf: string;
   numeroCnh: string;
   categoriaCnh: string;
@@ -39,6 +43,10 @@ interface FiltrosMotoristas {
 }
 
 const formularioVazio: FormularioMotorista = {
+  nome: "",
+  email: "",
+  senha: "",
+  telefone: "",
   cpf: "",
   numeroCnh: "",
   categoriaCnh: "",
@@ -48,6 +56,19 @@ const formularioVazio: FormularioMotorista = {
 const dataHojeIso = () => {
   const data = new Date();
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+};
+
+const formatarTelefone = (valor: string) => {
+  const digitos = valor.replace(/\D/g, "").slice(0, 11);
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 10) {
+    return digitos.replace(/^(\d{2})(\d{0,4})(\d{0,4})$/, (_, ddd, parte1, parte2) =>
+      parte2 ? `(${ddd}) ${parte1}-${parte2}` : `(${ddd}) ${parte1}`,
+    );
+  }
+  return digitos.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, (_, ddd, parte1, parte2) =>
+    parte2 ? `(${ddd}) ${parte1}-${parte2}` : `(${ddd}) ${parte1}`,
+  );
 };
 
 const formatarData = (data: string) =>
@@ -235,6 +256,11 @@ export const MotoristasPage: React.FC = () => {
   const mostrarErroCpf =
     digitosCpf.length > 0 && (cpfTocado || digitosCpf.length === 11) && !cpfValido(formulario.cpf);
 
+  const abrirCadastro = () => {
+    tentativaCadastroRef.current += 1;
+    setModalCadastroAberto(true);
+  };
+
   const fecharCadastro = () => {
     tentativaCadastroRef.current += 1;
     setModalCadastroAberto(false);
@@ -261,6 +287,21 @@ export const MotoristasPage: React.FC = () => {
       return;
     }
 
+    if (!formulario.nome.trim() || !formulario.email.trim() || !formulario.senha) {
+      setErroCadastro("Informe nome, e-mail e senha para a conta do motorista.");
+      return;
+    }
+
+    if (formulario.senha.length < 4) {
+      setErroCadastro("A senha deve possuir pelo menos 4 caracteres.");
+      return;
+    }
+
+    if (![10, 11].includes(formulario.telefone.replace(/\D/g, "").length)) {
+      setErroCadastro("Informe um telefone com DDD e 8 ou 9 dígitos.");
+      return;
+    }
+
     const idTentativa = ++tentativaCadastroRef.current;
     const tentativaAindaAtiva = () =>
       modalCadastroAberto && tentativaCadastroRef.current === idTentativa;
@@ -275,6 +316,10 @@ export const MotoristasPage: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          nome: formulario.nome.trim(),
+          email: formulario.email.trim(),
+          senha: formulario.senha,
+          telefone: formulario.telefone,
           cpf: formulario.cpf.replace(/\D/g, ""),
           numeroCnh: formulario.numeroCnh.trim(),
           categoriaCnh: formulario.categoriaCnh,
@@ -478,7 +523,7 @@ export const MotoristasPage: React.FC = () => {
         <Button
           variant="primary"
           leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => setModalCadastroAberto(true)}
+          onClick={abrirCadastro}
           className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:w-48"
         >
           Novo motorista
@@ -722,7 +767,7 @@ export const MotoristasPage: React.FC = () => {
         isOpen={modalCadastroAberto}
         onClose={fecharCadastro}
         title="Novo motorista"
-        description="Informe o CPF e os dados da CNH para cadastrar o motorista."
+        description="Cadastre os dados do motorista e crie sua conta de acesso."
         footer={
           <>
             <Button variant="ghost" onClick={fecharCadastro}>
@@ -741,6 +786,50 @@ export const MotoristasPage: React.FC = () => {
       >
         <form id="formulario-novo-motorista" onSubmit={cadastrarMotorista} className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Input
+                label="Nome completo"
+                autoComplete="name"
+                required
+                maxLength={150}
+                value={formulario.nome}
+                onChange={(event) => atualizarFormulario("nome", event.target.value)}
+                placeholder="Nome do motorista"
+              />
+            </div>
+            <Input
+              label="E-mail de acesso"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={150}
+              value={formulario.email}
+              onChange={(event) => atualizarFormulario("email", event.target.value)}
+              placeholder="nome@exemplo.com"
+            />
+            <Input
+              label="Senha inicial"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={4}
+              value={formulario.senha}
+              onChange={(event) => atualizarFormulario("senha", event.target.value)}
+              placeholder="Mínimo de 4 caracteres"
+            />
+            <Input
+              label="Telefone para contato"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              required
+              maxLength={15}
+              value={formulario.telefone}
+              onChange={(event) =>
+                atualizarFormulario("telefone", formatarTelefone(event.target.value))
+              }
+              placeholder="(79) 99999-9999"
+            />
             <Input
               label="CPF"
               inputMode="numeric"

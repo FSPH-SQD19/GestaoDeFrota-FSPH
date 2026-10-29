@@ -1,9 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { hashPassword } from "./password_s";
 
 interface MotoristaInput {
-  usuarioId?: string;
+  nome: string;
+  email: string;
+  senha: string;
+  telefone: string;
   cpf: string;
   numeroCnh: string;
   categoriaCnh: string;
@@ -67,9 +71,26 @@ export async function listarMotoristas() {
 }
 
 export async function cadastrarMotorista(dados: MotoristaInput) {
-  if (!z.uuid().optional().safeParse(dados.usuarioId).success) {
-    throw new Error("usuarioId inválido.");
+  const nome = dados.nome.trim();
+  const email = dados.email.trim().toLowerCase();
+  if (!nome || nome.length > 150) {
+    throw new Error("Nome inválido.");
   }
+  if (!z.email().safeParse(email).success || email.length > 150) {
+    throw new Error("E-mail inválido.");
+  }
+  if (dados.senha.length < 4) {
+    throw new Error("A senha deve possuir pelo menos 4 caracteres.");
+  }
+
+  const telefone = dados.telefone.replace(/\D/g, "");
+  if (!/^\d{10,11}$/.test(telefone)) {
+    throw new Error("Telefone deve conter DDD e 8 ou 9 dígitos.");
+  }
+  const telefoneFormatado =
+    telefone.length === 11
+      ? telefone.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3")
+      : telefone.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
 
   const cpf = dados.cpf.replace(/\D/g, "");
   const numeroCnh = dados.numeroCnh.trim();
@@ -110,48 +131,61 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
 
   const existente = await prisma.motorista.findFirst({
     where: {
-      OR: [{ cpf }, { numeroCnh }, ...(dados.usuarioId ? [{ usuarioId: dados.usuarioId }] : [])],
+      OR: [{ cpf }, { numeroCnh }],
     },
     select: { id: true },
   });
 
   if (existente) {
-    throw new Error("CPF, CNH ou usuário já vinculado a um motorista.");
+    throw new Error("CPF ou CNH já cadastrado.");
   }
 
-  if (dados.usuarioId) {
-    const usuario = await prisma.usuario.findUnique({
-      where: { id: dados.usuarioId },
-      select: { id: true },
-    });
-
-    if (!usuario) {
-      throw new Error("Usuário não encontrado.");
-    }
-  }
+  const senhaHash = await hashPassword(dados.senha);
 
   try {
-    return await prisma.motorista.create({
-      data: {
-        usuarioId: dados.usuarioId,
-        cpf,
-        numeroCnh,
-        categoriaCnh,
-        validadeCnh,
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nome: true,
-            email: true,
+    return await prisma.$transaction(async (tx) => {
+      const perfilMotorista = await tx.perfil.findUnique({
+        where: { nome: "MOTORISTA" },
+        select: { id: true },
+      });
+      if (!perfilMotorista) {
+        throw new Error("Perfil MOTORISTA não encontrado.");
+      }
+
+      const usuario = await tx.usuario.create({
+        data: {
+          nome,
+          email,
+          senhaHash,
+          ativo: true,
+          perfis: { create: { perfilId: perfilMotorista.id } },
+        },
+        select: { id: true },
+      });
+
+      return tx.motorista.create({
+        data: {
+          usuarioId: usuario.id,
+          cpf,
+          numeroCnh,
+          categoriaCnh,
+          validadeCnh,
+          telefone: telefoneFormatado,
+        },
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+            },
           },
         },
-      },
+      });
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new Error("CPF, CNH ou usuário já vinculado a um motorista.");
+      throw new Error("E-mail, CPF ou CNH já cadastrado.");
     }
 
     throw error;
