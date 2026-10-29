@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   Filter,
@@ -72,10 +72,15 @@ const filtrosVazios: FiltrosMotoristas = {
 };
 
 const statusVariant: Record<StatusMotorista, "info" | "success" | "warning" | "neutral"> = {
-  "Em rota": "info",
+  "Em Rota": "info",
   Disponível: "success",
-  Indisponível: "warning",
   Inativo: "neutral",
+};
+
+const statusPorApi: Record<string, StatusMotorista> = {
+  DISPONIVEL: "Disponível",
+  INATIVO: "Inativo",
+  EM_ROTA: "Em Rota",
 };
 
 interface MotoristaApi {
@@ -106,19 +111,12 @@ function mapearMotoristaApi(valor: unknown): Motorista {
     throw new Error("A API retornou dados incompletos de um motorista.");
   }
 
-  const statusApi = motoristaApi.status.toUpperCase();
-  const status: StatusMotorista =
-    motoristaApi.ativo === false || statusApi === "INATIVO"
-      ? "Inativo"
-      : statusApi === "DISPONIVEL"
-        ? "Disponível"
-        : statusApi === "EM_ROTA" || statusApi === "EM_SERVICO"
-          ? "Em rota"
-          : statusApi === "INDISPONIVEL"
-            ? "Indisponível"
-            : (() => {
-                throw new Error(`Status de motorista não suportado pela tela: ${motoristaApi.status}`);
-              })();
+  const status = motoristaApi.ativo === false
+    ? "Inativo"
+    : statusPorApi[motoristaApi.status.toUpperCase()];
+  if (!status) {
+    throw new Error(`Status de motorista não suportado pela tela: ${motoristaApi.status}`);
+  }
 
   const validadeCnh = motoristaApi.validadeCnh.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(validadeCnh)) {
@@ -192,6 +190,7 @@ export const MotoristasPage: React.FC = () => {
   const [erroCadastro, setErroCadastro] = useState("");
   const [cadastroValidado, setCadastroValidado] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const tentativaCadastroRef = useRef(0);
 
   useEffect(() => {
     if (!token) return;
@@ -237,6 +236,7 @@ export const MotoristasPage: React.FC = () => {
     digitosCpf.length > 0 && (cpfTocado || digitosCpf.length === 11) && !cpfValido(formulario.cpf);
 
   const fecharCadastro = () => {
+    tentativaCadastroRef.current += 1;
     setModalCadastroAberto(false);
     setFormulario(formularioVazio);
     setCpfTocado(false);
@@ -261,6 +261,10 @@ export const MotoristasPage: React.FC = () => {
       return;
     }
 
+    const idTentativa = ++tentativaCadastroRef.current;
+    const tentativaAindaAtiva = () =>
+      modalCadastroAberto && tentativaCadastroRef.current === idTentativa;
+
     setSalvando(true);
 
     try {
@@ -282,7 +286,10 @@ export const MotoristasPage: React.FC = () => {
         throw new Error(await mensagemErroApi(resposta));
       }
 
-      setCadastroValidado(true);
+      if (tentativaAindaAtiva()) {
+        setCadastroValidado(true);
+      }
+
       try {
         const dados = await buscarMotoristas(token);
         setErroLista("");
@@ -290,18 +297,22 @@ export const MotoristasPage: React.FC = () => {
       } catch (error) {
         setErroLista(
           error instanceof Error
-            ? error.message
+            ? `O cadastro foi realizado, mas a lista não foi atualizada: ${error.message}`
             : "O cadastro foi realizado, mas não foi possível atualizar a lista.",
         );
       }
     } catch (error) {
-      setErroCadastro(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível conectar à API para cadastrar o motorista.",
-      );
+      if (tentativaAindaAtiva()) {
+        setErroCadastro(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível conectar à API para cadastrar o motorista.",
+        );
+      }
     } finally {
-      setSalvando(false);
+      if (tentativaAindaAtiva()) {
+        setSalvando(false);
+      }
     }
   };
 
@@ -332,7 +343,7 @@ export const MotoristasPage: React.FC = () => {
     });
   }, [filtroCnhAtencao, filtros, motoristas, termoBusca]);
 
-  const emServico = motoristas.filter((motorista) => motorista.status === "Em rota").length;
+  const emServico = motoristas.filter((motorista) => motorista.status === "Em Rota").length;
   const disponiveis = motoristas.filter((motorista) => motorista.status === "Disponível").length;
   const motoristasComCnhAtencao = motoristas.filter(
     (motorista) => motorista.status !== "Inativo" && diasAteVencimento(motorista.validadeCnh) <= 30,
@@ -599,9 +610,8 @@ export const MotoristasPage: React.FC = () => {
               onChange={(event) => atualizarFiltro("status", event.target.value)}
               options={[
                 { value: "", label: "Todos os status" },
-                { value: "Em rota", label: "Em rota" },
+                { value: "Em Rota", label: "Em Rota" },
                 { value: "Disponível", label: "Disponível" },
-                { value: "Indisponível", label: "Indisponível" },
                 { value: "Inativo", label: "Inativo" },
               ]}
             />
@@ -618,6 +628,15 @@ export const MotoristasPage: React.FC = () => {
             </Button>
           </div>
         </Card>
+      )}
+
+      {erroLista && motoristas.length > 0 && (
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-800"
+        >
+          {erroLista}
+        </div>
       )}
 
       <Table

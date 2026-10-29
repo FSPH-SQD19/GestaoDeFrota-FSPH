@@ -1,4 +1,4 @@
-export type StatusMotorista = "Em rota" | "Disponível" | "Indisponível" | "Inativo";
+export type StatusMotorista = "Disponível" | "Inativo" | "Em Rota";
 
 export interface Motorista {
   id: string;
