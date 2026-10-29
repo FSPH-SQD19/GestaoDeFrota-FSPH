@@ -12,6 +12,7 @@ import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
 import authRoutes from "./auth_r";
 import motoristaRoutes from "./motorista_r";
+import solicitacaoRoutes from "./solicitacao_r";
 
 const router = Router();
 const veiculos = Router();
@@ -29,6 +30,7 @@ router.use("/motoristas", motoristaRoutes);
 
 router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/veiculos", veiculos);
+router.use("/solicitacoes", solicitacaoRoutes);
 
 // Consultar abastecimento
 abastecimento.use(authenticate, requireRole("ADMIN", "GESTOR"));
