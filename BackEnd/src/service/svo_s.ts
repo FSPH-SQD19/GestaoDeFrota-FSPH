@@ -58,8 +58,7 @@ export const emitirOrdemSchema = z
       .string({ error: "Declaração de óbito deve ser texto." })
       .trim()
       .max(50, "Declaração de óbito deve ter no máximo 50 caracteres.")
-      .optional()
-      .transform((valor) => valor || undefined),
+      .optional(),
   })
   .strict();
 
@@ -397,7 +396,7 @@ export async function emitirOrdemColetaSvo(
         chamadoId,
         veiculoId: veiculo.id,
         motoristaId: motorista.id,
-        numeroDeclaracaoObito: input.numeroDeclaracaoObito,
+        numeroDeclaracaoObito: input.numeroDeclaracaoObito || undefined,
         status: "EM_ANDAMENTO",
         dataHoraSaida: new Date(),
       },
