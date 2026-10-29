@@ -76,11 +76,7 @@ async function registrarAuditoriaMotorista(
       dadosNovos: JSON.parse(JSON.stringify(dadosNovos)),
     });
   } catch (erro) {
-    console.error(
-      `Falha ao registrar auditoria do motorista (${acao})`,
-      registroId,
-      erro,
-    );
+    console.error(`Falha ao registrar auditoria do motorista (${acao})`, registroId, erro);
   }
 }
 
@@ -99,10 +95,7 @@ export async function listarMotoristas() {
   });
 }
 
-export async function cadastrarMotorista(
-  dados: MotoristaInput,
-  usuarioResponsavelId: string,
-) {
+export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsavelId: string) {
   if (!z.uuid().optional().safeParse(dados.usuarioId).success) {
     throw new Error("usuarioId inválido.");
   }
@@ -168,12 +161,7 @@ export async function cadastrarMotorista(
       },
     });
 
-    await registrarAuditoriaMotorista(
-      usuarioResponsavelId,
-      "CRIAR",
-      motorista.id,
-      motorista,
-    );
+    await registrarAuditoriaMotorista(usuarioResponsavelId, "CRIAR", motorista.id, motorista);
 
     return motorista;
   } catch (error) {
@@ -223,19 +211,11 @@ export async function atualizarMotorista(
       },
     });
 
-    await registrarAuditoriaMotorista(
-      usuarioResponsavelId,
-      "ATUALIZAR",
-      motorista.id,
-      motorista,
-    );
+    await registrarAuditoriaMotorista(usuarioResponsavelId, "ATUALIZAR", motorista.id, motorista);
 
     return motorista;
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       throw new Error("Motorista não encontrado.");
     }
 
@@ -244,10 +224,7 @@ export async function atualizarMotorista(
 }
 
 //Função "excluir" motorista apenas o inativa
-export async function excluirMotorista(
-  id: string,
-  usuarioResponsavelId: string,
-) {
+export async function excluirMotorista(id: string, usuarioResponsavelId: string) {
   if (!z.uuid().safeParse(id).success) {
     throw new Error("ID do motorista inválido.");
   }
@@ -269,15 +246,10 @@ export async function excluirMotorista(
       },
     });
 
-    await registrarAuditoriaMotorista(
-      usuarioResponsavelId,
-      "ATUALIZAR",
-      motorista.id,
-      {
-        operacao: "INATIVAR",
-        motorista,
-      },
-    );
+    await registrarAuditoriaMotorista(usuarioResponsavelId, "ATUALIZAR", motorista.id, {
+      operacao: "INATIVAR",
+      motorista,
+    });
 
     return {
       mensagem: "Motorista inativado com sucesso.",
