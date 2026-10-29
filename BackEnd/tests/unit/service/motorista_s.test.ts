@@ -64,7 +64,10 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
       vi.setSystemTime(new Date(instante));
 
       await expect(
-        cadastrarMotorista({ ...entrada, validadeCnh }, usuarioResponsavelId),
+        cadastrarMotorista(
+          { ...entrada, validadeCnh },
+          usuarioResponsavelId,
+        ),
       ).resolves.toEqual({
         id: "motorista-sintetico",
       });
@@ -98,7 +101,10 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
       vi.setSystemTime(new Date(instante));
 
       await expect(
-        cadastrarMotorista({ ...entrada, validadeCnh }, usuarioResponsavelId),
+        cadastrarMotorista(
+          { ...entrada, validadeCnh },
+          usuarioResponsavelId,
+        ),
       ).rejects.toThrow("A CNH está vencida.");
 
       expect(mocks.findFirst).not.toHaveBeenCalled();
@@ -108,7 +114,10 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
   );
 
   it("aceita validade futura", async () => {
-    await cadastrarMotorista({ ...entrada, validadeCnh: "2027-01-01" }, usuarioResponsavelId);
+    await cadastrarMotorista(
+      { ...entrada, validadeCnh: "2027-01-01" },
+      usuarioResponsavelId,
+    );
 
     expect(mocks.create).toHaveBeenCalledOnce();
     expect(mocks.registrarAuditoria).toHaveBeenCalledOnce();
@@ -118,7 +127,10 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
     "recusa data inválida %s antes da consulta",
     async (validadeCnh) => {
       await expect(
-        cadastrarMotorista({ ...entrada, validadeCnh }, usuarioResponsavelId),
+        cadastrarMotorista(
+          { ...entrada, validadeCnh },
+          usuarioResponsavelId,
+        ),
       ).rejects.toThrow(/validade/i);
 
       expect(mocks.findFirst).not.toHaveBeenCalled();
@@ -134,19 +146,28 @@ describe("validação de usuarioId no serviço", () => {
     "   ",
     "00000000000040008000000000000001",
     "00000000-0000-4000-8000-00000000000z",
-  ])("recusa UUID inválido %j antes de acessar o Prisma", async (usuarioIdInvalido) => {
-    await expect(
-      cadastrarMotorista({ ...entrada, usuarioId: usuarioIdInvalido }, usuarioResponsavelId),
-    ).rejects.toThrow("usuarioId inválido.");
+  ])(
+    "recusa UUID inválido %j antes de acessar o Prisma",
+    async (usuarioIdInvalido) => {
+      await expect(
+        cadastrarMotorista(
+          { ...entrada, usuarioId: usuarioIdInvalido },
+          usuarioResponsavelId,
+        ),
+      ).rejects.toThrow("usuarioId inválido.");
 
-    expect(mocks.findFirst).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
-    expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.registrarAuditoria).not.toHaveBeenCalled();
-  });
+      expect(mocks.findFirst).not.toHaveBeenCalled();
+      expect(mocks.findUnique).not.toHaveBeenCalled();
+      expect(mocks.create).not.toHaveBeenCalled();
+      expect(mocks.registrarAuditoria).not.toHaveBeenCalled();
+    },
+  );
 
   it("consulta e vincula usuário com UUID válido", async () => {
-    await cadastrarMotorista({ ...entrada, usuarioId }, usuarioResponsavelId);
+    await cadastrarMotorista(
+      { ...entrada, usuarioId },
+      usuarioResponsavelId,
+    );
 
     expect(mocks.findUnique).toHaveBeenCalledWith({
       where: { id: usuarioId },
