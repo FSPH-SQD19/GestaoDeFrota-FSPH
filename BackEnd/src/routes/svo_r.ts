@@ -7,8 +7,6 @@ import {
 } from "../controller/svo_c";
 
 const router = Router();
-
-
 router.use(authenticate, requireRole("ADMIN", "SVO"));
 
 router.get("/indicadores", indicadoresSvoController);
