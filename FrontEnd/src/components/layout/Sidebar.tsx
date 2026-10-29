@@ -29,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ADMIN: "Administrador",
     GESTOR: "Gestor de Frota",
     MOTORISTA: "Motorista Oficial",
-    ATENDENTE_SVO: "Atendente SVO",
+    SVO: "Atendente SVO",
     SOLICITANTE: "Solicitante Setorial",
   };
 

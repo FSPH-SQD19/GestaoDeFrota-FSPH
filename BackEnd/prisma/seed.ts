@@ -38,10 +38,29 @@ const usuarios = [
   },
 ];
 
+function mostrarBancoDestino() {
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    console.warn("AVISO: DATABASE_URL não está definida no ambiente do seed.");
+    return;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    const banco = url.pathname.replace(/^\//, "") || "não informado";
+    console.log(`Banco de destino do seed: ${url.hostname}:${url.port || "5432"}/${banco}`);
+    console.log(`Usuário do banco: ${decodeURIComponent(url.username || "não informado")}`);
+  } catch {
+    console.warn("AVISO: DATABASE_URL existe, mas não pôde ser interpretada como URL.");
+  }
+}
+
 async function main() {
   console.log("Iniciando seed...");
+  mostrarBancoDestino();
 
-  // 1. Criar ou atualizar os perfis
+  // 1. Criar ou atualizar os perfis.
   for (const dadosPerfil of perfis) {
     await prisma.perfil.upsert({
       where: { nome: dadosPerfil.nome },
@@ -52,7 +71,7 @@ async function main() {
     console.log(`Perfil criado/atualizado: ${dadosPerfil.nome}`);
   }
 
-  // 2. Criar ou atualizar usuários e seus perfis
+  // 2. Criar ou atualizar usuários e seus perfis.
   for (const dados of usuarios) {
     const senhaHash = await hashPassword(dados.senha);
 
@@ -92,29 +111,35 @@ async function main() {
     console.log(`Usuário criado/atualizado: ${dados.email} (${dados.perfil})`);
   }
 
-  // 3. Buscar o usuário motorista já criado
+  // 3. Buscar o usuário motorista criado acima.
   const usuarioMotorista = await prisma.usuario.findUniqueOrThrow({
     where: { email: "motorista@frota.com" },
   });
 
-  // 4. Criar ou atualizar o motorista de teste
+  // CPF válido para testes, armazenado apenas com dígitos.
+  // CNH com 11 dígitos, conforme a validação usada pelo serviço.
+  const cpfMotorista = "52998224725";
+  const numeroCnhMotorista = "12345678901";
+  const validadeCnhMotorista = new Date("2035-12-31T00:00:00.000Z");
+
+  // 4. Criar ou atualizar o motorista de teste.
   await prisma.motorista.upsert({
-    where: { cpf: "123.456.789-09" },
+    where: { cpf: cpfMotorista },
     update: {
       usuarioId: usuarioMotorista.id,
-      numeroCnh: "TESTE123456",
+      numeroCnh: numeroCnhMotorista,
       categoriaCnh: "B",
-      validadeCnh: new Date("2025-12-31T00:00:00.000Z"),
+      validadeCnh: validadeCnhMotorista,
       telefone: "(79) 99999-1234",
       status: "DISPONIVEL",
       ativo: true,
     },
     create: {
       usuarioId: usuarioMotorista.id,
-      cpf: "123.456.789-09",
-      numeroCnh: "TESTE123456",
+      cpf: cpfMotorista,
+      numeroCnh: numeroCnhMotorista,
       categoriaCnh: "B",
-      validadeCnh: new Date("2025-12-31T00:00:00.000Z"),
+      validadeCnh: validadeCnhMotorista,
       telefone: "(79) 99999-1234",
       status: "DISPONIVEL",
       ativo: true,
@@ -123,13 +148,24 @@ async function main() {
 
   console.log("Motorista de teste criado/atualizado:");
   console.log("Nome: Motorista Teste");
+  console.log("E-mail: motorista@frota.com");
+  console.log(`CPF de teste: ${cpfMotorista}`);
+  console.log(`CNH de teste: ${numeroCnhMotorista}`);
+  console.log("Validade da CNH: 2035-12-31");
   console.log("Telefone: (79) 99999-1234");
-  console.log("Status no banco: DISPONIVEL");
-  console.log("CNH vencida para teste de validação.");
+  console.log("Status: DISPONIVEL");
+  console.log("Ativo: true");
+
+  console.log("\nSeed concluído com sucesso.");
+  console.log("Credenciais de teste:");
+  console.log("ADMIN: admin@frota.com / Admin@123");
+  console.log("GESTOR: gestor@frota.com / Gestor@123");
+  console.log("MOTORISTA: motorista@frota.com / Motorista@123");
+  console.log("SVO: svo@frota.com / Svo@123");
 }
 
 main()
-  .catch((erro) => {
+  .catch((erro: unknown) => {
     console.error("Erro ao executar seed:", erro);
     process.exitCode = 1;
   })

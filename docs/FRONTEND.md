@@ -30,6 +30,7 @@ FrontEnd/src/
 ├── components/common/   Componentes reutilizáveis
 ├── components/layout/   Cabeçalho e menu lateral
 ├── contexts/            Estado da sessão e hook de autenticação
+├── services/            Cliente HTTP (Axios) com JWT e tratamento de 401
 ├── pages/               Login, recuperação, dashboard e veículos
 ├── types/               Tipos de autenticação e navegação
 ├── lib/                 Utilitários compartilhados
@@ -37,7 +38,7 @@ FrontEnd/src/
 └── index.css            Tailwind, fontes e tokens de interface
 ```
 
-A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a navegação, e os contextos compartilham informações da sessão. A instalação dos dois workspaces é centralizada na raiz.
+A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a navegação, e os contextos compartilham informações da sessão. As chamadas à API usam `src/services/api.ts`, que anexa `Authorization: Bearer <token>` e, em `401` fora do login, limpa a sessão. A instalação dos dois workspaces é centralizada na raiz. A URL base da API é `VITE_API_URL` (modelo em `FrontEnd/.env.example`; padrão local `http://localhost:3000`).
 
 ## Identidade visual e componentes
 
@@ -150,7 +151,7 @@ Os cinco perfis estão definidos em `src/types/auth.ts` e representam as seguint
 1. `ADMIN` — Acesso irrestrito a configurações, auditoria e usuários.
 2. `GESTOR` — Gestor de Frota da FSPH (aprova viagens, escala motoristas e gerencia viaturas).
 3. `MOTORISTA` — Condutor oficial (diários de bordo, checklists e viagens atribuídas).
-4. `ATENDENTE_SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO.
+4. `SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO (nome alinhado à API).
 5. `SOLICITANTE` — Setores assistenciais (LACEN, Hemocentro, SES) que solicitam transporte.
 
 ### Exibir elementos por perfil

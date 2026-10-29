@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     ADMIN: "Administrador",
     GESTOR: "Gestor de frota",
     MOTORISTA: "Motorista",
-    ATENDENTE_SVO: "Atendente SVO",
+    SVO: "Atendente SVO",
     SOLICITANTE: "Solicitante Setor",
   };
 
@@ -85,28 +85,28 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                 <span>Simular Perfil (RBAC)</span>
               </div>
               <div className="divide-y divide-slate-100 mt-1">
-                {(
-                  ["GESTOR", "ADMIN", "MOTORISTA", "ATENDENTE_SVO", "SOLICITANTE"] as UserRole[]
-                ).map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    onClick={() => {
-                      switchRoleForTesting(role);
-                      setShowRoleMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center justify-between ${
-                      activeRole === role
-                        ? "bg-black text-white"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <span>{roleLabels[role]}</span>
-                    {activeRole === role && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    )}
-                  </button>
-                ))}
+                {(["GESTOR", "ADMIN", "MOTORISTA", "SVO", "SOLICITANTE"] as UserRole[]).map(
+                  (role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => {
+                        switchRoleForTesting(role);
+                        setShowRoleMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center justify-between ${
+                        activeRole === role
+                          ? "bg-black text-white"
+                          : "text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span>{roleLabels[role]}</span>
+                      {activeRole === role && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      )}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
           )}
