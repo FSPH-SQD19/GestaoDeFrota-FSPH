@@ -54,26 +54,47 @@ export async function obterIndicadoresSvo(): Promise<IndicadoresSvo> {
   const { data } = await api.get<IndicadoresSvo>(`${BASE}/indicadores`);
   return data;
 }
-export async function obterChamadosSvo(params?: { status?: StatusTriagem; page?: number; pageSize?: number }): Promise<PaginaChamadosSvo> {
+export async function obterChamadosSvo(params?: {
+  status?: StatusTriagem;
+  page?: number;
+  pageSize?: number;
+}): Promise<PaginaChamadosSvo> {
   const { data } = await api.get<PaginaChamadosSvo>(`${BASE}/chamados`, { params });
   return data;
 }
 export async function criarChamadoSvo(input: {
-  nomeFalecido: string; enderecoOcorrencia: string; relatoOcorrencia: string;
+  nomeFalecido: string;
+  enderecoOcorrencia: string;
+  relatoOcorrencia: string;
 }): Promise<ChamadoSvo> {
   const { data } = await api.post<ChamadoSvo>(`${BASE}/chamados`, input);
   return data;
 }
-export async function triarChamadoSvo(id: string, input: {
-  decisao: "APROVAR" | "RECUSAR"; justificativa?: string;
-}): Promise<ChamadoSvo> {
-  const { data } = await api.patch<ChamadoSvo>(`${BASE}/chamados/${encodeURIComponent(id)}/triagem`, input);
+export async function triarChamadoSvo(
+  id: string,
+  input: {
+    decisao: "APROVAR" | "RECUSAR";
+    justificativa?: string;
+  },
+): Promise<ChamadoSvo> {
+  const { data } = await api.patch<ChamadoSvo>(
+    `${BASE}/chamados/${encodeURIComponent(id)}/triagem`,
+    input,
+  );
   return data;
 }
-export async function criarOrdemColetaSvo(id: string, input: {
-  veiculoId: string; motoristaId: string; numeroDeclaracaoObito?: string;
-}): Promise<OrdemColetaSvo> {
-  const { data } = await api.post<OrdemColetaSvo>(`${BASE}/chamados/${encodeURIComponent(id)}/ordens`, input);
+export async function criarOrdemColetaSvo(
+  id: string,
+  input: {
+    veiculoId: string;
+    motoristaId: string;
+    numeroDeclaracaoObito?: string;
+  },
+): Promise<OrdemColetaSvo> {
+  const { data } = await api.post<OrdemColetaSvo>(
+    `${BASE}/chamados/${encodeURIComponent(id)}/ordens`,
+    input,
+  );
   return data;
 }
 export async function obterViaturasSvo(): Promise<ViaturaSvo[]> {

@@ -76,7 +76,7 @@ const AppContent: React.FC = () => {
               <Badge variant="info">Módulo mobile / PWA em desenvolvimento</Badge>
             </Card>
           )}
- {/* Placeholders informativos para as abas restantes */}
+          {/* Placeholders informativos para as abas restantes */}
           {currentTab === "motoristas" && (
             <Card className="p-10 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
@@ -106,7 +106,7 @@ const AppContent: React.FC = () => {
               <Badge variant="warning">1 solicitação aguardando aprovação</Badge>
             </Card>
           )}
-     {currentTab === "svo" && <SvoPage />}
+          {currentTab === "svo" && <SvoPage />}
 
           {currentTab === "relatorios" && (
             <Card className="p-10 text-center space-y-3">

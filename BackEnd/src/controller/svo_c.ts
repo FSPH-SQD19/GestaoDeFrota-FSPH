@@ -2,17 +2,30 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { HttpError, usuarioAutenticado } from "../middleware/http_m";
 import {
-  criarChamadoSchema, emitirOrdemSchema, listarChamadosSchema, triagemSchema,
-  indicadoresSvo, listarChamadosSvo, registrarChamadoSvo, realizarTriagemSvo,
-  emitirOrdemColetaSvo, listarViaturasSvo, listarMotoristasSvoDisponiveis,
+  criarChamadoSchema,
+  emitirOrdemSchema,
+  listarChamadosSchema,
+  triagemSchema,
+  indicadoresSvo,
+  listarChamadosSvo,
+  registrarChamadoSvo,
+  realizarTriagemSvo,
+  emitirOrdemColetaSvo,
+  listarViaturasSvo,
+  listarMotoristasSvoDisponiveis,
 } from "../service/svo_s";
 
 function validar<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
-    throw new HttpError(400, "Dados inválidos.", parsed.error.issues.map(issue => ({
-      campo: issue.path.join("."), mensagem: issue.message,
-    })));
+    throw new HttpError(
+      400,
+      "Dados inválidos.",
+      parsed.error.issues.map((issue) => ({
+        campo: issue.path.join("."),
+        mensagem: issue.message,
+      })),
+    );
   }
   return parsed.data;
 }
@@ -29,14 +42,25 @@ export async function listarChamadosSvoController(req: Request, res: Response) {
   return res.json(await listarChamadosSvo(validar(listarChamadosSchema, req.query)));
 }
 export async function registrarChamadoSvoController(req: Request, res: Response) {
-  const result = await registrarChamadoSvo(validar(criarChamadoSchema, req.body), usuarioAutenticado(res).id);
+  const result = await registrarChamadoSvo(
+    validar(criarChamadoSchema, req.body),
+    usuarioAutenticado(res).id,
+  );
   return res.status(201).json(result);
 }
 export async function triagemSvoController(req: Request, res: Response) {
-  return res.json(await realizarTriagemSvo(validarId(req.params.id as string | undefined), validar(triagemSchema, req.body)));
+  return res.json(
+    await realizarTriagemSvo(
+      validarId(req.params.id as string | undefined),
+      validar(triagemSchema, req.body),
+    ),
+  );
 }
 export async function emitirOrdemSvoController(req: Request, res: Response) {
-  const result = await emitirOrdemColetaSvo(validarId(req.params.id as string | undefined), validar(emitirOrdemSchema, req.body));
+  const result = await emitirOrdemColetaSvo(
+    validarId(req.params.id as string | undefined),
+    validar(emitirOrdemSchema, req.body),
+  );
   return res.status(201).json(result);
 }
 export async function listarViaturasSvoController(_req: Request, res: Response) {

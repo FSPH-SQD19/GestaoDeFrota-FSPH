@@ -1,8 +1,12 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../middleware/http_m";
 import {
-  indicadoresSvoController, listarChamadosSvoController, registrarChamadoSvoController,
-  triagemSvoController, emitirOrdemSvoController, listarViaturasSvoController,
+  indicadoresSvoController,
+  listarChamadosSvoController,
+  registrarChamadoSvoController,
+  triagemSvoController,
+  emitirOrdemSvoController,
+  listarViaturasSvoController,
   listarMotoristasSvoController,
 } from "../controller/svo_c";
 
