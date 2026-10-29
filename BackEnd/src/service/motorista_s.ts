@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { validarDataValidadeCnh } from "./validarCNH_s";
+import { registrarAuditoria } from "./auditoria_s";
 
 interface MotoristaInput {
   usuarioId?: string;
@@ -15,6 +16,8 @@ interface AtualizarMotoristaInput {
   validadeCnh?: string;
   ativo?: boolean;
 }
+
+type AcaoAuditoriaMotorista = "CRIAR" | "ATUALIZAR";
 
 const CATEGORIAS_CNH = [
   "A",
@@ -32,7 +35,7 @@ const CATEGORIAS_CNH = [
   "CD",
   "CE",
   "DE",
-];
+] as const;
 
 function validarCpf(cpf: string): boolean {
   const numeros = cpf.replace(/\D/g, "");
@@ -57,6 +60,30 @@ function validarCpf(cpf: string): boolean {
   return primeiro === Number(numeros[9]) && segundo === Number(numeros[10]);
 }
 
+/** Registra auditoria sem desfazer uma operação de negócio se o log falhar. */
+async function registrarAuditoriaMotorista(
+  usuarioResponsavelId: string,
+  acao: AcaoAuditoriaMotorista,
+  registroId: string,
+  dadosNovos: unknown,
+): Promise<void> {
+  try {
+    await registrarAuditoria({
+      usuarioId: usuarioResponsavelId,
+      acao,
+      tabelaAfetada: "motoristas",
+      registroId,
+      dadosNovos: JSON.parse(JSON.stringify(dadosNovos)),
+    });
+  } catch (erro) {
+    console.error(
+      `Falha ao registrar auditoria do motorista (${acao})`,
+      registroId,
+      erro,
+    );
+  }
+}
+
 export async function listarMotoristas() {
   return prisma.motorista.findMany({
     include: {
@@ -72,7 +99,10 @@ export async function listarMotoristas() {
   });
 }
 
-export async function cadastrarMotorista(dados: MotoristaInput) {
+export async function cadastrarMotorista(
+  dados: MotoristaInput,
+  usuarioResponsavelId: string,
+) {
   if (!z.uuid().optional().safeParse(dados.usuarioId).success) {
     throw new Error("usuarioId inválido.");
   }
@@ -93,7 +123,7 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
     throw new Error("Categoria da CNH inválida.");
   }
 
-  // A validação de formato, data real e vencimento fica centralizada em validarCNH_s.ts.
+  // Formato, data real e vencimento são validados em um único lugar.
   const validadeCnh = validarDataValidadeCnh(dados.validadeCnh);
 
   const existente = await prisma.motorista.findFirst({
@@ -123,7 +153,7 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
   }
 
   try {
-    return await prisma.motorista.create({
+    const motorista = await prisma.motorista.create({
       data: {
         usuarioId: dados.usuarioId,
         cpf,
@@ -141,6 +171,15 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
         },
       },
     });
+
+    await registrarAuditoriaMotorista(
+      usuarioResponsavelId,
+      "CRIAR",
+      motorista.id,
+      motorista,
+    );
+
+    return motorista;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -156,6 +195,7 @@ export async function cadastrarMotorista(dados: MotoristaInput) {
 export async function atualizarMotorista(
   id: string,
   dados: AtualizarMotoristaInput,
+  usuarioResponsavelId: string,
 ) {
   if (!z.uuid().safeParse(id).success) {
     throw new Error("ID do motorista inválido.");
@@ -168,7 +208,6 @@ export async function atualizarMotorista(
   const dadosAtualizados: { validadeCnh?: Date; ativo?: boolean } = {};
 
   if (dados.validadeCnh !== undefined) {
-    // Reutiliza a validação compartilhada para evitar regras duplicadas.
     dadosAtualizados.validadeCnh = validarDataValidadeCnh(dados.validadeCnh);
   }
 
@@ -177,7 +216,7 @@ export async function atualizarMotorista(
   }
 
   try {
-    return await prisma.motorista.update({
+    const motorista = await prisma.motorista.update({
       where: { id },
       data: dadosAtualizados,
       include: {
@@ -190,6 +229,67 @@ export async function atualizarMotorista(
         },
       },
     });
+
+    await registrarAuditoriaMotorista(
+      usuarioResponsavelId,
+      "ATUALIZAR",
+      motorista.id,
+      motorista,
+    );
+
+    return motorista;
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      throw new Error("Motorista não encontrado.");
+    }
+
+    throw error;
+  }
+}
+
+//Função "excluir" motorista apenas o inativa
+export async function excluirMotorista(
+  id: string,
+  usuarioResponsavelId: string,
+) {
+  if (!z.uuid().safeParse(id).success) {
+    throw new Error("ID do motorista inválido.");
+  }
+
+  try {
+    const motorista = await prisma.motorista.update({
+      where: { id },
+      data: {
+        ativo: false,
+      },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    await registrarAuditoriaMotorista(
+      usuarioResponsavelId,
+      "ATUALIZAR",
+      motorista.id,
+      {
+        operacao: "INATIVAR",
+        motorista,
+      },
+    );
+
+    return {
+      mensagem: "Motorista inativado com sucesso.",
+      id: motorista.id,
+    };
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

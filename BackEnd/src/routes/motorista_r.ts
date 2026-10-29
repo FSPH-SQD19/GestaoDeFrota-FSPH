@@ -3,6 +3,7 @@ import {
   listarMotoristasController,
   cadastrarMotoristaController,
   atualizarMotoristaController,
+  excluirMotoristaController,
 } from "../controller/motorista_c";
 import { AuthToken } from "../middleware/auth_m";
 import { autorizarPerfis } from "../middleware/RBAC_m";
@@ -14,5 +15,7 @@ router.get("/", AuthToken, autorizarPerfis("ADMIN", "GESTOR"), listarMotoristasC
 router.post("/", AuthToken, autorizarPerfis("ADMIN", "GESTOR"), cadastrarMotoristaController);
 
 router.patch("/:id", AuthToken, autorizarPerfis("ADMIN", "GESTOR"), atualizarMotoristaController);
+
+router.delete("/:id", AuthToken, autorizarPerfis("ADMIN", "GESTOR"), excluirMotoristaController);
 
 export default router;
