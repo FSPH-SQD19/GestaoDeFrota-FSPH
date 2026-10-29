@@ -1,336 +1,432 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Activity,
+  AlertCircle,
   Ambulance,
   ArrowUpRight,
   Check,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock3,
+  FileText,
   MapPin,
   Phone,
   Plus,
+  RefreshCw,
   Search,
   ShieldAlert,
-  Siren,
   Users,
   X,
 } from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Select, Textarea } from "../../components/common";
 import { useAuth } from "../../contexts/auth";
 import { cn } from "../../lib/utils";
+import {
+  concluirColetaSvo,
+  concluirDesinfeccaoSvo,
+  criarChamadoSvo,
+  criarOrdemColetaSvo,
+  extrairErroSvo,
+  obterChamadosSvo,
+  obterIndicadoresSvo,
+  obterMotoristasSvo,
+  obterViaturasSvo,
+  triarChamadoSvo,
+  type ChamadoSvo,
+  type EtapaFiltroSvo,
+  type IndicadoresSvo,
+  type MotoristaSvo,
+  type ViaturaSvo,
+} from "../../services/svo";
 
-type StatusChamado =
-  "AGUARDANDO_TRIAGEM" | "EM_TRIAGEM" | "TRIAGEM_APROVADA" | "ORDEM_GERADA" | "ENCERRADO";
 type ModalSvo = "REGISTRO" | "TRIAGEM" | "ORDEM" | "DETALHE" | null;
-type Chamado = {
-  id: string;
-  protocolo: string;
-  recebido: string;
-  solicitante: string;
-  telefone: string;
-  municipio: string;
-  endereco: string;
-  relato: string;
-  urgencia: "Prioritário" | "Rotina";
-  status: StatusChamado;
-  justificativaTriagem?: string;
-  ordemId?: string;
-};
-type StatusViatura = "Disponível" | "Em coleta" | "Em desinfecção";
-type Viatura = {
-  id: string;
-  nome: string;
-  placa: string;
-  motorista: string;
-  ocupacao: number;
-  status: StatusViatura;
-  local: string;
+type StatusOperacionalChamado =
+  "EM_ANALISE" | "AGUARDANDO_ORDEM" | "EM_OPERACAO" | "CONCLUIDO" | "RECUSADO";
+
+const PAGE_SIZE = 10;
+
+const INDICADORES_VAZIOS: IndicadoresSvo = {
+  total: 0,
+  emAnalise: 0,
+  aguardandoOrdem: 0,
+  aprovados: 0,
+  recusados: 0,
+  coletasEmAndamento: 0,
+  viaturasDisponiveis: 0,
+  totalViaturas: 0,
 };
 
-const CHAMADOS_INICIAIS: Chamado[] = [
-  {
-    id: "1",
-    protocolo: "SVO-2026-00842",
-    recebido: "14:32",
-    solicitante: "Mariana Costa",
-    telefone: "(79) 9 8123-4567",
-    municipio: "Aracaju · Atalaia",
-    endereco: "Rua das Acácias, 184",
-    relato: "Óbito domiciliar informado pela família. Sem relato de violência.",
-    urgencia: "Prioritário",
-    status: "AGUARDANDO_TRIAGEM",
-  },
-  {
-    id: "2",
-    protocolo: "SVO-2026-00841",
-    recebido: "14:18",
-    solicitante: "Carlos Nascimento",
-    telefone: "(79) 9 8765-4321",
-    municipio: "Nossa Senhora do Socorro",
-    endereco: "Conj. Jardim, bloco 4",
-    relato: "Solicitação recebida por telefone para avaliação do SVO.",
-    urgencia: "Rotina",
-    status: "EM_TRIAGEM",
-  },
-  {
-    id: "3",
-    protocolo: "SVO-2026-00840",
-    recebido: "13:56",
-    solicitante: "Ana Paula Santos",
-    telefone: "(79) 9 9345-6781",
-    municipio: "São Cristóvão · Centro",
-    endereco: "Rua 24, 52",
-    relato: "Óbito em residência, histórico clínico relatado pelo solicitante.",
-    urgencia: "Rotina",
-    status: "ORDEM_GERADA",
-  },
-  {
-    id: "4",
-    protocolo: "SVO-2026-00839",
-    recebido: "13:21",
-    solicitante: "João Oliveira",
-    telefone: "(79) 9 9234-5678",
-    municipio: "Aracaju · Industrial",
-    endereco: "Av. Maranhão, 910",
-    relato: "Família orientada e chamado registrado para avaliação.",
-    urgencia: "Rotina",
-    status: "ENCERRADO",
-  },
-];
-const VIATURAS_INICIAIS: Viatura[] = [
-  {
-    id: "v1",
-    nome: "Unidade SVO 01",
-    placa: "QMA-4J28",
-    motorista: "Roberto Lima",
-    ocupacao: 2,
-    status: "Em coleta",
-    local: "Bairro Atalaia, Aracaju",
-  },
-  {
-    id: "v2",
-    nome: "Unidade SVO 02",
-    placa: "QKT-8A15",
-    motorista: "Marcos Andrade",
-    ocupacao: 0,
-    status: "Disponível",
-    local: "Base SVO · Aracaju",
-  },
-  {
-    id: "v3",
-    nome: "Unidade SVO 03",
-    placa: "QMD-2C71",
-    motorista: "Paulo Santos",
-    ocupacao: 0,
-    status: "Em desinfecção",
-    local: "Base SVO · Aracaju",
-  },
-];
-
-const STATUS_LABEL: Record<StatusChamado, string> = {
-  AGUARDANDO_TRIAGEM: "Aguardando triagem",
-  EM_TRIAGEM: "Em triagem",
-  TRIAGEM_APROVADA: "Triagem aprovada",
-  ORDEM_GERADA: "Ordem de coleta",
-  ENCERRADO: "Encerrado",
-};
-const STATUS_VARIANT: Record<StatusChamado, "warning" | "info" | "success" | "neutral"> = {
-  AGUARDANDO_TRIAGEM: "warning",
-  EM_TRIAGEM: "info",
-  ORDEM_GERADA: "success",
-  ENCERRADO: "neutral",
-  TRIAGEM_APROVADA: "success",
-};
-const FILTROS: { id: StatusChamado | "TODOS"; label: string }[] = [
+const FILTROS: { id: EtapaFiltroSvo; label: string }[] = [
   { id: "TODOS", label: "Todos" },
-  { id: "AGUARDANDO_TRIAGEM", label: "Aguardando" },
-  { id: "EM_TRIAGEM", label: "Em triagem" },
-  { id: "ORDEM_GERADA", label: "Em operação" },
+  { id: "EM_ANALISE", label: "Aguardando triagem" },
+  { id: "AGUARDANDO_ORDEM", label: "Aguardando ordem" },
+  { id: "EM_OPERACAO", label: "Em operação" },
   { id: "ENCERRADO", label: "Encerrados" },
 ];
 
+const STATUS_CHAMADO_LABEL: Record<StatusOperacionalChamado, string> = {
+  EM_ANALISE: "Aguardando triagem",
+  AGUARDANDO_ORDEM: "Triagem aprovada",
+  EM_OPERACAO: "Em coleta",
+  CONCLUIDO: "Coleta concluída",
+  RECUSADO: "Recusado na triagem",
+};
+
+const STATUS_CHAMADO_VARIANT: Record<
+  StatusOperacionalChamado,
+  "warning" | "info" | "success" | "neutral" | "danger"
+> = {
+  EM_ANALISE: "warning",
+  AGUARDANDO_ORDEM: "info",
+  EM_OPERACAO: "success",
+  CONCLUIDO: "neutral",
+  RECUSADO: "danger",
+};
+
+function classificarChamado(chamado: ChamadoSvo): StatusOperacionalChamado {
+  if (chamado.statusTriagem === "EM_ANALISE") return "EM_ANALISE";
+  if (chamado.statusTriagem === "RECUSADO") return "RECUSADO";
+  if (!chamado.ordemColeta) return "AGUARDANDO_ORDEM";
+  if (chamado.ordemColeta.status === "CONCLUIDA") return "CONCLUIDO";
+  return "EM_OPERACAO";
+}
+
+function rotuloStatusViatura(status: string): {
+  label: string;
+  variant: "success" | "info" | "warning" | "neutral" | "danger";
+} {
+  if (status === "DISPONIVEL") return { label: "Disponível", variant: "success" };
+  if (status === "EM_VIAGEM") return { label: "Em coleta", variant: "info" };
+  if (status === "DESINFECCAO") return { label: "Em desinfecção", variant: "warning" };
+  if (status === "MANUTENCAO") return { label: "Em manutenção", variant: "danger" };
+  return { label: status, variant: "neutral" };
+}
+
+function nomeMotorista(motorista: MotoristaSvo): string {
+  const nome = motorista.usuario?.nome?.trim();
+  return nome ? `${nome} (CNH ${motorista.numeroCnh})` : `CNH ${motorista.numeroCnh}`;
+}
+
 export const SvoPage: React.FC = () => {
   const { user } = useAuth();
-  const [chamados, setChamados] = useState(CHAMADOS_INICIAIS);
-  const [viaturas, setViaturas] = useState(VIATURAS_INICIAIS);
-  const [filtro, setFiltro] = useState<StatusChamado | "TODOS">("TODOS");
+
+  const [indicadores, setIndicadores] = useState<IndicadoresSvo>(INDICADORES_VAZIOS);
+  const [chamados, setChamados] = useState<ChamadoSvo[]>([]);
+  const [viaturas, setViaturas] = useState<ViaturaSvo[]>([]);
+  const [motoristas, setMotoristas] = useState<MotoristaSvo[]>([]);
+
+  const [etapa, setEtapa] = useState<EtapaFiltroSvo>("TODOS");
   const [busca, setBusca] = useState("");
-  const [selecionado, setSelecionado] = useState<Chamado | null>(null);
-  const [modal, setModal] = useState<ModalSvo>(null);
-  const [justificativa, setJustificativa] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [reloadTick, setReloadTick] = useState(0);
+
+  const [carregando, setCarregando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [processandoAcaoId, setProcessandoAcaoId] = useState<string | null>(null);
+
   const [aviso, setAviso] = useState("");
+  const [erroPagina, setErroPagina] = useState("");
+  const [erroModal, setErroModal] = useState("");
+
+  const [selecionado, setSelecionado] = useState<ChamadoSvo | null>(null);
+  const [modal, setModal] = useState<ModalSvo>(null);
+
   const [novoChamado, setNovoChamado] = useState({
-    solicitante: "",
-    telefone: "",
-    municipio: "",
-    endereco: "",
-    relato: "",
-    urgencia: "Rotina" as Chamado["urgencia"],
+    nomeFalecido: "",
+    enderecoOcorrencia: "",
+    relatoOcorrencia: "",
   });
+  const [justificativa, setJustificativa] = useState("");
   const [viaturaId, setViaturaId] = useState("");
-  const [quantidadeObitos, setQuantidadeObitos] = useState("1");
+  const [motoristaId, setMotoristaId] = useState("");
+  const [numeroDeclaracaoObito, setNumeroDeclaracaoObito] = useState("");
 
-  const contagem = useMemo(
-    () => ({
-      recebidos: chamados.length,
-      aguardando: chamados.filter((c) => c.status === "AGUARDANDO_TRIAGEM").length,
-      emOperacao: chamados.filter((c) => c.status === "ORDEM_GERADA").length,
-      disponiveis: viaturas.filter((v) => v.status === "Disponível").length,
-    }),
-    [chamados, viaturas],
-  );
+  // Carrega chamados paginados e filtrados diretamente da API
+  useEffect(() => {
+    let cancelado = false;
 
-  const filtrados = chamados.filter((c) => {
-    const termo = busca.trim().toLowerCase();
-    const correspondeAoFiltro =
-      filtro === "TODOS" ||
-      c.status === filtro ||
-      (filtro === "ORDEM_GERADA" && c.status === "TRIAGEM_APROVADA") ||
-      (filtro === "ENCERRADO" && c.status === "ENCERRADO");
-    return (
-      correspondeAoFiltro &&
-      (!termo ||
-        [c.protocolo, c.solicitante, c.municipio].some((v) => v.toLowerCase().includes(termo)))
-    );
-  });
+    obterChamadosSvo({
+      etapa: etapa === "TODOS" ? undefined : etapa,
+      busca: busca.trim() || undefined,
+      page,
+      pageSize: PAGE_SIZE,
+    })
+      .then((resposta) => {
+        if (cancelado) return;
+        setChamados(resposta.data);
+        setTotalRegistros(resposta.meta.total);
+        setTotalPages(Math.max(1, resposta.meta.totalPages));
+        setErroPagina("");
+      })
+      .catch((erro: unknown) => {
+        if (cancelado) return;
+        setErroPagina(
+          extrairErroSvo(
+            erro,
+            "Não foi possível carregar os chamados do SVO. Verifique sua conexão e tente novamente.",
+          ),
+        );
+      })
+      .finally(() => {
+        if (!cancelado) {
+          setCarregando(false);
+        }
+      });
 
-  const atualizarStatus = (id: string, status: StatusChamado) => {
-    setChamados((atual) => atual.map((c) => (c.id === id ? { ...c, status } : c)));
-    setSelecionado((atual) => (atual?.id === id ? { ...atual, status } : atual));
+    return () => {
+      cancelado = true;
+    };
+  }, [etapa, busca, page, reloadTick]);
+
+  // Carrega indicadores, viaturas SVO e motoristas disponíveis
+  useEffect(() => {
+    let cancelado = false;
+
+    Promise.all([obterIndicadoresSvo(), obterViaturasSvo(), obterMotoristasSvo()])
+      .then(([ind, listaViaturas, listaMotoristas]) => {
+        if (cancelado) return;
+        setIndicadores(ind);
+        setViaturas(listaViaturas);
+        setMotoristas(listaMotoristas);
+      })
+      .catch((erro: unknown) => {
+        if (cancelado) return;
+        setErroPagina(
+          extrairErroSvo(erro, "Não foi possível atualizar os indicadores e viaturas do SVO."),
+        );
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [reloadTick]);
+
+  const dispararRecarregamento = (novaPagina?: number) => {
+    setCarregando(true);
+    if (novaPagina !== undefined) {
+      setPage(novaPagina);
+    }
+    setReloadTick((atual) => atual + 1);
+  };
+
+  const handleFiltroChange = (novaEtapa: EtapaFiltroSvo) => {
+    setCarregando(true);
+    setEtapa(novaEtapa);
+    setPage(1);
+  };
+
+  const handleBuscaChange = (valor: string) => {
+    setCarregando(true);
+    setBusca(valor);
+    setPage(1);
   };
 
   const fecharModal = () => {
+    if (enviando) return;
     setModal(null);
     setSelecionado(null);
     setJustificativa("");
-  };
-
-  const abrirRegistro = () => {
-    setNovoChamado({
-      solicitante: "",
-      telefone: "",
-      municipio: "",
-      endereco: "",
-      relato: "",
-      urgencia: "Rotina",
-    });
-    setSelecionado(null);
-    setModal("REGISTRO");
-  };
-
-  const registrarChamado = () => {
-    if (Object.values(novoChamado).some((valor) => !String(valor).trim())) return;
-    const agora = new Date();
-    const protocolo = `SVO-${agora.getFullYear()}-${String(842 + chamados.length + 1).padStart(5, "0")}`;
-    const novo: Chamado = {
-      ...novoChamado,
-      id: `svo-${Date.now()}`,
-      protocolo,
-      recebido: new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(
-        agora,
-      ),
-      status: "AGUARDANDO_TRIAGEM",
-    };
-    setChamados((atual) => [novo, ...atual]);
-    setFiltro("TODOS");
-    setBusca("");
-    setAviso(`Chamado ${protocolo} registrado e incluído na fila de triagem.`);
-    fecharModal();
-  };
-
-  const iniciarTriagem = (chamado: Chamado) => {
-    const emTriagem = { ...chamado, status: "EM_TRIAGEM" as const };
-    atualizarStatus(chamado.id, "EM_TRIAGEM");
-    setSelecionado(emTriagem);
-    setJustificativa(chamado.justificativaTriagem ?? "");
-    setModal("TRIAGEM");
-  };
-
-  const concluirTriagem = (aprovada: boolean) => {
-    if (!selecionado || justificativa.trim().length < 8) return;
-    const novoStatus = aprovada ? "TRIAGEM_APROVADA" : "ENCERRADO";
-    setChamados((atual) =>
-      atual.map((c) =>
-        c.id === selecionado.id
-          ? { ...c, status: novoStatus, justificativaTriagem: justificativa.trim() }
-          : c,
-      ),
-    );
-    setAviso(
-      aprovada
-        ? `Triagem aprovada para ${selecionado.protocolo}. Emita a ordem de coleta para despachar a viatura.`
-        : `Triagem de ${selecionado.protocolo} encerrada com justificativa registrada.`,
-    );
-    fecharModal();
-  };
-
-  const abrirEmissaoOrdem = (chamado: Chamado) => {
-    const primeiraElegivel = viaturas.find(
-      (v) => (v.status === "Disponível" || v.status === "Em coleta") && v.ocupacao < 4,
-    );
-    setSelecionado(chamado);
-    setViaturaId(primeiraElegivel?.id ?? "");
-    setQuantidadeObitos("1");
-    setModal("ORDEM");
-  };
-
-  const emitirOrdem = () => {
-    if (!selecionado) return;
-    const viatura = viaturas.find((v) => v.id === viaturaId);
-    const quantidade = Number(quantidadeObitos);
-    if (
-      !viatura ||
-      !Number.isInteger(quantidade) ||
-      quantidade < 1 ||
-      quantidade > 4 - viatura.ocupacao ||
-      !["Disponível", "Em coleta"].includes(viatura.status)
-    ) {
-      setAviso("Selecione uma viatura apta e respeite o limite de 4 óbitos por veículo.");
-      return;
-    }
-    const ordemId = `OC-${new Date().getFullYear()}-${String(100 + chamados.length).padStart(4, "0")}`;
-    setChamados((atual) =>
-      atual.map((c) => (c.id === selecionado.id ? { ...c, status: "ORDEM_GERADA", ordemId } : c)),
-    );
-    setViaturas((atual) =>
-      atual.map((v) =>
-        v.id === viatura.id
-          ? {
-              ...v,
-              status: "Em coleta",
-              ocupacao: v.ocupacao + quantidade,
-              local: selecionado.municipio,
-            }
-          : v,
-      ),
-    );
-    setAviso(
-      `Ordem ${ordemId} emitida para ${selecionado.protocolo} · ${viatura.nome} · ${quantidade} ${quantidade === 1 ? "óbito" : "óbitos"}.`,
-    );
-    fecharModal();
-  };
-
-  const abrirDetalhes = (chamado: Chamado) => {
-    setSelecionado(chamado);
-    setModal("DETALHE");
-  };
-
-  const concluirDesinfeccao = (viatura: Viatura) => {
-    setViaturas((atual) =>
-      atual.map((v) => (v.id === viatura.id ? { ...v, status: "Disponível", ocupacao: 0 } : v)),
-    );
-    setAviso(`${viatura.nome} liberada após confirmação da desinfecção.`);
+    setErroModal("");
   };
 
   const viaturasElegiveis = viaturas.filter(
-    (v) => (v.status === "Disponível" || v.status === "Em coleta") && v.ocupacao < 4,
+    (v) =>
+      (v.status === "DISPONIVEL" || v.status === "EM_VIAGEM") &&
+      v.ocupacaoAtual < v.capacidadeMaxima,
   );
+
+  const abrirRegistro = () => {
+    if (enviando) return;
+    setNovoChamado({
+      nomeFalecido: "",
+      enderecoOcorrencia: "",
+      relatoOcorrencia: "",
+    });
+    setSelecionado(null);
+    setErroModal("");
+    setModal("REGISTRO");
+  };
+
+  const handleRegistrarChamado = async () => {
+    if (enviando) return;
+    setEnviando(true);
+    setErroModal("");
+
+    try {
+      const criado = await criarChamadoSvo({
+        nomeFalecido: novoChamado.nomeFalecido.trim(),
+        enderecoOcorrencia: novoChamado.enderecoOcorrencia.trim(),
+        relatoOcorrencia: novoChamado.relatoOcorrencia.trim(),
+      });
+      setModal(null);
+      setSelecionado(null);
+      setEtapa("TODOS");
+      setBusca("");
+      setAviso(
+        `Chamado ${criado.numeroProtocolo ?? criado.id} registrado com sucesso e incluído na fila de triagem.`,
+      );
+      dispararRecarregamento(1);
+    } catch (erro: unknown) {
+      setErroModal(extrairErroSvo(erro, "Não foi possível registrar o chamado."));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const abrirTriagem = (chamado: ChamadoSvo) => {
+    if (enviando) return;
+    setSelecionado(chamado);
+    setJustificativa(chamado.justificativaTriagem ?? "");
+    setErroModal("");
+    setModal("TRIAGEM");
+  };
+
+  const handleConcluirTriagem = async (decisao: "APROVAR" | "RECUSAR") => {
+    if (!selecionado || enviando) return;
+    if (decisao === "RECUSAR" && justificativa.trim().length < 3) {
+      setErroModal("Informe uma justificativa com pelo menos 3 caracteres para recusar o chamado.");
+      return;
+    }
+
+    setEnviando(true);
+    setErroModal("");
+
+    try {
+      const textoJustificativa = justificativa.trim();
+      const atualizado = await triarChamadoSvo(selecionado.id, {
+        decisao,
+        ...(textoJustificativa ? { justificativa: textoJustificativa } : {}),
+      });
+      const protocolo = atualizado.numeroProtocolo ?? selecionado.numeroProtocolo ?? selecionado.id;
+      setModal(null);
+      setSelecionado(null);
+      setJustificativa("");
+      setAviso(
+        decisao === "APROVAR"
+          ? `Triagem aprovada para ${protocolo}. Emita a ordem de coleta para despachar a viatura.`
+          : `Chamado ${protocolo} recusado na triagem com justificativa registrada.`,
+      );
+      dispararRecarregamento();
+    } catch (erro: unknown) {
+      setErroModal(extrairErroSvo(erro, "Não foi possível registrar a triagem."));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const selecionarMotoristaPadraoParaViatura = (
+    idViatura: string,
+    listaMotoristas: MotoristaSvo[],
+  ) => {
+    const viatura = viaturas.find((v) => v.id === idViatura);
+    if (viatura?.motoristaAtual?.id) {
+      return viatura.motoristaAtual.id;
+    }
+    const disponivel = listaMotoristas.find((m) => !m.status || m.status === "DISPONIVEL");
+    return disponivel?.id ?? listaMotoristas[0]?.id ?? "";
+  };
+
+  const abrirEmissaoOrdem = (chamado: ChamadoSvo) => {
+    if (enviando) return;
+    const primeiraElegivel = viaturasElegiveis[0];
+    const idViaturaInicial = primeiraElegivel?.id ?? "";
+    setSelecionado(chamado);
+    setViaturaId(idViaturaInicial);
+    setMotoristaId(selecionarMotoristaPadraoParaViatura(idViaturaInicial, motoristas));
+    setNumeroDeclaracaoObito("");
+    setErroModal("");
+    setModal("ORDEM");
+  };
+
+  const handleEmitirOrdem = async () => {
+    if (!selecionado || enviando) return;
+    if (!viaturaId || !motoristaId) {
+      setErroModal("Selecione a viatura SVO e o motorista responsável.");
+      return;
+    }
+
+    setEnviando(true);
+    setErroModal("");
+
+    try {
+      const viaturaEscolhida = viaturas.find((v) => v.id === viaturaId);
+      const decl = numeroDeclaracaoObito.trim();
+      await criarOrdemColetaSvo(selecionado.id, {
+        veiculoId: viaturaId,
+        motoristaId,
+        ...(decl ? { numeroDeclaracaoObito: decl } : {}),
+      });
+      const protocolo = selecionado.numeroProtocolo ?? selecionado.id;
+      setModal(null);
+      setSelecionado(null);
+      setAviso(
+        `Ordem de coleta emitida para ${protocolo}${viaturaEscolhida ? ` · ${viaturaEscolhida.modelo} (${viaturaEscolhida.placa})` : ""}.`,
+      );
+      dispararRecarregamento();
+    } catch (erro: unknown) {
+      setErroModal(extrairErroSvo(erro, "Não foi possível emitir a ordem de coleta."));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const handleConcluirColeta = async (chamado: ChamadoSvo) => {
+    if (processandoAcaoId) return;
+    setProcessandoAcaoId(chamado.id);
+    setErroPagina("");
+
+    try {
+      await concluirColetaSvo(chamado.id);
+      const protocolo = chamado.numeroProtocolo ?? chamado.id;
+      setAviso(
+        `Coleta do chamado ${protocolo} concluída. Quando não houver outras ordens ativas na viatura, ela entra em desinfecção obrigatória.`,
+      );
+      dispararRecarregamento();
+    } catch (erro: unknown) {
+      setErroPagina(extrairErroSvo(erro, "Não foi possível concluir a ordem de coleta."));
+    } finally {
+      setProcessandoAcaoId(null);
+    }
+  };
+
+  const handleConcluirDesinfeccao = async (viatura: ViaturaSvo) => {
+    if (processandoAcaoId) return;
+    setProcessandoAcaoId(viatura.id);
+    setErroPagina("");
+
+    try {
+      await concluirDesinfeccaoSvo(viatura.id);
+      setAviso(
+        `Desinfecção confirmada: viatura ${viatura.modelo} (${viatura.placa}) liberada para novas coletas.`,
+      );
+      dispararRecarregamento();
+    } catch (erro: unknown) {
+      setErroPagina(extrairErroSvo(erro, "Não foi possível confirmar a desinfecção da viatura."));
+    } finally {
+      setProcessandoAcaoId(null);
+    }
+  };
+
+  const abrirDetalhes = (chamado: ChamadoSvo) => {
+    if (enviando) return;
+    setSelecionado(chamado);
+    setErroModal("");
+    setModal("DETALHE");
+  };
+
   const viaturaDaOrdem = viaturas.find((v) => v.id === viaturaId);
-  const vagasRestantes = viaturaDaOrdem ? 4 - viaturaDaOrdem.ocupacao : 0;
-  const registroValido = Object.values(novoChamado).every(
-    (valor) => String(valor).trim().length > 0,
-  );
+  const motoristasParaOrdem = viaturaDaOrdem?.motoristaAtual
+    ? motoristas.filter((m) => m.id === viaturaDaOrdem.motoristaAtual?.id)
+    : motoristas.filter((m) => !m.status || m.status === "DISPONIVEL");
+
+  const registroValido =
+    novoChamado.nomeFalecido.trim().length >= 2 &&
+    novoChamado.enderecoOcorrencia.trim().length >= 3 &&
+    novoChamado.relatoOcorrencia.trim().length >= 5;
+
   const modalTitulo =
     modal === "REGISTRO"
       ? "Registrar chamado SVO"
@@ -339,55 +435,51 @@ export const SvoPage: React.FC = () => {
         : modal === "ORDEM"
           ? "Emitir ordem de coleta"
           : "Detalhes do chamado";
+
   const modalDescricao =
     modal === "REGISTRO"
-      ? "Registre os dados recebidos por telefone para iniciar o atendimento."
+      ? "Registre os dados recebidos por telefone para iniciar o atendimento na central SVO."
       : modal === "TRIAGEM"
-        ? "Avalie o relato e documente a decisão antes de emitir uma ordem."
+        ? "Avalie o relato da ocorrência e registre a decisão de triagem."
         : modal === "ORDEM"
-          ? "Defina a viatura e a quantidade a coletar respeitando a capacidade disponível."
-          : "Resumo do atendimento e do andamento operacional.";
+          ? "Aloque uma viatura exclusiva do SVO e um condutor habilitado respeitando o limite de capacidade."
+          : "Resumo completo do atendimento, triagem e despacho operacional.";
+
+  const selecionadoStatus = selecionado ? classificarChamado(selecionado) : null;
 
   const modalFooter =
     modal === "REGISTRO" ? (
       <>
-        <Button variant="outline" onClick={fecharModal}>
+        <Button variant="outline" onClick={fecharModal} disabled={enviando}>
           Cancelar
         </Button>
-        <Button onClick={registrarChamado} disabled={!registroValido}>
-          Registrar chamado
+        <Button onClick={handleRegistrarChamado} disabled={!registroValido || enviando}>
+          {enviando ? "Registrando..." : "Salvar chamado"}
         </Button>
       </>
     ) : modal === "TRIAGEM" ? (
       <>
-        <Button variant="outline" onClick={fecharModal}>
+        <Button variant="outline" onClick={fecharModal} disabled={enviando}>
           Voltar
         </Button>
         <Button
           variant="danger"
-          onClick={() => concluirTriagem(false)}
-          disabled={justificativa.trim().length < 8}
+          onClick={() => handleConcluirTriagem("RECUSAR")}
+          disabled={enviando || justificativa.trim().length < 3}
         >
-          Encerrar triagem
+          {enviando ? "Salvando..." : "Recusar chamado"}
         </Button>
-        <Button onClick={() => concluirTriagem(true)} disabled={justificativa.trim().length < 8}>
-          Aprovar triagem
+        <Button onClick={() => handleConcluirTriagem("APROVAR")} disabled={enviando}>
+          {enviando ? "Salvando..." : "Aprovar triagem"}
         </Button>
       </>
     ) : modal === "ORDEM" ? (
       <>
-        <Button variant="outline" onClick={fecharModal}>
+        <Button variant="outline" onClick={fecharModal} disabled={enviando}>
           Cancelar
         </Button>
-        <Button
-          onClick={emitirOrdem}
-          disabled={
-            !viaturaDaOrdem ||
-            Number(quantidadeObitos) < 1 ||
-            Number(quantidadeObitos) > vagasRestantes
-          }
-        >
-          Emitir ordem de coleta
+        <Button onClick={handleEmitirOrdem} disabled={enviando || !viaturaDaOrdem || !motoristaId}>
+          {enviando ? "Emitindo..." : "Emitir ordem de coleta"}
         </Button>
       </>
     ) : (
@@ -395,18 +487,11 @@ export const SvoPage: React.FC = () => {
         <Button variant="outline" onClick={fecharModal}>
           Fechar
         </Button>
-        {selecionado?.status === "AGUARDANDO_TRIAGEM" && (
-          <Button onClick={() => selecionado && iniciarTriagem(selecionado)}>
-            Iniciar triagem
-          </Button>
+        {selecionado && selecionadoStatus === "EM_ANALISE" && (
+          <Button onClick={() => abrirTriagem(selecionado)}>Realizar triagem</Button>
         )}
-        {selecionado?.status === "EM_TRIAGEM" && (
-          <Button onClick={() => setModal("TRIAGEM")}>Continuar triagem</Button>
-        )}
-        {selecionado?.status === "TRIAGEM_APROVADA" && (
-          <Button onClick={() => selecionado && abrirEmissaoOrdem(selecionado)}>
-            Emitir ordem
-          </Button>
+        {selecionado && selecionadoStatus === "AGUARDANDO_ORDEM" && (
+          <Button onClick={() => abrirEmissaoOrdem(selecionado)}>Emitir ordem</Button>
         )}
       </>
     );
@@ -422,7 +507,7 @@ export const SvoPage: React.FC = () => {
             Central de operações SVO
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Chamados, triagem e disponibilidade das viaturas em um só lugar.
+            Chamados, triagem e disponibilidade das viaturas em tempo real.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -435,9 +520,15 @@ export const SvoPage: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="success" dot>
-              Plantão ativo
-            </Badge>
+            <Button
+              variant="outline"
+              onClick={() => dispararRecarregamento()}
+              disabled={carregando}
+              aria-label="Atualizar dados SVO"
+              leftIcon={<RefreshCw className={cn("h-4 w-4", carregando && "animate-spin")} />}
+            >
+              Atualizar
+            </Button>
             <Button onClick={abrirRegistro} leftIcon={<Plus className="h-4 w-4" />}>
               Registrar chamado
             </Button>
@@ -451,7 +542,7 @@ export const SvoPage: React.FC = () => {
           className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
         >
           <span className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
             {aviso}
           </span>
           <button type="button" aria-label="Fechar aviso" onClick={() => setAviso("")}>
@@ -460,33 +551,47 @@ export const SvoPage: React.FC = () => {
         </div>
       )}
 
+      {erroPagina && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+        >
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {erroPagina}
+          </span>
+          <button type="button" aria-label="Fechar erro" onClick={() => setErroPagina("")}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <section aria-label="Indicadores SVO" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Metric
           icon={Phone}
-          label="Chamados recebidos hoje"
-          value={contagem.recebidos}
-          trend="+12%"
-          caption="vs. período anterior"
+          label="Chamados registrados"
+          value={indicadores.total}
+          caption={`${indicadores.aprovados} aprovados`}
           tone="blue"
         />
         <Metric
           icon={Clock3}
           label="Aguardando triagem"
-          value={contagem.aguardando}
-          caption="Requer atenção"
+          value={indicadores.emAnalise}
+          caption={`${indicadores.aguardandoOrdem} aguardando ordem`}
           tone="amber"
         />
         <Metric
           icon={Activity}
           label="Coletas em andamento"
-          value={contagem.emOperacao}
+          value={indicadores.coletasEmAndamento}
           caption="Ordens ativas"
           tone="rose"
         />
         <Metric
           icon={Ambulance}
           label="Viaturas disponíveis"
-          value={`${contagem.disponiveis}/${viaturas.length}`}
+          value={`${indicadores.viaturasDisponiveis}/${indicadores.totalViaturas || viaturas.length}`}
           caption="Liberadas para despacho"
           tone="green"
         />
@@ -499,33 +604,34 @@ export const SvoPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-slate-900">Fila de chamados</h2>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
-                  {filtrados.length}
+                  {totalRegistros}
                 </span>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Acompanhe o atendimento e a triagem especializada.
+                Acompanhe o atendimento, a triagem e a execução das ordens de coleta.
               </p>
             </div>
-            <label className="relative w-full sm:max-w-[220px]">
+            <label className="relative w-full sm:max-w-[250px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 aria-label="Buscar chamado"
                 value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Protocolo ou município"
+                onChange={(e) => handleBuscaChange(e.target.value)}
+                placeholder="Protocolo, nome ou endereço"
                 className="pl-9"
               />
             </label>
           </div>
+
           <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-4 pt-3">
             {FILTROS.map((f) => (
               <button
                 key={f.id}
                 type="button"
-                onClick={() => setFiltro(f.id)}
+                onClick={() => handleFiltroChange(f.id)}
                 className={cn(
                   "whitespace-nowrap border-b-2 px-3 pb-3 text-xs font-semibold transition-colors",
-                  filtro === f.id
+                  etapa === f.id
                     ? "border-slate-900 text-slate-900"
                     : "border-transparent text-slate-500 hover:text-slate-800",
                 )}
@@ -534,184 +640,253 @@ export const SvoPage: React.FC = () => {
               </button>
             ))}
           </div>
+
           <div className="divide-y divide-slate-100">
-            {filtrados.map((c) => (
-              <article key={c.id} className="p-4 transition-colors hover:bg-slate-50/70 sm:px-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-bold tracking-wide text-slate-700">
-                        {c.protocolo}
-                      </span>
-                      <Badge size="sm" variant={STATUS_VARIANT[c.status]} dot>
-                        {STATUS_LABEL[c.status]}
-                      </Badge>
-                      {c.urgencia === "Prioritário" && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-rose-600">
-                          <Siren className="h-3 w-3" />
-                          Prioritário
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock3 className="h-3.5 w-3.5" />
-                        Recebido às {c.recebido}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" />
-                        {c.municipio || "Local não informado"}
-                      </span>
-                    </div>
-                    <p className="mt-2 line-clamp-1 text-sm font-semibold text-slate-800">
-                      {c.solicitante || "Novo atendimento telefônico"}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {c.status === "AGUARDANDO_TRIAGEM" && (
-                      <Button size="sm" onClick={() => iniciarTriagem(c)}>
-                        Iniciar triagem
-                      </Button>
-                    )}
-                    {c.status === "EM_TRIAGEM" && (
-                      <Button size="sm" variant="outline" onClick={() => iniciarTriagem(c)}>
-                        Continuar <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {c.status === "TRIAGEM_APROVADA" && (
-                      <Button size="sm" onClick={() => abrirEmissaoOrdem(c)}>
-                        Emitir ordem
-                      </Button>
-                    )}
-                    {c.status === "ORDEM_GERADA" && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                        <Check className="h-4 w-4" />
-                        Despachado
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => abrirDetalhes(c)}
-                      aria-label={`Ver detalhes ${c.protocolo}`}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-            {filtrados.length === 0 && (
+            {carregando && chamados.length === 0 ? (
               <div className="p-10 text-center text-sm text-slate-500">
-                Nenhum chamado encontrado para este filtro.
+                Carregando chamados do SVO...
+              </div>
+            ) : (
+              chamados.map((c) => {
+                const statusOp = classificarChamado(c);
+                const protocolo = c.numeroProtocolo ?? c.id;
+                const processandoEste = processandoAcaoId === c.id;
+
+                return (
+                  <article
+                    key={c.id}
+                    className="p-4 transition-colors hover:bg-slate-50/70 sm:px-5"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold tracking-wide text-slate-700">
+                            {protocolo}
+                          </span>
+                          <Badge size="sm" variant={STATUS_CHAMADO_VARIANT[statusOp]} dot>
+                            {STATUS_CHAMADO_LABEL[statusOp]}
+                          </Badge>
+                          {c.ordemColeta?.veiculo && (
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
+                              {c.ordemColeta.veiculo.placa}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 line-clamp-1 text-sm font-semibold text-slate-800">
+                          {c.nomeFalecido || "Identificação não informada"}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {c.enderecoOcorrencia || "Endereço não informado"}
+                          </span>
+                          {c.ordemColeta?.numeroDeclaracaoObito && (
+                            <span className="inline-flex items-center gap-1">
+                              <FileText className="h-3.5 w-3.5" />
+                              DO: {c.ordemColeta.numeroDeclaracaoObito}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        {statusOp === "EM_ANALISE" && (
+                          <Button size="sm" onClick={() => abrirTriagem(c)}>
+                            Iniciar triagem
+                          </Button>
+                        )}
+                        {statusOp === "AGUARDANDO_ORDEM" && (
+                          <Button size="sm" onClick={() => abrirEmissaoOrdem(c)}>
+                            Emitir ordem
+                          </Button>
+                        )}
+                        {statusOp === "EM_OPERACAO" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleConcluirColeta(c)}
+                            disabled={processandoEste}
+                          >
+                            <Check className="mr-1 h-3.5 w-3.5" />
+                            {processandoEste ? "Concluindo..." : "Concluir coleta"}
+                          </Button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => abrirDetalhes(c)}
+                          aria-label={`Ver detalhes ${protocolo}`}
+                          className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+
+            {!carregando && chamados.length === 0 && (
+              <div className="p-10 text-center text-sm text-slate-500">
+                Nenhum chamado encontrado para os filtros selecionados.
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-            <span>Atualização demonstrativa · agora</span>
-            <button
-              type="button"
-              onClick={() => {
-                setBusca("");
-                setFiltro("TODOS");
-              }}
-              className="font-semibold text-slate-700 hover:text-blue-700"
-            >
-              Ver todos os chamados <ArrowUpRight className="inline h-3.5 w-3.5" />
-            </button>
+
+          <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Página <strong>{page}</strong> de <strong>{totalPages}</strong> ({totalRegistros}{" "}
+              {totalRegistros === 1 ? "chamado" : "chamados"})
+            </span>
+            <div className="flex items-center gap-2">
+              {(busca || etapa !== "TODOS") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCarregando(true);
+                    setBusca("");
+                    setEtapa("TODOS");
+                    setPage(1);
+                  }}
+                  className="mr-2 font-semibold text-slate-700 hover:text-blue-700"
+                >
+                  Limpar filtros <ArrowUpRight className="inline h-3.5 w-3.5" />
+                </button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={page <= 1 || carregando}
+                onClick={() => {
+                  setCarregando(true);
+                  setPage((atual) => Math.max(1, atual - 1));
+                }}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={page >= totalPages || carregando}
+                onClick={() => {
+                  setCarregando(true);
+                  setPage((atual) => Math.min(totalPages, atual + 1));
+                }}
+              >
+                Próxima <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </Card>
 
         <Card className="overflow-hidden rounded-2xl border border-slate-200/80 p-0 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 p-5">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Painel das viaturas</h2>
+              <h2 className="text-base font-bold text-slate-900">Painel das viaturas SVO</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Capacidade operacional e status de cada unidade.
+                Capacidade operacional e status sanitário da frota exclusiva.
               </p>
             </div>
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
               <Ambulance className="h-4.5 w-4.5" />
             </span>
           </div>
+
           <div className="space-y-3 p-4">
-            {viaturas.map((v) => {
-              const disponivel = v.status === "Disponível";
-              const desinfec = v.status === "Em desinfecção";
-              return (
-                <div key={v.id} className="rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={cn(
-                          "flex h-10 w-10 items-center justify-center rounded-xl",
-                          disponivel
-                            ? "bg-emerald-50 text-emerald-600"
-                            : desinfec
-                              ? "bg-amber-50 text-amber-600"
-                              : "bg-blue-50 text-blue-600",
-                        )}
-                      >
-                        <Ambulance className="h-5 w-5" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{v.nome}</p>
-                        <p className="font-mono text-[11px] text-slate-500">{v.placa}</p>
+            {viaturas.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
+                Nenhuma viatura cadastrada na frota exclusiva do SVO.
+              </div>
+            ) : (
+              viaturas.map((v) => {
+                const disponivel = v.status === "DISPONIVEL";
+                const desinfec = v.status === "DESINFECCAO";
+                const infoStatus = rotuloStatusViatura(v.status);
+                const cap = Math.max(1, v.capacidadeMaxima);
+                const percentual = Math.min(100, Math.round((v.ocupacaoAtual / cap) * 100));
+                const liberandoEsta = processandoAcaoId === v.id;
+
+                return (
+                  <div key={v.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "flex h-10 w-10 items-center justify-center rounded-xl",
+                            disponivel
+                              ? "bg-emerald-50 text-emerald-600"
+                              : desinfec
+                                ? "bg-amber-50 text-amber-600"
+                                : "bg-blue-50 text-blue-600",
+                          )}
+                        >
+                          <Ambulance className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{v.modelo}</p>
+                          <p className="font-mono text-[11px] text-slate-500">{v.placa}</p>
+                        </div>
                       </div>
+                      <Badge size="sm" dot variant={infoStatus.variant}>
+                        {infoStatus.label}
+                      </Badge>
                     </div>
-                    <Badge
-                      size="sm"
-                      dot
-                      variant={disponivel ? "success" : desinfec ? "warning" : "info"}
-                    >
-                      {v.status}
-                    </Badge>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                      <span className="inline-flex items-center gap-1.5 text-slate-600">
+                        <Users className="h-3.5 w-3.5 text-slate-400" />
+                        {v.motoristaAtual?.nome || "Sem condutor alocado"}
+                      </span>
+                      <span className="font-semibold text-slate-700">
+                        {v.ocupacaoAtual}/{v.capacidadeMaxima} vagas
+                      </span>
+                    </div>
+
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          v.ocupacaoAtual >= v.capacidadeMaxima
+                            ? "bg-rose-500"
+                            : v.ocupacaoAtual >= Math.max(1, v.capacidadeMaxima - 1)
+                              ? "bg-amber-500"
+                              : "bg-blue-500",
+                        )}
+                        style={{ width: `${percentual}%` }}
+                      />
+                    </div>
+
+                    {desinfec && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full"
+                        disabled={liberandoEsta}
+                        onClick={() => handleConcluirDesinfeccao(v)}
+                      >
+                        {liberandoEsta ? "Liberando..." : "Confirmar desinfecção"}{" "}
+                        <CheckCircle2 className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    )}
+
+                    {disponivel && (
+                      <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-emerald-700">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Liberada para nova coleta
+                      </p>
+                    )}
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                    <span className="inline-flex items-center gap-1.5 text-slate-600">
-                      <Users className="h-3.5 w-3.5 text-slate-400" />
-                      {v.motorista}
-                    </span>
-                    <span className="font-semibold text-slate-700">{v.ocupacao}/4 vagas</span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={cn(
-                        "h-full rounded-full",
-                        v.ocupacao >= 3 ? "bg-amber-500" : "bg-blue-500",
-                      )}
-                      style={{ width: `${v.ocupacao * 25}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 truncate text-[11px] text-slate-500">
-                    <MapPin className="mr-1 inline h-3 w-3" />
-                    {v.local}
-                  </p>
-                  {desinfec && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3 w-full"
-                      onClick={() => concluirDesinfeccao(v)}
-                    >
-                      Confirmar desinfecção <CheckCircle2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {disponivel && (
-                    <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-emerald-700">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Liberada para nova coleta
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
+
           <div className="mx-4 mb-4 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              <strong>Regra operacional:</strong> limite de 4 óbitos por viatura. Após cada entrega,
-              a unidade fica bloqueada até a confirmação da desinfecção.
+              <strong>Regra operacional:</strong> a quantidade de coletas ativas respeita a
+              capacidade máxima de cada viatura SVO. Ao concluir a entrega, a unidade entra em
+              bloqueio sanitário até a confirmação da desinfecção.
             </span>
           </div>
         </Card>
@@ -725,59 +900,47 @@ export const SvoPage: React.FC = () => {
         size="lg"
         footer={modalFooter}
       >
+        {erroModal && (
+          <div
+            role="alert"
+            className="mb-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-800"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{erroModal}</span>
+          </div>
+        )}
+
         {modal === "REGISTRO" && (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
-                label="Nome do solicitante"
-                value={novoChamado.solicitante}
+                label="Nome do falecido"
+                value={novoChamado.nomeFalecido}
                 required
-                onChange={(e) => setNovoChamado((v) => ({ ...v, solicitante: e.target.value }))}
-                placeholder="Nome informado por telefone"
-              />
-              <Input
-                label="Telefone para retorno"
-                type="tel"
-                value={novoChamado.telefone}
-                required
-                onChange={(e) => setNovoChamado((v) => ({ ...v, telefone: e.target.value }))}
-                placeholder="(79) 9 0000-0000"
-              />
-              <Input
-                label="Município / bairro"
-                value={novoChamado.municipio}
-                required
-                onChange={(e) => setNovoChamado((v) => ({ ...v, municipio: e.target.value }))}
-                placeholder="Ex.: Aracaju · Centro"
+                disabled={enviando}
+                onChange={(e) => setNovoChamado((v) => ({ ...v, nomeFalecido: e.target.value }))}
+                placeholder="Nome completo informado no atendimento"
               />
               <Input
                 label="Endereço da ocorrência"
-                value={novoChamado.endereco}
+                value={novoChamado.enderecoOcorrencia}
                 required
-                onChange={(e) => setNovoChamado((v) => ({ ...v, endereco: e.target.value }))}
-                placeholder="Rua, número, referência"
-              />
-              <Select
-                label="Prioridade do chamado"
-                value={novoChamado.urgencia}
-                required
+                disabled={enviando}
                 onChange={(e) =>
-                  setNovoChamado((v) => ({ ...v, urgencia: e.target.value as Chamado["urgencia"] }))
+                  setNovoChamado((v) => ({ ...v, enderecoOcorrencia: e.target.value }))
                 }
-                options={[
-                  { value: "Rotina", label: "Rotina" },
-                  { value: "Prioritário", label: "Prioritário" },
-                ]}
+                placeholder="Rua, número, bairro e município"
               />
             </div>
             <Textarea
-              label="Relato inicial"
-              value={novoChamado.relato}
+              label="Relato da ocorrência"
+              value={novoChamado.relatoOcorrencia}
               required
               rows={4}
-              onChange={(e) => setNovoChamado((v) => ({ ...v, relato: e.target.value }))}
-              placeholder="Registre as informações fornecidas durante a ligação."
-              helperText="O chamado será salvo como aguardando triagem."
+              disabled={enviando}
+              onChange={(e) => setNovoChamado((v) => ({ ...v, relatoOcorrencia: e.target.value }))}
+              placeholder="Registre as circunstâncias do óbito, telefone de retorno e informações da ligação."
+              helperText="Mínimo de 5 caracteres. O chamado será salvo com status Aguardando triagem."
             />
           </div>
         )}
@@ -785,34 +948,37 @@ export const SvoPage: React.FC = () => {
         {modal === "TRIAGEM" && selecionado && (
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Detail label="Protocolo" value={selecionado.protocolo} />
+              <Detail label="Protocolo" value={selecionado.numeroProtocolo ?? selecionado.id} />
               <Detail
-                label="Solicitante / telefone"
-                value={`${selecionado.solicitante} · ${selecionado.telefone}`}
+                label="Nome do falecido"
+                value={selecionado.nomeFalecido || "Não informado"}
               />
-              <Detail label="Município / bairro" value={selecionado.municipio} />
-              <Detail label="Endereço informado" value={selecionado.endereco} />
+              <Detail
+                label="Endereço da ocorrência"
+                value={selecionado.enderecoOcorrencia || "Não informado"}
+              />
+              <Detail
+                label="Atendente responsável"
+                value={selecionado.atendente?.nome || "Registrado na central"}
+              />
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Relato do atendimento
+                Relato da ocorrência
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-slate-700">{selecionado.relato}</p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-700">
+                {selecionado.relatoOcorrencia || "Sem relato adicional."}
+              </p>
             </div>
             <Textarea
-              label="Justificativa da decisão"
+              label="Justificativa / parecer da triagem"
               value={justificativa}
-              required
               rows={4}
+              disabled={enviando}
               onChange={(e) => setJustificativa(e.target.value)}
-              placeholder="Registre os critérios avaliados na triagem..."
-              helperText="Mínimo de 8 caracteres. A justificativa fica registrada no chamado."
+              placeholder="Registre os critérios clínicos e operacionais avaliados na triagem..."
+              helperText="Obrigatória em caso de recusa (mínimo de 3 caracteres)."
             />
-            {justificativa.length > 0 && justificativa.trim().length < 8 && (
-              <p className="-mt-2 text-xs text-rose-600">
-                A justificativa precisa ter pelo menos 8 caracteres.
-              </p>
-            )}
           </div>
         )}
 
@@ -824,57 +990,75 @@ export const SvoPage: React.FC = () => {
                 Triagem aprovada
               </div>
               <p className="mt-1 text-xs text-emerald-800">
-                {selecionado.protocolo} · {selecionado.municipio}
+                {selecionado.numeroProtocolo ?? selecionado.id} ·{" "}
+                {selecionado.nomeFalecido || "Falecido"} ·{" "}
+                {selecionado.enderecoOcorrencia || "Local não informado"}
               </p>
               {selecionado.justificativaTriagem && (
                 <p className="mt-2 text-xs leading-relaxed text-emerald-900">
-                  {selecionado.justificativaTriagem}
+                  Parecer: {selecionado.justificativaTriagem}
                 </p>
               )}
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Select
-                label="Viatura SVO"
-                value={viaturaId}
-                required
-                onChange={(e) => {
-                  setViaturaId(e.target.value);
-                  setQuantidadeObitos("1");
-                }}
-                placeholder="Selecione uma viatura"
-                options={viaturasElegiveis.map((v) => ({
-                  value: v.id,
-                  label: `${v.nome} · ${v.placa} · ${4 - v.ocupacao} vagas`,
-                }))}
-              />
-              <Select
-                label="Quantidade de óbitos"
-                value={quantidadeObitos}
-                required
-                disabled={!viaturaDaOrdem}
-                onChange={(e) => setQuantidadeObitos(e.target.value)}
-                options={Array.from({ length: Math.max(0, vagasRestantes) }, (_, i) => ({
-                  value: String(i + 1),
-                  label: `${i + 1} ${i === 0 ? "óbito" : "óbitos"}`,
-                }))}
-              />
-            </div>
-            {viaturaDaOrdem ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Detail label="Motorista responsável" value={viaturaDaOrdem.motorista} />
-                <Detail
-                  label="Ocupação após alocação"
-                  value={`${viaturaDaOrdem.ocupacao + Number(quantidadeObitos)}/4 vagas`}
-                />
+
+            {viaturasElegiveis.length === 0 ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Não há viatura exclusiva do SVO disponível com vagas livres no momento.
               </div>
             ) : (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                Não há viatura apta com capacidade disponível para emitir esta ordem.
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Select
+                  label="Viatura SVO"
+                  value={viaturaId}
+                  required
+                  disabled={enviando}
+                  onChange={(e) => {
+                    const novoId = e.target.value;
+                    setViaturaId(novoId);
+                    setMotoristaId(selecionarMotoristaPadraoParaViatura(novoId, motoristas));
+                  }}
+                  placeholder="Selecione uma viatura"
+                  options={viaturasElegiveis.map((v) => ({
+                    value: v.id,
+                    label: `${v.modelo} · ${v.placa} (${v.capacidadeMaxima - v.ocupacaoAtual} vaga(s) livre(s))`,
+                  }))}
+                />
+                <Select
+                  label="Motorista habilitado"
+                  value={motoristaId}
+                  required
+                  disabled={enviando || motoristasParaOrdem.length === 0}
+                  onChange={(e) => setMotoristaId(e.target.value)}
+                  placeholder="Selecione um motorista"
+                  options={motoristasParaOrdem.map((m) => ({
+                    value: m.id,
+                    label: nomeMotorista(m),
+                  }))}
+                />
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Número da Declaração de Óbito (opcional)"
+                    value={numeroDeclaracaoObito}
+                    disabled={enviando}
+                    onChange={(e) => setNumeroDeclaracaoObito(e.target.value)}
+                    placeholder="Ex.: DO-2026-009841"
+                  />
+                </div>
               </div>
             )}
-            <p className="text-xs text-slate-500">
-              A emissão da ordem atualiza a ocupação da viatura e registra o início da coleta.
-            </p>
+
+            {viaturaDaOrdem && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Detail
+                  label="Placa / Modelo"
+                  value={`${viaturaDaOrdem.placa} · ${viaturaDaOrdem.modelo}`}
+                />
+                <Detail
+                  label="Ocupação após despacho"
+                  value={`${viaturaDaOrdem.ocupacaoAtual + 1}/${viaturaDaOrdem.capacidadeMaxima} vagas`}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -882,36 +1066,73 @@ export const SvoPage: React.FC = () => {
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs font-bold text-slate-600">
-                {selecionado.protocolo}
+                {selecionado.numeroProtocolo ?? selecionado.id}
               </span>
-              <Badge variant={STATUS_VARIANT[selecionado.status]} dot>
-                {STATUS_LABEL[selecionado.status]}
-              </Badge>
+              {selecionadoStatus && (
+                <Badge variant={STATUS_CHAMADO_VARIANT[selecionadoStatus]} dot>
+                  {STATUS_CHAMADO_LABEL[selecionadoStatus]}
+                </Badge>
+              )}
             </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
-              <Detail label="Solicitante" value={selecionado.solicitante} />
-              <Detail label="Telefone" value={selecionado.telefone} />
-              <Detail label="Município / bairro" value={selecionado.municipio} />
-              <Detail label="Endereço informado" value={selecionado.endereco} />
+              <Detail
+                label="Nome do falecido"
+                value={selecionado.nomeFalecido || "Não informado"}
+              />
+              <Detail
+                label="Endereço da ocorrência"
+                value={selecionado.enderecoOcorrencia || "Não informado"}
+              />
+              <Detail
+                label="Atendente responsável"
+                value={selecionado.atendente?.nome || "Registrado na central"}
+              />
+              <Detail
+                label="Declaração de óbito"
+                value={selecionado.ordemColeta?.numeroDeclaracaoObito || "Não informada"}
+              />
             </div>
+
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Relato inicial
+                Relato da ocorrência
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-slate-700">{selecionado.relato}</p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-700">
+                {selecionado.relatoOcorrencia || "Sem relato adicional."}
+              </p>
             </div>
+
             {selecionado.justificativaTriagem && (
               <div className="rounded-xl border border-slate-200 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Justificativa da triagem
+                  Parecer da triagem
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-700">
                   {selecionado.justificativaTriagem}
                 </p>
               </div>
             )}
-            {selecionado.ordemId && (
-              <Detail label="Ordem de coleta emitida" value={selecionado.ordemId} />
+
+            {selecionado.ordemColeta && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Detail
+                  label="Viatura alocada"
+                  value={
+                    selecionado.ordemColeta.veiculo
+                      ? `${selecionado.ordemColeta.veiculo.modelo} (${selecionado.ordemColeta.veiculo.placa})`
+                      : "Não informada"
+                  }
+                />
+                <Detail
+                  label="Condutor alocado"
+                  value={
+                    selecionado.ordemColeta.motorista?.usuario?.nome ||
+                    selecionado.ordemColeta.motorista?.numeroCnh ||
+                    "Não informado"
+                  }
+                />
+              </div>
             )}
           </div>
         )}
@@ -924,14 +1145,12 @@ function Metric({
   icon: Icon,
   label,
   value,
-  trend,
   caption,
   tone,
 }: {
   icon: React.ElementType;
   label: string;
   value: string | number;
-  trend?: string;
   caption: string;
   tone: "blue" | "amber" | "rose" | "green";
 }) {
@@ -949,12 +1168,6 @@ function Metric({
         >
           <Icon className="h-5 w-5" />
         </span>
-        {trend && (
-          <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
-            <ArrowUpRight className="h-3 w-3" />
-            {trend}
-          </span>
-        )}
       </div>
       <p className="mt-4 text-[11px] font-semibold leading-snug text-slate-500 sm:text-xs">
         {label}

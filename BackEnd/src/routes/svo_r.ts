@@ -6,6 +6,8 @@ import {
   registrarChamadoSvoController,
   triagemSvoController,
   emitirOrdemSvoController,
+  concluirColetaSvoController,
+  concluirDesinfeccaoSvoController,
   listarViaturasSvoController,
   listarMotoristasSvoController,
 } from "../controller/svo_c";
@@ -22,5 +24,7 @@ router.post("/chamados", registrarChamadoSvoController);
 router.post("/chamados/:id/ordens", emitirOrdemSvoController);
 
 router.patch("/chamados/:id/triagem", triagemSvoController);
+router.patch("/chamados/:id/concluir", concluirColetaSvoController);
+router.patch("/viaturas/:id/desinfeccao", concluirDesinfeccaoSvoController);
 
 export default router;
