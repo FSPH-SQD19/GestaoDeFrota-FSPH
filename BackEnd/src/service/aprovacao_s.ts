@@ -29,17 +29,12 @@ function dataLocal(data: Date): string {
     day: "2-digit",
   }).formatToParts(data);
 
-  const parte = (tipo: string) =>
-    partes.find((item) => item.type === tipo)?.value;
+  const parte = (tipo: string) => partes.find((item) => item.type === tipo)?.value;
 
   return `${parte("year")}-${parte("month")}-${parte("day")}`;
 }
 
-export async function aprovarSolicitacao(
-  id: string,
-  dados: AprovarInput,
-  usuarioId: string,
-) {
+export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuarioId: string) {
   validarId(id);
 
   const { veiculoId, motoristaId } = dados;
@@ -48,10 +43,7 @@ export async function aprovarSolicitacao(
     return await prisma.$transaction(
       async (tx) => {
         // Trava os recursos em ordem fixa.
-        const recursos = [
-          `motorista:${motoristaId}`,
-          `veiculo:${veiculoId}`,
-        ].sort();
+        const recursos = [`motorista:${motoristaId}`, `veiculo:${veiculoId}`].sort();
 
         for (const recurso of recursos) {
           await tx.$queryRaw`
@@ -78,20 +70,14 @@ export async function aprovarSolicitacao(
         }
 
         if (solicitacao.status !== "PENDENTE") {
-          throw new HttpError(
-            409,
-            "Solicitação já processada.",
-          );
+          throw new HttpError(409, "Solicitação já processada.");
         }
 
         const inicio = solicitacao.dataHoraPretendida;
         const fim = solicitacao.dataHoraRetornoPrevista;
 
         if (!inicio || !fim || inicio >= fim) {
-          throw new HttpError(
-            422,
-            "A solicitação precisa ter saída e retorno válidos.",
-          );
+          throw new HttpError(422, "A solicitação precisa ter saída e retorno válidos.");
         }
 
         const veiculo = await tx.veiculo.findUnique({
@@ -104,10 +90,7 @@ export async function aprovarSolicitacao(
           veiculo.tipoFrota !== "ADMINISTRATIVA" ||
           veiculo.status !== "DISPONIVEL"
         ) {
-          throw new HttpError(
-            422,
-            "Veículo administrativo indisponível.",
-          );
+          throw new HttpError(422, "Veículo administrativo indisponível.");
         }
 
         const motorista = await tx.motorista.findUnique({
@@ -115,21 +98,13 @@ export async function aprovarSolicitacao(
         });
 
         if (!motorista || !motorista.ativo) {
-          throw new HttpError(
-            422,
-            "Motorista não encontrado ou inativo.",
-          );
+          throw new HttpError(422, "Motorista não encontrado ou inativo.");
         }
 
-        const validadeCnh = motorista.validadeCnh
-          .toISOString()
-          .slice(0, 10);
+        const validadeCnh = motorista.validadeCnh.toISOString().slice(0, 10);
 
         if (validadeCnh < dataLocal(fim)) {
-          throw new HttpError(
-            422,
-            "CNH vencida durante o período da viagem.",
-          );
+          throw new HttpError(422, "CNH vencida durante o período da viagem.");
         }
 
         // Dois intervalos conflitam quando:
@@ -143,19 +118,13 @@ export async function aprovarSolicitacao(
             },
             dataHoraPretendida: { lt: fim },
             dataHoraRetornoPrevista: { gt: inicio },
-            OR: [
-              { veiculoAlocadoId: veiculoId },
-              { motoristaAlocadoId: motoristaId },
-            ],
+            OR: [{ veiculoAlocadoId: veiculoId }, { motoristaAlocadoId: motoristaId }],
           },
           select: { id: true },
         });
 
         if (conflito) {
-          throw new HttpError(
-            409,
-            "Veículo ou motorista já possui viagem neste horário.",
-          );
+          throw new HttpError(409, "Veículo ou motorista já possui viagem neste horário.");
         }
 
         const alteracao = await tx.solicitacaoViagem.updateMany({
@@ -172,10 +141,7 @@ export async function aprovarSolicitacao(
         });
 
         if (alteracao.count !== 1) {
-          throw new HttpError(
-            409,
-            "Solicitação já processada.",
-          );
+          throw new HttpError(409, "Solicitação já processada.");
         }
 
         const aprovada = await tx.solicitacaoViagem.findUniqueOrThrow({
@@ -212,21 +178,14 @@ export async function aprovarSolicitacao(
       erro instanceof Prisma.PrismaClientKnownRequestError &&
       ["P2034", "P2028"].includes(erro.code)
     ) {
-      throw new HttpError(
-        409,
-        "Conflito de concorrência. Tente novamente.",
-      );
+      throw new HttpError(409, "Conflito de concorrência. Tente novamente.");
     }
 
     throw erro;
   }
 }
 
-export async function recusarSolicitacao(
-  id: string,
-  dados: RecusarInput,
-  usuarioId: string,
-) {
+export async function recusarSolicitacao(id: string, dados: RecusarInput, usuarioId: string) {
   validarId(id);
 
   return prisma.$transaction(async (tx) => {
@@ -249,9 +208,7 @@ export async function recusarSolicitacao(
 
       throw new HttpError(
         existente ? 409 : 404,
-        existente
-          ? "Solicitação já processada."
-          : "Solicitação não encontrada.",
+        existente ? "Solicitação já processada." : "Solicitação não encontrada.",
       );
     }
 

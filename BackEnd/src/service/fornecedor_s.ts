@@ -1,4 +1,3 @@
-
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -33,18 +32,10 @@ async function registrarAuditoriaFornecedor(
       acao,
       tabelaAfetada: "fornecedores",
       registroId: fornecedor.id,
-      dadosNovos: JSON.parse(
-        JSON.stringify(
-          operacao ? { operacao, fornecedor } : fornecedor,
-        ),
-      ),
+      dadosNovos: JSON.parse(JSON.stringify(operacao ? { operacao, fornecedor } : fornecedor)),
     });
   } catch (erro) {
-    console.error(
-      "Falha ao registrar auditoria do fornecedor",
-      fornecedor.id,
-      erro,
-    );
+    console.error("Falha ao registrar auditoria do fornecedor", fornecedor.id, erro);
   }
 }
 
@@ -55,10 +46,7 @@ export async function listarFornecedores() {
   });
 }
 
-export async function cadastrarFornecedor(
-  dados: NovoFornecedor,
-  usuarioResponsavelId: string,
-) {
+export async function cadastrarFornecedor(dados: NovoFornecedor, usuarioResponsavelId: string) {
   const razaoSocial = dados.razaoSocial?.trim();
   const cnpj = dados.cnpj?.replace(/\D/g, "");
   const tipoServico = dados.tipoServico?.trim().toUpperCase();
@@ -95,21 +83,14 @@ export async function cadastrarFornecedor(
       },
     });
   } catch (erro) {
-    if (
-      erro instanceof Prisma.PrismaClientKnownRequestError &&
-      erro.code === "P2002"
-    ) {
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002") {
       throw new Error("CNPJ_JA_CADASTRADO");
     }
 
     throw erro;
   }
 
-  await registrarAuditoriaFornecedor(
-    usuarioResponsavelId,
-    "CRIAR",
-    fornecedor,
-  );
+  await registrarAuditoriaFornecedor(usuarioResponsavelId, "CRIAR", fornecedor);
 
   return fornecedor;
 }
@@ -134,10 +115,7 @@ export async function atualizarFornecedor(
   const dadosAtualizados: AtualizarFornecedor = {};
 
   if (dados.razaoSocial !== undefined) {
-    if (
-      typeof dados.razaoSocial !== "string" ||
-      !dados.razaoSocial.trim()
-    ) {
+    if (typeof dados.razaoSocial !== "string" || !dados.razaoSocial.trim()) {
       throw new Error("CAMPOS_OBRIGATORIOS");
     }
 
@@ -174,29 +152,19 @@ export async function atualizarFornecedor(
       data: dadosAtualizados,
     });
   } catch (erro) {
-    if (
-      erro instanceof Prisma.PrismaClientKnownRequestError &&
-      erro.code === "P2025"
-    ) {
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2025") {
       throw new Error("FORNECEDOR_NAO_ENCONTRADO");
     }
 
     throw erro;
   }
 
-  await registrarAuditoriaFornecedor(
-    usuarioResponsavelId,
-    "ATUALIZAR",
-    fornecedor,
-  );
+  await registrarAuditoriaFornecedor(usuarioResponsavelId, "ATUALIZAR", fornecedor);
 
   return fornecedor;
 }
 
-export async function inativarFornecedor(
-  id: string,
-  usuarioResponsavelId: string,
-) {
+export async function inativarFornecedor(id: string, usuarioResponsavelId: string) {
   if (!z.uuid().safeParse(id).success) {
     throw new Error("ID_INVALIDO");
   }
@@ -209,22 +177,14 @@ export async function inativarFornecedor(
       data: { ativo: false },
     });
   } catch (erro) {
-    if (
-      erro instanceof Prisma.PrismaClientKnownRequestError &&
-      erro.code === "P2025"
-    ) {
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2025") {
       throw new Error("FORNECEDOR_NAO_ENCONTRADO");
     }
 
     throw erro;
   }
 
-  await registrarAuditoriaFornecedor(
-    usuarioResponsavelId,
-    "ATUALIZAR",
-    fornecedor,
-    "INATIVAR",
-  );
+  await registrarAuditoriaFornecedor(usuarioResponsavelId, "ATUALIZAR", fornecedor, "INATIVAR");
 
   return fornecedor;
 }

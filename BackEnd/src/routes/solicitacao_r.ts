@@ -1,8 +1,5 @@
 import { Router } from "express";
-import {
-  authenticate,
-  requireRole,
-} from "../middleware/http_m";
+import { authenticate, requireRole } from "../middleware/http_m";
 import {
   listarSolicitacoesController,
   criarSolicitacaoController,
@@ -12,17 +9,9 @@ import {
 
 const router = Router();
 
-router.get(
-  "/",
-  authenticate,
-  listarSolicitacoesController,
-);
+router.get("/", authenticate, listarSolicitacoesController);
 
-router.post(
-  "/",
-  authenticate,
-  criarSolicitacaoController,
-);
+router.post("/", authenticate, criarSolicitacaoController);
 
 router.patch(
   "/:id/aprovar",

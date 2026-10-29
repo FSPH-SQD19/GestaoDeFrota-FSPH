@@ -14,40 +14,22 @@ import {
   recusarSolicitacaoSchema,
 } from "../service/aprovacao_s";
 
-export async function listarSolicitacoesController(
-  req: Request,
-  res: Response,
-) {
+export async function listarSolicitacoesController(req: Request, res: Response) {
   const filtros = validar(listarSolicitacoesSchema, req.query);
-  const resultado = await listarSolicitacoes(
-    filtros,
-    usuarioAutenticado(res),
-  );
+  const resultado = await listarSolicitacoes(filtros, usuarioAutenticado(res));
 
   return res.status(200).json(resultado);
 }
 
-export async function criarSolicitacaoController(
-  req: Request,
-  res: Response,
-) {
+export async function criarSolicitacaoController(req: Request, res: Response) {
   const dados = validar(criarSolicitacaoSchema, req.body ?? {});
-  const solicitacao = await criarSolicitacao(
-    dados,
-    usuarioAutenticado(res).id,
-  );
+  const solicitacao = await criarSolicitacao(dados, usuarioAutenticado(res).id);
 
   return res.status(201).json(solicitacao);
 }
 
-export async function aprovarSolicitacaoController(
-  req: Request,
-  res: Response,
-) {
-  const dados = validar(
-    aprovarSolicitacaoSchema,
-    req.body ?? {},
-  );
+export async function aprovarSolicitacaoController(req: Request, res: Response) {
+  const dados = validar(aprovarSolicitacaoSchema, req.body ?? {});
 
   const solicitacao = await aprovarSolicitacao(
     String(req.params.id),
@@ -61,14 +43,8 @@ export async function aprovarSolicitacaoController(
   });
 }
 
-export async function recusarSolicitacaoController(
-  req: Request,
-  res: Response,
-) {
-  const dados = validar(
-    recusarSolicitacaoSchema,
-    req.body ?? {},
-  );
+export async function recusarSolicitacaoController(req: Request, res: Response) {
+  const dados = validar(recusarSolicitacaoSchema, req.body ?? {});
 
   const solicitacao = await recusarSolicitacao(
     String(req.params.id),
