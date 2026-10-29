@@ -149,8 +149,8 @@ export const AnalisarSolicitacaoModal: React.FC<AnalisarSolicitacaoModalProps> =
         await onAprovar(
           solicitacao.id,
           {
-            veiculoAlocadoId: veiculoSelecionado.id,
-            motoristaAlocadoId: motoristaSelecionado.id,
+            veiculoId: veiculoSelecionado.id,
+            motoristaId: motoristaSelecionado.id,
           },
           {
             veiculo: veiculoSelecionado,

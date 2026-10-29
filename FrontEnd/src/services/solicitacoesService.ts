@@ -41,16 +41,37 @@ export function montarHeaders(tokenExplicito?: string | null): HeadersInit {
   };
 }
 
+interface ErroDetalheApi {
+  campo?: string;
+  mensagem?: string;
+}
+
 interface ErroApi {
   error?: string;
   message?: string;
   mensagem?: string;
+  errors?: Array<ErroDetalheApi | string>;
   details?: string[];
 }
 
 export async function extrairErroApi(response: Response, mensagemPadrao: string): Promise<string> {
   try {
     const corpo = (await response.json()) as ErroApi;
+    if (Array.isArray(corpo.errors) && corpo.errors.length > 0) {
+      const mensagens = corpo.errors
+        .map((item) => {
+          if (typeof item === "string") return item.trim();
+          if (item && typeof item.mensagem === "string" && item.mensagem.trim()) {
+            return item.mensagem.trim();
+          }
+          return "";
+        })
+        .filter(Boolean);
+
+      if (mensagens.length > 0) {
+        return mensagens.join(" ");
+      }
+    }
     if (Array.isArray(corpo.details) && corpo.details.length > 0 && corpo.details[0]) {
       return corpo.details[0];
     }
@@ -139,6 +160,9 @@ export async function listarSolicitacoesApi(
   }
   if (params.urgencia) query.set("urgencia", params.urgencia);
   if (params.tipoTransporte) query.set("tipoTransporte", params.tipoTransporte);
+  if (params.setorOrigem && params.setorOrigem.trim()) {
+    query.set("setorOrigem", params.setorOrigem.trim());
+  }
   if (params.busca && params.busca.trim()) {
     query.set("busca", params.busca.trim());
   }
@@ -312,6 +336,16 @@ export async function listarMotoristasDisponiveisApi(
     }));
 }
 
+function extrairRegistroAcao(payload: unknown): SolicitacaoApiRaw {
+  if (payload && typeof payload === "object" && "dados" in payload) {
+    const interno = (payload as { dados?: unknown }).dados;
+    if (interno && typeof interno === "object") {
+      return interno as SolicitacaoApiRaw;
+    }
+  }
+  return payload as SolicitacaoApiRaw;
+}
+
 export async function aprovarSolicitacaoApi(
   id: string,
   dados: AprovarSolicitacaoInput,
@@ -329,8 +363,8 @@ export async function aprovarSolicitacaoApi(
     );
   }
 
-  const atualizada = (await response.json()) as SolicitacaoApiRaw;
-  return normalizarSolicitacao(atualizada);
+  const corpo: unknown = await response.json();
+  return normalizarSolicitacao(extrairRegistroAcao(corpo));
 }
 
 export async function recusarSolicitacaoApi(
@@ -350,6 +384,6 @@ export async function recusarSolicitacaoApi(
     );
   }
 
-  const atualizada = (await response.json()) as SolicitacaoApiRaw;
-  return normalizarSolicitacao(atualizada);
+  const corpo: unknown = await response.json();
+  return normalizarSolicitacao(extrairRegistroAcao(corpo));
 }

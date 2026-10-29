@@ -80,6 +80,7 @@ export const SolicitacoesPage: React.FC = () => {
   const isGestor = hasRole(["GESTOR", "ADMIN"]);
 
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoViagem[]>([]);
+  const [pendentesUrgentes, setPendentesUrgentes] = useState<SolicitacaoViagem[]>([]);
   const [porStatusApi, setPorStatusApi] = useState<ContagemPorStatus | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -100,12 +101,22 @@ export const SolicitacoesPage: React.FC = () => {
   } | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
+  const statusSelecionados = useMemo(
+    () => FILTROS.find((f) => f.id === filtro)?.status ?? undefined,
+    [filtro],
+  );
+
+  // Carrega a listagem paginada aplicando busca e filtros diretamente na API
   useEffect(() => {
     let ativa = true;
     void listarSolicitacoesApi(
       {
         page,
         pageSize: PAGE_SIZE,
+        status: statusSelecionados,
+        urgencia: filtroUrgencia === "TODAS" ? undefined : filtroUrgencia,
+        setorOrigem: filtroSetor === "TODOS" ? undefined : filtroSetor,
+        busca: busca.trim() || undefined,
       },
       token,
     )
@@ -131,12 +142,73 @@ export const SolicitacoesPage: React.FC = () => {
     return () => {
       ativa = false;
     };
-  }, [page, token, reloadTick]);
+  }, [page, statusSelecionados, filtroUrgencia, filtroSetor, busca, token, reloadTick]);
 
-  const handleRecarregar = () => {
+  // Carrega a fila prioritária URGENTE completa (independente da página atual da tabela)
+  useEffect(() => {
+    if (!isGestor) return;
+
+    let ativa = true;
+    void listarSolicitacoesApi(
+      {
+        page: 1,
+        pageSize: 100,
+        status: ["PENDENTE"],
+        urgencia: "URGENTE",
+      },
+      token,
+    )
+      .then((resposta) => {
+        if (ativa) {
+          setPendentesUrgentes(resposta.data);
+        }
+      })
+      .catch(() => {
+        // Caso falhe, o erro principal já é exibido pela consulta da tabela.
+      });
+
+    return () => {
+      ativa = false;
+    };
+  }, [isGestor, token, reloadTick]);
+
+  const dispararRecarregamento = (resetarPagina = false) => {
     setCarregando(true);
     setErroCarregamento(null);
+    if (resetarPagina) {
+      setPage(1);
+    }
     setReloadTick((t) => t + 1);
+  };
+
+  const handleBuscaChange = (valor: string) => {
+    setCarregando(true);
+    setBusca(valor);
+    setPage(1);
+  };
+
+  const handleFiltroStatusChange = (novoFiltro: FiltroStatus) => {
+    if (novoFiltro === filtro) return;
+    setCarregando(true);
+    setFiltro(novoFiltro);
+    setPage(1);
+  };
+
+  const handleFiltroSetorChange = (novoSetor: string) => {
+    setCarregando(true);
+    setFiltroSetor(novoSetor);
+    setPage(1);
+  };
+
+  const handleFiltroUrgenciaChange = (novaUrgencia: FiltroUrgencia) => {
+    setCarregando(true);
+    setFiltroUrgencia(novaUrgencia);
+    setPage(1);
+  };
+
+  const handleMudarPagina = (novaPagina: number) => {
+    setCarregando(true);
+    setPage(novaPagina);
   };
 
   const opcoesSetor = useMemo(() => {
@@ -144,21 +216,16 @@ export const SolicitacoesPage: React.FC = () => {
     for (const item of solicitacoes) {
       if (item.setorOrigem) conjunto.add(item.setorOrigem);
     }
+    for (const item of pendentesUrgentes) {
+      if (item.setorOrigem) conjunto.add(item.setorOrigem);
+    }
     return [
       { value: "TODOS", label: "Todos os setores" },
       ...Array.from(conjunto).map((s) => ({ value: s, label: s })),
     ];
-  }, [solicitacoes]);
-
-  const pendentesUrgentes = useMemo(
-    () => solicitacoes.filter((s) => s.status === "PENDENTE" && s.urgencia === "URGENTE"),
-    [solicitacoes],
-  );
+  }, [solicitacoes, pendentesUrgentes]);
 
   const contagem = useMemo(() => {
-    const por = (s: StatusSolicitacao[]) => solicitacoes.filter((x) => s.includes(x.status)).length;
-    const totalLista = solicitacoes.length;
-
     if (porStatusApi) {
       const totalApi =
         porStatusApi.PENDENTE +
@@ -167,62 +234,38 @@ export const SolicitacoesPage: React.FC = () => {
         porStatusApi.CONCLUIDA +
         porStatusApi.RECUSADA;
 
-      if (totalApi >= totalLista) {
-        return {
-          total: totalApi,
-          pendentes: porStatusApi.PENDENTE,
-          aprovadas: porStatusApi.APROVADA + porStatusApi.EM_TRANSITO,
-          recusadas: porStatusApi.RECUSADA,
-        };
-      }
+      return {
+        total: totalApi,
+        pendentes: porStatusApi.PENDENTE,
+        aprovadas: porStatusApi.APROVADA + porStatusApi.EM_TRANSITO,
+        recusadas: porStatusApi.RECUSADA,
+      };
     }
 
+    const por = (s: StatusSolicitacao[]) => solicitacoes.filter((x) => s.includes(x.status)).length;
     return {
-      total: totalLista,
+      total: solicitacoes.length,
       pendentes: por(["PENDENTE"]),
       aprovadas: por(["APROVADA", "EM_TRANSITO"]),
       recusadas: por(["RECUSADA"]),
     };
   }, [solicitacoes, porStatusApi]);
 
-  const filtradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    const statusFiltro = FILTROS.find((f) => f.id === filtro)?.status;
-    return solicitacoes
-      .filter((s) => !statusFiltro || statusFiltro.includes(s.status))
-      .filter((s) => filtroSetor === "TODOS" || s.setorOrigem === filtroSetor)
-      .filter((s) => filtroUrgencia === "TODAS" || s.urgencia === filtroUrgencia)
-      .filter(
-        (s) =>
-          !termo ||
-          s.protocolo.toLowerCase().includes(termo) ||
-          s.destino.toLowerCase().includes(termo) ||
-          s.origem.toLowerCase().includes(termo) ||
-          s.solicitanteNome.toLowerCase().includes(termo) ||
-          s.setorOrigem.toLowerCase().includes(termo),
-      )
-      .sort((a, b) => {
-        if (isGestor) {
-          const diffPeso = pesoFilaGestor(a) - pesoFilaGestor(b);
-          if (diffPeso !== 0) return diffPeso;
-        }
-        return b.criadoEm.localeCompare(a.criadoEm);
-      });
-  }, [solicitacoes, busca, filtro, filtroSetor, filtroUrgencia, isGestor]);
+  const linhasOrdenadas = useMemo(() => {
+    return [...solicitacoes].sort((a, b) => {
+      if (isGestor) {
+        const diffPeso = pesoFilaGestor(a) - pesoFilaGestor(b);
+        if (diffPeso !== 0) return diffPeso;
+      }
+      return b.criadoEm.localeCompare(a.criadoEm);
+    });
+  }, [solicitacoes, isGestor]);
 
   const handleNovaSolicitacao = async (dados: NovaSolicitacaoViagem) => {
     const nova = await criarSolicitacaoApi(dados, token);
-    setSolicitacoes((prev) => [nova, ...prev.filter((item) => item.id !== nova.id)]);
-    setPorStatusApi((prev) =>
-      prev
-        ? {
-            ...prev,
-            PENDENTE: prev.PENDENTE + 1,
-          }
-        : null,
-    );
     setIsNovaOpen(false);
     setFiltro("TODAS");
+    dispararRecarregamento(true);
     setMensagemSucesso(
       `Solicitação ${nova.protocolo} enviada! Aguarde a análise do Gestor de Frota.`,
     );
@@ -234,31 +277,10 @@ export const SolicitacoesPage: React.FC = () => {
     resumo: { veiculo: VeiculoDisponivelOption; motorista: MotoristaDisponivelOption },
   ) => {
     const atualizada = await aprovarSolicitacaoApi(solicitacaoId, dados, token);
-    const enriquecida: SolicitacaoViagem = {
-      ...atualizada,
-      status: "APROVADA",
-      veiculoAlocado: atualizada.veiculoAlocado ?? {
-        placa: resumo.veiculo.placa,
-        modelo: resumo.veiculo.modelo,
-      },
-      motoristaAlocado: atualizada.motoristaAlocado ?? {
-        nome: resumo.motorista.nome,
-      },
-    };
-
-    setSolicitacoes((prev) => prev.map((item) => (item.id === solicitacaoId ? enriquecida : item)));
-    setPorStatusApi((prev) =>
-      prev
-        ? {
-            ...prev,
-            PENDENTE: Math.max(0, prev.PENDENTE - 1),
-            APROVADA: prev.APROVADA + 1,
-          }
-        : null,
-    );
     setAnaliseAlvo(null);
+    dispararRecarregamento(false);
     setMensagemSucesso(
-      `Solicitação ${enriquecida.protocolo} aprovada! Veículo ${resumo.veiculo.placa} e motorista ${resumo.motorista.nome} alocados.`,
+      `Solicitação ${atualizada.protocolo} aprovada! Veículo ${resumo.veiculo.placa} e motorista ${resumo.motorista.nome} alocados.`,
     );
   };
 
@@ -267,25 +289,10 @@ export const SolicitacoesPage: React.FC = () => {
     dados: RecusarSolicitacaoInput,
   ) => {
     const atualizada = await recusarSolicitacaoApi(solicitacaoId, dados, token);
-    const enriquecida: SolicitacaoViagem = {
-      ...atualizada,
-      status: "RECUSADA",
-      motivoRecusa: atualizada.motivoRecusa ?? dados.motivoRecusa,
-    };
-
-    setSolicitacoes((prev) => prev.map((item) => (item.id === solicitacaoId ? enriquecida : item)));
-    setPorStatusApi((prev) =>
-      prev
-        ? {
-            ...prev,
-            PENDENTE: Math.max(0, prev.PENDENTE - 1),
-            RECUSADA: prev.RECUSADA + 1,
-          }
-        : null,
-    );
     setAnaliseAlvo(null);
+    dispararRecarregamento(false);
     setMensagemSucesso(
-      `Solicitação ${enriquecida.protocolo} recusada e justificativa enviada ao setor solicitante.`,
+      `Solicitação ${atualizada.protocolo} recusada e justificativa enviada ao setor solicitante.`,
     );
   };
 
@@ -463,7 +470,7 @@ export const SolicitacoesPage: React.FC = () => {
             variant="outline"
             size="sm"
             leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
-            onClick={handleRecarregar}
+            onClick={() => dispararRecarregamento(false)}
           >
             Tentar novamente
           </Button>
@@ -559,7 +566,7 @@ export const SolicitacoesPage: React.FC = () => {
             <Input
               placeholder="Buscar por protocolo, origem ou destino..."
               value={busca}
-              onChange={(e) => setBusca(e.target.value)}
+              onChange={(e) => handleBuscaChange(e.target.value)}
               leftIcon={<Search className="w-4 h-4 text-slate-400" />}
               aria-label="Buscar solicitações"
             />
@@ -570,13 +577,13 @@ export const SolicitacoesPage: React.FC = () => {
               <Select
                 aria-label="Filtrar por setor"
                 value={filtroSetor}
-                onChange={(e) => setFiltroSetor(e.target.value)}
+                onChange={(e) => handleFiltroSetorChange(e.target.value)}
                 options={opcoesSetor}
               />
               <Select
                 aria-label="Filtrar por urgência"
                 value={filtroUrgencia}
-                onChange={(e) => setFiltroUrgencia(e.target.value as FiltroUrgencia)}
+                onChange={(e) => handleFiltroUrgenciaChange(e.target.value as FiltroUrgencia)}
                 options={[
                   { value: "TODAS", label: "Todas as urgências" },
                   { value: "URGENTE", label: "Apenas urgentes" },
@@ -596,7 +603,7 @@ export const SolicitacoesPage: React.FC = () => {
                 type="button"
                 role="tab"
                 aria-selected={filtro === f.id}
-                onClick={() => setFiltro(f.id)}
+                onClick={() => handleFiltroStatusChange(f.id)}
                 className={cn(
                   "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
                   filtro === f.id
@@ -613,7 +620,7 @@ export const SolicitacoesPage: React.FC = () => {
 
       <Table
         columns={columns}
-        data={filtradas}
+        data={linhasOrdenadas}
         keyExtractor={(s) => s.id}
         isLoading={carregando}
         emptyMessage="Nenhuma solicitação encontrada com esse filtro ou busca."
@@ -630,7 +637,7 @@ export const SolicitacoesPage: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={page <= 1 || carregando}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => handleMudarPagina(Math.max(1, page - 1))}
             >
               Anterior
             </Button>
@@ -638,7 +645,7 @@ export const SolicitacoesPage: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={page >= totalPages || carregando}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => handleMudarPagina(Math.min(totalPages, page + 1))}
             >
               Próxima
             </Button>

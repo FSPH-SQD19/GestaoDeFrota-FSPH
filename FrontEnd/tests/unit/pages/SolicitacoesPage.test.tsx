@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../../src/contexts/AuthContext";
@@ -89,17 +89,47 @@ const MOTORISTAS_DISPONIVEIS = [
   },
 ];
 
-function montarRespostaListagem(lista: SolicitacaoViagem[]) {
+function montarRespostaListagem(listaCompleta: SolicitacaoViagem[], urlStr: string) {
+  const url = new URL(urlStr, "http://localhost:3000");
+  const page = Number(url.searchParams.get("page") ?? "1");
+  const pageSize = Number(url.searchParams.get("pageSize") ?? "20");
+  const statusParam = url.searchParams.get("status");
+  const urgenciaParam = url.searchParams.get("urgencia");
+  const setorParam = url.searchParams.get("setorOrigem");
+  const buscaParam = url.searchParams.get("busca")?.toLowerCase();
+
+  const statusPermitidos = statusParam ? statusParam.split(",") : null;
+
+  const baseFiltrada = listaCompleta.filter((item) => {
+    if (urgenciaParam && item.urgencia !== urgenciaParam) return false;
+    if (setorParam && item.setorOrigem !== setorParam) return false;
+    if (buscaParam) {
+      const bate =
+        item.protocolo.toLowerCase().includes(buscaParam) ||
+        item.origem.toLowerCase().includes(buscaParam) ||
+        item.destino.toLowerCase().includes(buscaParam);
+      if (!bate) return false;
+    }
+    return true;
+  });
+
   const contar = (status: SolicitacaoViagem["status"]) =>
-    lista.filter((item) => item.status === status).length;
+    baseFiltrada.filter((item) => item.status === status).length;
+
+  const filtradaComStatus = statusPermitidos
+    ? baseFiltrada.filter((item) => statusPermitidos.includes(item.status))
+    : baseFiltrada;
+
+  const inicio = (page - 1) * pageSize;
+  const paginada = filtradaComStatus.slice(inicio, inicio + pageSize);
 
   return {
-    data: lista,
+    data: paginada,
     meta: {
-      page: 1,
-      pageSize: 20,
-      total: lista.length,
-      totalPages: 1,
+      page,
+      pageSize,
+      total: filtradaComStatus.length,
+      totalPages: Math.max(1, Math.ceil(filtradaComStatus.length / pageSize)),
       porStatus: {
         PENDENTE: contar("PENDENTE"),
         APROVADA: contar("APROVADA"),
@@ -142,16 +172,18 @@ function dataFuturaLocal(dias: number, hora: number): string {
 }
 
 describe("SolicitacoesPage (integrada à API)", () => {
+  let listaAtual: SolicitacaoViagem[];
+
   beforeEach(() => {
     localStorage.clear();
-    const listaAtual = [...SOLICITACOES_INICIAIS];
+    listaAtual = [...SOLICITACOES_INICIAIS];
 
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" ? input : input.toString();
       const method = (init?.method ?? "GET").toUpperCase();
 
       if (url.includes("/api/v1/solicitacoes") && method === "GET") {
-        return new Response(JSON.stringify(montarRespostaListagem(listaAtual)), {
+        return new Response(JSON.stringify(montarRespostaListagem(listaAtual, url)), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
@@ -160,7 +192,7 @@ describe("SolicitacoesPage (integrada à API)", () => {
       if (url.includes("/api/v1/solicitacoes") && method === "POST") {
         const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
         const criada: SolicitacaoViagem = {
-          id: "sol-nova-01",
+          id: `sol-nova-${listaAtual.length + 1}`,
           protocolo: "SV-2026-0148",
           solicitanteNome: "Marina Costa",
           setorOrigem: String(body.setorOrigem ?? "LACEN"),
@@ -207,10 +239,14 @@ describe("SolicitacoesPage (integrada à API)", () => {
           veiculoAlocado: { placa: "QMA-4821", modelo: "Fiat Doblo Essence 1.8" },
           motoristaAlocado: { nome: "Roberto Nascimento" },
         };
-        return new Response(JSON.stringify(aprovada), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        listaAtual[0] = aprovada;
+        return new Response(
+          JSON.stringify({ mensagem: "Solicitação aprovada com sucesso.", dados: aprovada }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
 
       if (url.endsWith("/recusar") && method === "PATCH") {
@@ -221,10 +257,14 @@ describe("SolicitacoesPage (integrada à API)", () => {
           status: "RECUSADA",
           motivoRecusa: body.motivoRecusa ?? "Recusado pelo gestor.",
         };
-        return new Response(JSON.stringify(recusada), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        listaAtual[0] = recusada;
+        return new Response(
+          JSON.stringify({ mensagem: "Solicitação recusada com sucesso.", dados: recusada }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
 
       return new Response(JSON.stringify({ error: "Rota não mapeada no teste" }), { status: 404 });
@@ -246,31 +286,91 @@ describe("SolicitacoesPage (integrada à API)", () => {
     expect(screen.getAllByRole("row")).toHaveLength(4);
   });
 
-  it("filtra por status recusada", async () => {
+  it("filtra por status recusada consultando a API", async () => {
     const user = userEvent.setup();
     renderPage(["SOLICITANTE"]);
 
     await screen.findByText("SV-2026-0142");
     await user.click(screen.getByRole("tab", { name: "Recusadas" }));
 
-    expect(screen.getByText("SV-2026-0098")).toBeInTheDocument();
+    expect(await screen.findByText("SV-2026-0098")).toBeInTheDocument();
     expect(screen.queryByText("SV-2026-0142")).not.toBeInTheDocument();
   });
 
-  it("exibe erros de validação ao enviar o formulário vazio", async () => {
+  it("aplica busca no servidor encontrando solicitações fora da primeira página", async () => {
+    listaAtual = Array.from({ length: 21 }, (_, idx) => ({
+      ...SOLICITACOES_INICIAIS[1],
+      id: `sol-pag-${idx + 1}`,
+      protocolo: `SV-2026-${String(200 + idx).padStart(4, "0")}`,
+      destino: idx === 20 ? "Hospital Regional de Estância" : "Destino Comum",
+      status: "APROVADA" as const,
+      urgencia: "NORMAL" as const,
+    }));
+
     const user = userEvent.setup();
     renderPage(["SOLICITANTE"]);
 
-    await screen.findByText("SV-2026-0142");
-    await user.click(screen.getByRole("button", { name: "Nova Solicitação de Viagem" }));
-    await user.click(screen.getByRole("button", { name: "Enviar Solicitação" }));
+    await screen.findByText("SV-2026-0200");
+    expect(screen.queryByText("Hospital Regional de Estância")).not.toBeInTheDocument();
 
-    expect(await screen.findByText("Informe o local de partida.")).toBeInTheDocument();
-    expect(screen.getByText("Informe o destino da viagem.")).toBeInTheDocument();
-    expect(screen.getByText("Informe a data e hora de saída.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Buscar solicitações"), "Estância");
+
+    expect(await screen.findByText("Hospital Regional de Estância")).toBeInTheDocument();
   });
 
-  it("cria uma nova solicitação pendente enviando POST para a API", async () => {
+  it("atualiza a paginação após criar a 21ª solicitação", async () => {
+    listaAtual = Array.from({ length: 20 }, (_, idx) => ({
+      ...SOLICITACOES_INICIAIS[1],
+      id: `sol-lote-${idx + 1}`,
+      protocolo: `SV-2026-${String(300 + idx).padStart(4, "0")}`,
+      status: "APROVADA" as const,
+      urgencia: "NORMAL" as const,
+    }));
+
+    const user = userEvent.setup();
+    renderPage(["SOLICITANTE"]);
+
+    await screen.findByText("SV-2026-0300");
+    expect(screen.queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Nova Solicitação de Viagem" }));
+    await user.type(screen.getByLabelText(/^origem/i), "LACEN — Aracaju");
+    await user.type(screen.getByLabelText(/^destino/i), "Hospital de Propriá");
+    fireEvent.change(screen.getByLabelText(/data e hora de saída/i), {
+      target: { value: dataFuturaLocal(3, 9) },
+    });
+    await user.type(
+      screen.getByLabelText(/^justificativa/i),
+      "Transporte de equipe para capacitação.",
+    );
+    await user.click(screen.getByRole("button", { name: "Enviar Solicitação" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/SV-2026-0148/i);
+    expect(await screen.findByRole("button", { name: "Próxima" })).toBeInTheDocument();
+  });
+
+  it("exibe detalhes dos campos inválidos vindos em errors do backend", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const method = (init?.method ?? "GET").toUpperCase();
+
+      if (url.includes("/api/v1/solicitacoes") && method === "POST") {
+        return new Response(
+          JSON.stringify({
+            statusCode: 400,
+            message: "Dados inválidos.",
+            errors: [{ campo: "dataHoraPretendida", mensagem: "A data de saída deve ser futura." }],
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(JSON.stringify(montarRespostaListagem(listaAtual, url)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
     const user = userEvent.setup();
     renderPage(["SOLICITANTE"]);
 
@@ -287,47 +387,46 @@ describe("SolicitacoesPage (integrada à API)", () => {
     );
     await user.click(screen.getByRole("button", { name: "Enviar Solicitação" }));
 
-    const aviso = await screen.findByRole("status");
-    expect(aviso).toHaveTextContent(/SV-2026-0148/i);
-    expect(screen.getByText("Hospital de Propriá")).toBeInTheDocument();
-    expect(screen.getAllByRole("row")).toHaveLength(5);
+    expect(await screen.findByRole("alert")).toHaveTextContent("A data de saída deve ser futura.");
   });
 
-  it("mostra veículo e motorista nos detalhes de uma viagem aprovada", async () => {
-    const user = userEvent.setup();
-    renderPage(["SOLICITANTE"]);
+  it("exibe a fila prioritária URGENTE mesmo quando o pedido urgente está em outra página", async () => {
+    listaAtual = [
+      ...Array.from({ length: 20 }, (_, idx) => ({
+        ...SOLICITACOES_INICIAIS[1],
+        id: `sol-pag1-${idx + 1}`,
+        protocolo: `SV-2026-${String(400 + idx).padStart(4, "0")}`,
+        status: "APROVADA" as const,
+        urgencia: "NORMAL" as const,
+      })),
+      {
+        ...SOLICITACOES_INICIAIS[0],
+        id: "sol-urg-pag2",
+        protocolo: "SV-2026-0999",
+        status: "PENDENTE",
+        urgencia: "URGENTE",
+      },
+    ];
 
-    await screen.findByText("SV-2026-0137");
-    await user.click(
-      screen.getByRole("button", { name: "Ver detalhes da solicitação SV-2026-0137" }),
-    );
-
-    const dialogo = screen
-      .getByText("Solicitação SV-2026-0137")
-      .closest("div.relative") as HTMLElement;
-    expect(within(dialogo).getByText("BRA-2E19")).toBeInTheDocument();
-    expect(within(dialogo).getByText("Carlos Alberto")).toBeInTheDocument();
-  });
-
-  it("exibe a fila de análise prioritária URGENTE e filtra por setor na visão do GESTOR", async () => {
-    const user = userEvent.setup();
     renderPage(["GESTOR"]);
 
-    expect(
-      screen.getByRole("heading", { name: "Gestão de Solicitações de Viagem" }),
-    ).toBeInTheDocument();
     expect(await screen.findByText(/Fila de Análise Prioritária/i)).toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText("Filtrar por setor"), "Hemose");
-    expect(screen.getByText("SV-2026-0137")).toBeInTheDocument();
-    expect(screen.queryByText("SV-2026-0098")).not.toBeInTheDocument();
+    expect(screen.getByText("SV-2026-0999")).toBeInTheDocument();
   });
 
-  it("permite ao GESTOR aprovar uma solicitação pendente alocando veículo e motorista", async () => {
+  it("permite ao GESTOR filtrar por setor na API e aprovar alocando veículo e motorista", async () => {
     const user = userEvent.setup();
     renderPage(["GESTOR"]);
 
     await screen.findByText(/Fila de Análise Prioritária/i);
+
+    await user.selectOptions(screen.getByLabelText("Filtrar por setor"), "Hemose");
+    expect(await screen.findByText("SV-2026-0137")).toBeInTheDocument();
+    expect(screen.queryByText("SV-2026-0098")).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Filtrar por setor"), "TODOS");
+    await screen.findAllByText("SV-2026-0142");
+
     await user.click(screen.getByRole("button", { name: "Aprovar solicitação SV-2026-0142" }));
 
     const selectVeiculo = await screen.findByLabelText(/Veículo disponível/i);

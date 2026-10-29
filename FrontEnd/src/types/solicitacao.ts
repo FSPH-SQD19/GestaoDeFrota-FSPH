@@ -69,6 +69,7 @@ export interface ListarSolicitacoesParams {
   status?: StatusSolicitacao[];
   urgencia?: UrgenciaSolicitacao;
   tipoTransporte?: TipoTransporte;
+  setorOrigem?: string;
   busca?: string;
 }
 
@@ -90,8 +91,8 @@ export interface MotoristaDisponivelOption {
 }
 
 export interface AprovarSolicitacaoInput {
-  veiculoAlocadoId: string;
-  motoristaAlocadoId: string;
+  veiculoId: string;
+  motoristaId: string;
 }
 
 export interface RecusarSolicitacaoInput {
