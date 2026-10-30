@@ -198,21 +198,14 @@ jobs:
             const marker = '<!-- gestao-frota-ci -->';
             const results = JSON.parse(process.env.STEP_RESULTS);
             const statuses = {
-              success: '✅',
-              failure: '❌',
+              success: '✅ concluído',
+              failure: '❌ falhou',
               cancelled: '🚫 cancelado',
               skipped: '⏭️ não executado',
             };
-            const status = (outcome) => statuses[outcome] ?? statuses.skipped;
+            const status = (outcome, successMessage = 'concluído') =>
+              outcome === 'success' ? `✅ ${successMessage}` : statuses[outcome] ?? statuses.skipped;
             const formatChanged = process.env.FORMAT_CHANGED === 'true';
-            const autoformatStatus = formatChanged
-              ? '✅ commit enviado'
-              : status(results.autofix);
-            const rerunStatus = formatChanged
-              ? process.env.RERUN_RESULT === 'success'
-                ? '✅ iniciada'
-                : status(process.env.RERUN_RESULT)
-              : '⏭️ não necessária';
             const conclusions = {
               success: '✅ CI aprovada',
               failure: '❌ CI com falha',
@@ -251,15 +244,16 @@ jobs:
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
             const resultLines = [
               `<h3>${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}</h3>`,
-              `📦 Dependências · ${status(results.dependencies)}`,
-              `🧹 Correção automática · ${autoformatStatus}`,
-              `💅 Formatação · ${status(results.format)}`,
-              `🔄 CI do commit corrigido · ${rerunStatus}`,
-              `🔎 Lint · ${status(results.lint)}`,
-              `🧪 Testes e tipos · ${status(results.tests)}`,
+              `💅 Formatação · ${status(results.format, 'aprovada')}`,
+              `🔎 Lint · ${status(results.lint, 'aprovado')}`,
+              `🧪 Testes unitários · ${status(results.tests, 'aprovados')}`,
+              `🎭 Testes de interface · ${status(results.e2e, 'aprovados')}`,
               `🏗️ Build · ${status(results.build)}`,
-              `🌐 Chromium · ${status(results.browsers)}`,
-              `🎭 Playwright · ${status(results.e2e)}`,
+              ...(formatChanged ? ['🧹 Formatação corrigida automaticamente'] : []),
+              ...(results.autofix === 'failure' ? ['❌ Falha na correção automática'] : []),
+              ...(results.dependencies === 'failure' ? ['❌ Falha ao instalar dependências'] : []),
+              ...(results.browsers === 'failure' ? ['❌ Falha na preparação dos testes de interface'] : []),
+              ...(process.env.RERUN_RESULT === 'failure' ? ['❌ Falha ao solicitar nova execução da CI'] : []),
             ].join('<br>');
             const body = [
               marker,
