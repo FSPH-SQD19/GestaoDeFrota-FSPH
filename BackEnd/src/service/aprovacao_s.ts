@@ -47,7 +47,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
 
         for (const recurso of recursos) {
           await tx.$queryRaw`
-            SELECT pg_advisory_xact_lock(
+            SELECT 1 AS locked FROM pg_advisory_xact_lock(
               hashtextextended(${recurso}, 0)
             )
           `;
@@ -93,12 +93,16 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
           throw new HttpError(422, "Veículo administrativo indisponível.");
         }
 
+        if (veiculo.capacidadeMaxima < solicitacao.quantidadePassageiros) {
+          throw new HttpError(422, "Capacidade do veículo insuficiente para os passageiros.");
+        }
+
         const motorista = await tx.motorista.findUnique({
           where: { id: motoristaId },
         });
 
-        if (!motorista || !motorista.ativo) {
-          throw new HttpError(422, "Motorista não encontrado ou inativo.");
+        if (!motorista || !motorista.ativo || motorista.status !== "DISPONIVEL") {
+          throw new HttpError(422, "Motorista não encontrado, inativo ou indisponível.");
         }
 
         const validadeCnh = motorista.validadeCnh.toISOString().slice(0, 10);
