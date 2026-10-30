@@ -30,6 +30,7 @@ FrontEnd/src/
 ├── components/common/   Componentes reutilizáveis
 ├── components/layout/   Cabeçalho e menu lateral
 ├── contexts/            Estado da sessão e hook de autenticação
+├── services/            Cliente HTTP (Axios) com JWT e tratamento de 401
 ├── pages/               Login, recuperação, dashboard e veículos
 ├── types/               Tipos de autenticação e navegação
 ├── lib/                 Utilitários compartilhados
@@ -37,7 +38,7 @@ FrontEnd/src/
 └── index.css            Tailwind, fontes e tokens de interface
 ```
 
-A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a navegação, e os contextos compartilham informações da sessão. A instalação dos dois workspaces é centralizada na raiz.
+A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a navegação, e os contextos compartilham informações da sessão. As chamadas à API usam `src/services/api.ts`, que anexa `Authorization: Bearer <token>` e, em `401` fora do login, limpa a sessão. A instalação dos dois workspaces é centralizada na raiz. A URL base da API é `VITE_API_URL` (modelo em `FrontEnd/.env.example`; padrão local `http://localhost:3000`).
 
 ## Identidade visual e componentes
 
@@ -150,7 +151,7 @@ Os cinco perfis estão definidos em `src/types/auth.ts` e representam as seguint
 1. `ADMIN` — Acesso irrestrito a configurações, auditoria e usuários.
 2. `GESTOR` — Gestor de Frota da FSPH (aprova viagens, escala motoristas e gerencia viaturas).
 3. `MOTORISTA` — Condutor oficial (diários de bordo, checklists e viagens atribuídas).
-4. `ATENDENTE_SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO.
+4. `SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO (nome alinhado à API).
 5. `SOLICITANTE` — Setores assistenciais (LACEN, Hemocentro, SES) que solicitam transporte.
 
 ### Exibir elementos por perfil
@@ -198,3 +199,15 @@ npm run check
 O repositório utiliza verificação estrita de TypeScript (`tsc -b`). Não deixe variáveis ou importações não utilizadas no código (`noUnusedLocals`). Não comite arquivos `.env` ou credenciais.
 
 Veja [Testes](TESTES.md) para os exemplos de componentes e [GitHub](GITHUB.md) para o fluxo de PR da equipe.
+
+## Relatórios
+
+A aba Relatórios consulta `/api/v1/relatorios` para administradores e gestores. O período inicial vai do primeiro dia do mês atual até hoje. Aplicar um período refaz a consulta e invalida os dados anteriores; respostas antigas não substituem o resultado do novo período. A tela apresenta carregamento, falha com nova tentativa e ausência de registros.
+
+A exportação CSV utiliza exclusivamente o resultado do período consultado, com BOM UTF-8, escape de delimitadores/aspas e proteção contra fórmulas de planilha. Ela fica desabilitada quando não existem veículos no relatório. Indicadores ainda não disponíveis aparecem como `—`; os limites de dados estão descritos na tela e no contrato em [Backend](BACKEND.md).
+
+## Usuários
+
+A aba Usuários é restrita a administradores. A consulta de acesso utiliza somente o endpoint existente `GET /api/v1/auth/perfil`, que retorna o identificador e os perfis da sessão autenticada. A tela trata carregamento, falha e nova tentativa, e não apresenta essa resposta como uma lista de usuários.
+
+Não existem endpoints de listagem ou cadastro de usuários no backend atual. Por isso, a tela informa que a gestão está indisponível e desabilita o botão Novo usuário. Não há usuários fictícios, códigos gerados no navegador, cadastro em memória ou chamadas a endpoints inexistentes. Busca, filtro por setor e ações sem implementação foram removidos.

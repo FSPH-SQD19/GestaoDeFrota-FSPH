@@ -53,6 +53,7 @@ describe("login controller", () => {
   });
 
   it("retorna 401 quando o service rejeita as credenciais", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(login).mockRejectedValue(new Error("Credenciais inválidas"));
     const response = await execute({ email: "teste@example.test", senha: "teste" });
 

@@ -40,11 +40,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Instalar Prettier
-        run: npm ci --ignore-scripts
-
       - name: Aplicar formatação
-        run: npm run format
+        run: npm exec --yes --package=prettier@3.9.10 -- prettier --write .
 
       - name: Enviar correção ao PR
         id: commit
@@ -85,6 +82,8 @@ jobs:
       lint: ${{ steps.lint.outcome }}
       tests: ${{ steps.tests.outcome }}
       build: ${{ steps.build.outcome }}
+      browsers: ${{ steps.browsers.outcome }}
+      e2e: ${{ steps.e2e.outcome }}
 
     steps:
       - name: Obter branch atualizada do PR
@@ -117,7 +116,7 @@ jobs:
 
       - name: Verificar formatação
         id: format
-        run: npm run format:check
+        run: npm exec --yes --package=prettier@3.9.10 -- prettier --check .
 
       - name: Verificar lint
         id: lint
@@ -130,6 +129,25 @@ jobs:
       - name: Compilar back-end e front-end
         id: build
         run: npm run build
+
+      - name: Instalar Chromium e dependências do sistema
+        id: browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Executar testes de interface com Playwright
+        id: e2e
+        run: npm run test:e2e
+
+      - name: Publicar relatório e evidências do Playwright
+        if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-results
+          path: |
+            FrontEnd/playwright-report/
+            FrontEnd/test-results/
+          retention-days: 14
+          if-no-files-found: warn
 
   rerun:
     name: Revalidar commit formatado
@@ -181,42 +199,83 @@ jobs:
             const results = JSON.parse(process.env.STEP_RESULTS);
             const statuses = {
               success: '✅',
-              failure: '❌',
+              failure: '❌ falhou',
               cancelled: '🚫 cancelado',
               skipped: '⏭️ não executado',
             };
             const status = (outcome) => statuses[outcome] ?? statuses.skipped;
             const formatChanged = process.env.FORMAT_CHANGED === 'true';
-            const autoformatStatus = formatChanged
-              ? '✅ commit enviado'
-              : status(results.autofix);
-            const rerunStatus = formatChanged
-              ? process.env.RERUN_RESULT === 'success'
-                ? '✅ iniciada'
-                : status(process.env.RERUN_RESULT)
-              : '⏭️ não necessária';
             const conclusions = {
               success: '✅ CI aprovada',
               failure: '❌ CI com falha',
               cancelled: '🚫 CI cancelada',
               skipped: '⏭️ CI não executada',
             };
+            const gifs = {
+              approved: {
+                alt: 'Gato comemorando a aprovação da CI',
+                width: 200,
+                height: 200,
+                url: 'https://github.com/user-attachments/assets/8ab88a93-7ca3-4a94-a586-5e1c1ce37731',
+              },
+              failed: {
+                alt: 'Gato reagindo à reprovação da CI',
+                width: 200,
+                height: 198,
+                url: 'https://github.com/user-attachments/assets/0f7fe24e-468d-4668-afe5-5c436bf4f276',
+              },
+              formatting: {
+                alt: 'Gato corrigindo a formatação',
+                width: 200,
+                height: 200,
+                url: 'https://github.com/user-attachments/assets/fdd33a1a-7f26-4c8b-8897-b1ba4e3edb59',
+              },
+            };
+            const gif = formatChanged
+              ? gifs.formatting
+              : process.env.CI_RESULT === 'success'
+                ? gifs.approved
+                : process.env.CI_RESULT === 'failure'
+                  ? gifs.failed
+                  : null;
             const sha = results.format_sha || context.payload.pull_request.head.sha;
             const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
             const runUrl = `${repoUrl}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
+            const resultLines = [
+              `<h3>${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}</h3>`,
+              `💅 Formatação · ${status(results.format)}`,
+              `🔎 Lint · ${status(results.lint)}`,
+              `🧪 Testes unitários · ${status(results.tests)}`,
+              `🎭 Testes de interface · ${status(results.e2e)}`,
+              `🏗️ Build · ${status(results.build)}`,
+              ...(formatChanged ? ['🧹 Formatação corrigida automaticamente'] : []),
+              ...(results.autofix === 'failure' ? ['❌ Falha na correção automática'] : []),
+              ...(results.dependencies === 'failure' ? ['❌ Falha ao instalar dependências'] : []),
+              ...(results.browsers === 'failure' ? ['❌ Falha na preparação dos testes de interface'] : []),
+              ...(process.env.RERUN_RESULT === 'failure' ? ['❌ Falha ao solicitar nova execução da CI'] : []),
+            ].join('<br>');
             const body = [
               marker,
               '## 👁️ O olho que tudo vê',
               '',
-              `**${conclusions[process.env.CI_RESULT] ?? '⚠️ CI sem resultado'}**`,
-              '',
-              `📦 Dependências · ${status(results.dependencies)}  `,
-              `🧹 Correção automática · ${autoformatStatus}  `,
-              `💅 Formatação · ${status(results.format)}  `,
-              `🔄 CI do commit corrigido · ${rerunStatus}  `,
-              `🔎 Lint · ${status(results.lint)}  `,
-              `🧪 Testes e tipos · ${status(results.tests)}  `,
-              `🏗️ Build · ${status(results.build)}`,
+              '<table width="100%" style="table-layout:fixed;">',
+              '  <colgroup>',
+              '    <col width="480">',
+              '    <col width="480">',
+              '  </colgroup>',
+              '  <tbody>',
+              '    <tr>',
+              '      <td width="480" valign="top">',
+              `        ${resultLines}`,
+              '      </td>',
+              '      <td width="480" align="center" valign="middle">',
+              ...(gif
+                ? [`        <img width="${gif.width}" height="${gif.height}" alt="${gif.alt}" src="${gif.url}" />`]
+                : ['        <em>Sem GIF para este estado</em>']),
+              '      </td>',
+              '    </tr>',
+              '  </tbody>',
+              '</table>',
               '',
               `Commit: [${sha.slice(0, 7)}](${repoUrl}/commit/${sha}) · [Ver execução completa](${runUrl})`,
             ].join('\n');
