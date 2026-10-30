@@ -52,7 +52,7 @@ router.get("/api/v1/relatorios", authenticate, requireRole("ADMIN", "GESTOR"), a
   const periodo = validar(periodoRelatorioSchema, req.query);
   return res.json(await gerarRelatorio(periodo));
 });
-//Registro dge manutencoes
+//Registro de manutencoes
 manutencoes.use(authenticate, requireRole("ADMIN", "GESTOR"));
 manutencoes.get("/", listarManutencoesController);
 manutencoes.post("/", criarManutencaoController);
