@@ -1,0 +1,1 @@
+ALTER TABLE "manutencoes" ADD CONSTRAINT "manutencoes_status_check" CHECK ("status" IN ('ABERTA', 'CONCLUIDA'));
