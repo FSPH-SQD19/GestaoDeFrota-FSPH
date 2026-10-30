@@ -135,6 +135,8 @@ model Manutencao {
   odometroRegistro Decimal?  @map("odometro_registro") @db.Decimal(10, 2)
   custoTotal       Decimal?  @map("custo_total") @db.Decimal(12, 2)
   dataManutencao   DateTime? @map("data_manutencao") @db.Date
+  status        String    @default("ABERTA") @db.VarChar(20)
+  dataConclusao DateTime? @map("data_conclusao")
 
   veiculo    Veiculo     @relation(fields: [veiculoId], references: [id])
   fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id])

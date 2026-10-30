@@ -6,9 +6,12 @@ import { HttpError } from "../middleware/http_m";
 
 export const TIPOS_MANUTENCAO = ["PREVENTIVA", "CORRETIVA"] as const;
 
-const TIPO_CORRETIVA = "CORRETIVA";
 const STATUS_EM_MANUTENCAO = "MANUTENCAO";
 const STATUS_DISPONIVEL = "DISPONIVEL";
+export const MANUTENCAO_ABERTA = "ABERTA" as const;
+export const MANUTENCAO_CONCLUIDA = "CONCLUIDA" as const;
+export const TIPO_CORRETIVA = "CORRETIVA" as const;
+
 
 export const listarManutencoesSchema = z
   .object({
@@ -20,6 +23,7 @@ export const listarManutencoesSchema = z
       .optional(),
     dataInicio: z.coerce.date().optional(),
     dataFim: z.coerce.date().optional(),
+    status: z.enum([MANUTENCAO_ABERTA, MANUTENCAO_CONCLUIDA], { error: "..." }).optional()
   })
   .superRefine((filtros, ctx) => {
     if (filtros.dataInicio && filtros.dataFim && filtros.dataInicio > filtros.dataFim) {
@@ -71,11 +75,12 @@ export function serializarManutencao(manutencao: Manutencao): ManutencaoResposta
 }
 
 export async function listarManutencoes(filtros: ListarManutencoesFiltros) {
-  const { page, pageSize, veiculoId, tipo, dataInicio, dataFim } = filtros;
+  const { page, pageSize, veiculoId, tipo, dataInicio, dataFim, status } = filtros;
 
   const where: Prisma.ManutencaoWhereInput = {
     ...(veiculoId ? { veiculoId } : {}),
     tipo: tipo,
+    status: status,
     dataManutencao: { gte: dataInicio, lte: dataFim },
   };
 
@@ -106,7 +111,7 @@ export async function criarManutencao(input: CriarManutencaoInput, usuarioId: st
     ]);
   }
 
-  if (input.tipo === TIPO_CORRETIVA && !["DISPONIVEL", STATUS_EM_MANUTENCAO].includes(veiculo.status)) {
+  if (input.tipo === TIPO_CORRETIVA && ![STATUS_DISPONIVEL, STATUS_EM_MANUTENCAO].includes(veiculo.status)) {
   throw new HttpError(422, "Status não está entre os permitidos", [
     { campo: "veiculoId",
       mensagem: `Veículo com status ${veiculo.status} não pode entrar em manutenção corretiva.` },
@@ -126,9 +131,17 @@ export async function criarManutencao(input: CriarManutencaoInput, usuarioId: st
   }
 
   const manutencao = await prisma.$transaction(async (tx) => {
-    const criada = await tx.manutencao.create({ data: input });
+    const corretiva = input.tipo === TIPO_CORRETIVA;
 
-    if (input.tipo === TIPO_CORRETIVA) {
+    const criada = await tx.manutencao.create({
+      data: {
+        ...input,
+      status: corretiva ? MANUTENCAO_ABERTA : MANUTENCAO_CONCLUIDA,
+      dataConclusao: corretiva ? null : input.dataManutencao, 
+  },
+  });
+
+    if (corretiva) {
       await tx.veiculo.update({
         where: { id: input.veiculoId },
         data: { status: STATUS_EM_MANUTENCAO },
@@ -153,42 +166,51 @@ export async function criarManutencao(input: CriarManutencaoInput, usuarioId: st
 export async function concluirManutencao(id: string, usuarioId: string) {
   const manutencao = await prisma.manutencao.findUnique({
     where: { id },
-    select: { veiculoId: true, tipo: true },
+    select: { veiculoId: true, tipo: true, status: true },
   }); 
   if (!manutencao) {
     throw new HttpError(404, "Manutenção não encontrada.")
   }
-  if (manutencao.tipo !== TIPO_CORRETIVA) {
-    throw new HttpError(422, "Apenas manutenções corretivas podem ser concluídas.", [
-      { campo: "id", mensagem: "Manutenções preventivas não bloqueiam o veículo." }
+  if (manutencao.status !== MANUTENCAO_ABERTA) {
+    throw new HttpError(422, "Manutenção não está aberta.",[
+      { campo: "id", mensagem: "Apenas manutenções abertas podem ser concluídas." },
     ]);
-  } 
+  }
 
-  const veiculo = await prisma.veiculo.findUnique({
-    where: { id: manutencao.veiculoId },
-    select: { status: true },
-  });
-  if (veiculo?.status !== STATUS_EM_MANUTENCAO) {
-  throw new HttpError(422, "Veículo não está em manutenção.", [
-    { campo: "id", mensagem: "O veículo desta manutenção não está em manutenção." },
-  ]);
-}
+  return prisma.$transaction(async(tx) => {
+    const concluida = await tx.manutencao.update({
+      where: { id },
+      data: { status: MANUTENCAO_CONCLUIDA, dataConclusao: new Date() },
+    });
 
-  await prisma.$transaction(async(tx) => {
-    await tx.veiculo.update({
-      where: { id: manutencao.veiculoId },
-      data: {status: STATUS_DISPONIVEL}
-    })
+    const outrasAbertas = await tx.manutencao.count({
+      where: {
+        veiculoId: manutencao.veiculoId,
+        status: MANUTENCAO_ABERTA,
+        id: { not: id },
+      },
+    });
+
+    if (outrasAbertas === 0) {
+      await tx.veiculo.update({
+        where: { id: manutencao.veiculoId },
+        data: { status: STATUS_DISPONIVEL },
+      });
+    }
+
     await tx.auditoriaSistema.create({
       data: {
         usuarioId,
         acao: "CONCLUIR",
         tabelaAfetada: "manutencoes",
         registroId: id,
-        dadosNovos: { veiculoId: manutencao.veiculoId, statusVeiculo: STATUS_DISPONIVEL },
+        dadosNovos: JSON.parse(JSON.stringify(serializarManutencao(concluida))),
       },
     });
-  });
-  return { id, veiculoId: manutencao.veiculoId, statusVeiculo: STATUS_DISPONIVEL };
-}
 
+    return {
+      manutencao: serializarManutencao(concluida),
+      statusVeiculo: outrasAbertas === 0 ? STATUS_DISPONIVEL : STATUS_EM_MANUTENCAO,
+    };
+  });
+}
