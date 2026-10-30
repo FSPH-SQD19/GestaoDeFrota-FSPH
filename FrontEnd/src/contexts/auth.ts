@@ -5,7 +5,6 @@ interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   hasRole: (requiredRoles: UserRole[]) => boolean;
-  switchRoleForTesting?: (role: UserRole) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

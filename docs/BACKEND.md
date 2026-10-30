@@ -2,7 +2,7 @@
 
 [Índice da documentação](README.md)
 
-Guia da API Express com TypeScript, Prisma, PostgreSQL, validação Zod e autenticação JWT. Os caminhos desta página são relativos à raiz do projeto.
+Guia da API Express com TypeScript, Prisma, PostgreSQL, validação Zod e autenticação JWT. Em HML, configure a conexão Neon em `DATABASE_URL`. Os caminhos desta página são relativos à raiz do projeto.
 
 ## Organização
 
@@ -21,7 +21,7 @@ BackEnd/
 └── prisma.config.ts    Caminhos e configuração do Prisma
 ```
 
-O fluxo das rotas de veículos é: rota → autenticação e perfil → controller → serviço → Prisma. O middleware de erros formata as falhas. `app.ts` exporta a aplicação para uso nos testes; `server.ts` abre a porta.
+O fluxo das rotas de veículos é: rota → autenticação e perfil → controller → serviço → Prisma. O middleware de erros formata as falhas. `app.ts` exporta a aplicação para uso nos testes; `server.ts` abre a porta HTTP.
 
 ## Endpoints disponíveis
 
@@ -46,7 +46,7 @@ Corpo do login:
 }
 ```
 
-O serviço exige usuário existente e ativo, compara a senha com bcrypt e assina um JWT com validade fixa de oito horas. A chave é gerada automaticamente em `BackEnd/.runtime/auth.key`, ignorada pelo Git, e reutilizada após reinícios. No Docker, ela fica no volume persistente `backend_auth`. Não há variáveis de ambiente para JWT. Antes de abrir a porta HTTP, a API carrega e valida a chave; falhas de acesso ou arquivo inválido interrompem a inicialização. A resposta contém `token` e `usuario`, com `id`, `nome`, `email` e `perfis`; não inclui o hash da senha.
+O serviço exige usuário existente e ativo, compara a senha com bcrypt e assina um JWT com validade fixa de oito horas. A chave é gerada automaticamente em `BackEnd/.runtime/auth.key`, ignorada pelo Git, e reutilizada após reinícios. No Docker, ela fica no volume persistente `backend_auth`. A resposta contém `token` e `usuario`, com `id`, `nome`, `email` e `perfis`; não inclui o hash da senha.
 
 Nas rotas protegidas, envie o token recebido no login:
 
@@ -150,3 +150,16 @@ npm run build --workspace=backend
 Centralize o acesso ao banco em `BackEnd/src/lib/prisma.ts` e mantenha alterações do schema acompanhadas de migrations. Veja [Ambiente](AMBIENTE.md) para configurar a API e [Testes](TESTES.md) para adicionar cenários.
 
 A API valida o ano do veículo até o ano atual mais um; a constraint da migration limita o banco ao intervalo de 1950 a 2100. Ao alterar validações, confira os dois níveis.
+
+## Relatório operacional
+
+`GET /api/v1/relatorios?inicio=2026-10-01&fim=2026-10-30` exige JWT e perfil `ADMIN` ou `GESTOR`. Datas devem ser válidas no formato `YYYY-MM-DD`, com início anterior ou igual ao fim. O intervalo inclui todo o dia final, no fuso UTC-03:00.
+
+- Viagens concluídas: execuções com `dataHoraFim` no período.
+- Quilometragem: soma de `kmFinal - kmInicial` dessas execuções; registros sem ambos os odômetros ou com diferença negativa não entram na soma nem na média.
+- Km médio por veículo: quilometragem dividida pelas execuções com odômetros válidos daquele veículo.
+- Litros abastecidos: soma dos abastecimentos pela própria `dataHora`, incluindo veículos sem viagem no período. Abastecimento não equivale a consumo por viagem.
+- Viagens em aberto: solicitações pendentes, aprovadas ou em trânsito cuja saída pretendida está no período. Não representa um saldo histórico.
+- Motoristas: contagem das execuções encerradas, agrupadas pelo identificador do motorista.
+
+Desvios de rota e consumo por viagem retornam `null`, pois não há registros suficientes para esses cálculos. Ordens de coleta SVO não têm odômetros nem data de encerramento no schema atual e não entram na contagem de viagens. A quilometragem não equivale ao odômetro acumulado do veículo. Sem registros, o endpoint retorna listas vazias e somas iguais a zero.

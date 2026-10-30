@@ -1,5 +1,5 @@
 // Tipos do relatório operacional da frota.
-// Dados sintéticos do protótipo; o cálculo real entra quando existir endpoint.
+// Contrato do endpoint GET /api/v1/relatorios.
 
 export type UnidadeOperacao = "viagens" | "coletas";
 
@@ -10,9 +10,9 @@ export interface RelatorioVeiculo {
   operacoes: number;
   unidade: UnidadeOperacao;
   kmRodados: number;
-  kmMedio: number;
+  kmMedio: number | null;
   consumoLitros: number;
-  consumoMedio: number;
+  consumoMedio: number | null;
   /** Barra destacada no gráfico (frota SVO). */
   destaque?: boolean;
 }
@@ -31,7 +31,7 @@ export interface RelatorioPeriodo {
   consumoEstimadoLitros: number;
   viagensConcluidas: number;
   viagensEmAberto: number;
-  desviosDeRota: number;
+  desviosDeRota: number | null;
   veiculos: RelatorioVeiculo[];
   motoristas: RelatorioMotorista[];
 }

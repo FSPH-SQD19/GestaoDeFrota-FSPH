@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Calendar, CheckCircle2, Fuel, Gauge, Route } from "lucide-react";
 import { Button, Card, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import type { RelatorioPeriodo, RelatorioVeiculo } from "../../types/relatorio";
-import { PERIODO_RELATORIO } from "./relatoriosMock";
+import { apiRequest } from "../../lib/api";
+import { gerarCsv } from "../../lib/relatorioCsv";
 
 type VisaoGrafico = "consolidado" | "veiculo" | "motorista";
 
@@ -24,7 +25,11 @@ const decimal = new Intl.NumberFormat("pt-BR", {
 
 type IntervaloRelatorio = { inicio: string; fim: string };
 
-const INTERVALO_INICIAL: IntervaloRelatorio = { inicio: "2026-09-01", fim: "2026-09-30" };
+function intervaloInicial(): IntervaloRelatorio {
+  const hoje = new Date();
+  const mes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+  return { inicio: `${mes}-01`, fim: `${mes}-${String(hoje.getDate()).padStart(2, "0")}` };
+}
 
 function dataLocal(iso: string): Date {
   const [ano, mes, dia] = iso.split("-").map(Number);
@@ -65,29 +70,8 @@ function formatarDataAtual(data: Date): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-function exportarCsv() {
-  const periodo = PERIODO_RELATORIO;
-  const cabecalho = [
-    "Veículo",
-    "Descrição",
-    "Operações",
-    "Unidade",
-    "Km rodados",
-    "Km médio / Viagem",
-    "Consumo total (L)",
-    "Consumo médio / Viagem",
-  ];
-  const linhas = periodo.veiculos.map((veiculo) => [
-    veiculo.codigo,
-    veiculo.descricao,
-    String(veiculo.operacoes),
-    veiculo.unidade,
-    String(veiculo.kmRodados),
-    String(veiculo.kmMedio),
-    String(veiculo.consumoLitros),
-    String(veiculo.consumoMedio),
-  ]);
-  const csv = [cabecalho, ...linhas].map((colunas) => colunas.join(";")).join("\n");
+function exportarCsv(periodo: RelatorioPeriodo) {
+  const csv = gerarCsv(periodo);
   const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -122,7 +106,7 @@ const colunas: Column<RelatorioVeiculo>[] = [
   },
   {
     header: "Km médio / Viagem",
-    render: (veiculo) => numero.format(veiculo.kmMedio),
+    render: (veiculo) => (veiculo.kmMedio === null ? "—" : decimal.format(veiculo.kmMedio)),
   },
   {
     header: "Consumo total (L)",
@@ -130,17 +114,46 @@ const colunas: Column<RelatorioVeiculo>[] = [
   },
   {
     header: "Consumo médio / Viagem",
-    render: (veiculo) => decimal.format(veiculo.consumoMedio),
+    render: (veiculo) =>
+      veiculo.consumoMedio === null ? "—" : decimal.format(veiculo.consumoMedio),
   },
 ];
 
 export const RelatoriosPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [hoje] = useState(() => new Date());
-  // Intervalo escolhido na tela. Os números continuam no mock até a API receber este período.
-  const [intervalo, setIntervalo] = useState<IntervaloRelatorio>(INTERVALO_INICIAL);
+  const [intervalo, setIntervalo] = useState<IntervaloRelatorio>(intervaloInicial);
   const [visao, setVisao] = useState<VisaoGrafico>("consolidado");
-  const periodo = PERIODO_RELATORIO;
+  const [resposta, setResposta] = useState<{
+    chave: string;
+    dados: RelatorioPeriodo | null;
+    erro: string;
+  } | null>(null);
+  const [tentativa, setTentativa] = useState(0);
+  const chave = `${intervalo.inicio}_${intervalo.fim}_${token}_${tentativa}`;
+  const periodo = resposta?.chave === chave ? resposta.dados : null;
+  const erro = resposta?.chave === chave ? resposta.erro : "";
+  useEffect(() => {
+    let ativo = true;
+    void apiRequest<RelatorioPeriodo>(
+      `/relatorios?inicio=${intervalo.inicio}&fim=${intervalo.fim}`,
+      { token },
+    )
+      .then((dados) => {
+        if (ativo) setResposta({ chave, dados, erro: "" });
+      })
+      .catch((error: unknown) => {
+        if (ativo)
+          setResposta({
+            chave,
+            dados: null,
+            erro: error instanceof Error ? error.message : "Não foi possível carregar o relatório.",
+          });
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [intervalo.inicio, intervalo.fim, token, chave]);
   const primeiroNome = user?.nome?.split(" ")[0] || "Gestor";
 
   return (
@@ -158,63 +171,96 @@ export const RelatoriosPage: React.FC = () => {
         <SeletorPeriodo intervalo={intervalo} onChange={setIntervalo} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4.5">
-        <Indicador
-          rotulo="Km rodados"
-          detalhe="No período selecionado"
-          valor={numero.format(periodo.kmRodados)}
-          nota="Administrativa e SVO"
-          tom="info"
-          icone={<Gauge className="h-4.5 w-4.5 stroke-2" />}
-        />
-        <Indicador
-          rotulo="Consumo estimado"
-          detalhe="Litros no período"
-          valor={`${numero.format(periodo.consumoEstimadoLitros)}L`}
-          nota="Abastecimento consolidado"
-          tom="warning"
-          icone={<Fuel className="h-4.5 w-4.5 stroke-2" />}
-        />
-        <Indicador
-          rotulo="Viagens concluídas"
-          detalhe="Despachos encerrados"
-          valor={numero.format(periodo.viagensConcluidas)}
-          nota={`${periodo.viagensEmAberto} em aberto`}
-          tom="success"
-          icone={<CheckCircle2 className="h-4.5 w-4.5 stroke-2" />}
-        />
-        <Indicador
-          rotulo="Desvios de rota"
-          detalhe="Fora do trajeto previsto"
-          valor={numero.format(periodo.desviosDeRota)}
-          nota="Registrar na auditoria"
-          tom="danger"
-          icone={<Route className="h-4.5 w-4.5 stroke-2" />}
-        />
-      </div>
-
-      <GraficoRelatorio visao={visao} onChange={setVisao} periodo={periodo} />
-
-      <Card className="rounded-3xl p-6 border border-slate-200/80 shadow-2xs">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Detalhamento por veículo</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Km, viagens e desvios registrados no veículo
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={exportarCsv}>
-            Exportar
+      {erro ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700"
+        >
+          <p>{erro}</p>
+          <Button variant="outline" onClick={() => setTentativa((valor) => valor + 1)}>
+            Tentar novamente
           </Button>
         </div>
-        <Table
-          columns={colunas}
-          data={periodo.veiculos}
-          keyExtractor={(veiculo) => veiculo.id}
-          emptyMessage="Nenhum veículo no período selecionado."
-          className="border-0 shadow-none rounded-none"
-        />
-      </Card>
+      ) : !periodo ? (
+        <p role="status">Carregando relatório...</p>
+      ) : null}
+      {periodo && (
+        <>
+          <p className="text-xs text-slate-500">
+            Quilometragem de viagens encerradas com odômetros válidos; litros abastecidos no
+            período. Coletas SVO não possuem registro de quilometragem. Consumo por viagem e desvios
+            de rota ainda não são registrados.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4.5">
+            <Indicador
+              rotulo="Km rodados"
+              detalhe="No período selecionado"
+              valor={numero.format(periodo.kmRodados)}
+              nota="Odômetros válidos de viagens encerradas"
+              tom="info"
+              icone={<Gauge className="h-4.5 w-4.5 stroke-2" />}
+            />
+            <Indicador
+              rotulo="Litros abastecidos"
+              detalhe="Registros no período"
+              valor={`${numero.format(periodo.consumoEstimadoLitros)}L`}
+              nota="Abastecimento consolidado"
+              tom="warning"
+              icone={<Fuel className="h-4.5 w-4.5 stroke-2" />}
+            />
+            <Indicador
+              rotulo="Viagens concluídas"
+              detalhe="Despachos encerrados"
+              valor={numero.format(periodo.viagensConcluidas)}
+              nota={`${periodo.viagensEmAberto} em aberto`}
+              tom="success"
+              icone={<CheckCircle2 className="h-4.5 w-4.5 stroke-2" />}
+            />
+            <Indicador
+              rotulo="Desvios de rota"
+              detalhe="Fora do trajeto previsto"
+              valor={periodo.desviosDeRota === null ? "—" : numero.format(periodo.desviosDeRota)}
+              nota="Registro ainda indisponível"
+              tom="danger"
+              icone={<Route className="h-4.5 w-4.5 stroke-2" />}
+            />
+          </div>
+
+          <GraficoRelatorio visao={visao} onChange={setVisao} periodo={periodo} />
+
+          <Card className="rounded-3xl p-6 border border-slate-200/80 shadow-2xs">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Detalhamento por veículo</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Quilometragem registrada e abastecimentos por veículo
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => exportarCsv(periodo)}
+                disabled={periodo.veiculos.length === 0}
+              >
+                Exportar
+              </Button>
+            </div>
+            {periodo.veiculos.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">
+                Nenhum veículo no período selecionado.
+              </p>
+            ) : (
+              <Table
+                columns={colunas}
+                data={periodo.veiculos}
+                keyExtractor={(veiculo) => veiculo.id}
+                emptyMessage="Nenhum veículo no período selecionado."
+                className="border-0 shadow-none rounded-none"
+              />
+            )}
+          </Card>
+        </>
+      )}
     </div>
   );
 };
@@ -259,7 +305,7 @@ function SeletorPeriodo({
         <div
           role="dialog"
           aria-label="Selecionar período"
-          className="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl"
+          className="absolute left-0 z-20 mt-2 w-72 sm:left-auto sm:right-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl"
         >
           <div className="space-y-3">
             <label className="block text-xs font-semibold text-slate-600">
@@ -370,10 +416,10 @@ function GraficoRelatorio({
         : "Viagens por motorista";
   const subtitulo =
     visao === "consolidado"
-      ? "Rosca: duas frotas, a pergunta é a fatia do total"
+      ? "Quilometragem registrada por frota"
       : visao === "veiculo"
-        ? "Barras horizontais: compara a quilometragem de cada viatura"
-        : "Pizza: poucos condutores, a pergunta é a participação nas viagens";
+        ? "Quilometragem registrada por veículo"
+        : "Viagens encerradas no período por motorista";
 
   const legenda =
     visao === "consolidado"
@@ -468,6 +514,8 @@ function Rosca({
   centro: string;
 }) {
   const total = fatias.reduce((soma, fatia) => soma + fatia.valor, 0);
+  if (total <= 0)
+    return <p className="text-sm text-slate-500">Sem quilometragem registrada no período.</p>;
   const raio = 42;
   const circunferencia = 2 * Math.PI * raio;
   const arcos = fatias.map((fatia, indice) => {
@@ -509,6 +557,22 @@ function Rosca({
 
 function Pizza({ fatias }: { fatias: { rotulo: string; valor: number; cor: string }[] }) {
   const total = fatias.reduce((soma, fatia) => soma + fatia.valor, 0);
+  if (total <= 0)
+    return <p className="text-sm text-slate-500">Sem viagens por motorista no período.</p>;
+  const unica = fatias.find((fatia) => fatia.valor === total);
+  if (unica)
+    return (
+      <div className="flex justify-center">
+        <svg
+          viewBox="0 0 120 120"
+          className="h-52 w-52"
+          role="img"
+          aria-label="Participação por motorista"
+        >
+          <circle cx="60" cy="60" r="46" fill={unica.cor} />
+        </svg>
+      </div>
+    );
   const caminhos = fatias.map((fatia, indice) => {
     const anterior = fatias.slice(0, indice).reduce((soma, item) => soma + item.valor, 0);
     const inicio = -Math.PI / 2 + (anterior / total) * Math.PI * 2;
@@ -543,7 +607,7 @@ function Pizza({ fatias }: { fatias: { rotulo: string; valor: number; cor: strin
 
 function BarrasVeiculo({ periodo }: { periodo: RelatorioPeriodo }) {
   const veiculos = [...periodo.veiculos].sort((a, b) => b.kmRodados - a.kmRodados);
-  const maior = veiculos[0]?.kmRodados ?? 1;
+  const maior = Math.max(veiculos[0]?.kmRodados ?? 0, 1);
 
   return (
     <div className="space-y-3">

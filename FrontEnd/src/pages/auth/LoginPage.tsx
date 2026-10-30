@@ -9,7 +9,7 @@ import bgLogin from "../../assets/BG.png";
 import rotaSymbol from "../../assets/branding/rota/rota-symbol-color.svg";
 
 const loginSchema = z.object({
-  usuario: z.string().min(1, "Informe seu usuário ou e-mail."),
+  usuario: z.string().trim().email("Informe um e-mail válido."),
   senha: z.string().min(4, "A senha deve possuir pelo menos 4 caracteres."),
 });
 
@@ -108,8 +108,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
           {/* Formulário Limpo */}
           <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-4 text-left">
             <Input
-              label="Usuário"
-              placeholder="seu.usuario"
+              label="E-mail"
+              placeholder="nome@fsph.se.gov.br"
+              type="email"
               leftIcon={<UserIcon className="w-4 h-4 text-slate-400" />}
               error={errors.usuario?.message}
               {...register("usuario")}
