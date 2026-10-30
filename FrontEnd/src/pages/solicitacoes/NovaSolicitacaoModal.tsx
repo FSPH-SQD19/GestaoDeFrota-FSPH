@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -95,6 +95,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   onSubmit,
   setorPadrao,
 }) => {
+  const enviando = useRef(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
 
   const {
@@ -115,6 +116,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   }, [isOpen, reset, setorPadrao]);
 
   const handleClose = () => {
+    if (enviando.current) return;
     setErroEnvio(null);
     onClose();
   };
@@ -122,6 +124,8 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   const urgencia = useWatch({ control, name: "urgencia" });
 
   const submit = async (data: SolicitacaoFormData) => {
+    if (enviando.current) return;
+    enviando.current = true;
     setErroEnvio(null);
     try {
       await onSubmit({
@@ -144,6 +148,8 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           ? err.message
           : "Não foi possível enviar a solicitação. Tente novamente.",
       );
+    } finally {
+      enviando.current = false;
     }
   };
 
@@ -171,7 +177,14 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
         </>
       }
     >
-      <form id={FORM_ID} onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
+      <form
+        id={FORM_ID}
+        onSubmit={(event) => {
+          void handleSubmit(submit)(event);
+        }}
+        className="space-y-5"
+        noValidate
+      >
         {erroEnvio && (
           <div
             role="alert"
@@ -182,113 +195,115 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           </div>
         )}
 
-        {/* Setor e urgência */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Setor solicitante"
-            required
-            placeholder="Selecione o setor"
-            options={SETORES_FSPH.map((s) => ({ value: s, label: s }))}
-            error={errors.setorOrigem?.message}
-            {...register("setorOrigem")}
-          />
-          <Select
-            label="Urgência"
-            required
-            options={[
-              { value: "NORMAL", label: "Normal" },
-              { value: "URGENTE", label: "Urgente" },
-            ]}
-            error={errors.urgencia?.message}
-            {...register("urgencia")}
-          />
-        </div>
-
-        {urgencia === "URGENTE" && (
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>
-              Solicitações urgentes têm prioridade na fila do gestor. Use apenas quando o atraso
-              comprometer a assistência ou a integridade de amostras.
-            </span>
+        <fieldset disabled={isSubmitting} className="space-y-5">
+          {/* Setor e urgência */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Setor solicitante"
+              required
+              placeholder="Selecione o setor"
+              options={SETORES_FSPH.map((s) => ({ value: s, label: s }))}
+              error={errors.setorOrigem?.message}
+              {...register("setorOrigem")}
+            />
+            <Select
+              label="Urgência"
+              required
+              options={[
+                { value: "NORMAL", label: "Normal" },
+                { value: "URGENTE", label: "Urgente" },
+              ]}
+              error={errors.urgencia?.message}
+              {...register("urgencia")}
+            />
           </div>
-        )}
 
-        {/* Itinerário */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Origem"
-            required
-            placeholder="Ex: LACEN — Rua Campo do Brito"
-            error={errors.origem?.message}
-            {...register("origem")}
-          />
-          <Input
-            label="Destino"
-            required
-            placeholder="Ex: Hospital Regional de Itabaiana"
-            error={errors.destino?.message}
-            {...register("destino")}
-          />
-        </div>
+          {urgencia === "URGENTE" && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                Solicitações urgentes têm prioridade na fila do gestor. Use apenas quando o atraso
+                comprometer a assistência ou a integridade de amostras.
+              </span>
+            </div>
+          )}
 
-        {/* Datas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            id="dataHoraPretendida"
-            label="Data e hora de saída"
-            type="datetime-local"
-            required
-            error={errors.dataHoraPretendida?.message}
-            {...register("dataHoraPretendida")}
-          />
-          <Input
-            id="dataHoraRetornoPrevista"
-            label="Retorno previsto"
-            type="datetime-local"
-            helperText="Opcional — deixe em branco se for só ida."
-            error={errors.dataHoraRetornoPrevista?.message}
-            {...register("dataHoraRetornoPrevista")}
-          />
-        </div>
+          {/* Itinerário */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Origem"
+              required
+              placeholder="Ex: LACEN — Rua Campo do Brito"
+              error={errors.origem?.message}
+              {...register("origem")}
+            />
+            <Input
+              label="Destino"
+              required
+              placeholder="Ex: Hospital Regional de Itabaiana"
+              error={errors.destino?.message}
+              {...register("destino")}
+            />
+          </div>
 
-        {/* Carga */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Tipo de transporte"
-            required
-            options={tiposTransporte.map((t) => ({ value: t, label: TIPO_TRANSPORTE_LABEL[t] }))}
-            error={errors.tipoTransporte?.message}
-            {...register("tipoTransporte")}
-          />
-          <Input
-            id="quantidadePassageiros"
-            label="Nº de passageiros"
-            type="number"
-            min={0}
-            max={15}
-            required
-            error={errors.quantidadePassageiros?.message}
-            {...register("quantidadePassageiros")}
-          />
-        </div>
+          {/* Datas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              id="dataHoraPretendida"
+              label="Data e hora de saída"
+              type="datetime-local"
+              required
+              error={errors.dataHoraPretendida?.message}
+              {...register("dataHoraPretendida")}
+            />
+            <Input
+              id="dataHoraRetornoPrevista"
+              label="Retorno previsto"
+              type="datetime-local"
+              helperText="Opcional — deixe em branco se for só ida."
+              error={errors.dataHoraRetornoPrevista?.message}
+              {...register("dataHoraRetornoPrevista")}
+            />
+          </div>
 
-        <Textarea
-          label="Justificativa"
-          required
-          rows={3}
-          placeholder="Descreva o motivo da viagem..."
-          error={errors.justificativa?.message}
-          {...register("justificativa")}
-        />
+          {/* Carga */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Tipo de transporte"
+              required
+              options={tiposTransporte.map((t) => ({ value: t, label: TIPO_TRANSPORTE_LABEL[t] }))}
+              error={errors.tipoTransporte?.message}
+              {...register("tipoTransporte")}
+            />
+            <Input
+              id="quantidadePassageiros"
+              label="Nº de passageiros"
+              type="number"
+              min={0}
+              max={15}
+              required
+              error={errors.quantidadePassageiros?.message}
+              {...register("quantidadePassageiros")}
+            />
+          </div>
 
-        <Textarea
-          label="Observações"
-          rows={2}
-          placeholder="Contato no destino, cuidados com a carga, etc. (opcional)"
-          error={errors.observacoes?.message}
-          {...register("observacoes")}
-        />
+          <Textarea
+            label="Justificativa"
+            required
+            rows={3}
+            placeholder="Descreva o motivo da viagem..."
+            error={errors.justificativa?.message}
+            {...register("justificativa")}
+          />
+
+          <Textarea
+            label="Observações"
+            rows={2}
+            placeholder="Contato no destino, cuidados com a carga, etc. (opcional)"
+            error={errors.observacoes?.message}
+            {...register("observacoes")}
+          />
+        </fieldset>
       </form>
     </Modal>
   );

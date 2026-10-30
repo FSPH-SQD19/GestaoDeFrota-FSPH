@@ -33,7 +33,6 @@ export interface NavItem {
   roles: UserRole[];
   /** Rótulo pode variar conforme o perfil (ex.: "Minhas Solicitações" para o solicitante). */
   label: (roles: UserRole[]) => string;
-  badge?: (roles: UserRole[]) => string | undefined;
 }
 
 export interface NavSection {
@@ -58,8 +57,6 @@ export const NAV_SECTIONS: NavSection[] = [
         label: (roles) => (isGestao(roles) ? "Solicitações" : "Minhas Solicitações"),
         icon: ClipboardList,
         roles: ["ADMIN", "GESTOR", "SOLICITANTE"],
-        // Contador da fila de análise: só faz sentido para quem aprova.
-        badge: (roles) => (isGestao(roles) ? "1" : undefined),
       },
       {
         id: "viagens",

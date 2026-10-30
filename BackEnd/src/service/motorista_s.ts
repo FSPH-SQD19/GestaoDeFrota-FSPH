@@ -10,6 +10,7 @@ interface MotoristaInput {
   numeroCnh: string;
   categoriaCnh: string;
   validadeCnh: string;
+  telefone?: string;
 }
 
 interface AtualizarMotoristaInput {
@@ -103,6 +104,11 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
   const cpf = dados.cpf.replace(/\D/g, "");
   const numeroCnh = dados.numeroCnh.trim();
   const categoriaCnh = dados.categoriaCnh.trim().toUpperCase();
+  const telefone = dados.telefone?.trim();
+
+  if (telefone && telefone.length > 20) {
+    throw new Error("Telefone deve ter no máximo 20 caracteres.");
+  }
 
   if (!validarCpf(cpf)) {
     throw new Error("CPF inválido.");
@@ -149,6 +155,7 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
         numeroCnh,
         categoriaCnh,
         validadeCnh,
+        ...(telefone ? { telefone } : {}),
       },
       include: {
         usuario: {

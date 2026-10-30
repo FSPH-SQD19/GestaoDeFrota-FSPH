@@ -1,5 +1,6 @@
 // Tipos da Solicitação de Viagem (frota administrativa).
-// Alinhados ao contrato de `/api/v1/solicitacoes` no back-end.
+// Alinhados ao model `SolicitacaoViagem` do Prisma; campos extras serão
+// incorporados ao schema quando o endpoint do back-end for criado.
 
 export type StatusSolicitacao = "PENDENTE" | "APROVADA" | "EM_TRANSITO" | "CONCLUIDA" | "RECUSADA";
 
@@ -10,8 +11,28 @@ export type TipoTransporte = "PASSAGEIROS" | "MATERIAL_BIOLOGICO" | "DOCUMENTOS_
 export interface SolicitacaoViagem {
   id: string;
   protocolo: string;
-  solicitanteId?: string;
   solicitanteNome: string;
+  setorOrigem: string | null;
+  origem: string | null;
+  destino: string | null;
+  /** ISO 8601 */
+  dataHoraPretendida: string | null;
+  /** ISO 8601 */
+  dataHoraRetornoPrevista?: string | null;
+  quantidadePassageiros: number;
+  tipoTransporte: TipoTransporte;
+  urgencia: UrgenciaSolicitacao;
+  justificativa: string;
+  observacoes?: string;
+  status: StatusSolicitacao;
+  /** ISO 8601 */
+  criadoEm: string;
+  motivoRecusa?: string;
+  veiculoAlocado?: { placa: string; modelo: string } | null;
+  motoristaAlocado?: { nome: string | null } | null;
+}
+
+export interface NovaSolicitacaoViagem {
   setorOrigem: string;
   origem: string;
   destino: string;
@@ -24,79 +45,6 @@ export interface SolicitacaoViagem {
   urgencia: UrgenciaSolicitacao;
   justificativa: string;
   observacoes?: string;
-  status: StatusSolicitacao;
-  /** ISO 8601 */
-  criadoEm: string;
-  motivoRecusa?: string;
-  veiculoAlocadoId?: string | null;
-  motoristaAlocadoId?: string | null;
-  veiculoAlocado?: { placa: string; modelo: string };
-  motoristaAlocado?: { nome: string };
-}
-
-export type NovaSolicitacaoViagem = Pick<
-  SolicitacaoViagem,
-  | "setorOrigem"
-  | "origem"
-  | "destino"
-  | "dataHoraPretendida"
-  | "dataHoraRetornoPrevista"
-  | "quantidadePassageiros"
-  | "tipoTransporte"
-  | "urgencia"
-  | "justificativa"
-  | "observacoes"
->;
-
-export type ContagemPorStatus = Record<StatusSolicitacao, number>;
-
-export interface MetaPaginacaoSolicitacoes {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-  porStatus: ContagemPorStatus;
-}
-
-export interface ListaSolicitacoesResposta {
-  data: SolicitacaoViagem[];
-  meta: MetaPaginacaoSolicitacoes;
-}
-
-export interface ListarSolicitacoesParams {
-  page?: number;
-  pageSize?: number;
-  status?: StatusSolicitacao[];
-  urgencia?: UrgenciaSolicitacao;
-  tipoTransporte?: TipoTransporte;
-  setorOrigem?: string;
-  busca?: string;
-}
-
-export interface VeiculoDisponivelOption {
-  id: string;
-  placa: string;
-  modelo: string;
-  capacidadeMaxima: number;
-  combustivel?: string | null;
-}
-
-export interface MotoristaDisponivelOption {
-  id: string;
-  nome: string;
-  cpf: string;
-  numeroCnh: string;
-  categoriaCnh: string;
-  validadeCnh: string;
-}
-
-export interface AprovarSolicitacaoInput {
-  veiculoId: string;
-  motoristaId: string;
-}
-
-export interface RecusarSolicitacaoInput {
-  motivoRecusa: string;
 }
 
 export const STATUS_SOLICITACAO_LABEL: Record<StatusSolicitacao, string> = {
@@ -133,3 +81,24 @@ export const SETORES_FSPH = [
   "Vigilância em Saúde",
   "Recursos Humanos",
 ] as const;
+
+export type ContagemPorStatus = Record<StatusSolicitacao, number>;
+export interface ListaSolicitacoesResposta {
+  data: SolicitacaoViagem[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    porStatus: ContagemPorStatus;
+  };
+}
+export interface ListarSolicitacoesParams {
+  page?: number;
+  pageSize?: number;
+  status?: StatusSolicitacao[];
+  urgencia?: UrgenciaSolicitacao;
+  tipoTransporte?: TipoTransporte;
+  setorOrigem?: string;
+  busca?: string;
+}
