@@ -29,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ADMIN: "Administrador",
     GESTOR: "Gestor de Frota",
     MOTORISTA: "Motorista Oficial",
-    ATENDENTE_SVO: "Atendente SVO",
+    SVO: "Atendente SVO",
     SOLICITANTE: "Solicitante Setorial",
   };
 
@@ -196,7 +196,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shrink-0">
                   {userInitial}
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#090D16]" />
               </div>
 
               {!isCollapsed && (

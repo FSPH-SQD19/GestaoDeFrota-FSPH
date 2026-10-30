@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Filter, MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { CalendarDays, Filter, MoreHorizontal, Phone, Plus, Search, X } from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -9,7 +9,6 @@ import {
   cpfValido,
   formatarCpf,
   type Motorista,
-  type StatusMotorista,
 } from "./MotoristaRules";
 
 interface MotoristaApi {
@@ -19,6 +18,8 @@ interface MotoristaApi {
   categoriaCnh: string | null;
   validadeCnh: string;
   ativo: boolean;
+  status: string;
+  telefone: string | null;
   usuario: { nome: string; email: string } | null;
 }
 
@@ -27,6 +28,7 @@ interface FormularioMotorista {
   numeroCnh: string;
   categoriaCnh: string;
   validadeCnh: string;
+  telefone: string;
 }
 
 interface FiltrosMotoristas {
@@ -41,6 +43,7 @@ const formularioVazio: FormularioMotorista = {
   numeroCnh: "",
   categoriaCnh: "",
   validadeCnh: "",
+  telefone: "",
 };
 
 const filtrosVazios: FiltrosMotoristas = {
@@ -68,10 +71,19 @@ const diasAteVencimento = (data: string) => {
   return (paraDiaUtc(data) - paraDiaUtc(dataHojeIso())) / (1000 * 60 * 60 * 24);
 };
 
-const statusVariant: Record<StatusMotorista, "success" | "neutral"> = {
-  Ativo: "success",
-  Inativo: "neutral",
+const statusLabels: Record<string, string> = {
+  DISPONIVEL: "Disponível",
+  EM_VIAGEM: "Em viagem",
+  INDISPONIVEL: "Indisponível",
 };
+
+const statusVariant: Record<string, "success" | "info" | "warning" | "neutral"> = {
+  "Disponível": "success",
+  "Em viagem": "info",
+  "Indisponível": "warning",
+};
+
+const statusLabel = (status: string) => statusLabels[status] ?? status.replaceAll("_", " ");
 
 function mapearMotorista(motorista: MotoristaApi): Motorista {
   const validadeCnh = motorista.validadeCnh.slice(0, 10);
@@ -82,7 +94,9 @@ function mapearMotorista(motorista: MotoristaApi): Motorista {
     numeroCnh: motorista.numeroCnh,
     categoriaCnh: motorista.categoriaCnh ?? "—",
     validadeCnh,
-    status: motorista.ativo ? "Ativo" : "Inativo",
+    ativo: motorista.ativo,
+    status: statusLabel(motorista.status),
+    telefone: motorista.telefone || undefined,
     email: motorista.usuario?.email,
   };
 }
@@ -162,6 +176,7 @@ export const MotoristasPage: React.FC = () => {
           numeroCnh: formulario.numeroCnh,
           categoriaCnh: formulario.categoriaCnh,
           validadeCnh: formulario.validadeCnh,
+          telefone: formulario.telefone || undefined,
         }),
       });
       setMotoristas((atuais) => [mapearMotorista(response), ...atuais]);
@@ -181,7 +196,7 @@ export const MotoristasPage: React.FC = () => {
 
     return motoristas.filter((motorista) => {
       const diasParaVencimento = diasAteVencimento(motorista.validadeCnh);
-      const cnhPrecisaAtencao = motorista.status === "Ativo" && diasParaVencimento <= 30;
+      const cnhPrecisaAtencao = motorista.ativo && diasParaVencimento <= 30;
       const correspondeBusca =
         !busca ||
         motorista.id.toLocaleLowerCase("pt-BR").includes(busca) ||
@@ -193,14 +208,14 @@ export const MotoristasPage: React.FC = () => {
         motorista.id.toLocaleLowerCase("pt-BR").includes(filtros.id.trim().toLocaleLowerCase("pt-BR")) &&
         motorista.nome.toLocaleLowerCase("pt-BR").includes(filtros.nome.trim().toLocaleLowerCase("pt-BR")) &&
         (!filtros.validadeCnh || motorista.validadeCnh === filtros.validadeCnh) &&
-        (!filtros.status || motorista.status === filtros.status)
+        (!filtros.status || motorista.ativo === (filtros.status === "Ativo"))
       );
     });
   }, [filtroCnhAtencao, filtros, motoristas, termoBusca]);
 
-  const ativos = motoristas.filter((motorista) => motorista.status === "Ativo").length;
+  const ativos = motoristas.filter((motorista) => motorista.ativo).length;
   const motoristasComCnhAtencao = motoristas.filter(
-    (motorista) => motorista.status === "Ativo" && diasAteVencimento(motorista.validadeCnh) <= 30,
+    (motorista) => motorista.ativo && diasAteVencimento(motorista.validadeCnh) <= 30,
   );
   const cnHsVencidas = motoristasComCnhAtencao.filter(
     (motorista) => diasAteVencimento(motorista.validadeCnh) <= 0,
@@ -261,10 +276,33 @@ export const MotoristasPage: React.FC = () => {
       },
     },
     {
-      header: "Status do cadastro",
+      header: "Status operacional",
       render: (motorista) => (
-        <Badge variant={statusVariant[motorista.status]} dot size="md">
+        <Badge variant={statusVariant[motorista.status] ?? "neutral"} dot size="md">
           {motorista.status}
+        </Badge>
+      ),
+    },
+    {
+      header: "Contato",
+      render: (motorista) =>
+        motorista.telefone ? (
+          <a
+            href={`tel:${motorista.telefone.replace(/\D/g, "")}`}
+            className="inline-flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900"
+          >
+            <Phone className="h-3.5 w-3.5 text-slate-400" />
+            {motorista.telefone}
+          </a>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        ),
+    },
+    {
+      header: "Cadastro",
+      render: (motorista) => (
+        <Badge variant={motorista.ativo ? "success" : "neutral"} dot size="md">
+          {motorista.ativo ? "Ativo" : "Inativo"}
         </Badge>
       ),
     },
@@ -493,9 +531,21 @@ export const MotoristasPage: React.FC = () => {
                 <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.email || "Usuário sem vínculo"}</dd>
               </div>
               <div>
+                <dt className="text-xs font-medium text-slate-500">Telefone</dt>
+                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.telefone || "—"}</dd>
+              </div>
+              <div>
                 <dt className="text-xs font-medium text-slate-500">Status do cadastro</dt>
                 <dd className="mt-1">
-                  <Badge variant={statusVariant[motoristaSelecionado.status]} dot>
+                  <Badge variant={motoristaSelecionado.ativo ? "success" : "neutral"} dot>
+                    {motoristaSelecionado.ativo ? "Ativo" : "Inativo"}
+                  </Badge>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Status operacional</dt>
+                <dd className="mt-1">
+                  <Badge variant={statusVariant[motoristaSelecionado.status] ?? "neutral"} dot>
                     {motoristaSelecionado.status}
                   </Badge>
                 </dd>
@@ -560,6 +610,14 @@ export const MotoristasPage: React.FC = () => {
             min={dataHojeIso()}
             value={formulario.validadeCnh}
             onChange={(event) => atualizarFormulario("validadeCnh", event.target.value)}
+          />
+          <Input
+            label="Telefone para contato"
+            type="tel"
+            autoComplete="tel"
+            maxLength={20}
+            value={formulario.telefone}
+            onChange={(event) => atualizarFormulario("telefone", event.target.value)}
           />
           {erroCadastro && <p role="alert" className="text-sm font-medium text-rose-600">{erroCadastro}</p>}
         </form>

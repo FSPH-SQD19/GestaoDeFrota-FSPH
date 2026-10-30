@@ -1,32 +1,35 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import axios from "axios";
 import type { User, UserRole, LoginCredentials, AuthState } from "../types/auth";
-import { apiRequest } from "../lib/api";
+import {
+  api,
+  AUTH_TOKEN_KEY,
+  AUTH_USER_KEY,
+  clearAuthSession,
+  setUnauthorizedHandler,
+} from "../services/api";
 import { AuthContext } from "./auth";
 
-const STORAGE_KEY_USER = "@fsph_frota_user";
-const STORAGE_KEY_TOKEN = "@fsph_frota_token";
+const validRoles = new Set<UserRole>(["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"]);
 
-const validRoles = new Set<UserRole>([
-  "ADMIN",
-  "GESTOR",
-  "MOTORISTA",
-  "ATENDENTE_SVO",
-  "SOLICITANTE",
-]);
+interface LoginApiResponse {
+  token: string;
+  usuario: {
+    id: string;
+    nome: string;
+    email: string;
+    perfis: string[];
+  };
+}
 
 function clearSession() {
-  try {
-    localStorage.removeItem(STORAGE_KEY_USER);
-    localStorage.removeItem(STORAGE_KEY_TOKEN);
-  } catch {
-    // A sessão em memória continua funcionando quando o navegador bloqueia o armazenamento.
-  }
+  clearAuthSession();
 }
 
 function saveSession(user: User, token: string) {
   try {
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-    localStorage.setItem(STORAGE_KEY_TOKEN, token);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
   } catch {
     // O usuário precisará entrar novamente após recarregar a página.
   }
@@ -34,6 +37,17 @@ function saveSession(user: User, token: string) {
 
 function isTokenShape(value: string): boolean {
   return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
+}
+
+function mapPerfis(perfis: string[]): UserRole[] {
+  const roles = perfis.flatMap((perfil): UserRole[] => {
+    if (perfil === "ATENDENTE_SVO") return ["SVO"];
+    return validRoles.has(perfil as UserRole) ? [perfil as UserRole] : [];
+  });
+  if (roles.length === 0) {
+    throw new Error("Usuário sem perfil autorizado para o sistema.");
+  }
+  return roles;
 }
 
 function isStoredUser(value: unknown): value is User {
@@ -51,8 +65,8 @@ function isStoredUser(value: unknown): value is User {
 
 function readSession(): AuthState {
   try {
-    const storedUser = localStorage.getItem(STORAGE_KEY_USER);
-    const storedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
     if (storedUser && storedToken && isTokenShape(storedToken)) {
       const user: unknown = JSON.parse(storedUser);
       if (isStoredUser(user)) {
@@ -63,57 +77,57 @@ function readSession(): AuthState {
     // JSON inválido ou armazenamento indisponível: voltar ao login.
   }
   clearSession();
-  return {
-    user: null,
-    token: null,
-    isAuthenticated: false,
-    isLoading: false,
-  };
+  return { user: null, token: null, isAuthenticated: false, isLoading: false };
 }
 
-interface LoginResponse {
-  token: string;
-  usuario: {
-    id: string;
-    nome: string;
-    email: string;
-    perfis: string[];
-  };
-}
-
-function mapRole(perfil: string): UserRole | null {
-  if (perfil === "SVO") return "ATENDENTE_SVO";
-  return validRoles.has(perfil as UserRole) ? (perfil as UserRole) : null;
+function mensagemErroLogin(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { error?: string; mensagem?: string } | undefined;
+    if (typeof data?.error === "string" && data.error.trim()) return data.error;
+    if (typeof data?.mensagem === "string" && data.mensagem.trim()) return data.mensagem;
+    if (error.response?.status === 401) return "Credenciais inválidas";
+    if (error.response?.status === 400) return "email e senha são obrigatórios";
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Ocorreu um erro ao tentar acessar. Verifique suas credenciais.";
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(readSession);
 
-  const login = async ({ usuario, senha }: LoginCredentials) => {
-    const result = await apiRequest<LoginResponse>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email: usuario.trim(), senha }),
-    });
-    const roles = result.usuario.perfis.map(mapRole).filter((role): role is UserRole => role !== null);
-
-    if (!result.token || !result.usuario.id || roles.length === 0) {
-      throw new Error("A resposta de autenticação não contém um perfil de acesso válido.");
-    }
-
-    const user: User = {
-      id: result.usuario.id,
-      nome: result.usuario.nome,
-      email: result.usuario.email,
-      roles,
-    };
-
-    saveSession(user, result.token);
-    setState({ user, token: result.token, isAuthenticated: true, isLoading: false });
-  };
-
-  const logout = () => {
+  const logout = useCallback(() => {
     clearSession();
     setState({ user: null, token: null, isAuthenticated: false, isLoading: false });
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(logout);
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
+
+  const login = async ({ usuario, senha }: LoginCredentials) => {
+    if (!usuario?.trim() || !senha) {
+      throw new Error("Informe o e-mail e a senha.");
+    }
+
+    try {
+      const { data } = await api.post<LoginApiResponse>("/api/v1/auth/login", {
+        email: usuario.trim(),
+        senha,
+      });
+
+      const user: User = {
+        id: data.usuario.id,
+        nome: data.usuario.nome,
+        email: data.usuario.email,
+        roles: mapPerfis(data.usuario.perfis),
+      };
+
+      saveSession(user, data.token);
+      setState({ user, token: data.token, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      throw new Error(mensagemErroLogin(error));
+    }
   };
 
   const hasRole = (requiredRoles: UserRole[]): boolean => {
@@ -122,9 +136,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return state.user.roles.some((role) => requiredRoles.includes(role));
   };
 
-  return (
-    <AuthContext.Provider value={{ ...state, login, logout, hasRole }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ ...state, login, logout, hasRole }}>{children}</AuthContext.Provider>;
 };

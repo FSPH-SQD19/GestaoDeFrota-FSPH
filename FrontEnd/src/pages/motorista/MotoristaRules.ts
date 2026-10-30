@@ -1,4 +1,4 @@
-export type StatusMotorista = "Ativo" | "Inativo";
+export type StatusMotorista = string;
 
 export interface Motorista {
   id: string;
@@ -7,7 +7,9 @@ export interface Motorista {
   numeroCnh: string;
   categoriaCnh: string;
   validadeCnh: string;
+  ativo: boolean;
   status: StatusMotorista;
+  telefone?: string;
   email?: string;
 }
 

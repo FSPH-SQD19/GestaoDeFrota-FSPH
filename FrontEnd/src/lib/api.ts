@@ -1,44 +1,49 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1").replace(
-  /\/+$/,
-  "",
-);
+import axios, { type AxiosRequestConfig, type Method } from "axios";
+import { api } from "../services/api";
 
-interface ApiRequestOptions extends RequestInit {
+interface ApiRequestOptions {
+  method?: Method;
+  body?: string;
   token?: string | null;
 }
 
-export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { token, headers: requestHeaders, ...requestOptions } = options;
-  const headers = new Headers(requestHeaders);
-  headers.set("Accept", "application/json");
-
-  if (requestOptions.body !== undefined && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+function respostaDeErro(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const body = error.response?.data;
+    if (body && typeof body === "object") {
+      const details = body as Record<string, unknown>;
+      const message = [details.error, details.mensagem, details.message].find(
+        (value): value is string => typeof value === "string" && value.length > 0,
+      );
+      if (message) return message;
+    }
+    if (error.response?.status === 401) return "Sua sessão expirou. Entre novamente.";
   }
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (error instanceof Error && error.message) return error.message;
+  return "Não foi possível concluir a operação.";
+}
 
-  const response = await fetch(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`, {
-    ...requestOptions,
-    headers,
-  });
-  const text = await response.text();
-  let payload: unknown;
-
-  if (text) {
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  let data: unknown;
+  if (options.body) {
     try {
-      payload = JSON.parse(text);
+      data = JSON.parse(options.body);
     } catch {
-      payload = text;
+      throw new Error("O corpo da requisição não contém JSON válido.");
     }
   }
 
-  if (!response.ok) {
-    const body = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
-    const message = [body.error, body.mensagem, body.message].find(
-      (value): value is string => typeof value === "string" && value.length > 0,
-    );
-    throw new Error(message ?? "Não foi possível concluir a operação.");
-  }
+  const config: AxiosRequestConfig = {
+    url: `/api/v1${path.startsWith("/") ? path : `/${path}`}`,
+    method: options.method ?? "GET",
+    data,
+    ...(options.token ? { headers: { Authorization: `Bearer ${options.token}` } } : {}),
+  };
 
-  return payload as T;
+  try {
+    const response = await api.request<T>(config);
+    return response.data;
+  } catch (error) {
+    throw new Error(respostaDeErro(error));
+  }
 }
