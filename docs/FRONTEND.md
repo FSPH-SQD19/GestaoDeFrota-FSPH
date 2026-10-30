@@ -237,3 +237,11 @@ A tela usa o cliente HTTP compartilhado em `GET` e `POST /api/v1/motoristas`, re
 O cadastro envia os dados da conta que já eram exigidos por esta branch (nome, e-mail, senha e telefone), além de CPF e CNH. A validação segue o contrato existente, normalizando os dados e verificando o limite de 72 bytes da senha. Enquanto aguarda o POST, bloqueia fechamento, edição e novo envio. Falhas preservam o formulário. O sucesso limpa as credenciais preenchidas, fecha o modal e recarrega a lista; uma falha posterior nessa consulta é apresentada como erro de listagem, sem repetir o cadastro.
 
 CNHs válidas até hoje não são consideradas vencidas. Os indicadores excluem cadastros inativos das contagens de vencimento, e o filtro de CNHs vencendo inclui somente as que vencem de hoje até 30 dias, sem misturar CNHs já vencidas. Os dados da API são conferidos antes de formatar as datas.
+
+## Central SVO
+
+A central usa o cliente HTTP compartilhado e os endpoints existentes em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, despacho, conclusão e desinfecção recarregam os dados da API após o sucesso.
+
+Falhas na consulta de indicadores, viaturas ou motoristas permanecem visíveis mesmo que a listagem carregue depois. Repetir o filtro atual não deixa a tela presa em carregamento, e a página é ajustada quando o resultado filtrado diminui. A emissão não pré-seleciona motoristas ocupados em outras viaturas e exige uma seleção elegível.
+
+Validação visual em Playwright, pois o plugin Browser não estava disponível: `http://127.0.0.1:4173/`, viewports 1440 × 1000 e 390 × 844. O fluxo registro → triagem → emissão → conclusão → desinfecção, a busca e o filtro atual foram exercitados com respostas de API simuladas apenas no teste externo ao repositório. Não houve erro de console, overlay do Vite ou transbordamento horizontal. Essa verificação não substitui a integração com PostgreSQL real.

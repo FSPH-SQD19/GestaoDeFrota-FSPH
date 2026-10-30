@@ -195,3 +195,11 @@ Datas aceitam `AAAA-MM-DD` ou datetime ISO com fuso; o dia informado é preserva
 Cadastro e conclusão compartilham a trava por veículo com a aprovação de solicitações. A conclusão libera apenas veículos ativos ainda em `MANUTENCAO`, sem outras manutenções abertas, e retorna o status efetivamente persistido. Operações repetidas não duplicam a conclusão ou a auditoria. Disputas transacionais recuperáveis retornam `409`.
 
 A migration de status já pertencente à branch foi preservada e não foi aplicada ao banco nesta revisão. Ela define `ABERTA` como padrão também para registros antigos: antes de implantação em uma base com histórico, os responsáveis devem conferir a classificação desses registros. Os testes HTTP usam persistência simulada; a concorrência em PostgreSQL real permanece sem validação nesta sessão.
+
+### Operação SVO
+
+As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas de indicadores, chamados, viaturas e motoristas; registro de chamado; triagem; emissão de ordem; conclusão da coleta e confirmação de desinfecção. Os nove caminhos são verificados por testes HTTP de autenticação, autorização e validação, usando o aplicativo Express real e serviços simulados nos testes.
+
+Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
+
+A última coleta encaminha a viatura à desinfecção sem sobrescrever outros estados operacionais. A liberação do condutor é condicional ao cadastro ativo e ao status ocupado. A confirmação da desinfecção exige ausência de coletas ativas. Atualizações de status e auditoria permanecem na mesma transação; disputas transacionais ou emissão duplicada retornam `409`. Concorrência em PostgreSQL real não foi validada nesta revisão.

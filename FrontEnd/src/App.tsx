@@ -7,7 +7,11 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
 import { Card, Badge } from "./components/common";
-import { PhoneCall, Route } from "lucide-react";
+import { Route } from "lucide-react";
+
+const SvoPage = lazy(() =>
+  import("./pages/svo/SvoPage").then((module) => ({ default: module.SvoPage })),
+);
 
 const DashboardPage = lazy(() =>
   import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })),
@@ -109,19 +113,7 @@ const AppContent: React.FC = () => {
 
             {currentTab === "solicitacoes" && <SolicitacoesPage />}
 
-            {currentTab === "svo" && (
-              <Card className="p-10 text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-                  <PhoneCall className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">Módulo Especializado SVO</h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Triagem médica por telefone, emissão de ordens de coleta de óbitos, controle do
-                  limite de capacidade (S10) e desinfecção obrigatória.
-                </p>
-                <Badge variant="danger">Restrito: Atendente SVO & Administrador</Badge>
-              </Card>
-            )}
+            {currentTab === "svo" && <SvoPage />}
 
             {currentTab === "relatorios" && <RelatoriosPage />}
             {currentTab === "usuarios" && <UsuariosPage />}
