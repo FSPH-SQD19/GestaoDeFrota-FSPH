@@ -1,17 +1,28 @@
-import React, { useState } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./contexts/auth";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import { VeiculosPage } from "./pages/veiculos/VeiculosPage";
-import { SolicitacoesPage } from "./pages/solicitacoes/SolicitacoesPage";
-import { MotoristasPage } from "./pages/motorista/MotoristaPage";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
 import { Card, Badge } from "./components/common";
 import { FileText, PhoneCall, BarChart3, ShieldCheck, Route } from "lucide-react";
+
+const DashboardPage = lazy(() =>
+  import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })),
+);
+const VeiculosPage = lazy(() =>
+  import("./pages/veiculos/VeiculosPage").then((module) => ({ default: module.VeiculosPage })),
+);
+const SolicitacoesPage = lazy(() =>
+  import("./pages/solicitacoes/SolicitacoesPage").then((module) => ({
+    default: module.SolicitacoesPage,
+  })),
+);
+const MotoristasPage = lazy(() =>
+  import("./pages/motorista/MotoristaPage").then((module) => ({ default: module.MotoristasPage })),
+);
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading, hasRole, user } = useAuth();
@@ -60,83 +71,90 @@ const AppContent: React.FC = () => {
 
         {/* Conteúdo Dinâmico conforme a Aba Selecionada */}
         <main className="mt-4 flex-1">
-          {currentTab === "dashboard" && <DashboardPage />}
-          {currentTab === "veiculos" && <VeiculosPage />}
-
-          {currentTab === "viagens" && (
-            <Card className="p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                <Route className="w-6 h-6" />
+          <Suspense
+            fallback={
+              <div role="status" className="rounded-2xl border border-slate-200 bg-white p-6">
+                Carregando módulo...
               </div>
-              <h2 className="text-lg font-bold text-slate-900">Minhas Viagens</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Viagens escaladas para você, checklist de saída e retorno, registro de odômetro e
-                abastecimento (visão mobile / PWA).
-              </p>
-              <Badge variant="info">Módulo mobile / PWA em desenvolvimento</Badge>
-            </Card>
-          )}
+            }
+          >
+            {currentTab === "dashboard" && <DashboardPage />}
+            {currentTab === "veiculos" && <VeiculosPage />}
 
-          {currentTab === "motoristas" && <MotoristasPage />}
+            {currentTab === "viagens" && (
+              <Card className="p-10 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                  <Route className="w-6 h-6" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Minhas Viagens</h2>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  Viagens escaladas para você, checklist de saída e retorno, registro de odômetro e
+                  abastecimento (visão mobile / PWA).
+                </p>
+                <Badge variant="info">Módulo mobile / PWA em desenvolvimento</Badge>
+              </Card>
+            )}
 
-          {/* Placeholders informativos para as abas restantes */}
-          {currentTab === "solicitacoes" && hasRole(["SOLICITANTE"]) && <SolicitacoesPage />}
+            {currentTab === "motoristas" && <MotoristasPage />}
 
-          {currentTab === "solicitacoes" && !hasRole(["SOLICITANTE"]) && (
-            <Card className="p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
-                <FileText className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Solicitações de Viagem</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Aprovação e recusa de viagens da frota administrativa pelos setores da FSPH (LACEN,
-                Hemose, etc.).
-              </p>
-              <Badge variant="warning">1 solicitação aguardando aprovação</Badge>
-            </Card>
-          )}
+            {/* Placeholders informativos para as abas restantes */}
+            {currentTab === "solicitacoes" && hasRole(["SOLICITANTE"]) && <SolicitacoesPage />}
 
-          {currentTab === "svo" && (
-            <Card className="p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-                <PhoneCall className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Módulo Especializado SVO</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Triagem médica por telefone, emissão de ordens de coleta de óbitos, controle do
-                limite de capacidade (S10) e desinfecção obrigatória.
-              </p>
-              <Badge variant="danger">Restrito: Atendente SVO & Administrador</Badge>
-            </Card>
-          )}
+            {currentTab === "solicitacoes" && !hasRole(["SOLICITANTE"]) && (
+              <Card className="p-10 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Solicitações de Viagem</h2>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  Aprovação e recusa de viagens da frota administrativa pelos setores da FSPH
+                  (LACEN, Hemose, etc.).
+                </p>
+              </Card>
+            )}
 
-          {currentTab === "relatorios" && (
-            <Card className="p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
-                <BarChart3 className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Relatórios & Indicadores</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Relatórios de consumo médio de combustível (km/L), manutenções e auditoria do
-                sistema para prestação de contas.
-              </p>
-              <Badge variant="neutral">Exportação em PDF e Excel</Badge>
-            </Card>
-          )}
+            {currentTab === "svo" && (
+              <Card className="p-10 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+                  <PhoneCall className="w-6 h-6" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Módulo Especializado SVO</h2>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  Triagem médica por telefone, emissão de ordens de coleta de óbitos, controle do
+                  limite de capacidade (S10) e desinfecção obrigatória.
+                </p>
+                <Badge variant="danger">Restrito: Atendente SVO & Administrador</Badge>
+              </Card>
+            )}
 
-          {currentTab === "usuarios" && (
-            <Card className="p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Controle de Usuários e RBAC</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Gestão de permissões por perfil (Administrador, Gestor de Frota, Motorista,
-                Atendente SVO, Solicitante).
-              </p>
-              <Badge variant="neutral">Exclusivo para perfil Administrador</Badge>
-            </Card>
-          )}
+            {currentTab === "relatorios" && (
+              <Card className="p-10 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Relatórios & Indicadores</h2>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  Relatórios de consumo médio de combustível (km/L), manutenções e auditoria do
+                  sistema para prestação de contas.
+                </p>
+                <Badge variant="neutral">Exportação em PDF e Excel</Badge>
+              </Card>
+            )}
+
+            {currentTab === "usuarios" && (
+              <Card className="p-10 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Controle de Usuários e RBAC</h2>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  Gestão de permissões por perfil (Administrador, Gestor de Frota, Motorista,
+                  Atendente SVO, Solicitante).
+                </p>
+                <Badge variant="neutral">Exclusivo para perfil Administrador</Badge>
+              </Card>
+            )}
+          </Suspense>
         </main>
       </div>
     </div>

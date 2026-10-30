@@ -86,14 +86,14 @@ interface NovaSolicitacaoModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (dados: NovaSolicitacaoViagem) => Promise<void> | void;
-  setorPadrao?: string;
+  errorMessage?: string;
 }
 
 export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  setorPadrao,
+  errorMessage,
 }) => {
   const {
     register,
@@ -103,12 +103,12 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
     formState: { errors, isSubmitting },
   } = useForm<SolicitacaoFormData>({
     resolver: zodResolver(solicitacaoSchema),
-    defaultValues: { ...defaultValues, setorOrigem: setorPadrao ?? "" },
+    defaultValues,
   });
 
   useEffect(() => {
-    if (isOpen) reset({ ...defaultValues, setorOrigem: setorPadrao ?? "" });
-  }, [isOpen, reset, setorPadrao]);
+    if (isOpen) reset(defaultValues);
+  }, [isOpen, reset]);
 
   const urgencia = useWatch({ control, name: "urgencia" });
 
@@ -154,6 +154,14 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
       }
     >
       <form id={FORM_ID} onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
+        {errorMessage && (
+          <p
+            role="alert"
+            className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          >
+            {errorMessage}
+          </p>
+        )}
         {/* Setor e urgência */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select

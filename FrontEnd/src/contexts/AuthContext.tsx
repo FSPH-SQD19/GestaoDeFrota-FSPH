@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import type { User, UserRole, LoginCredentials, AuthState } from "../types/auth";
-import { AuthContext } from "./auth";
 import {
   api,
   AUTH_TOKEN_KEY,
@@ -9,8 +8,9 @@ import {
   clearAuthSession,
   setUnauthorizedHandler,
 } from "../services/api";
+import { AuthContext } from "./auth";
 
-const validRoles = new Set<string>(["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"]);
+const validRoles = new Set<UserRole>(["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"]);
 
 interface LoginApiResponse {
   token: string;
@@ -35,8 +35,15 @@ function saveSession(user: User, token: string) {
   }
 }
 
+function isTokenShape(value: string): boolean {
+  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
+}
+
 function mapPerfis(perfis: string[]): UserRole[] {
-  const roles = perfis.filter((perfil): perfil is UserRole => validRoles.has(perfil));
+  const roles = perfis.flatMap((perfil): UserRole[] => {
+    if (perfil === "ATENDENTE_SVO") return ["SVO"];
+    return validRoles.has(perfil as UserRole) ? [perfil as UserRole] : [];
+  });
   if (roles.length === 0) {
     throw new Error("Usuário sem perfil autorizado para o sistema.");
   }
@@ -60,7 +67,7 @@ function readSession(): AuthState {
   try {
     const storedUser = localStorage.getItem(AUTH_USER_KEY);
     const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (storedUser && storedToken) {
+    if (storedUser && storedToken && isTokenShape(storedToken)) {
       const user: unknown = JSON.parse(storedUser);
       if (isStoredUser(user)) {
         return { user, token: storedToken, isAuthenticated: true, isLoading: false };
@@ -70,12 +77,7 @@ function readSession(): AuthState {
     // JSON inválido ou armazenamento indisponível: voltar ao login.
   }
   clearSession();
-  return {
-    user: null,
-    token: null,
-    isAuthenticated: false,
-    isLoading: false,
-  };
+  return { user: null, token: null, isAuthenticated: false, isLoading: false };
 }
 
 function mensagemErroLogin(error: unknown): string {
@@ -93,24 +95,19 @@ function mensagemErroLogin(error: unknown): string {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(readSession);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearSession();
-    setState({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      isLoading: false,
-    });
-  };
+    setState({ user: null, token: null, isAuthenticated: false, isLoading: false });
+  }, []);
 
   useEffect(() => {
     setUnauthorizedHandler(logout);
     return () => setUnauthorizedHandler(null);
-  }, []);
+  }, [logout]);
 
   const login = async ({ usuario, senha }: LoginCredentials) => {
     if (!usuario?.trim() || !senha) {
-      throw new Error("Informe o usuário e a senha.");
+      throw new Error("Informe o e-mail e a senha.");
     }
 
     try {
@@ -127,12 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       saveSession(user, data.token);
-      setState({
-        user,
-        token: data.token,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      setState({ user, token: data.token, isAuthenticated: true, isLoading: false });
     } catch (error) {
       throw new Error(mensagemErroLogin(error));
     }
@@ -144,27 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return state.user.roles.some((role) => requiredRoles.includes(role));
   };
 
-  // Utilitário para desenvolvedores testarem os menus com outros perfis
-  const switchRoleForTesting = (role: UserRole) => {
-    if (!state.user) return;
-    const updatedUser: User = {
-      ...state.user,
-      roles: [role],
-    };
-    if (state.token) saveSession(updatedUser, state.token);
-    setState((prev) => ({ ...prev, user: updatedUser }));
-  };
-
   return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        logout,
-        hasRole,
-        switchRoleForTesting,
-      }}
-    >
+    <AuthContext.Provider value={{ ...state, login, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

@@ -19,7 +19,7 @@ export async function listarMotoristasController(req: Request, res: Response) {
 
 export async function cadastrarMotoristaController(req: Request, res: Response) {
   try {
-    const { usuarioId, cpf, numeroCnh, categoriaCnh, validadeCnh } = req.body ?? {};
+    const { usuarioId, cpf, numeroCnh, categoriaCnh, validadeCnh, telefone } = req.body ?? {};
     if (
       typeof cpf !== "string" ||
       typeof numeroCnh !== "string" ||
@@ -34,9 +34,22 @@ export async function cadastrarMotoristaController(req: Request, res: Response) 
         .status(400)
         .json({ mensagem: "Informe CPF, número da CNH, categoria e validade." });
     }
+    if (telefone !== undefined && typeof telefone !== "string") {
+      return res.status(400).json({ mensagem: "Telefone deve ser texto." });
+    }
+    if (typeof telefone === "string" && telefone.trim().length > 20) {
+      return res.status(400).json({ mensagem: "Telefone deve ter no máximo 20 caracteres." });
+    }
 
     const motorista = await cadastrarMotorista(
-      { usuarioId, cpf, numeroCnh, categoriaCnh, validadeCnh },
+      {
+        usuarioId,
+        cpf,
+        numeroCnh,
+        categoriaCnh,
+        validadeCnh,
+        ...(typeof telefone === "string" && telefone.trim() ? { telefone: telefone.trim() } : {}),
+      },
       usuarioAutenticado(res).id,
     );
 
@@ -52,6 +65,7 @@ export async function cadastrarMotoristaController(req: Request, res: Response) 
         "Data de validade da CNH inválida.",
         "A CNH está vencida.",
         "Usuário não encontrado.",
+        "Telefone deve ter no máximo 20 caracteres.",
       ];
 
       if (errosValidacao.includes(error.message)) {

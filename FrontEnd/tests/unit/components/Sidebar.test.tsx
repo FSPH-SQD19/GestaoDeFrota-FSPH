@@ -23,7 +23,6 @@ function renderSidebarWithRole(role: UserRole) {
         login: vi.fn(),
         logout: vi.fn(),
         hasRole: (required) => required.includes(role),
-        switchRoleForTesting: vi.fn(),
       }}
     >
       <Sidebar activeTab={telaInicial([role])} onSelectTab={vi.fn()} />
