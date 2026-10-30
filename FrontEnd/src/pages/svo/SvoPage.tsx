@@ -129,6 +129,7 @@ export const SvoPage: React.FC = () => {
 
   const [aviso, setAviso] = useState("");
   const [erroPagina, setErroPagina] = useState("");
+  const [erroRecursos, setErroRecursos] = useState("");
   const [erroModal, setErroModal] = useState("");
 
   const [selecionado, setSelecionado] = useState<ChamadoSvo | null>(null);
@@ -159,6 +160,9 @@ export const SvoPage: React.FC = () => {
         setChamados(resposta.data);
         setTotalRegistros(resposta.meta.total);
         setTotalPages(Math.max(1, resposta.meta.totalPages));
+        if (page > Math.max(1, resposta.meta.totalPages)) {
+          setPage(Math.max(1, resposta.meta.totalPages));
+        }
         setErroPagina("");
       })
       .catch((erro: unknown) => {
@@ -191,10 +195,11 @@ export const SvoPage: React.FC = () => {
         setIndicadores(ind);
         setViaturas(listaViaturas);
         setMotoristas(listaMotoristas);
+        setErroRecursos("");
       })
       .catch((erro: unknown) => {
         if (cancelado) return;
-        setErroPagina(
+        setErroRecursos(
           extrairErroSvo(erro, "Não foi possível atualizar os indicadores e viaturas do SVO."),
         );
       });
@@ -213,6 +218,7 @@ export const SvoPage: React.FC = () => {
   };
 
   const handleFiltroChange = (novaEtapa: EtapaFiltroSvo) => {
+    if (novaEtapa === etapa && page === 1) return;
     setCarregando(true);
     setEtapa(novaEtapa);
     setPage(1);
@@ -326,7 +332,7 @@ export const SvoPage: React.FC = () => {
       return viatura.motoristaAtual.id;
     }
     const disponivel = listaMotoristas.find((m) => !m.status || m.status === "DISPONIVEL");
-    return disponivel?.id ?? listaMotoristas[0]?.id ?? "";
+    return disponivel?.id ?? "";
   };
 
   const abrirEmissaoOrdem = (chamado: ChamadoSvo) => {
@@ -478,7 +484,15 @@ export const SvoPage: React.FC = () => {
         <Button variant="outline" onClick={fecharModal} disabled={enviando}>
           Cancelar
         </Button>
-        <Button onClick={handleEmitirOrdem} disabled={enviando || !viaturaDaOrdem || !motoristaId}>
+        <Button
+          onClick={handleEmitirOrdem}
+          disabled={
+            enviando ||
+            !!erroRecursos ||
+            !viaturaDaOrdem ||
+            !motoristasParaOrdem.some((motorista) => motorista.id === motoristaId)
+          }
+        >
           {enviando ? "Emitindo..." : "Emitir ordem de coleta"}
         </Button>
       </>
@@ -551,16 +565,23 @@ export const SvoPage: React.FC = () => {
         </div>
       )}
 
-      {erroPagina && (
+      {(erroPagina || erroRecursos) && (
         <div
           role="alert"
           className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
         >
           <span className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            {erroPagina}
+            {erroPagina || erroRecursos}
           </span>
-          <button type="button" aria-label="Fechar erro" onClick={() => setErroPagina("")}>
+          <button
+            type="button"
+            aria-label="Fechar erro"
+            onClick={() => {
+              setErroPagina("");
+              setErroRecursos("");
+            }}
+          >
             <X className="h-4 w-4" />
           </button>
         </div>

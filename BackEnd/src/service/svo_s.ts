@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
@@ -71,7 +71,7 @@ export const listarChamadosSchema = z.object({
   status: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]).optional(),
   etapa: z.enum(["TODOS", "EM_ANALISE", "AGUARDANDO_ORDEM", "EM_OPERACAO", "ENCERRADO"]).optional(),
   busca: buscaQuerySchema,
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(1000000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
 });
 
@@ -331,16 +331,51 @@ export async function realizarTriagemSvo(
   });
 }
 
+async function transacionarSvo<T>(operacao: (tx: Prisma.TransactionClient) => Promise<T>) {
+  try {
+    return await prisma.$transaction(operacao, { maxWait: 5000, timeout: 15000 });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      ["P2002", "P2034", "P2028"].includes(error.code)
+    ) {
+      throw new HttpError(
+        409,
+        "Operação SVO em conflito com outra atualização. Atualize os dados e tente novamente.",
+      );
+    }
+    throw error;
+  }
+}
+
+async function bloquearRecursosSvo(
+  tx: Prisma.TransactionClient,
+  veiculoId?: string | null,
+  motoristaId?: string | null,
+  chamadoId?: string,
+) {
+  // Mesma ordem e chaves da aprovação de solicitações e das manutenções.
+  const recursos = [motoristaId && `motorista:${motoristaId}`, veiculoId && `veiculo:${veiculoId}`]
+    .filter((valor): valor is string => Boolean(valor))
+    .sort();
+  for (const recurso of recursos) {
+    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${recurso}, 0))`;
+  }
+  if (motoristaId)
+    await tx.$queryRaw`SELECT id FROM motoristas WHERE id = ${motoristaId}::uuid FOR UPDATE`;
+  if (veiculoId)
+    await tx.$queryRaw`SELECT id FROM veiculos WHERE id = ${veiculoId}::uuid FOR UPDATE`;
+  if (chamadoId)
+    await tx.$queryRaw`SELECT id FROM chamados_svo WHERE id = ${chamadoId}::uuid FOR UPDATE`;
+}
+
 export async function emitirOrdemColetaSvo(
   chamadoId: string,
   input: z.infer<typeof emitirOrdemSchema>,
   usuarioId?: string,
 ) {
-  return prisma.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM veiculos WHERE id = ${input.veiculoId}::uuid FOR UPDATE
-    `;
-    if (locked.length === 0) throw new HttpError(404, "Viatura não encontrada.");
+  return transacionarSvo(async (tx) => {
+    await bloquearRecursosSvo(tx, input.veiculoId, input.motoristaId, chamadoId);
 
     const [chamado, veiculo, motorista, ordensAtivasVeiculo] = await Promise.all([
       tx.chamadoSvo.findUnique({ where: { id: chamadoId }, include: { ordemColeta: true } }),
@@ -379,11 +414,26 @@ export async function emitirOrdemColetaSvo(
       throw new HttpError(422, "Motorista indisponível ou inválido.");
     }
 
+    const outraViatura = await tx.ordemColetaSvo.findFirst({
+      where: {
+        motoristaId: motorista.id,
+        veiculoId: { not: veiculo.id },
+        status: { in: [...STATUS_ORDEM_ATIVA] },
+      },
+      select: { id: true },
+    });
+    if (outraViatura || ordensAtivasVeiculo.some((ordem) => ordem.motoristaId !== motorista.id)) {
+      throw new HttpError(422, "Motorista indisponível ou alocado em outra operação.");
+    }
+
     const motoristaJaNaViatura =
       veiculo.status === "EM_VIAGEM" &&
       ordensAtivasVeiculo.some((ordem) => ordem.motoristaId === motorista.id);
 
-    if (motorista.status !== "DISPONIVEL" && !motoristaJaNaViatura) {
+    if (
+      motorista.status !== "DISPONIVEL" &&
+      !(motorista.status === "OCUPADO" && motoristaJaNaViatura)
+    ) {
       throw new HttpError(422, "Motorista indisponível ou alocado em outra operação.");
     }
 
@@ -426,7 +476,20 @@ export async function emitirOrdemColetaSvo(
 }
 
 export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
-  return prisma.$transaction(async (tx) => {
+  return transacionarSvo(async (tx) => {
+    const referencia = await tx.chamadoSvo.findUnique({
+      where: { id: chamadoId },
+      include: { ordemColeta: true },
+    });
+    if (!referencia) throw new HttpError(404, "Chamado não encontrado.");
+    if (!referencia.ordemColeta)
+      throw new HttpError(409, "Chamado não possui ordem de coleta emitida.");
+    await bloquearRecursosSvo(
+      tx,
+      referencia.ordemColeta.veiculoId,
+      referencia.ordemColeta.motoristaId,
+      chamadoId,
+    );
     const chamado = await tx.chamadoSvo.findUnique({
       where: { id: chamadoId },
       include: { ordemColeta: true },
@@ -454,8 +517,8 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
       });
 
       if (ordensRestantesVeiculo === 0) {
-        await tx.veiculo.update({
-          where: { id: ordem.veiculoId },
+        await tx.veiculo.updateMany({
+          where: { id: ordem.veiculoId, status: "EM_VIAGEM" },
           data: { status: "DESINFECCAO" },
         });
         await tx.desinfeccaoSvo.create({
@@ -477,8 +540,8 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
       });
 
       if (ordensRestantesMotorista === 0) {
-        await tx.motorista.update({
-          where: { id: ordem.motoristaId },
+        await tx.motorista.updateMany({
+          where: { id: ordem.motoristaId, ativo: true, status: "OCUPADO" },
           data: { status: "DISPONIVEL" },
         });
       }
@@ -503,7 +566,8 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
 }
 
 export async function concluirDesinfeccaoSvo(veiculoId: string, usuarioId?: string) {
-  return prisma.$transaction(async (tx) => {
+  return transacionarSvo(async (tx) => {
+    await bloquearRecursosSvo(tx, veiculoId);
     const veiculo = await tx.veiculo.findUnique({ where: { id: veiculoId } });
     if (!veiculo || veiculo.tipoFrota !== "SVO" || !veiculo.ativo) {
       throw new HttpError(404, "Viatura SVO não encontrada.");
@@ -511,6 +575,11 @@ export async function concluirDesinfeccaoSvo(veiculoId: string, usuarioId?: stri
     if (veiculo.status !== "DESINFECCAO") {
       throw new HttpError(409, "Esta viatura não está aguardando desinfecção.");
     }
+
+    const ordensAtivas = await tx.ordemColetaSvo.count({
+      where: { veiculoId, status: { in: [...STATUS_ORDEM_ATIVA] } },
+    });
+    if (ordensAtivas > 0) throw new HttpError(409, "Viatura ainda possui coletas ativas.");
 
     await tx.desinfeccaoSvo.updateMany({
       where: { veiculoId, status: "EM_ANDAMENTO" },

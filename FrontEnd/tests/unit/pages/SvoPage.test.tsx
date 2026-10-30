@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../../src/contexts/AuthContext";
@@ -107,7 +107,7 @@ function renderSvoPage() {
       roles: ["SVO"],
     }),
   );
-  localStorage.setItem("@fsph_frota_token", "jwt-svo-token");
+  localStorage.setItem("@fsph_frota_token", "jwt.svo.token");
 
   return render(
     <AuthProvider>
@@ -266,6 +266,44 @@ describe("SvoPage (integrada à API real)", () => {
     vi.clearAllMocks();
   });
 
+  it("mantém o filtro atual utilizável sem travar o carregamento", async () => {
+    const user = userEvent.setup();
+    renderSvoPage();
+    await screen.findByText("SVO-2026-0001");
+    await user.click(screen.getByRole("button", { name: "Todos" }));
+    expect(screen.getByRole("button", { name: "Atualizar dados SVO" })).toBeEnabled();
+  });
+
+  it("preserva falha de recursos mesmo quando a listagem termina depois", async () => {
+    let resolver!: (pagina: PaginaChamadosSvo) => void;
+    svosMocks.obterChamadosSvo.mockImplementationOnce(
+      () =>
+        new Promise<PaginaChamadosSvo>((resolve) => {
+          resolver = resolve;
+        }),
+    );
+    svosMocks.obterViaturasSvo.mockRejectedValueOnce(new Error("Viaturas indisponíveis"));
+    renderSvoPage();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Viaturas indisponíveis");
+    resolver({ data: CHAMADOS_BASE, meta: { page: 1, pageSize: 10, total: 2, totalPages: 1 } });
+    await screen.findByText("SVO-2026-0001");
+    expect(screen.getByRole("alert")).toHaveTextContent("Viaturas indisponíveis");
+  });
+
+  it("não pré-seleciona motorista ocupado de outra viatura", async () => {
+    svosMocks.obterMotoristasSvo.mockResolvedValueOnce([
+      { ...MOTORISTAS_BASE[0]!, status: "OCUPADO" },
+    ]);
+    const user = userEvent.setup();
+    renderSvoPage();
+    await screen.findByText("SVO-2026-0002");
+    await user.click(screen.getByRole("button", { name: "Emitir ordem" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Emitir ordem de coleta" })).toBeDisabled(),
+    );
+    expect(svosMocks.criarOrdemColetaSvo).not.toHaveBeenCalled();
+  });
+
   it("carrega chamados, indicadores e viaturas reais da API e filtra por busca no servidor", async () => {
     const user = userEvent.setup();
     renderSvoPage();
@@ -294,12 +332,12 @@ describe("SvoPage (integrada à API real)", () => {
     expect(screen.getByRole("button", { name: /Próxima/i })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: /Registrar chamado/i }));
-    await user.type(screen.getByLabelText(/Nome do falecido/i), "João Batista");
-    await user.type(screen.getByLabelText(/Endereço da ocorrência/i), "Av. Beira Mar, 500");
-    await user.type(
-      screen.getByLabelText(/Relato da ocorrência/i),
-      "Óbito natural confirmado por médico assistente.",
-    );
+    await user.click(screen.getByLabelText(/Nome do falecido/i));
+    await user.paste("João Batista");
+    await user.click(screen.getByLabelText(/Endereço da ocorrência/i));
+    await user.paste("Av. Beira Mar, 500");
+    await user.click(screen.getByLabelText(/Relato da ocorrência/i));
+    await user.paste("Óbito natural confirmado por médico assistente.");
 
     await user.click(screen.getByRole("button", { name: /^Salvar chamado$/i }));
 
@@ -319,10 +357,8 @@ describe("SvoPage (integrada à API real)", () => {
 
     // Inicia e aprova triagem do chamado 01
     await user.click(screen.getByRole("button", { name: /Iniciar triagem/i }));
-    await user.type(
-      screen.getByLabelText(/Justificativa \/ parecer da triagem/i),
-      "Critérios compatíveis com atendimento SVO.",
-    );
+    await user.click(screen.getByLabelText(/Justificativa \/ parecer da triagem/i));
+    await user.paste("Critérios compatíveis com atendimento SVO.");
     await user.click(screen.getByRole("button", { name: /Aprovar triagem/i }));
     expect(await screen.findByRole("status")).toHaveTextContent(/Triagem aprovada/i);
 
