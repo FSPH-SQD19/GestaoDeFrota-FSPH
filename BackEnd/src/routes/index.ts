@@ -1,3 +1,5 @@
+import { gerarRelatorio, periodoRelatorioSchema } from "../service/relatorio_s";
+import { validar } from "../controller/veiculo_c";
 import { Router } from "express";
 import { criarVeiculoController, listarVeiculosController } from "../controller/veiculo_c";
 import {
@@ -43,5 +45,10 @@ solicitacoes.get("/", listarSolicitacoesController);
 solicitacoes.post("/", criarSolicitacaoController);
 
 router.use("/api/v1/solicitacoes", solicitacoes);
+
+router.get("/api/v1/relatorios", authenticate, requireRole("ADMIN", "GESTOR"), async (req, res) => {
+  const periodo = validar(periodoRelatorioSchema, req.query);
+  return res.json(await gerarRelatorio(periodo));
+});
 
 export default router;

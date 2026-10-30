@@ -199,3 +199,9 @@ npm run check
 O repositório utiliza verificação estrita de TypeScript (`tsc -b`). Não deixe variáveis ou importações não utilizadas no código (`noUnusedLocals`). Não comite arquivos `.env` ou credenciais.
 
 Veja [Testes](TESTES.md) para os exemplos de componentes e [GitHub](GITHUB.md) para o fluxo de PR da equipe.
+
+## Relatórios
+
+A aba Relatórios consulta `/api/v1/relatorios` para administradores e gestores. O período inicial vai do primeiro dia do mês atual até hoje. Aplicar um período refaz a consulta e invalida os dados anteriores; respostas antigas não substituem o resultado do novo período. A tela apresenta carregamento, falha com nova tentativa e ausência de registros.
+
+A exportação CSV utiliza exclusivamente o resultado do período consultado, com BOM UTF-8, escape de delimitadores/aspas e proteção contra fórmulas de planilha. Ela fica desabilitada quando não existem veículos no relatório. Indicadores ainda não disponíveis aparecem como `—`; os limites de dados estão descritos na tela e no contrato em [Backend](BACKEND.md).

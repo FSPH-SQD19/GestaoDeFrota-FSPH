@@ -7,7 +7,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
 import { Card, Badge } from "./components/common";
-import { FileText, PhoneCall, BarChart3, ShieldCheck, Route } from "lucide-react";
+import { FileText, PhoneCall, ShieldCheck, Route } from "lucide-react";
 
 const DashboardPage = lazy(() =>
   import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })),
@@ -22,6 +22,12 @@ const SolicitacoesPage = lazy(() =>
 );
 const MotoristasPage = lazy(() =>
   import("./pages/motorista/MotoristaPage").then((module) => ({ default: module.MotoristasPage })),
+);
+
+const RelatoriosPage = lazy(() =>
+  import("./pages/relatorios/RelatoriosPage").then((module) => ({
+    default: module.RelatoriosPage,
+  })),
 );
 
 const AppContent: React.FC = () => {
@@ -127,19 +133,7 @@ const AppContent: React.FC = () => {
               </Card>
             )}
 
-            {currentTab === "relatorios" && (
-              <Card className="p-10 text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
-                  <BarChart3 className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">Relatórios & Indicadores</h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Relatórios de consumo médio de combustível (km/L), manutenções e auditoria do
-                  sistema para prestação de contas.
-                </p>
-                <Badge variant="neutral">Exportação em PDF e Excel</Badge>
-              </Card>
-            )}
+            {currentTab === "relatorios" && <RelatoriosPage />}
 
             {currentTab === "usuarios" && (
               <Card className="p-10 text-center space-y-3">
