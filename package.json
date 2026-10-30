@@ -27,5 +27,12 @@
   ],
   "overrides": {
     "deepmerge-ts": "^8.0.2"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "esbuild@0.28.2": true,
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true
   }
 }
