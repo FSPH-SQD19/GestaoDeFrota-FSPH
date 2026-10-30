@@ -1,41 +1,14 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { hashPassword } from "../src/service/password_s";
 
 const prisma = new PrismaClient();
 
 const perfis = [
-  { nome: "ADMIN", descricao: "Teste ADM" },
-  { nome: "GESTOR", descricao: "Teste Gestor frota" },
-  { nome: "MOTORISTA", descricao: "Teste motorista" },
-  { nome: "SVO", descricao: "teste SVO" },
-];
-
-const usuarios = [
-  {
-    nome: "Administrador Teste",
-    email: "admin@frota.com",
-    senha: "Admin@123",
-    perfil: "ADMIN",
-  },
-  {
-    nome: "Gestor Teste",
-    email: "gestor@frota.com",
-    senha: "Gestor@123",
-    perfil: "GESTOR",
-  },
-  {
-    nome: "Motorista Teste",
-    email: "motorista@frota.com",
-    senha: "Motorista@123",
-    perfil: "MOTORISTA",
-  },
-  {
-    nome: "SVO Teste",
-    email: "svo@frota.com",
-    senha: "Svo@123",
-    perfil: "SVO",
-  },
+  { nome: "ADMIN", descricao: "Administrador do sistema" },
+  { nome: "GESTOR", descricao: "Gestor da frota" },
+  { nome: "MOTORISTA", descricao: "Motorista da frota" },
+  { nome: "ATENDENTE_SVO", descricao: "Atendente do Serviço de Verificação de Óbitos" },
+  { nome: "SOLICITANTE", descricao: "Solicitante de transporte institucional" },
 ];
 
 async function main() {
@@ -46,49 +19,11 @@ async function main() {
       create: perfil,
     });
   }
-  for (const dados of usuarios) {
-    const senhaHash = await hashPassword(dados.senha);
-
-    const usuario = await prisma.usuario.upsert({
-      where: { email: dados.email },
-      update: {
-        nome: dados.nome,
-        senhaHash,
-        ativo: true,
-      },
-      create: {
-        nome: dados.nome,
-        email: dados.email,
-        senhaHash,
-        ativo: true,
-      },
-    });
-
-    const perfil = await prisma.perfil.findUniqueOrThrow({
-      where: { nome: dados.perfil },
-    });
-
-    await prisma.usuarioPerfil.upsert({
-      where: {
-        usuarioId_perfilId: {
-          usuarioId: usuario.id,
-          perfilId: perfil.id,
-        },
-      },
-      update: {},
-      create: {
-        usuarioId: usuario.id,
-        perfilId: perfil.id,
-      },
-    });
-
-    console.log(`Usuário criado/atualizado: ${dados.email} (${dados.perfil})`);
-  }
 }
 
 main()
   .catch((erro) => {
-    console.error("Erro ao executar seed:", erro);
+    console.error("Erro ao executar o seed:", erro);
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -92,7 +92,6 @@ const AppContent: React.FC = () => {
                 Aprovação e recusa de viagens da frota administrativa pelos setores da FSPH (LACEN,
                 Hemose, etc.).
               </p>
-              <Badge variant="warning">1 solicitação aguardando aprovação</Badge>
             </Card>
           )}
 

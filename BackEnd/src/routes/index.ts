@@ -28,6 +28,7 @@ router.use("/auth", authRoutes);
 router.use("/motoristas", motoristaRoutes);
 
 router.use("/api/v1/auth", authRoutes);
+router.use("/api/v1/motoristas", motoristaRoutes);
 router.use("/api/v1/veiculos", veiculos);
 
 // Consultar abastecimento

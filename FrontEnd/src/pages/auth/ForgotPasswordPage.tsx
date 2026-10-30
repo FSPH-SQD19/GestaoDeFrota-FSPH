@@ -1,121 +1,36 @@
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { Input, Button } from "../../components/common";
+import React from "react";
+import { ArrowLeft, Mail } from "lucide-react";
+import { Button } from "../../components/common";
 import rotaSymbol from "../../assets/branding/rota/rota-symbol-color.svg";
-
-const forgotSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Informe seu e-mail institucional.")
-    .email("Formato de e-mail inválido (ex: nome@fsph.se.gov.br)."),
-});
-
-type ForgotFormData = z.infer<typeof forgotSchema>;
 
 interface ForgotPasswordPageProps {
   onBackToLogin: () => void;
 }
 
-export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackToLogin }) => {
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [submittedEmail, setSubmittedEmail] = useState("");
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<ForgotFormData>({
-    resolver: zodResolver(forgotSchema),
-  });
-
-  const onSubmit = async (data: ForgotFormData) => {
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setSubmittedEmail(data.email);
-    setIsSuccess(true);
-  };
-
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6 bg-[#F8F9FA] font-sans">
-      <div className="w-full max-w-[440px] bg-white rounded-3xl p-8 sm:p-10 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center text-center">
-        {/* Logo Oficial ROTA */}
-        <div className="mb-6 flex flex-col items-center justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 p-2 flex items-center justify-center shadow-md mb-2.5">
-            <img src={rotaSymbol} alt="Rota FSPH" className="w-full h-full object-contain" />
-          </div>
-          <span className="text-xl font-black tracking-tight text-slate-900 leading-none">
-            ROTA
-          </span>
-        </div>
-
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-2">
-          Recuperação de Senha
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mb-8 max-w-xs">
-          {isSuccess
-            ? "Instruções enviadas com sucesso"
-            : "Informe seu e-mail cadastrado para redefinir o acesso."}
-        </p>
-
-        {isSuccess ? (
-          <div className="space-y-6 w-full animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs text-slate-600 text-left leading-relaxed">
-              Enviamos um link de recuperação temporário para:
-              <span className="block font-semibold text-slate-900 mt-1">{submittedEmail}</span>
-            </div>
-
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              className="w-full justify-center bg-slate-900 hover:bg-black text-white rounded-2xl py-3.5"
-              onClick={onBackToLogin}
-              leftIcon={<ArrowLeft className="w-4 h-4" />}
-            >
-              Voltar para o login
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 w-full text-left">
-            <Input
-              label="E-mail Institucional"
-              type="email"
-              placeholder="seu.email@fsph.se.gov.br"
-              leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
-              error={errors.email?.message}
-              {...register("email")}
-              helperText="Você receberá um link seguro para cadastrar uma nova senha."
-            />
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full justify-center bg-slate-900 hover:bg-black text-white rounded-2xl py-3.5"
-              isLoading={isSubmitting}
-            >
-              Enviar link de recuperação
-            </Button>
-
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={onBackToLogin}
-                className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition-colors font-medium"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Retornar para a tela de login</span>
-              </button>
-            </div>
-          </form>
-        )}
+export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackToLogin }) => (
+  <div className="flex min-h-screen w-full items-center justify-center bg-[#F8F9FA] p-6 font-sans">
+    <div className="flex w-full max-w-[440px] flex-col items-center rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-xl shadow-slate-200/50 sm:p-10">
+      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2.5 shadow-md shadow-blue-500/10">
+        <img src={rotaSymbol} alt="Rota FSPH" className="h-full w-full object-contain" />
       </div>
+      <h1 className="mb-2 text-2xl font-bold tracking-tight text-slate-900">Recuperação de senha</h1>
+      <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+        <Mail className="h-5 w-5" />
+      </div>
+      <p className="mb-8 max-w-xs text-sm text-slate-600">
+        A recuperação automática de senha ainda não está disponível. Entre em contato com o suporte
+        da FSPH para redefinir seu acesso.
+      </p>
+      <Button
+        type="button"
+        variant="primary"
+        size="lg"
+        className="w-full justify-center rounded-2xl bg-slate-900 py-3.5 text-white hover:bg-black"
+        onClick={onBackToLogin}
+        leftIcon={<ArrowLeft className="h-4 w-4" />}
+      >
+        Voltar para o login
+      </Button>
     </div>
-  );
-};
+  </div>
+);

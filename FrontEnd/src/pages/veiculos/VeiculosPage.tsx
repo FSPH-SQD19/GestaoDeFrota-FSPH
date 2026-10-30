@@ -1,7 +1,23 @@
-import React, { useState } from "react";
-import { Plus, Search, Truck, Fuel, Eye } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Search, Truck, Fuel } from "lucide-react";
 import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
 import type { Column } from "../../components/common/Table";
+import { useAuth } from "../../contexts/auth";
+import { apiRequest } from "../../lib/api";
+
+type TipoFrotaApi = "ADMINISTRATIVA" | "SVO";
+type StatusVeiculoApi = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
+
+interface VeiculoApi {
+  id: string;
+  placa: string;
+  modelo: string;
+  tipoFrota: TipoFrotaApi;
+  capacidadeMaxima: number;
+  combustivel: string | null;
+  ano: number | null;
+  status: StatusVeiculoApi;
+}
 
 interface VeiculoItem {
   id: string;
@@ -10,327 +26,394 @@ interface VeiculoItem {
   tipoFrota: "Administrativa" | "SVO";
   capacidade: number;
   combustivel: string;
-  ano: number;
+  ano: number | null;
   status: "Disponível" | "Em viagem" | "Manutenção" | "Desinfecção";
 }
 
+interface FormularioVeiculo {
+  placa: string;
+  modelo: string;
+  tipoFrota: TipoFrotaApi;
+  capacidadeMaxima: string;
+  ano: string;
+  combustivel: string;
+}
+
+const formularioVazio: FormularioVeiculo = {
+  placa: "",
+  modelo: "",
+  tipoFrota: "ADMINISTRATIVA",
+  capacidadeMaxima: "",
+  ano: "",
+  combustivel: "",
+};
+
+const tipoFrotaLabel: Record<TipoFrotaApi, VeiculoItem["tipoFrota"]> = {
+  ADMINISTRATIVA: "Administrativa",
+  SVO: "SVO",
+};
+
+const statusLabel: Record<StatusVeiculoApi, VeiculoItem["status"]> = {
+  DISPONIVEL: "Disponível",
+  EM_VIAGEM: "Em viagem",
+  MANUTENCAO: "Manutenção",
+  DESINFECCAO: "Desinfecção",
+};
+
+function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
+  return {
+    id: veiculo.id,
+    placa: veiculo.placa,
+    modelo: veiculo.modelo,
+    tipoFrota: tipoFrotaLabel[veiculo.tipoFrota],
+    capacidade: veiculo.capacidadeMaxima,
+    combustivel: veiculo.combustivel || "—",
+    ano: veiculo.ano,
+    status: statusLabel[veiculo.status],
+  };
+}
+
 export const VeiculosPage: React.FC = () => {
+  const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [tabFilter, setTabFilter] = useState<"TODOS" | "ADMIN" | "SVO">("TODOS");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [veiculos, setVeiculos] = useState<VeiculoItem[]>([]);
+  const [totalVeiculos, setTotalVeiculos] = useState(0);
+  const [hasLoadedVeiculos, setHasLoadedVeiculos] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [formulario, setFormulario] = useState(formularioVazio);
 
-  const veiculos: VeiculoItem[] = [
-    {
-      id: "1",
-      placa: "IAF-4820",
-      modelo: "Renault Master L3H2 Furgão",
-      tipoFrota: "Administrativa",
-      capacidade: 3,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Disponível",
-    },
-    {
-      id: "2",
-      placa: "QMA-9124",
-      modelo: "Chevrolet S10 Cabine Dupla 2.8",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2023,
-      status: "Em viagem",
-    },
-    {
-      id: "3",
-      placa: "NVL-3011",
-      modelo: "Fiat Ducato Maxi Cargo 2.3",
-      tipoFrota: "Administrativa",
-      capacidade: 3,
-      combustivel: "Diesel",
-      ano: 2022,
-      status: "Disponível",
-    },
-    {
-      id: "4",
-      placa: "QKN-5582",
-      modelo: "Chevrolet S10 4x4 Especializada SVO",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Desinfecção",
-    },
-    {
-      id: "5",
-      placa: "QNE-1934",
-      modelo: "Toyota Hilux 4x4 Administrativa",
-      tipoFrota: "Administrativa",
-      capacidade: 5,
-      combustivel: "Diesel",
-      ano: 2023,
-      status: "Em viagem",
-    },
-    {
-      id: "6",
-      placa: "BRA-2E19",
-      modelo: "Chevrolet Spin 1.8 LTZ",
-      tipoFrota: "Administrativa",
-      capacidade: 7,
-      combustivel: "Flex",
-      ano: 2024,
-      status: "Em viagem",
-    },
-    {
-      id: "7",
-      placa: "QZB-8812",
-      modelo: "Chevrolet S10 Especializada SVO",
-      tipoFrota: "SVO",
-      capacidade: 4,
-      combustivel: "Diesel S10",
-      ano: 2024,
-      status: "Em viagem",
-    },
-  ];
+  const carregarVeiculos = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const response = await apiRequest<{
+        data: VeiculoApi[];
+        meta: { total: number };
+      }>("/veiculos?page=1&pageSize=100", { token });
+      setVeiculos(response.data.map(mapearVeiculo));
+      setTotalVeiculos(response.meta.total);
+      setHasLoadedVeiculos(true);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível carregar os veículos.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
 
-  const filteredVeiculos = veiculos.filter((v) => {
-    const matchesSearch =
-      v.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.modelo.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    void carregarVeiculos();
+  }, [carregarVeiculos]);
 
-    if (tabFilter === "ADMIN") return matchesSearch && v.tipoFrota === "Administrativa";
-    if (tabFilter === "SVO") return matchesSearch && v.tipoFrota === "SVO";
-    return matchesSearch;
-  });
+  const filteredVeiculos = useMemo(() => {
+    const termo = searchTerm.trim().toLocaleLowerCase("pt-BR");
+    return veiculos.filter((veiculo) => {
+      const correspondeBusca =
+        !termo ||
+        veiculo.placa.toLocaleLowerCase("pt-BR").includes(termo) ||
+        veiculo.modelo.toLocaleLowerCase("pt-BR").includes(termo) ||
+        veiculo.combustivel.toLocaleLowerCase("pt-BR").includes(termo);
+      const correspondeTipo =
+        tabFilter === "TODOS" ||
+        (tabFilter === "ADMIN" && veiculo.tipoFrota === "Administrativa") ||
+        (tabFilter === "SVO" && veiculo.tipoFrota === "SVO");
+      return correspondeBusca && correspondeTipo;
+    });
+  }, [searchTerm, tabFilter, veiculos]);
+
+  const atualizarFormulario = <K extends keyof FormularioVeiculo>(
+    campo: K,
+    valor: FormularioVeiculo[K],
+  ) => setFormulario((atual) => ({ ...atual, [campo]: valor }));
+
+  const salvarVeiculo = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsSaving(true);
+    try {
+      const response = await apiRequest<VeiculoApi>("/veiculos", {
+        method: "POST",
+        token,
+        body: JSON.stringify({
+          placa: formulario.placa,
+          modelo: formulario.modelo,
+          tipoFrota: formulario.tipoFrota,
+          capacidadeMaxima: Number(formulario.capacidadeMaxima),
+          ano: formulario.ano ? Number(formulario.ano) : undefined,
+          combustivel: formulario.combustivel || undefined,
+        }),
+      });
+      setVeiculos((atuais) => [mapearVeiculo(response), ...atuais]);
+      setTotalVeiculos((total) => total + 1);
+      setHasLoadedVeiculos(true);
+      setFormulario(formularioVazio);
+      setIsModalOpen(false);
+      setSuccessMessage(`Veículo ${response.placa} cadastrado.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível cadastrar o veículo.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const fecharModal = () => {
+    setIsModalOpen(false);
+    setFormulario(formularioVazio);
+    setErrorMessage("");
+  };
 
   const columns: Column<VeiculoItem>[] = [
     {
       header: "Identificação / Placa",
-      render: (v) => (
+      render: (veiculo) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700 font-bold shrink-0">
-            <Truck className="w-5 h-5 stroke-[1.8]" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 font-bold text-slate-700">
+            <Truck className="h-5 w-5 stroke-[1.8]" />
           </div>
           <div>
-            <span className="font-mono font-bold text-slate-900 text-sm tracking-wider px-2 py-0.5 bg-slate-100 rounded-md border border-slate-200">
-              {v.placa}
+            <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-sm font-bold tracking-wider text-slate-900">
+              {veiculo.placa}
             </span>
-            <span className="block text-xs text-slate-500 mt-1">Ano {v.ano}</span>
+            <span className="mt-1 block text-xs text-slate-500">
+              {veiculo.ano ? `Ano ${veiculo.ano}` : "Ano não informado"}
+            </span>
           </div>
         </div>
       ),
     },
     {
       header: "Modelo do Veículo",
-      render: (v) => (
+      render: (veiculo) => (
         <div>
-          <span className="font-bold text-slate-900 text-sm block">{v.modelo}</span>
-          <span className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-            <Fuel className="w-3.5 h-3.5 text-slate-400" />
-            {v.combustivel}
+          <span className="block text-sm font-bold text-slate-900">{veiculo.modelo}</span>
+          <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+            <Fuel className="h-3.5 w-3.5 text-slate-400" />
+            {veiculo.combustivel}
           </span>
         </div>
       ),
     },
     {
-      header: "Frota Alocada",
-      render: (v) => (
-        <Badge variant={v.tipoFrota === "SVO" ? "danger" : "info"} size="md">
-          {v.tipoFrota === "SVO" ? "Frota SVO (Óbitos)" : "Frota Administrativa"}
+      header: "Frota",
+      render: (veiculo) => (
+        <Badge variant={veiculo.tipoFrota === "SVO" ? "danger" : "info"} size="md">
+          {veiculo.tipoFrota === "SVO" ? "Frota SVO" : "Frota Administrativa"}
         </Badge>
       ),
     },
     {
-      header: "Capacidade",
-      render: (v) => (
-        <span className="text-xs text-slate-700 font-bold bg-slate-100 px-2.5 py-1 rounded-lg">
-          {v.tipoFrota === "SVO" ? `${v.capacidade} urnas (Portaria)` : `${v.capacidade} ocupantes`}
+      header: "Capacidade máxima",
+      render: (veiculo) => (
+        <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+          {veiculo.capacidade}
         </span>
       ),
     },
     {
       header: "Status Operacional",
-      render: (v) => {
+      render: (veiculo) => {
         const variantMap = {
-          Disponível: "success" as const,
-          "Em viagem": "info" as const,
-          Manutenção: "warning" as const,
-          Desinfecção: "danger" as const,
-        };
+          Disponível: "success",
+          "Em viagem": "info",
+          Manutenção: "warning",
+          Desinfecção: "danger",
+        } as const;
         return (
-          <Badge variant={variantMap[v.status]} dot size="md">
-            {v.status === "Desinfecção" ? "Em Desinfecção Sanitária" : v.status}
+          <Badge variant={variantMap[veiculo.status]} dot size="md">
+            {veiculo.status}
           </Badge>
         );
       },
     },
-    {
-      header: "Ações",
-      render: () => (
-        <button
-          type="button"
-          className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-          title="Ver detalhes do diário de bordo"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-      ),
-    },
   ];
 
+  const administrativos = veiculos.filter((veiculo) => veiculo.tipoFrota === "Administrativa").length;
+  const svo = veiculos.filter((veiculo) => veiculo.tipoFrota === "SVO").length;
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Topo da Página */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
+    <div className="animate-in space-y-6 fade-in duration-200">
+      <div className="flex flex-col gap-4 border-b border-slate-200/60 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             Gestão da Frota de Veículos
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Cadastro, disponibilidade e controle estrito de segregação entre frotas FSPH.
+          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+            Consulte e mantenha os veículos cadastrados na frota.
           </p>
         </div>
-
         <Button
           variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-          onClick={() => setIsModalOpen(true)}
-          className="bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-sm"
+          leftIcon={<Plus className="h-4 w-4" />}
+          onClick={() => {
+            setErrorMessage("");
+            setIsModalOpen(true);
+          }}
+          className="rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800"
         >
           Novo Veículo
         </Button>
       </div>
 
-      {/* 3 Mini Indicadores de Frota */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4.5 rounded-2xl border border-slate-200/80 bg-white">
-          <span className="text-xs text-slate-500 font-medium">Total de Veículos</span>
+      {errorMessage && !isModalOpen && (
+        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          {errorMessage}
+        </p>
+      )}
+      {successMessage && (
+        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          {successMessage}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="rounded-2xl border border-slate-200/80 bg-white p-4.5">
+          <span className="text-xs font-medium text-slate-500">Total de veículos</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">7</span>
+            <span className="text-2xl font-bold text-slate-900">
+              {hasLoadedVeiculos ? totalVeiculos : "—"}
+            </span>
             <span className="text-xs text-slate-400">cadastrados</span>
           </div>
         </Card>
-
-        <Card className="p-4.5 rounded-2xl border border-blue-200/80 bg-blue-50/30">
-          <span className="text-xs text-blue-700 font-semibold">Frota Administrativa</span>
+        <Card className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4.5">
+          <span className="text-xs font-semibold text-blue-700">Frota administrativa</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-blue-900">4</span>
-            <span className="text-xs text-blue-600 font-medium">veículos (LACEN / Hemose)</span>
+            <span className="text-2xl font-bold text-blue-900">
+              {hasLoadedVeiculos ? administrativos : "—"}
+            </span>
+            <span className="text-xs font-medium text-blue-600">veículos</span>
           </div>
         </Card>
-
-        <Card className="p-4.5 rounded-2xl border border-rose-200/80 bg-rose-50/30">
-          <span className="text-xs text-rose-700 font-semibold">Frota Especializada SVO</span>
+        <Card className="rounded-2xl border border-rose-200/80 bg-rose-50/30 p-4.5">
+          <span className="text-xs font-semibold text-rose-700">Frota SVO</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-rose-900">3</span>
-            <span className="text-xs text-rose-600 font-medium">viaturas (Limite 4 urnas)</span>
+            <span className="text-2xl font-bold text-rose-900">{hasLoadedVeiculos ? svo : "—"}</span>
+            <span className="text-xs font-medium text-rose-600">veículos</span>
           </div>
         </Card>
       </div>
 
-      {/* Barra de Filtros e Busca */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Campo de Busca */}
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="w-full sm:max-w-md">
           <Input
             placeholder="Buscar por placa, modelo ou combustível..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            leftIcon={<Search className="h-4 w-4 text-slate-400" />}
           />
         </div>
-
-        {/* Abas de Filtro de Frota */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl shrink-0">
-          <button
-            type="button"
-            onClick={() => setTabFilter("TODOS")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              tabFilter === "TODOS"
-                ? "bg-white text-slate-900 shadow-2xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Todos ({veiculos.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTabFilter("ADMIN")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              tabFilter === "ADMIN"
-                ? "bg-blue-600 text-white shadow-2xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Administrativa (4)
-          </button>
-          <button
-            type="button"
-            onClick={() => setTabFilter("SVO")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              tabFilter === "SVO"
-                ? "bg-rose-600 text-white shadow-2xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            SVO (3)
-          </button>
+        <div className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-slate-100 p-1">
+          {([
+            ["TODOS", `Todos (${hasLoadedVeiculos ? totalVeiculos : "—"})`],
+            ["ADMIN", `Administrativa (${hasLoadedVeiculos ? administrativos : "—"})`],
+            ["SVO", `SVO (${hasLoadedVeiculos ? svo : "—"})`],
+          ] as const).map(([filter, label]) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => setTabFilter(filter)}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                tabFilter === filter ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Tabela Reutilizável de Veículos */}
       <Table
         columns={columns}
         data={filteredVeiculos}
         keyExtractor={(item) => item.id}
-        emptyMessage="Nenhum veículo encontrado com esse filtro ou busca."
+        emptyMessage={
+          isLoading
+            ? "Carregando veículos..."
+            : errorMessage
+              ? "Não foi possível carregar os veículos."
+              : "Nenhum veículo cadastrado para esse filtro ou busca."
+        }
       />
 
-      {/* Modal Reutilizável de Cadastro de Veículo */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Cadastrar Novo Veículo"
-        description="Atenção à regra de segregação de frota da FSPH (Administrativa vs SVO)."
+        onClose={fecharModal}
+        title="Cadastrar novo veículo"
+        description="Os dados serão salvos no cadastro da frota."
         footer={
           <>
-            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>
+            <Button variant="ghost" onClick={fecharModal} disabled={isSaving}>
               Cancelar
             </Button>
             <Button
               variant="primary"
-              className="bg-slate-900 hover:bg-slate-800 text-white"
-              onClick={() => setIsModalOpen(false)}
+              type="submit"
+              form="formulario-novo-veiculo"
+              isLoading={isSaving}
+              className="bg-slate-900 text-white hover:bg-slate-800"
             >
-              Salvar Veículo
+              Salvar veículo
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <Input label="Placa (Padrão Mercosul ou CTB)" placeholder="Ex: BRA2E19" required />
+        <form id="formulario-novo-veiculo" onSubmit={salvarVeiculo} className="space-y-4">
           <Input
-            label="Modelo e Fabricante"
-            placeholder="Ex: Chevrolet S10 2.8 Turbo 4x4"
+            label="Placa"
+            placeholder="Ex.: BRA2E19"
+            value={formulario.placa}
+            onChange={(event) => atualizarFormulario("placa", event.target.value)}
+            required
+          />
+          <Input
+            label="Modelo e fabricante"
+            value={formulario.modelo}
+            onChange={(event) => atualizarFormulario("modelo", event.target.value)}
             required
           />
           <Select
-            label="Tipo de Frota"
-            required
-            defaultValue="Administrativa"
+            label="Tipo de frota"
+            value={formulario.tipoFrota}
+            onChange={(event) => atualizarFormulario("tipoFrota", event.target.value as TipoFrotaApi)}
             options={[
-              { value: "Administrativa", label: "Frota Administrativa (LACEN, Hemose, Diretoria)" },
-              {
-                value: "SVO",
-                label: "Frota Especializada SVO (Com protocolo de desinfecção biológica)",
-              },
+              { value: "ADMINISTRATIVA", label: "Frota administrativa" },
+              { value: "SVO", label: "Frota SVO" },
             ]}
           />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Capacidade Máxima" type="number" placeholder="Ex: 4" required />
-            <Input label="Ano Fabricação" type="number" placeholder="Ex: 2024" required />
+            <Input
+              label="Capacidade máxima"
+              type="number"
+              min="1"
+              max="50"
+              value={formulario.capacidadeMaxima}
+              onChange={(event) => atualizarFormulario("capacidadeMaxima", event.target.value)}
+              required
+            />
+            <Input
+              label="Ano de fabricação"
+              type="number"
+              min="1950"
+              value={formulario.ano}
+              onChange={(event) => atualizarFormulario("ano", event.target.value)}
+            />
           </div>
-          <Input label="Tipo de Combustível" placeholder="Ex: Diesel S10 / Flex" required />
-        </div>
+          <Input
+            label="Tipo de combustível"
+            value={formulario.combustivel}
+            onChange={(event) => atualizarFormulario("combustivel", event.target.value)}
+          />
+          {errorMessage && (
+            <p role="alert" className="text-sm font-medium text-rose-600">
+              {errorMessage}
+            </p>
+          )}
+        </form>
       </Modal>
     </div>
   );

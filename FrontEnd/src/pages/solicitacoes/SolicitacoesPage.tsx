@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -16,6 +16,7 @@ import {
 import { Badge, Button, Card, Input, Modal, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
+import { apiRequest } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import {
   STATUS_SOLICITACAO_LABEL,
@@ -26,7 +27,6 @@ import {
   type StatusSolicitacao,
 } from "../../types/solicitacao";
 import { NovaSolicitacaoModal } from "./NovaSolicitacaoModal";
-import { criarSolicitacoesMock } from "./solicitacoesMock";
 
 type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA";
 
@@ -46,37 +46,64 @@ const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 
-function formatarDataHora(iso?: string): string {
+function formatarDataHora(iso?: string | null): string {
   return iso ? dataHoraFmt.format(new Date(iso)) : "—";
 }
 
-function gerarProtocolo(total: number): string {
-  const ano = new Date().getFullYear();
-  return `SV-${ano}-${String(143 + total).padStart(4, "0")}`;
+interface SolicitacoesResponse {
+  data: SolicitacaoViagem[];
+  meta: {
+    total: number;
+    porStatus: Record<StatusSolicitacao, number>;
+  };
 }
 
 export const SolicitacoesPage: React.FC = () => {
-  const { user } = useAuth();
-  const solicitanteNome = user?.nome ?? "Solicitante";
-
-  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoViagem[]>(() =>
-    criarSolicitacoesMock(solicitanteNome),
-  );
+  const { token } = useAuth();
+  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoViagem[]>([]);
+  const [meta, setMeta] = useState<SolicitacoesResponse["meta"] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState("");
+  const [erroEnvio, setErroEnvio] = useState("");
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("TODAS");
   const [isNovaOpen, setIsNovaOpen] = useState(false);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
+  const carregarSolicitacoes = useCallback(async () => {
+    setIsLoading(true);
+    setErroCarregamento("");
+    try {
+      const response = await apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", {
+        token,
+      });
+      setSolicitacoes(response.data);
+      setMeta(response.meta);
+    } catch (error) {
+      setErroCarregamento(
+        error instanceof Error ? error.message : "Não foi possível carregar as solicitações.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    void carregarSolicitacoes();
+  }, [carregarSolicitacoes]);
+
   const contagem = useMemo(() => {
     const por = (s: StatusSolicitacao[]) => solicitacoes.filter((x) => s.includes(x.status)).length;
     return {
-      total: solicitacoes.length,
-      pendentes: por(["PENDENTE"]),
-      aprovadas: por(["APROVADA", "EM_TRANSITO"]),
-      recusadas: por(["RECUSADA"]),
+      total: meta?.total ?? solicitacoes.length,
+      pendentes: meta?.porStatus.PENDENTE ?? por(["PENDENTE"]),
+      aprovadas: meta
+        ? meta.porStatus.APROVADA + meta.porStatus.EM_TRANSITO
+        : por(["APROVADA", "EM_TRANSITO"]),
+      recusadas: meta?.porStatus.RECUSADA ?? por(["RECUSADA"]),
     };
-  }, [solicitacoes]);
+  }, [meta, solicitacoes]);
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -87,29 +114,30 @@ export const SolicitacoesPage: React.FC = () => {
         (s) =>
           !termo ||
           s.protocolo.toLowerCase().includes(termo) ||
-          s.destino.toLowerCase().includes(termo) ||
-          s.origem.toLowerCase().includes(termo),
+          (s.destino ?? "").toLowerCase().includes(termo) ||
+          (s.origem ?? "").toLowerCase().includes(termo),
       )
       .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
   }, [solicitacoes, busca, filtro]);
 
   const handleNovaSolicitacao = async (dados: NovaSolicitacaoViagem) => {
-    // Simula latência de rede até a integração com a API.
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const nova: SolicitacaoViagem = {
-      ...dados,
-      id: `sol-${Date.now()}`,
-      protocolo: gerarProtocolo(solicitacoes.length),
-      solicitanteNome,
-      status: "PENDENTE",
-      criadoEm: new Date().toISOString(),
-    };
-    setSolicitacoes((prev) => [nova, ...prev]);
-    setIsNovaOpen(false);
-    setFiltro("TODAS");
-    setMensagemSucesso(
-      `Solicitação ${nova.protocolo} enviada! Aguarde a análise do Gestor de Frota.`,
-    );
+    setErroEnvio("");
+    setMensagemSucesso(null);
+    try {
+      const nova = await apiRequest<SolicitacaoViagem>("/solicitacoes", {
+        method: "POST",
+        token,
+        body: JSON.stringify(dados),
+      });
+      await carregarSolicitacoes();
+      setIsNovaOpen(false);
+      setFiltro("TODAS");
+      setMensagemSucesso(`Solicitação ${nova.protocolo} enviada.`);
+    } catch (error) {
+      setErroEnvio(
+        error instanceof Error ? error.message : "Não foi possível enviar a solicitação.",
+      );
+    }
   };
 
   const columns: Column<SolicitacaoViagem>[] = [
@@ -132,10 +160,12 @@ export const SolicitacoesPage: React.FC = () => {
       header: "Itinerário",
       render: (s) => (
         <div className="min-w-[220px]">
-          <span className="block text-xs text-slate-500 truncate max-w-[280px]">{s.origem}</span>
+          <span className="block text-xs text-slate-500 truncate max-w-[280px]">
+            {s.origem || "Origem não informada"}
+          </span>
           <span className="flex items-center gap-1.5 font-semibold text-slate-900 text-sm">
             <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate max-w-[260px]">{s.destino}</span>
+            <span className="truncate max-w-[260px]">{s.destino || "Destino não informado"}</span>
           </span>
         </div>
       ),
@@ -196,6 +226,7 @@ export const SolicitacoesPage: React.FC = () => {
           leftIcon={<Plus className="w-4 h-4" />}
           onClick={() => {
             setMensagemSucesso(null);
+            setErroEnvio("");
             setIsNovaOpen(true);
           }}
           className="rounded-2xl"
@@ -222,28 +253,44 @@ export const SolicitacoesPage: React.FC = () => {
           </button>
         </div>
       )}
+      {erroCarregamento && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-700"
+        >
+          <span>{erroCarregamento}</span>
+          <Button variant="outline" size="sm" onClick={() => void carregarSolicitacoes()}>
+            Tentar novamente
+          </Button>
+        </div>
+      )}
 
       {/* Indicadores */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
           icon={ClipboardList}
           label="Total solicitado"
-          value={contagem.total}
+          value={meta || (!isLoading && !erroCarregamento) ? contagem.total : "—"}
           tone="neutral"
         />
         <MetricCard
           icon={Clock}
           label="Aguardando aprovação"
-          value={contagem.pendentes}
+          value={meta || (!isLoading && !erroCarregamento) ? contagem.pendentes : "—"}
           tone="warning"
         />
         <MetricCard
           icon={CheckCircle2}
           label="Aprovadas / em trânsito"
-          value={contagem.aprovadas}
+          value={meta || (!isLoading && !erroCarregamento) ? contagem.aprovadas : "—"}
           tone="success"
         />
-        <MetricCard icon={XCircle} label="Recusadas" value={contagem.recusadas} tone="danger" />
+        <MetricCard
+          icon={XCircle}
+          label="Recusadas"
+          value={meta || (!isLoading && !erroCarregamento) ? contagem.recusadas : "—"}
+          tone="danger"
+        />
       </div>
 
       {/* Filtros */}
@@ -285,14 +332,20 @@ export const SolicitacoesPage: React.FC = () => {
         columns={columns}
         data={filtradas}
         keyExtractor={(s) => s.id}
-        emptyMessage="Nenhuma solicitação encontrada com esse filtro ou busca."
+        emptyMessage={
+          isLoading
+            ? "Carregando solicitações..."
+            : erroCarregamento
+              ? "Não foi possível carregar as solicitações."
+              : "Nenhuma solicitação encontrada com esse filtro ou busca."
+        }
       />
 
       <NovaSolicitacaoModal
         isOpen={isNovaOpen}
         onClose={() => setIsNovaOpen(false)}
         onSubmit={handleNovaSolicitacao}
-        setorPadrao="LACEN"
+        errorMessage={erroEnvio}
       />
 
       <DetalhesSolicitacaoModal solicitacao={selecionada} onClose={() => setSelecionada(null)} />
@@ -328,7 +381,7 @@ const toneStyles = {
 const MetricCard: React.FC<{
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  value: number;
+  value: number | string;
   tone: keyof typeof toneStyles;
 }> = ({ icon: Icon, label, value, tone }) => (
   <Card className={cn("p-4.5 rounded-2xl border", toneStyles[tone].card)}>
@@ -386,8 +439,8 @@ const DetalhesSolicitacaoModal: React.FC<{
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <InfoItem label="Origem">{s.origem}</InfoItem>
-          <InfoItem label="Destino">{s.destino}</InfoItem>
+          <InfoItem label="Origem">{s.origem || "—"}</InfoItem>
+          <InfoItem label="Destino">{s.destino || "—"}</InfoItem>
           <InfoItem label="Saída prevista">{formatarDataHora(s.dataHoraPretendida)}</InfoItem>
           <InfoItem label="Retorno previsto">
             {formatarDataHora(s.dataHoraRetornoPrevista)}

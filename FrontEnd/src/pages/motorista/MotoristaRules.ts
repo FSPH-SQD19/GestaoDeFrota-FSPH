@@ -1,4 +1,4 @@
-export type StatusMotorista = "Em rota" | "Disponível" | "Indisponível" | "Inativo";
+export type StatusMotorista = "Ativo" | "Inativo";
 
 export interface Motorista {
   id: string;
@@ -8,11 +8,10 @@ export interface Motorista {
   categoriaCnh: string;
   validadeCnh: string;
   status: StatusMotorista;
-  contato: string;
   email?: string;
 }
 
-export const categoriasCnh = ["A", "B", "C", "D", "E", "AB", "AC", "AD", "AE"];
+export const categoriasCnh = ["A", "B", "C", "D", "E", "AB", "AC", "AD", "AE", "BC", "BD", "BE", "CD", "CE", "DE"];
 
 export const formatarCpf = (valor: string) => {
   const digitos = valor.replace(/\D/g, "").slice(0, 11);
