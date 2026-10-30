@@ -4,12 +4,7 @@ import { Badge, Button, Card, Input, Modal, Select, Table } from "../../componen
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
-import {
-  categoriasCnh,
-  cpfValido,
-  formatarCpf,
-  type Motorista,
-} from "./MotoristaRules";
+import { categoriasCnh, cpfValido, formatarCpf, type Motorista } from "./MotoristaRules";
 
 interface MotoristaApi {
   id: string;
@@ -78,9 +73,9 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusVariant: Record<string, "success" | "info" | "warning" | "neutral"> = {
-  "Disponível": "success",
+  Disponível: "success",
   "Em viagem": "info",
-  "Indisponível": "warning",
+  Indisponível: "warning",
 };
 
 const statusLabel = (status: string) => statusLabels[status] ?? status.replaceAll("_", " ");
@@ -127,7 +122,9 @@ export const MotoristasPage: React.FC = () => {
       setMotoristas(response.map(mapearMotorista));
       setHasLoadedMotoristas(true);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Não foi possível carregar os motoristas.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Não foi possível carregar os motoristas.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -185,7 +182,9 @@ export const MotoristasPage: React.FC = () => {
       setSuccessMessage("Dados do motorista cadastrados.");
       fecharCadastro();
     } catch (error) {
-      setErroCadastro(error instanceof Error ? error.message : "Não foi possível cadastrar o motorista.");
+      setErroCadastro(
+        error instanceof Error ? error.message : "Não foi possível cadastrar o motorista.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -205,8 +204,12 @@ export const MotoristasPage: React.FC = () => {
       return (
         (!filtroCnhAtencao || cnhPrecisaAtencao) &&
         correspondeBusca &&
-        motorista.id.toLocaleLowerCase("pt-BR").includes(filtros.id.trim().toLocaleLowerCase("pt-BR")) &&
-        motorista.nome.toLocaleLowerCase("pt-BR").includes(filtros.nome.trim().toLocaleLowerCase("pt-BR")) &&
+        motorista.id
+          .toLocaleLowerCase("pt-BR")
+          .includes(filtros.id.trim().toLocaleLowerCase("pt-BR")) &&
+        motorista.nome
+          .toLocaleLowerCase("pt-BR")
+          .includes(filtros.nome.trim().toLocaleLowerCase("pt-BR")) &&
         (!filtros.validadeCnh || motorista.validadeCnh === filtros.validadeCnh) &&
         (!filtros.status || motorista.ativo === (filtros.status === "Ativo"))
       );
@@ -263,7 +266,15 @@ export const MotoristasPage: React.FC = () => {
         return (
           <div className="flex items-center gap-2 text-xs">
             <CalendarDays className="h-4 w-4 text-slate-400" />
-            <span className={vencida ? "font-semibold text-rose-700" : proxima ? "font-semibold text-amber-700" : "text-slate-600"}>
+            <span
+              className={
+                vencida
+                  ? "font-semibold text-rose-700"
+                  : proxima
+                    ? "font-semibold text-amber-700"
+                    : "text-slate-600"
+              }
+            >
               {formatarData(motorista.validadeCnh)}
             </span>
             {(vencida || proxima) && (
@@ -353,7 +364,10 @@ export const MotoristasPage: React.FC = () => {
       </div>
 
       {errorMessage && (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+        >
           <span>{errorMessage}</span>
           <Button variant="outline" size="sm" onClick={() => void carregarMotoristas()}>
             Tentar novamente
@@ -361,7 +375,10 @@ export const MotoristasPage: React.FC = () => {
         </div>
       )}
       {successMessage && (
-        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+        <p
+          role="status"
+          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+        >
           {successMessage}
         </p>
       )}
@@ -370,7 +387,9 @@ export const MotoristasPage: React.FC = () => {
         <Card className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4.5">
           <span className="text-xs font-semibold text-blue-700">Motoristas ativos</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-blue-900">{hasLoadedMotoristas ? ativos : "—"}</span>
+            <span className="text-2xl font-bold text-blue-900">
+              {hasLoadedMotoristas ? ativos : "—"}
+            </span>
             <span className="text-xs font-medium text-blue-600">
               de {hasLoadedMotoristas ? motoristas.length : "—"} cadastrados
             </span>
@@ -393,7 +412,9 @@ export const MotoristasPage: React.FC = () => {
             {hasLoadedMotoristas ? cnHsVencendo : "—"}
           </div>
           <span className="mt-1 block text-xs text-slate-500">
-            {filtroCnhAtencao ? "Filtro aplicado — clique para limpar" : "Clique para filtrar os cadastros"}
+            {filtroCnhAtencao
+              ? "Filtro aplicado — clique para limpar"
+              : "Clique para filtrar os cadastros"}
           </span>
         </button>
       </div>
@@ -425,7 +446,9 @@ export const MotoristasPage: React.FC = () => {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-slate-900">Filtrar motoristas</h2>
-              <p className="text-xs text-slate-500">Refine os resultados pelos dados disponíveis.</p>
+              <p className="text-xs text-slate-500">
+                Refine os resultados pelos dados disponíveis.
+              </p>
             </div>
             <button
               type="button"
@@ -502,7 +525,9 @@ export const MotoristasPage: React.FC = () => {
           <div className="space-y-5">
             <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-xs">
-                <span className="font-bold">{motoristaSelecionado.nome.charAt(0).toUpperCase()}</span>
+                <span className="font-bold">
+                  {motoristaSelecionado.nome.charAt(0).toUpperCase()}
+                </span>
               </div>
               <div className="min-w-0">
                 <p className="truncate font-bold text-slate-900">{motoristaSelecionado.nome}</p>
@@ -516,23 +541,33 @@ export const MotoristasPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Número da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.numeroCnh}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {motoristaSelecionado.numeroCnh}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Categoria da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.categoriaCnh}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {motoristaSelecionado.categoriaCnh}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Validade da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{formatarData(motoristaSelecionado.validadeCnh)}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {formatarData(motoristaSelecionado.validadeCnh)}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">E-mail</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.email || "Usuário sem vínculo"}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {motoristaSelecionado.email || "Usuário sem vínculo"}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Telefone</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.telefone || "—"}</dd>
+                <dd className="mt-1 font-semibold text-slate-800">
+                  {motoristaSelecionado.telefone || "—"}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Status do cadastro</dt>
@@ -619,7 +654,11 @@ export const MotoristasPage: React.FC = () => {
             value={formulario.telefone}
             onChange={(event) => atualizarFormulario("telefone", event.target.value)}
           />
-          {erroCadastro && <p role="alert" className="text-sm font-medium text-rose-600">{erroCadastro}</p>}
+          {erroCadastro && (
+            <p role="alert" className="text-sm font-medium text-rose-600">
+              {erroCadastro}
+            </p>
+          )}
         </form>
       </Modal>
     </div>

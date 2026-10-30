@@ -172,7 +172,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           />
                           {!isCollapsed && <span>{label}</span>}
                         </div>
-
                       </button>
                     );
                   })}

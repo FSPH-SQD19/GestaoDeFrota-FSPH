@@ -13,7 +13,23 @@ export interface Motorista {
   email?: string;
 }
 
-export const categoriasCnh = ["A", "B", "C", "D", "E", "AB", "AC", "AD", "AE", "BC", "BD", "BE", "CD", "CE", "DE"];
+export const categoriasCnh = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "AB",
+  "AC",
+  "AD",
+  "AE",
+  "BC",
+  "BD",
+  "BE",
+  "CD",
+  "CE",
+  "DE",
+];
 
 export const formatarCpf = (valor: string) => {
   const digitos = valor.replace(/\D/g, "").slice(0, 11);

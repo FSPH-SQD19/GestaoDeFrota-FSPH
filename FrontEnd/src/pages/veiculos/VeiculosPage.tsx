@@ -99,7 +99,9 @@ export const VeiculosPage: React.FC = () => {
       setTotalVeiculos(response.meta.total);
       setHasLoadedVeiculos(true);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Não foi possível carregar os veículos.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Não foi possível carregar os veículos.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +157,9 @@ export const VeiculosPage: React.FC = () => {
       setIsModalOpen(false);
       setSuccessMessage(`Veículo ${response.placa} cadastrado.`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Não foi possível cadastrar o veículo.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Não foi possível cadastrar o veículo.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -232,7 +236,9 @@ export const VeiculosPage: React.FC = () => {
     },
   ];
 
-  const administrativos = veiculos.filter((veiculo) => veiculo.tipoFrota === "Administrativa").length;
+  const administrativos = veiculos.filter(
+    (veiculo) => veiculo.tipoFrota === "Administrativa",
+  ).length;
   const svo = veiculos.filter((veiculo) => veiculo.tipoFrota === "SVO").length;
 
   return (
@@ -260,12 +266,18 @@ export const VeiculosPage: React.FC = () => {
       </div>
 
       {errorMessage && !isModalOpen && (
-        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <p
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+        >
           {errorMessage}
         </p>
       )}
       {successMessage && (
-        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+        <p
+          role="status"
+          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+        >
           {successMessage}
         </p>
       )}
@@ -292,7 +304,9 @@ export const VeiculosPage: React.FC = () => {
         <Card className="rounded-2xl border border-rose-200/80 bg-rose-50/30 p-4.5">
           <span className="text-xs font-semibold text-rose-700">Frota SVO</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-rose-900">{hasLoadedVeiculos ? svo : "—"}</span>
+            <span className="text-2xl font-bold text-rose-900">
+              {hasLoadedVeiculos ? svo : "—"}
+            </span>
             <span className="text-xs font-medium text-rose-600">veículos</span>
           </div>
         </Card>
@@ -308,17 +322,21 @@ export const VeiculosPage: React.FC = () => {
           />
         </div>
         <div className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-slate-100 p-1">
-          {([
-            ["TODOS", `Todos (${hasLoadedVeiculos ? totalVeiculos : "—"})`],
-            ["ADMIN", `Administrativa (${hasLoadedVeiculos ? administrativos : "—"})`],
-            ["SVO", `SVO (${hasLoadedVeiculos ? svo : "—"})`],
-          ] as const).map(([filter, label]) => (
+          {(
+            [
+              ["TODOS", `Todos (${hasLoadedVeiculos ? totalVeiculos : "—"})`],
+              ["ADMIN", `Administrativa (${hasLoadedVeiculos ? administrativos : "—"})`],
+              ["SVO", `SVO (${hasLoadedVeiculos ? svo : "—"})`],
+            ] as const
+          ).map(([filter, label]) => (
             <button
               key={filter}
               type="button"
               onClick={() => setTabFilter(filter)}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                tabFilter === filter ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                tabFilter === filter
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               {label}
@@ -379,7 +397,9 @@ export const VeiculosPage: React.FC = () => {
           <Select
             label="Tipo de frota"
             value={formulario.tipoFrota}
-            onChange={(event) => atualizarFormulario("tipoFrota", event.target.value as TipoFrotaApi)}
+            onChange={(event) =>
+              atualizarFormulario("tipoFrota", event.target.value as TipoFrotaApi)
+            }
             options={[
               { value: "ADMINISTRATIVA", label: "Frota administrativa" },
               { value: "SVO", label: "Frota SVO" },
