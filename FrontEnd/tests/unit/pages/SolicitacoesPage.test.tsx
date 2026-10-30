@@ -115,15 +115,15 @@ describe("SolicitacoesPage", () => {
     await user.click(screen.getByRole("button", { name: "Recarregar fila prioritária" }));
     expect(await screen.findByText("SV-URG-001")).toBeInTheDocument();
   });
-  it("permite ver detalhes sem chamar rotas de aprovação inexistentes", async () => {
+  it("oferece decisões nos detalhes sem executá-las automaticamente", async () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText("SV-TESTE-001");
     await user.click(
       screen.getByRole("button", { name: "Ver detalhes da solicitação SV-TESTE-001" }),
     );
-    expect(screen.getByRole("button", { name: "Aprovar e Alocar" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Recusar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Aprovar e Alocar" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Recusar" })).toBeEnabled();
     expect(
       vi
         .mocked(apiRequest)

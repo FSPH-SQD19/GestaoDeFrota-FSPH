@@ -6,10 +6,6 @@ import {
   listarAbastecimentosController,
   criarAbastecimentoController,
 } from "../controller/abastecimento_c";
-import {
-  criarSolicitacaoController,
-  listarSolicitacoesController,
-} from "../controller/solicitacao_c";
 import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
 import authRoutes from "./auth_r";
@@ -19,11 +15,11 @@ import {
   criarManutencaoController,
   listarManutencoesController,
 } from "../controller/manutencao_c";
+import solicitacaoRoutes from "./solicitacao_r";
 
 const router = Router();
 const veiculos = Router();
 const abastecimento = Router();
-const solicitacoes = Router();
 const manutencoes = Router();
 
 // Consultar carrinhos (VrumVrum)
@@ -37,6 +33,7 @@ router.use("/motoristas", motoristaRoutes);
 
 router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/veiculos", veiculos);
+router.use("/solicitacoes", solicitacaoRoutes);
 
 // Consultar abastecimento
 abastecimento.use(authenticate, requireRole("ADMIN", "GESTOR"));
@@ -45,12 +42,7 @@ abastecimento.post("/", criarAbastecimentoController);
 
 router.use("/api/v1/abastecimentos", abastecimento);
 
-// Solicitacoes de viagens
-solicitacoes.use(authenticate, requireRole("SOLICITANTE", "GESTOR", "ADMIN"));
-solicitacoes.get("/", listarSolicitacoesController);
-solicitacoes.post("/", criarSolicitacaoController);
-
-router.use("/api/v1/solicitacoes", solicitacoes);
+router.use("/api/v1/solicitacoes", solicitacaoRoutes);
 
 router.get("/api/v1/relatorios", authenticate, requireRole("ADMIN", "GESTOR"), async (req, res) => {
   const periodo = validar(periodoRelatorioSchema, req.query);

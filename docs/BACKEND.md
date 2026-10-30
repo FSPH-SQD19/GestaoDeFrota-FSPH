@@ -171,3 +171,27 @@ Nesta branch, o `POST /api/v1/motoristas` (também disponível no alias `/motori
 O CPF é validado e normalizado; a CNH exige 11 dígitos; o telefone exige DDD e 8 ou 9 dígitos; o e-mail é normalizado para minúsculas. A senha segue o mínimo de 4 caracteres já definido pela branch, com rejeição acima de 72 bytes para evitar truncamento do bcrypt. A validade da CNH usa o validador compartilhado e aceita o dia atual até o fim do dia em America/Sao_Paulo. Cadastro duplicado retorna 409, inclusive quando detectado antes da transação. Erros de validação retornam 400; falhas internas mantêm mensagens genéricas.
 
 A revisão preserva auditoria com o usuário responsável e os endpoints de atualização e inativação da master. A auditoria de cadastro recebe os dados públicos do motorista, sem senha nem hash. Uma falha da auditoria é registrada no servidor e não converte uma criação já concluída em erro. Nenhum endpoint ou migration novo foi criado.
+
+## Aprovação e recusa de solicitações
+
+Esta branch já implementa `PATCH /solicitacoes/:id/aprovar` e `PATCH /solicitacoes/:id/recusar`. A revisão conecta essas mesmas rotas também ao prefixo canônico `/api/v1/solicitacoes`, preservando o alias original. Administradores e gestores podem decidir; listagem e criação mantêm a permissão dos perfis SOLICITANTE, GESTOR e ADMIN.
+
+A aprovação recebe UUIDs `veiculoId` e `motoristaId`. Exige solicitação pendente, saída e retorno previstos válidos, veículo administrativo ativo e disponível com capacidade suficiente, motorista ativo e disponível e CNH válida até a data do retorno em America/Sao_Paulo. O serviço verifica sobreposição de intervalos em viagens aprovadas ou em trânsito; horários adjacentes não conflitam.
+
+As travas transacionais por recurso são obtidas em ordem fixa, seguidas da trava da solicitação. A consulta das travas retorna um inteiro para evitar desserializar o tipo void no Prisma. A decisão usa atualização condicional do status PENDENTE e auditoria na mesma transação. A recusa recebe `motivoRecusa` não vazio com até 2000 caracteres e também usa atualização condicional e auditoria. Ausência retorna 404; decisão já processada, conflito de alocação e concorrência conhecida retornam 409; recursos ou intervalo inválidos retornam 422; dados inválidos retornam 400.
+
+As regras e respostas são cobertas por testes HTTP com Prisma simulado. O teste de concorrência com PostgreSQL real não foi executado nesta sessão, pois o daemon Docker local está indisponível.
+
+### Manutenções
+
+As rotas existentes exigem autenticação e perfil `ADMIN` ou `GESTOR`:
+
+- `GET /api/v1/manutencoes`: paginação e filtros por veículo, tipo, status e intervalo de datas.
+- `POST /api/v1/manutencoes`: registra preventiva concluída ou corretiva aberta. Exige veículo ativo e fornecedor ativo quando informado.
+- `PATCH /api/v1/manutencoes/:id/concluir`: conclui apenas registros abertos, com atualização condicional e auditoria na mesma transação.
+
+Datas aceitam `AAAA-MM-DD` ou datetime ISO com fuso; o dia informado é preservado, sem horário, conforme a coluna `DATE`. Valores nulos, booleanos, números e datas inexistentes são rejeitados. Custos devem ser positivos e valores monetários e de odômetro aceitam até duas casas decimais.
+
+Cadastro e conclusão compartilham a trava por veículo com a aprovação de solicitações. A conclusão libera apenas veículos ativos ainda em `MANUTENCAO`, sem outras manutenções abertas, e retorna o status efetivamente persistido. Operações repetidas não duplicam a conclusão ou a auditoria. Disputas transacionais recuperáveis retornam `409`.
+
+A migration de status já pertencente à branch foi preservada e não foi aplicada ao banco nesta revisão. Ela define `ABERTA` como padrão também para registros antigos: antes de implantação em uma base com histórico, os responsáveis devem conferir a classificação desses registros. Os testes HTTP usam persistência simulada; a concorrência em PostgreSQL real permanece sem validação nesta sessão.

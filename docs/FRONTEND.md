@@ -226,7 +226,9 @@ A fila prioritária faz uma consulta independente por pendentes urgentes: mostra
 
 Listagem e criação utilizam o cliente HTTP compartilhado com `VITE_API_URL` e encerramento de sessão em respostas 401. Erros de validação exibem as mensagens dos campos retornadas pela API. O cadastro preserva o formulário em caso de falha e bloqueia fechamento, alterações e envios repetidos enquanto aguarda a resposta. O setor deve ser escolhido, sem assumir um setor para o usuário.
 
-O backend disponível ainda não oferece rotas de aprovação, recusa ou alocação. A tela informa essa limitação e mantém essas ações desabilitadas nos detalhes, sem consultar endpoints inexistentes nem simular decisões. Nenhum endpoint novo foi criado nesta revisão.
+Nesta branch, as rotas de aprovação e recusa já estão disponíveis e foram conectadas aos botões dos detalhes para administradores e gestores. Aprovar abre a seleção de veículo e motorista; recusar exige justificativa. O sucesso recarrega a tabela e a fila urgente. Respostas de conflito mantêm as seleções para nova tentativa, sem simular uma decisão local.
+
+O modal de aprovação consulta todas as páginas de veículos administrativos disponíveis e os motoristas ativos e disponíveis, com CNH válida até a data local do retorno. Capacidade insuficiente é bloqueada antes do envio e novamente conferida no servidor. Solicitações sem intervalo completo de saída/retorno mostram a limitação e não podem ser aprovadas. A recusa aceita o motivo não vazio, limitado a 2000 caracteres conforme a API, e não depende do carregamento de recursos. Durante uma decisão, edição, fechamento e submissões repetidas ficam bloqueados.
 
 ## Motoristas: integração e conta de acesso
 
