@@ -14,6 +14,7 @@ Use uma versão de Node compatível com `engines` do `package.json`: linha 22 a 
 - [Convenções para novos testes](#convenções-para-novos-testes)
 - [Lint](#lint)
 - [Cobertura](#cobertura)
+- [Testes de interface com Playwright](#testes-de-interface-com-playwright)
 - [CI nos pull requests](#ci-nos-pull-requests)
 - [Como interpretar falhas](#como-interpretar-falhas)
 - [Referências](#referências)
@@ -268,6 +269,34 @@ Os relatórios usam o provedor V8 e são gerados em:
 No back-end, a medição inclui os serviços e controllers. No front-end, inclui o código de `src`, exceto o ponto de montagem `main.tsx` e os arquivos de tipos. A medição considera todos os arquivos definidos na configuração, incluindo os que não possuem testes. Os relatórios servem para identificar os caminhos que precisam de novos cenários.
 
 As pastas de cobertura são ignoradas pelo Git. Os caches do Vitest e do TypeScript ficam sob o `node_modules` da raiz.
+
+## Testes de interface com Playwright
+
+Os cenários ficam em `FrontEnd/tests/e2e`, com configuração em `FrontEnd/playwright.config.ts`, separados da descoberta de testes unitários do Vitest. A checagem `test:types` também verifica os tipos dos testes e da configuração do Playwright.
+
+Na raiz:
+
+```bash
+# Instalar o navegador após npm ci (Linux também requer dependências do sistema)
+npx playwright install --with-deps chromium
+
+# Compilar, iniciar o preview e executar os testes desktop e mobile
+npm run test:e2e
+
+# Abrir o último relatório HTML
+npm run test:e2e:report
+
+# Executar somente desktop, com navegador visível
+npm run test:e2e -- --project=chromium --headed
+```
+
+O servidor de preview usa `http://127.0.0.1:4173`; não é necessário iniciar a aplicação manualmente. Localmente, um servidor existente nessa porta pode ser reutilizado; na CI, o Playwright sempre inicia seu próprio servidor. Encerre qualquer servidor nessa porta para garantir que uma nova compilação seja utilizada.
+
+Os testes verificam a navegação entre login e recuperação de senha, a validação da senha e a mensagem de credenciais rejeitadas. As respostas da API são simuladas no navegador, sem back-end, PostgreSQL ou credenciais reais. Esses testes verificam a interface compilada, sem cobrir a integração com a API real.
+
+Relatórios ficam em `FrontEnd/playwright-report`, e screenshots e traces das falhas em `FrontEnd/test-results`; ambas as pastas são ignoradas pelo Git e pelas ferramentas de formatação e lint. Na CI, baixe o artefato `playwright-results` na página da execução. Abra o relatório com o Playwright ou use `npx playwright show-trace <caminho-do-trace.zip>` para investigar uma falha.
+
+`npm run check` continua executando as verificações sem navegador. Execute também `npm run test:e2e` antes de enviar mudanças que afetem a interface.
 
 ## CI nos pull requests
 

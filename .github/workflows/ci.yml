@@ -82,6 +82,8 @@ jobs:
       lint: ${{ steps.lint.outcome }}
       tests: ${{ steps.tests.outcome }}
       build: ${{ steps.build.outcome }}
+      browsers: ${{ steps.browsers.outcome }}
+      e2e: ${{ steps.e2e.outcome }}
 
     steps:
       - name: Obter branch atualizada do PR
@@ -127,6 +129,25 @@ jobs:
       - name: Compilar back-end e front-end
         id: build
         run: npm run build
+
+      - name: Instalar Chromium e dependências do sistema
+        id: browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Executar testes de interface com Playwright
+        id: e2e
+        run: npm run test:e2e
+
+      - name: Publicar relatório e evidências do Playwright
+        if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-results
+          path: |
+            FrontEnd/playwright-report/
+            FrontEnd/test-results/
+          retention-days: 14
+          if-no-files-found: warn
 
   rerun:
     name: Revalidar commit formatado
@@ -237,6 +258,8 @@ jobs:
               `🔎 Lint · ${status(results.lint)}`,
               `🧪 Testes e tipos · ${status(results.tests)}`,
               `🏗️ Build · ${status(results.build)}`,
+              `🌐 Chromium · ${status(results.browsers)}`,
+              `🎭 Playwright · ${status(results.e2e)}`,
             ].join('<br>');
             const body = [
               marker,

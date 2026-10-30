@@ -13,6 +13,8 @@
     "lint": "npm run lint --workspaces",
     "lint:fix": "npm run lint:fix --workspaces",
     "test": "npm run test --workspaces",
+    "test:e2e": "npm run test:e2e --workspace=frontend",
+    "test:e2e:report": "npm run test:e2e:report --workspace=frontend",
     "test:watch": "concurrently --kill-others-on-fail -n API,WEB -c blue,green \"npm run test:watch --workspace=backend\" \"npm run test:watch --workspace=frontend\"",
     "test:coverage": "npm run test:coverage --workspaces",
     "check": "npm run format:check && npm run lint && npm test && npm run build"
