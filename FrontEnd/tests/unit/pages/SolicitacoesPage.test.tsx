@@ -1,181 +1,168 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../../src/contexts/AuthContext";
 import { apiRequest } from "../../../src/lib/api";
 import { SolicitacoesPage } from "../../../src/pages/solicitacoes/SolicitacoesPage";
-import type { SolicitacaoViagem, StatusSolicitacao } from "../../../src/types/solicitacao";
-
+import type { SolicitacaoViagem } from "../../../src/types/solicitacao";
 vi.mock("../../../src/lib/api", () => ({ apiRequest: vi.fn() }));
-
-const apiRequestMock = vi.mocked(apiRequest);
-
-function criarSolicitacao(
-  dados: Partial<SolicitacaoViagem> & Pick<SolicitacaoViagem, "id" | "protocolo" | "status">,
-): SolicitacaoViagem {
-  return {
-    solicitanteNome: "Solicitante de teste",
-    setorOrigem: "LACEN",
-    origem: "LACEN — Aracaju",
-    destino: "Hospital Regional",
-    dataHoraPretendida: "2026-11-02T12:00:00.000Z",
-    dataHoraRetornoPrevista: null,
-    quantidadePassageiros: 1,
-    tipoTransporte: "PASSAGEIROS",
-    urgencia: "NORMAL",
-    justificativa: "Atividade institucional.",
-    criadoEm: "2026-10-28T12:00:00.000Z",
-    ...dados,
-  };
-}
-
-const solicitacoesIniciais: SolicitacaoViagem[] = [
-  criarSolicitacao({ id: "sol-pendente", protocolo: "SV-2026-0142", status: "PENDENTE" }),
-  criarSolicitacao({
-    id: "sol-aprovada",
-    protocolo: "SV-2026-0137",
-    status: "APROVADA",
-    veiculoAlocado: { placa: "BRA-2E19", modelo: "Van" },
-    motoristaAlocado: { nome: "Carlos Alberto" },
-  }),
-  criarSolicitacao({
-    id: "sol-recusada",
-    protocolo: "SV-2026-0098",
-    status: "RECUSADA",
-    motivoRecusa: "Indisponibilidade de veículo.",
-  }),
-  criarSolicitacao({ id: "sol-concluida", protocolo: "SV-2026-0130", status: "CONCLUIDA" }),
-  criarSolicitacao({ id: "sol-transito", protocolo: "SV-2026-0140", status: "EM_TRANSITO" }),
-];
-
-const novaSolicitacao = criarSolicitacao({
-  id: "sol-nova",
-  protocolo: "SV-2026-0143",
+const registro: SolicitacaoViagem = {
+  id: "s1",
+  protocolo: "SV-TESTE-001",
+  solicitanteNome: "Pessoa de teste",
+  setorOrigem: "LACEN",
+  origem: "Sede",
+  destino: "Hospital",
+  dataHoraPretendida: null,
+  quantidadePassageiros: 2,
+  tipoTransporte: "PASSAGEIROS",
+  urgencia: "NORMAL",
+  justificativa: "Justificativa de teste",
   status: "PENDENTE",
-  origem: "LACEN — Aracaju",
-  destino: "Hospital de Propriá",
-  criadoEm: "2026-10-30T12:00:00.000Z",
-});
-
-function criarRespostaSolicitacoes(data: SolicitacaoViagem[]) {
-  const porStatus: Record<StatusSolicitacao, number> = {
-    PENDENTE: 0,
-    APROVADA: 0,
-    EM_TRANSITO: 0,
-    CONCLUIDA: 0,
-    RECUSADA: 0,
+  criadoEm: "2026-10-30T10:00:00Z",
+};
+const porStatus = { PENDENTE: 110, APROVADA: 3, EM_TRANSITO: 0, CONCLUIDA: 0, RECUSADA: 0 };
+function resposta(page = 1) {
+  return {
+    data: [{ ...registro, protocolo: `SV-TESTE-00${page}` }],
+    meta: { page, pageSize: 20, total: 113, totalPages: 6, porStatus },
   };
-
-  for (const solicitacao of data) porStatus[solicitacao.status] += 1;
-
-  return { data, meta: { total: data.length, porStatus } };
 }
-
-function renderPage() {
+function renderPage(roles = ["GESTOR"]) {
+  localStorage.setItem("@fsph_frota_token", "abc.def.ghi");
+  localStorage.setItem(
+    "@fsph_frota_user",
+    JSON.stringify({ id: "teste", nome: "Pessoa de teste", email: "teste@example.test", roles }),
+  );
   return render(
     <AuthProvider>
       <SolicitacoesPage />
     </AuthProvider>,
   );
 }
-
-function dataFuturaLocal(dias: number, hora: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  d.setHours(hora, 0, 0, 0);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
-}
-
-describe("SolicitacoesPage (visão do solicitante)", () => {
-  beforeEach(() => {
-    let solicitacoes = [...solicitacoesIniciais];
-    apiRequestMock.mockReset();
-    apiRequestMock.mockImplementation(async (path, options) => {
-      if (options?.method === "POST") {
-        solicitacoes = [novaSolicitacao, ...solicitacoes];
-        return novaSolicitacao as never;
-      }
-
-      if (path.startsWith("/solicitacoes")) {
-        return criarRespostaSolicitacoes(solicitacoes) as never;
-      }
-
-      throw new Error(`Chamada inesperada à API de teste: ${path}`);
+beforeEach(() => {
+  vi.mocked(apiRequest)
+    .mockReset()
+    .mockImplementation(async (path, options) => {
+      if (options?.method === "POST") return registro;
+      const query = new URLSearchParams(path.split("?")[1]);
+      if (query.get("pageSize") === "6")
+        return {
+          data: [{ ...registro, id: "urg", protocolo: "SV-URG-001", urgencia: "URGENTE" }],
+          meta: { page: 1, pageSize: 6, total: 105, totalPages: 18, porStatus },
+        };
+      return resposta(Number(query.get("page")));
     });
-  });
-
-  it("lista as solicitações e mostra os indicadores", async () => {
+});
+describe("SolicitacoesPage", () => {
+  it("exibe gestão, totais da API e fila urgente independente da página", async () => {
     renderPage();
-
+    expect(await screen.findByText("SV-TESTE-001")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /105 pedido/ })).toBeInTheDocument();
+    expect(screen.getByText("113")).toBeInTheDocument();
+    expect(screen.getByText("110")).toBeInTheDocument();
+    expect(screen.getByText(/Exibindo 1 de 105/)).toBeInTheDocument();
+  });
+  it("consulta somente a listagem própria para solicitantes", async () => {
+    renderPage(["SOLICITANTE"]);
     expect(
       screen.getByRole("heading", { name: "Minhas Solicitações de Viagem" }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("SV-2026-0142")).toBeInTheDocument();
-    expect(screen.getAllByRole("row")).toHaveLength(6); // cabeçalho + 5 solicitações
-    expect(screen.getByText("5")).toBeInTheDocument();
+    await screen.findByText("SV-TESTE-001");
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("Filtrar por setor")).not.toBeInTheDocument();
   });
-
-  it("filtra por status recusada", async () => {
+  it("pagina e envia filtros combinados à API voltando à primeira página", async () => {
     const user = userEvent.setup();
     renderPage();
-
-    await screen.findByText("SV-2026-0142");
-    await user.click(screen.getByRole("tab", { name: "Recusadas" }));
-
-    expect(screen.getByText("SV-2026-0098")).toBeInTheDocument();
-    expect(screen.queryByText("SV-2026-0142")).not.toBeInTheDocument();
+    await screen.findByText("SV-TESTE-001");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(await screen.findByText("SV-TESTE-002")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Aprovadas" }));
+    await user.selectOptions(screen.getByLabelText("Filtrar por setor"), "Hemose");
+    await user.selectOptions(screen.getByLabelText("Filtrar por urgência"), "URGENTE");
+    fireEvent.change(screen.getByLabelText("Buscar solicitações"), {
+      target: { value: " Hospital " },
+    });
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        "/solicitacoes?page=1&pageSize=20&status=APROVADA%2CEM_TRANSITO&urgencia=URGENTE&setorOrigem=Hemose&busca=Hospital",
+        { token: "abc.def.ghi" },
+      ),
+    );
   });
-
-  it("exibe erros de validação ao enviar o formulário vazio", async () => {
+  it("reaplicar o mesmo filtro mantém a tela carregada", async () => {
     const user = userEvent.setup();
     renderPage();
-
+    await screen.findByText("SV-TESTE-001");
+    await user.click(screen.getByRole("tab", { name: "Todas" }));
+    expect(screen.getByText("SV-TESTE-001")).toBeInTheDocument();
+    expect(screen.queryByText("Carregando dados...")).not.toBeInTheDocument();
+  });
+  it("mostra falha da fila urgente mesmo com a tabela carregada", async () => {
+    const original = vi.mocked(apiRequest).getMockImplementation()!;
+    let falhar = true;
+    vi.mocked(apiRequest).mockImplementation((path, options) =>
+      path.includes("pageSize=6") && falhar
+        ? Promise.reject(new Error("Falha exclusiva da fila"))
+        : original(path, options),
+    );
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("SV-TESTE-001");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Falha exclusiva da fila");
+    falhar = false;
+    await user.click(screen.getByRole("button", { name: "Recarregar fila prioritária" }));
+    expect(await screen.findByText("SV-URG-001")).toBeInTheDocument();
+  });
+  it("permite ver detalhes sem chamar rotas de aprovação inexistentes", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("SV-TESTE-001");
+    await user.click(
+      screen.getByRole("button", { name: "Ver detalhes da solicitação SV-TESTE-001" }),
+    );
+    expect(screen.getByRole("button", { name: "Aprovar e Alocar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recusar" })).toBeDisabled();
+    expect(
+      vi
+        .mocked(apiRequest)
+        .mock.calls.every(([path]) => !path.includes("/aprovar") && !path.includes("/recusar")),
+    ).toBe(true);
+  });
+  it("distingue falha na listagem de lista vazia e permite nova tentativa", async () => {
+    vi.mocked(apiRequest).mockRejectedValueOnce(new Error("Falha na consulta"));
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Falha na consulta");
+    expect(screen.getByText("Não foi possível carregar as solicitações.")).toBeInTheDocument();
+    expect(screen.queryByText("113")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(await screen.findByText("SV-TESTE-001")).toBeInTheDocument();
+  });
+  it("preserva formulário após erro de envio e recarrega após sucesso", async () => {
+    const user = userEvent.setup();
+    renderPage(["SOLICITANTE"]);
+    await screen.findByText("SV-TESTE-001");
     await user.click(screen.getByRole("button", { name: "Nova Solicitação de Viagem" }));
-    await user.click(screen.getByRole("button", { name: "Enviar Solicitação" }));
-
-    expect(await screen.findByText("Informe o local de partida.")).toBeInTheDocument();
-    expect(screen.getByText("Informe o destino da viagem.")).toBeInTheDocument();
-    expect(screen.getByText("Informe a data e hora de saída.")).toBeInTheDocument();
-  });
-
-  it("cria uma nova solicitação pendente com dados válidos", async () => {
-    const user = userEvent.setup();
-    renderPage();
-
-    await user.click(screen.getByRole("button", { name: "Nova Solicitação de Viagem" }));
-    await user.selectOptions(screen.getByLabelText(/^setor solicitante/i), "LACEN");
-    await user.type(screen.getByLabelText(/^origem/i), "LACEN — Aracaju");
-    await user.type(screen.getByLabelText(/^destino/i), "Hospital de Propriá");
-    fireEvent.change(screen.getByLabelText(/data e hora de saída/i), {
-      target: { value: dataFuturaLocal(3, 9) },
+    await user.selectOptions(screen.getByLabelText(/^Setor solicitante/), "LACEN");
+    await user.type(screen.getByLabelText(/^Origem/), "Sede FSPH");
+    await user.type(screen.getByLabelText(/^Destino/), "Hospital de teste");
+    const saida = new Date(Date.now() + 86400000);
+    saida.setMinutes(saida.getMinutes() - saida.getTimezoneOffset());
+    fireEvent.change(screen.getByLabelText(/^Data e hora de saída/), {
+      target: { value: saida.toISOString().slice(0, 16) },
     });
     await user.type(
-      screen.getByLabelText(/^justificativa/i),
-      "Transporte de equipe para capacitação.",
+      screen.getByLabelText(/^Justificativa/),
+      "Transporte institucional para exames",
     );
+    vi.mocked(apiRequest).mockRejectedValueOnce(new Error("Data de saída indisponível"));
     await user.click(screen.getByRole("button", { name: "Enviar Solicitação" }));
-
-    const aviso = await screen.findByRole("status");
-    expect(aviso).toHaveTextContent(/enviada/i);
-    expect(await screen.findByText("SV-2026-0143")).toBeInTheDocument();
-    expect(screen.getByText("Hospital de Propriá")).toBeInTheDocument();
-    expect(screen.getAllByRole("row")).toHaveLength(7);
-  });
-
-  it("mostra veículo e motorista nos detalhes de uma viagem aprovada", async () => {
-    const user = userEvent.setup();
-    renderPage();
-
-    await screen.findByText("SV-2026-0137");
-    await user.click(
-      screen.getByRole("button", { name: "Ver detalhes da solicitação SV-2026-0137" }),
-    );
-
-    const dialogo = screen
-      .getByText("Solicitação SV-2026-0137")
-      .closest("div.relative") as HTMLElement;
-    expect(within(dialogo).getByText("BRA-2E19")).toBeInTheDocument();
-    expect(within(dialogo).getByText("Carlos Alberto")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Data de saída indisponível");
+    expect(screen.getByLabelText(/^Origem/)).toHaveValue("Sede FSPH");
+    await user.click(screen.getByRole("button", { name: "Enviar Solicitação" }));
+    expect(await screen.findByText(/Solicitação SV-TESTE-001 enviada!/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Origem/)).not.toBeInTheDocument();
   });
 });

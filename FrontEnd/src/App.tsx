@@ -7,7 +7,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
 import { Card, Badge } from "./components/common";
-import { FileText, PhoneCall, Route } from "lucide-react";
+import { PhoneCall, Route } from "lucide-react";
 
 const DashboardPage = lazy(() =>
   import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })),
@@ -35,7 +35,7 @@ const UsuariosPage = lazy(() =>
 );
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading, hasRole, user } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const roles = user?.roles ?? [];
   const [authView, setAuthView] = useState<"login" | "forgot">("login");
   const [activeTab, setActiveTab] = useState<TabId>(() => telaInicial(roles));
@@ -107,21 +107,7 @@ const AppContent: React.FC = () => {
 
             {currentTab === "motoristas" && <MotoristasPage />}
 
-            {/* Placeholders informativos para as abas restantes */}
-            {currentTab === "solicitacoes" && hasRole(["SOLICITANTE"]) && <SolicitacoesPage />}
-
-            {currentTab === "solicitacoes" && !hasRole(["SOLICITANTE"]) && (
-              <Card className="p-10 text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-700">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">Solicitações de Viagem</h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Aprovação e recusa de viagens da frota administrativa pelos setores da FSPH
-                  (LACEN, Hemose, etc.).
-                </p>
-              </Card>
-            )}
+            {currentTab === "solicitacoes" && <SolicitacoesPage />}
 
             {currentTab === "svo" && (
               <Card className="p-10 text-center space-y-3">

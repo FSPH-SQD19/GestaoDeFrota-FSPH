@@ -81,3 +81,24 @@ export const SETORES_FSPH = [
   "Vigilância em Saúde",
   "Recursos Humanos",
 ] as const;
+
+export type ContagemPorStatus = Record<StatusSolicitacao, number>;
+export interface ListaSolicitacoesResposta {
+  data: SolicitacaoViagem[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    porStatus: ContagemPorStatus;
+  };
+}
+export interface ListarSolicitacoesParams {
+  page?: number;
+  pageSize?: number;
+  status?: StatusSolicitacao[];
+  urgencia?: UrgenciaSolicitacao;
+  tipoTransporte?: TipoTransporte;
+  setorOrigem?: string;
+  busca?: string;
+}

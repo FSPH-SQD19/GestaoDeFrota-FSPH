@@ -217,3 +217,13 @@ Não existem endpoints de listagem ou cadastro de usuários no backend atual. Po
 A tela consulta `GET /api/v1/veiculos` com `page`, `pageSize=10`, `busca` e `tipoFrota`. A busca por placa ou modelo aguarda 300 ms após digitar; mudanças de busca ou frota retornam à primeira página. Respostas antigas são descartadas. Os indicadores de cada frota consultam os totais da API com `pageSize=1` e não contam apenas a página carregada. Falhas de listagem e de contagem são apresentadas separadamente, com nova tentativa.
 
 O cadastro utiliza `POST /api/v1/veiculos` pelo cliente HTTP compartilhado, respeitando `VITE_API_URL` e o tratamento de sessão expirada. O Zod valida placa brasileira (antiga ou Mercosul), modelo entre 2 e 100 caracteres, capacidade inteira de 1 a 50, ano opcional entre 1950 e o ano atual mais um e combustível opcional de até 30 caracteres. Placa e espaços são normalizados antes do envio. Durante o envio, o modal permanece aberto e bloqueia alterações e submissões repetidas. Uma rejeição preserva os dados preenchidos; o sucesso recarrega a listagem e as contagens.
+
+## Solicitações para gestores
+
+Administradores e gestores consultam a mesma tela de solicitações, com visão dos setores. A listagem usa `GET /api/v1/solicitacoes` com paginação de 20 itens e filtros de status, urgência, setor e busca no servidor. O suporte a `setorOrigem` já está presente nesta branch. Os indicadores utilizam `meta.porStatus`, que acompanha os filtros de busca/setor/urgência e não se limita à página atual. O filtro de status só restringe a tabela.
+
+A fila prioritária faz uma consulta independente por pendentes urgentes: mostra até seis registros e o total informado pela API. Os filtros da tabela permitem consultar os demais pedidos. Uma falha dessa consulta é exibida separadamente, sem esconder o resultado da tabela. Alterar filtros invalida o resultado anterior, e respostas de consultas antigas são descartadas.
+
+Listagem e criação utilizam o cliente HTTP compartilhado com `VITE_API_URL` e encerramento de sessão em respostas 401. Erros de validação exibem as mensagens dos campos retornadas pela API. O cadastro preserva o formulário em caso de falha e bloqueia fechamento, alterações e envios repetidos enquanto aguarda a resposta. O setor deve ser escolhido, sem assumir um setor para o usuário.
+
+O backend disponível ainda não oferece rotas de aprovação, recusa ou alocação. A tela informa essa limitação e mantém essas ações desabilitadas nos detalhes, sem consultar endpoints inexistentes nem simular decisões. Nenhum endpoint novo foi criado nesta revisão.
