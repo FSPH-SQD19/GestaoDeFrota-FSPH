@@ -72,12 +72,11 @@ export const SolicitacoesPage: React.FC = () => {
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
   const carregarSolicitacoes = useCallback(async () => {
-    setIsLoading(true);
-    setErroCarregamento("");
     try {
       const response = await apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", {
         token,
       });
+      setErroCarregamento("");
       setSolicitacoes(response.data);
       setMeta(response.meta);
     } catch (error) {
@@ -89,9 +88,36 @@ export const SolicitacoesPage: React.FC = () => {
     }
   }, [token]);
 
+  const recarregarSolicitacoes = () => {
+    setIsLoading(true);
+    setErroCarregamento("");
+    return carregarSolicitacoes();
+  };
+
   useEffect(() => {
-    void carregarSolicitacoes();
-  }, [carregarSolicitacoes]);
+    let mounted = true;
+
+    void apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", { token })
+      .then((response) => {
+        if (!mounted) return;
+        setErroCarregamento("");
+        setSolicitacoes(response.data);
+        setMeta(response.meta);
+      })
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        setErroCarregamento(
+          error instanceof Error ? error.message : "Não foi possível carregar as solicitações.",
+        );
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
 
   const contagem = useMemo(() => {
     const por = (s: StatusSolicitacao[]) => solicitacoes.filter((x) => s.includes(x.status)).length;
@@ -129,7 +155,7 @@ export const SolicitacoesPage: React.FC = () => {
         token,
         body: JSON.stringify(dados),
       });
-      await carregarSolicitacoes();
+      await recarregarSolicitacoes();
       setIsNovaOpen(false);
       setFiltro("TODAS");
       setMensagemSucesso(`Solicitação ${nova.protocolo} enviada.`);
@@ -259,7 +285,7 @@ export const SolicitacoesPage: React.FC = () => {
           className="flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-700"
         >
           <span>{erroCarregamento}</span>
-          <Button variant="outline" size="sm" onClick={() => void carregarSolicitacoes()}>
+          <Button variant="outline" size="sm" onClick={() => void recarregarSolicitacoes()}>
             Tentar novamente
           </Button>
         </div>

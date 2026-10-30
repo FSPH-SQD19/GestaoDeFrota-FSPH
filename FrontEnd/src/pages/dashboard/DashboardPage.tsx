@@ -62,8 +62,6 @@ export const DashboardPage: React.FC = () => {
   );
 
   const carregarDados = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage("");
     try {
       const [veiculos, solicitacoes] = await Promise.all([
         apiRequest<{ data: VeiculoResumo[]; meta: { total: number } }>(
@@ -72,6 +70,7 @@ export const DashboardPage: React.FC = () => {
         ),
         apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", { token }),
       ]);
+      setErrorMessage("");
       setDados({
         veiculos: veiculos.data,
         totalVeiculos: veiculos.meta.total,
@@ -86,9 +85,45 @@ export const DashboardPage: React.FC = () => {
     }
   }, [token]);
 
-  useEffect(() => {
+  const atualizarDados = () => {
+    setIsLoading(true);
+    setErrorMessage("");
     void carregarDados();
-  }, [carregarDados]);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    void Promise.all([
+      apiRequest<{ data: VeiculoResumo[]; meta: { total: number } }>(
+        "/veiculos?page=1&pageSize=100",
+        { token },
+      ),
+      apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", { token }),
+    ])
+      .then(([veiculos, solicitacoes]) => {
+        if (!mounted) return;
+        setErrorMessage("");
+        setDados({
+          veiculos: veiculos.data,
+          totalVeiculos: veiculos.meta.total,
+          solicitacoes,
+        });
+      })
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        setErrorMessage(
+          error instanceof Error ? error.message : "Não foi possível carregar os indicadores.",
+        );
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
 
   const porStatus = dados?.solicitacoes.meta.porStatus;
   const disponiveis = dados?.veiculos.filter((veiculo) => veiculo.status === "DISPONIVEL").length ?? 0;
@@ -152,7 +187,7 @@ export const DashboardPage: React.FC = () => {
         <Button
           variant="outline"
           leftIcon={<RefreshCw className="h-4 w-4" />}
-          onClick={() => void carregarDados()}
+          onClick={atualizarDados}
           isLoading={isLoading}
         >
           Atualizar

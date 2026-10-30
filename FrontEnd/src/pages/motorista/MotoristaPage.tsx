@@ -120,10 +120,9 @@ export const MotoristasPage: React.FC = () => {
   const [erroCadastro, setErroCadastro] = useState("");
 
   const carregarMotoristas = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage("");
     try {
       const response = await apiRequest<MotoristaApi[]>("/motoristas", { token });
+      setErrorMessage("");
       setMotoristas(response.map(mapearMotorista));
       setHasLoadedMotoristas(true);
     } catch (error) {
@@ -133,9 +132,36 @@ export const MotoristasPage: React.FC = () => {
     }
   }, [token]);
 
-  useEffect(() => {
+  const recarregarMotoristas = () => {
+    setIsLoading(true);
+    setErrorMessage("");
     void carregarMotoristas();
-  }, [carregarMotoristas]);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    void apiRequest<MotoristaApi[]>("/motoristas", { token })
+      .then((response) => {
+        if (!mounted) return;
+        setErrorMessage("");
+        setMotoristas(response.map(mapearMotorista));
+        setHasLoadedMotoristas(true);
+      })
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        setErrorMessage(
+          error instanceof Error ? error.message : "Não foi possível carregar os motoristas.",
+        );
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
 
   const atualizarFormulario = <K extends keyof FormularioMotorista>(
     campo: K,
@@ -355,7 +381,7 @@ export const MotoristasPage: React.FC = () => {
       {errorMessage && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           <span>{errorMessage}</span>
-          <Button variant="outline" size="sm" onClick={() => void carregarMotoristas()}>
+          <Button variant="outline" size="sm" onClick={recarregarMotoristas}>
             Tentar novamente
           </Button>
         </div>

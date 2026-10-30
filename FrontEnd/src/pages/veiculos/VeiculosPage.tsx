@@ -88,13 +88,12 @@ export const VeiculosPage: React.FC = () => {
   const [formulario, setFormulario] = useState(formularioVazio);
 
   const carregarVeiculos = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage("");
     try {
       const response = await apiRequest<{
         data: VeiculoApi[];
         meta: { total: number };
       }>("/veiculos?page=1&pageSize=100", { token });
+      setErrorMessage("");
       setVeiculos(response.data.map(mapearVeiculo));
       setTotalVeiculos(response.meta.total);
       setHasLoadedVeiculos(true);
@@ -105,9 +104,40 @@ export const VeiculosPage: React.FC = () => {
     }
   }, [token]);
 
-  useEffect(() => {
+  const recarregarVeiculos = () => {
+    setIsLoading(true);
+    setErrorMessage("");
     void carregarVeiculos();
-  }, [carregarVeiculos]);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    void apiRequest<{ data: VeiculoApi[]; meta: { total: number } }>(
+      "/veiculos?page=1&pageSize=100",
+      { token },
+    )
+      .then((response) => {
+        if (!mounted) return;
+        setErrorMessage("");
+        setVeiculos(response.data.map(mapearVeiculo));
+        setTotalVeiculos(response.meta.total);
+        setHasLoadedVeiculos(true);
+      })
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        setErrorMessage(
+          error instanceof Error ? error.message : "Não foi possível carregar os veículos.",
+        );
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
 
   const filteredVeiculos = useMemo(() => {
     const termo = searchTerm.trim().toLocaleLowerCase("pt-BR");
@@ -260,9 +290,12 @@ export const VeiculosPage: React.FC = () => {
       </div>
 
       {errorMessage && !isModalOpen && (
-        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           {errorMessage}
-        </p>
+          <Button variant="outline" size="sm" onClick={recarregarVeiculos}>
+            Tentar novamente
+          </Button>
+        </div>
       )}
       {successMessage && (
         <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
