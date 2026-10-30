@@ -1,10 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Filter, MoreHorizontal, Phone, Plus, Search, X } from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
-import { categoriasCnh, cpfValido, formatarCpf, type Motorista } from "./MotoristaRules";
+import {
+  categoriasCnh,
+  cpfValido,
+  formatarCpf,
+  motoristaCadastroSchema,
+  type Motorista,
+} from "./MotoristaRules";
 
 interface MotoristaApi {
   id: string;
@@ -19,6 +25,9 @@ interface MotoristaApi {
 }
 
 interface FormularioMotorista {
+  nome: string;
+  email: string;
+  senha: string;
   cpf: string;
   numeroCnh: string;
   categoriaCnh: string;
@@ -34,6 +43,9 @@ interface FiltrosMotoristas {
 }
 
 const formularioVazio: FormularioMotorista = {
+  nome: "",
+  email: "",
+  senha: "",
   cpf: "",
   numeroCnh: "",
   categoriaCnh: "",
@@ -48,10 +60,7 @@ const filtrosVazios: FiltrosMotoristas = {
   status: "",
 };
 
-const dataHojeIso = () => {
-  const data = new Date();
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-};
+const dataHojeIso = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
 const formatarData = (data: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${data}T00:00:00Z`));
@@ -70,18 +79,41 @@ const statusLabels: Record<string, string> = {
   DISPONIVEL: "Disponível",
   EM_VIAGEM: "Em viagem",
   INDISPONIVEL: "Indisponível",
+  EM_ROTA: "Em rota",
+  INATIVO: "Inativo",
 };
 
 const statusVariant: Record<string, "success" | "info" | "warning" | "neutral"> = {
   Disponível: "success",
   "Em viagem": "info",
   Indisponível: "warning",
+  "Em rota": "info",
+  Inativo: "neutral",
 };
 
 const statusLabel = (status: string) => statusLabels[status] ?? status.replaceAll("_", " ");
 
 function mapearMotorista(motorista: MotoristaApi): Motorista {
+  if (
+    !motorista ||
+    typeof motorista.id !== "string" ||
+    typeof motorista.cpf !== "string" ||
+    typeof motorista.numeroCnh !== "string" ||
+    typeof motorista.status !== "string" ||
+    typeof motorista.ativo !== "boolean" ||
+    typeof motorista.validadeCnh !== "string"
+  ) {
+    throw new Error("A API retornou dados incompletos de um motorista.");
+  }
   const validadeCnh = motorista.validadeCnh.slice(0, 10);
+  const data = new Date(`${validadeCnh}T00:00:00Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(validadeCnh) ||
+    Number.isNaN(data.getTime()) ||
+    data.toISOString().slice(0, 10) !== validadeCnh
+  ) {
+    throw new Error("A API retornou uma validade de CNH inválida.");
+  }
   return {
     id: motorista.id,
     nome: motorista.usuario?.nome ?? "Usuário sem vínculo",
@@ -98,12 +130,22 @@ function mapearMotorista(motorista: MotoristaApi): Motorista {
 
 export const MotoristasPage: React.FC = () => {
   const { token } = useAuth();
-  const [motoristas, setMotoristas] = useState<Motorista[]>([]);
-  const [hasLoadedMotoristas, setHasLoadedMotoristas] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [revisao, setRevisao] = useState(0);
+  const [resultado, setResultado] = useState<{
+    token: string | null;
+    revisao: number;
+    dados: Motorista[] | null;
+    erro: string;
+  } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const salvando = useRef(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [hoje] = useState(dataHojeIso);
+  const atual = resultado?.token === token && resultado?.revisao === revisao ? resultado : null;
+  const motoristas = useMemo(() => atual?.dados ?? [], [atual]);
+  const hasLoadedMotoristas = Boolean(atual?.dados);
+  const isLoading = !atual;
+  const errorMessage = atual?.erro ?? "";
   const [termoBusca, setTermoBusca] = useState("");
   const [filtros, setFiltros] = useState(filtrosVazios);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
@@ -114,51 +156,30 @@ export const MotoristasPage: React.FC = () => {
   const [cpfTocado, setCpfTocado] = useState(false);
   const [erroCadastro, setErroCadastro] = useState("");
 
-  const carregarMotoristas = useCallback(async () => {
-    try {
-      const response = await apiRequest<MotoristaApi[]>("/motoristas", { token });
-      setErrorMessage("");
-      setMotoristas(response.map(mapearMotorista));
-      setHasLoadedMotoristas(true);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Não foi possível carregar os motoristas.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
-
-  const recarregarMotoristas = () => {
-    setIsLoading(true);
-    setErrorMessage("");
-    void carregarMotoristas();
-  };
-
+  const recarregarMotoristas = () => setRevisao((valor) => valor + 1);
   useEffect(() => {
-    let mounted = true;
-
+    let ativo = true;
     void apiRequest<MotoristaApi[]>("/motoristas", { token })
       .then((response) => {
-        if (!mounted) return;
-        setErrorMessage("");
-        setMotoristas(response.map(mapearMotorista));
-        setHasLoadedMotoristas(true);
+        if (!Array.isArray(response))
+          throw new Error("A API retornou uma lista de motoristas inválida.");
+        const dados = response.map(mapearMotorista);
+        if (ativo) setResultado({ token, revisao, dados, erro: "" });
       })
       .catch((error: unknown) => {
-        if (!mounted) return;
-        setErrorMessage(
-          error instanceof Error ? error.message : "Não foi possível carregar os motoristas.",
-        );
-      })
-      .finally(() => {
-        if (mounted) setIsLoading(false);
+        if (ativo)
+          setResultado({
+            token,
+            revisao,
+            dados: null,
+            erro:
+              error instanceof Error ? error.message : "Não foi possível carregar os motoristas.",
+          });
       });
-
     return () => {
-      mounted = false;
+      ativo = false;
     };
-  }, [token]);
+  }, [token, revisao]);
 
   const atualizarFormulario = <K extends keyof FormularioMotorista>(
     campo: K,
@@ -173,6 +194,7 @@ export const MotoristasPage: React.FC = () => {
     digitosCpf.length > 0 && (cpfTocado || digitosCpf.length === 11) && !cpfValido(formulario.cpf);
 
   const fecharCadastro = () => {
+    if (salvando.current) return;
     setModalCadastroAberto(false);
     setFormulario(formularioVazio);
     setCpfTocado(false);
@@ -181,37 +203,37 @@ export const MotoristasPage: React.FC = () => {
 
   const cadastrarMotorista = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (salvando.current) return;
     setCpfTocado(true);
     setErroCadastro("");
-
-    if (!cpfValido(formulario.cpf)) {
-      setErroCadastro("Informe um CPF válido.");
+    const validacao = motoristaCadastroSchema.safeParse(formulario);
+    if (!validacao.success) {
+      setErroCadastro(validacao.error.issues[0]?.message ?? "Revise os dados do motorista.");
       return;
     }
-
+    salvando.current = true;
     setIsSaving(true);
+    setSuccessMessage("");
     try {
-      const response = await apiRequest<MotoristaApi>("/motoristas", {
+      await apiRequest<MotoristaApi>("/motoristas", {
         method: "POST",
         token,
-        body: JSON.stringify({
-          cpf: formulario.cpf,
-          numeroCnh: formulario.numeroCnh,
-          categoriaCnh: formulario.categoriaCnh,
-          validadeCnh: formulario.validadeCnh,
-          telefone: formulario.telefone || undefined,
-        }),
+        body: JSON.stringify(validacao.data),
       });
-      setMotoristas((atuais) => [mapearMotorista(response), ...atuais]);
-      setHasLoadedMotoristas(true);
-      setErrorMessage("");
-      setSuccessMessage("Dados do motorista cadastrados.");
-      fecharCadastro();
+      setModalCadastroAberto(false);
+      setFormulario(formularioVazio);
+      setCpfTocado(false);
+      setTermoBusca("");
+      setFiltros(filtrosVazios);
+      setFiltroCnhAtencao(false);
+      setSuccessMessage("Motorista e conta de acesso cadastrados.");
+      recarregarMotoristas();
     } catch (error) {
       setErroCadastro(
         error instanceof Error ? error.message : "Não foi possível cadastrar o motorista.",
       );
     } finally {
+      salvando.current = false;
       setIsSaving(false);
     }
   };
@@ -221,7 +243,8 @@ export const MotoristasPage: React.FC = () => {
 
     return motoristas.filter((motorista) => {
       const diasParaVencimento = diasAteVencimento(motorista.validadeCnh);
-      const cnhPrecisaAtencao = motorista.ativo && diasParaVencimento <= 30;
+      const cnhPrecisaAtencao =
+        motorista.ativo && diasParaVencimento >= 0 && diasParaVencimento <= 30;
       const correspondeBusca =
         !busca ||
         motorista.id.toLocaleLowerCase("pt-BR").includes(busca) ||
@@ -247,7 +270,7 @@ export const MotoristasPage: React.FC = () => {
     (motorista) => motorista.ativo && diasAteVencimento(motorista.validadeCnh) <= 30,
   );
   const cnHsVencidas = motoristasComCnhAtencao.filter(
-    (motorista) => diasAteVencimento(motorista.validadeCnh) <= 0,
+    (motorista) => diasAteVencimento(motorista.validadeCnh) < 0,
   ).length;
   const cnHsVencendo = motoristasComCnhAtencao.length - cnHsVencidas;
   const cardCnhClasses =
@@ -287,8 +310,8 @@ export const MotoristasPage: React.FC = () => {
       header: "Vencimento da CNH",
       render: (motorista) => {
         const dias = diasAteVencimento(motorista.validadeCnh);
-        const vencida = dias <= 0;
-        const proxima = dias > 0 && dias <= 30;
+        const vencida = dias < 0;
+        const proxima = dias >= 0 && dias <= 30;
         return (
           <div className="flex items-center gap-2 text-xs">
             <CalendarDays className="h-4 w-4 text-slate-400" />
@@ -449,6 +472,7 @@ export const MotoristasPage: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="w-full sm:max-w-md">
             <Input
+              aria-label="Buscar motorista"
               placeholder="Buscar motorista por ID ou nome..."
               value={termoBusca}
               onChange={(event) => setTermoBusca(event.target.value)}
@@ -530,7 +554,7 @@ export const MotoristasPage: React.FC = () => {
             ? "Carregando motoristas..."
             : errorMessage
               ? "Não foi possível carregar os motoristas."
-              : "Nenhum motorista cadastrado."
+              : "Nenhum motorista encontrado para os filtros atuais."
         }
       />
 
@@ -619,8 +643,8 @@ export const MotoristasPage: React.FC = () => {
       <Modal
         isOpen={modalCadastroAberto}
         onClose={fecharCadastro}
-        title="Cadastrar dados da CNH"
-        description="Este cadastro não cria uma conta de acesso para o motorista."
+        title="Cadastrar motorista"
+        description="Cadastre os dados da CNH e a conta de acesso do motorista."
         footer={
           <>
             <Button variant="ghost" onClick={fecharCadastro} disabled={isSaving}>
@@ -637,49 +661,83 @@ export const MotoristasPage: React.FC = () => {
           </>
         }
       >
-        <form id="formulario-novo-motorista" onSubmit={cadastrarMotorista} className="space-y-5">
-          <Input
-            label="CPF"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="000.000.000-00"
-            required
-            value={formulario.cpf}
-            error={mostrarErroCpf ? "CPF inválido" : undefined}
-            onBlur={() => setCpfTocado(true)}
-            onChange={(event) => atualizarFormulario("cpf", formatarCpf(event.target.value))}
-          />
-          <Input
-            label="Número da CNH"
-            maxLength={20}
-            required
-            value={formulario.numeroCnh}
-            onChange={(event) => atualizarFormulario("numeroCnh", event.target.value)}
-          />
-          <Select
-            label="Categoria da CNH"
-            required
-            value={formulario.categoriaCnh}
-            onChange={(event) => atualizarFormulario("categoriaCnh", event.target.value)}
-            placeholder="Selecione uma categoria"
-            options={categoriasCnh.map((categoria) => ({ value: categoria, label: categoria }))}
-          />
-          <Input
-            label="Validade da CNH"
-            type="date"
-            required
-            min={dataHojeIso()}
-            value={formulario.validadeCnh}
-            onChange={(event) => atualizarFormulario("validadeCnh", event.target.value)}
-          />
-          <Input
-            label="Telefone para contato"
-            type="tel"
-            autoComplete="tel"
-            maxLength={20}
-            value={formulario.telefone}
-            onChange={(event) => atualizarFormulario("telefone", event.target.value)}
-          />
+        <form
+          id="formulario-novo-motorista"
+          onSubmit={cadastrarMotorista}
+          className="space-y-5"
+          noValidate
+        >
+          <fieldset disabled={isSaving} className="space-y-5">
+            <Input
+              label="Nome completo"
+              autoComplete="name"
+              required
+              maxLength={150}
+              value={formulario.nome}
+              onChange={(e) => atualizarFormulario("nome", e.target.value)}
+            />
+            <Input
+              label="E-mail de acesso"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={150}
+              value={formulario.email}
+              onChange={(e) => atualizarFormulario("email", e.target.value)}
+            />
+            <Input
+              label="Senha inicial"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={4}
+              value={formulario.senha}
+              onChange={(e) => atualizarFormulario("senha", e.target.value)}
+            />
+            <Input
+              label="CPF"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="000.000.000-00"
+              required
+              value={formulario.cpf}
+              error={mostrarErroCpf ? "CPF inválido" : undefined}
+              onBlur={() => setCpfTocado(true)}
+              onChange={(event) => atualizarFormulario("cpf", formatarCpf(event.target.value))}
+            />
+            <Input
+              label="Número da CNH"
+              maxLength={11}
+              required
+              value={formulario.numeroCnh}
+              onChange={(event) => atualizarFormulario("numeroCnh", event.target.value)}
+            />
+            <Select
+              label="Categoria da CNH"
+              required
+              value={formulario.categoriaCnh}
+              onChange={(event) => atualizarFormulario("categoriaCnh", event.target.value)}
+              placeholder="Selecione uma categoria"
+              options={categoriasCnh.map((categoria) => ({ value: categoria, label: categoria }))}
+            />
+            <Input
+              label="Validade da CNH"
+              type="date"
+              required
+              min={hoje}
+              value={formulario.validadeCnh}
+              onChange={(event) => atualizarFormulario("validadeCnh", event.target.value)}
+            />
+            <Input
+              label="Telefone para contato"
+              required
+              type="tel"
+              autoComplete="tel"
+              maxLength={20}
+              value={formulario.telefone}
+              onChange={(event) => atualizarFormulario("telefone", event.target.value)}
+            />
+          </fieldset>
           {erroCadastro && (
             <p role="alert" className="text-sm font-medium text-rose-600">
               {erroCadastro}

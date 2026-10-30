@@ -227,3 +227,11 @@ A fila prioritária faz uma consulta independente por pendentes urgentes: mostra
 Listagem e criação utilizam o cliente HTTP compartilhado com `VITE_API_URL` e encerramento de sessão em respostas 401. Erros de validação exibem as mensagens dos campos retornadas pela API. O cadastro preserva o formulário em caso de falha e bloqueia fechamento, alterações e envios repetidos enquanto aguarda a resposta. O setor deve ser escolhido, sem assumir um setor para o usuário.
 
 O backend disponível ainda não oferece rotas de aprovação, recusa ou alocação. A tela informa essa limitação e mantém essas ações desabilitadas nos detalhes, sem consultar endpoints inexistentes nem simular decisões. Nenhum endpoint novo foi criado nesta revisão.
+
+## Motoristas: integração e conta de acesso
+
+A tela usa o cliente HTTP compartilhado em `GET` e `POST /api/v1/motoristas`, respeitando `VITE_API_URL` e a limpeza de sessão em respostas 401. A listagem diferencia falha, carregamento e ausência de resultados; uma nova consulta invalida respostas antigas. A tela aceita status operacionais EM_VIAGEM e EM_ROTA e os apresenta separadamente do campo `ativo` do cadastro.
+
+O cadastro envia os dados da conta que já eram exigidos por esta branch (nome, e-mail, senha e telefone), além de CPF e CNH. A validação segue o contrato existente, normalizando os dados e verificando o limite de 72 bytes da senha. Enquanto aguarda o POST, bloqueia fechamento, edição e novo envio. Falhas preservam o formulário. O sucesso limpa as credenciais preenchidas, fecha o modal e recarrega a lista; uma falha posterior nessa consulta é apresentada como erro de listagem, sem repetir o cadastro.
+
+CNHs válidas até hoje não são consideradas vencidas. Os indicadores excluem cadastros inativos das contagens de vencimento, e o filtro de CNHs vencendo inclui somente as que vencem de hoje até 30 dias, sem misturar CNHs já vencidas. Os dados da API são conferidos antes de formatar as datas.

@@ -163,3 +163,11 @@ A API valida o ano do veículo até o ano atual mais um; a constraint da migrati
 - Motoristas: contagem das execuções encerradas, agrupadas pelo identificador do motorista.
 
 Desvios de rota e consumo por viagem retornam `null`, pois não há registros suficientes para esses cálculos. Ordens de coleta SVO não têm odômetros nem data de encerramento no schema atual e não entram na contagem de viagens. A quilometragem não equivale ao odômetro acumulado do veículo. Sem registros, o endpoint retorna listas vazias e somas iguais a zero.
+
+## Cadastro de motorista com conta de acesso
+
+Nesta branch, o `POST /api/v1/motoristas` (também disponível no alias `/motoristas`) cadastra a conta e o motorista na mesma transação, como já implementado pela branch antes desta revisão. O corpo contém `nome`, `email`, `senha`, `telefone`, `cpf`, `numeroCnh`, `categoriaCnh` e `validadeCnh`. O perfil MOTORISTA deve existir no banco. A senha é armazenada somente como hash bcrypt; o nome, o e-mail e o identificador da conta são os únicos campos de usuário incluídos na resposta do motorista.
+
+O CPF é validado e normalizado; a CNH exige 11 dígitos; o telefone exige DDD e 8 ou 9 dígitos; o e-mail é normalizado para minúsculas. A senha segue o mínimo de 4 caracteres já definido pela branch, com rejeição acima de 72 bytes para evitar truncamento do bcrypt. A validade da CNH usa o validador compartilhado e aceita o dia atual até o fim do dia em America/Sao_Paulo. Cadastro duplicado retorna 409, inclusive quando detectado antes da transação. Erros de validação retornam 400; falhas internas mantêm mensagens genéricas.
+
+A revisão preserva auditoria com o usuário responsável e os endpoints de atualização e inativação da master. A auditoria de cadastro recebe os dados públicos do motorista, sem senha nem hash. Uma falha da auditoria é registrada no servidor e não converte uma criação já concluída em erro. Nenhum endpoint ou migration novo foi criado.
