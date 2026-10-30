@@ -13,7 +13,9 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBackTo
       <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2.5 shadow-md shadow-blue-500/10">
         <img src={rotaSymbol} alt="Rota FSPH" className="h-full w-full object-contain" />
       </div>
-      <h1 className="mb-2 text-2xl font-bold tracking-tight text-slate-900">Recuperação de senha</h1>
+      <h1 className="mb-2 text-2xl font-bold tracking-tight text-slate-900">
+        Recuperação de senha
+      </h1>
       <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600">
         <Mail className="h-5 w-5" />
       </div>

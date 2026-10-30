@@ -136,5 +136,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return state.user.roles.some((role) => requiredRoles.includes(role));
   };
 
-  return <AuthContext.Provider value={{ ...state, login, logout, hasRole }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ ...state, login, logout, hasRole }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

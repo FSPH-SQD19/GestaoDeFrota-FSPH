@@ -126,9 +126,11 @@ export const DashboardPage: React.FC = () => {
   }, [token]);
 
   const porStatus = dados?.solicitacoes.meta.porStatus;
-  const disponiveis = dados?.veiculos.filter((veiculo) => veiculo.status === "DISPONIVEL").length ?? 0;
+  const disponiveis =
+    dados?.veiculos.filter((veiculo) => veiculo.status === "DISPONIVEL").length ?? 0;
   const emViagem = dados?.veiculos.filter((veiculo) => veiculo.status === "EM_VIAGEM").length ?? 0;
-  const manutencao = dados?.veiculos.filter((veiculo) => veiculo.status === "MANUTENCAO").length ?? 0;
+  const manutencao =
+    dados?.veiculos.filter((veiculo) => veiculo.status === "MANUTENCAO").length ?? 0;
   const aguardando = porStatus?.PENDENTE ?? 0;
   const recentes = dados?.solicitacoes.data.slice(0, 6) ?? [];
 
@@ -195,14 +197,20 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {errorMessage && (
-        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <p
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+        >
           {errorMessage}
         </p>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {indicadores.map(({ label, value, description, icon: Icon, tone }) => (
-          <Card key={label} className="flex min-h-36 flex-col justify-between rounded-3xl border border-slate-200/90 p-5">
+          <Card
+            key={label}
+            className="flex min-h-36 flex-col justify-between rounded-3xl border border-slate-200/90 p-5"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -210,7 +218,9 @@ export const DashboardPage: React.FC = () => {
                 </span>
                 <p className="mt-1 text-xs font-medium text-slate-600">{description}</p>
               </div>
-              <span className={`flex h-9 w-9 items-center justify-center rounded-2xl ${toneStyles[tone]}`}>
+              <span
+                className={`flex h-9 w-9 items-center justify-center rounded-2xl ${toneStyles[tone]}`}
+              >
                 <Icon className="h-4.5 w-4.5" />
               </span>
             </div>
@@ -225,7 +235,9 @@ export const DashboardPage: React.FC = () => {
         <div className="flex flex-col gap-2 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-900">Solicitações recentes</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Registros reais ordenados pela data de criação.</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Registros reais ordenados pela data de criação.
+            </p>
           </div>
           {porStatus && (
             <div className="flex flex-wrap gap-2 text-xs text-slate-600">
@@ -247,19 +259,17 @@ export const DashboardPage: React.FC = () => {
                     <span className="font-mono text-xs font-bold tracking-wide text-slate-800">
                       {solicitacao.protocolo}
                     </span>
-                    <Badge
-                      variant={STATUS_SOLICITACAO_VARIANT[solicitacao.status]}
-                      dot
-                      size="sm"
-                    >
+                    <Badge variant={STATUS_SOLICITACAO_VARIANT[solicitacao.status]} dot size="sm">
                       {STATUS_SOLICITACAO_LABEL[solicitacao.status]}
                     </Badge>
                   </div>
                   <p className="mt-1 truncate text-sm font-semibold text-slate-900">
-                    {solicitacao.origem || "Origem não informada"} → {solicitacao.destino || "Destino não informado"}
+                    {solicitacao.origem || "Origem não informada"} →{" "}
+                    {solicitacao.destino || "Destino não informado"}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    {solicitacao.solicitanteNome} · {solicitacao.setorOrigem || "Setor não informado"}
+                    {solicitacao.solicitanteNome} ·{" "}
+                    {solicitacao.setorOrigem || "Setor não informado"}
                   </p>
                 </div>
                 <span className="shrink-0 text-xs text-slate-500">

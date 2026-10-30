@@ -155,7 +155,10 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
     >
       <form id={FORM_ID} onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
         {errorMessage && (
-          <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          <p
+            role="alert"
+            className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          >
             {errorMessage}
           </p>
         )}
