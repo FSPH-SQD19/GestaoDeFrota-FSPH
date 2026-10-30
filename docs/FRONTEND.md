@@ -211,3 +211,9 @@ A exportação CSV utiliza exclusivamente o resultado do período consultado, co
 A aba Usuários é restrita a administradores. A consulta de acesso utiliza somente o endpoint existente `GET /api/v1/auth/perfil`, que retorna o identificador e os perfis da sessão autenticada. A tela trata carregamento, falha e nova tentativa, e não apresenta essa resposta como uma lista de usuários.
 
 Não existem endpoints de listagem ou cadastro de usuários no backend atual. Por isso, a tela informa que a gestão está indisponível e desabilita o botão Novo usuário. Não há usuários fictícios, códigos gerados no navegador, cadastro em memória ou chamadas a endpoints inexistentes. Busca, filtro por setor e ações sem implementação foram removidos.
+
+## Veículos: validação e paginação
+
+A tela consulta `GET /api/v1/veiculos` com `page`, `pageSize=10`, `busca` e `tipoFrota`. A busca por placa ou modelo aguarda 300 ms após digitar; mudanças de busca ou frota retornam à primeira página. Respostas antigas são descartadas. Os indicadores de cada frota consultam os totais da API com `pageSize=1` e não contam apenas a página carregada. Falhas de listagem e de contagem são apresentadas separadamente, com nova tentativa.
+
+O cadastro utiliza `POST /api/v1/veiculos` pelo cliente HTTP compartilhado, respeitando `VITE_API_URL` e o tratamento de sessão expirada. O Zod valida placa brasileira (antiga ou Mercosul), modelo entre 2 e 100 caracteres, capacidade inteira de 1 a 50, ano opcional entre 1950 e o ano atual mais um e combustível opcional de até 30 caracteres. Placa e espaços são normalizados antes do envio. Durante o envio, o modal permanece aberto e bloqueia alterações e submissões repetidas. Uma rejeição preserva os dados preenchidos; o sucesso recarrega a listagem e as contagens.
