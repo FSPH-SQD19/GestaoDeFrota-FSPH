@@ -1,3 +1,6 @@
+vi.mock("../../../src/service/auditoria_s", () => ({
+  registrarAuditoria: vi.fn().mockResolvedValue({}),
+}));
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import jwt from "jsonwebtoken";
@@ -11,13 +14,13 @@ const mocks = vi.hoisted(() => {
   };
 
   return {
+    update: vi.fn(),
     findFirst: vi.fn(),
     findMany: vi.fn(),
     hashPassword: vi.fn(),
     transactionClient,
-    transaction: vi.fn(
-      async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
-        callback(transactionClient),
+    transaction: vi.fn(async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
+      callback(transactionClient),
     ),
   };
 });
@@ -25,7 +28,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
     $transaction: mocks.transaction,
-    motorista: { findFirst: mocks.findFirst, findMany: mocks.findMany },
+    motorista: { findFirst: mocks.findFirst, findMany: mocks.findMany, update: mocks.update },
   },
 }));
 vi.mock("../../../src/service/password_s", () => ({
@@ -61,6 +64,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-21T02:59:59.999Z"));
   mocks.findFirst.mockResolvedValue(null);
+  mocks.update.mockResolvedValue({ id: usuarioId, ativo: false });
   mocks.findMany.mockResolvedValue([]);
   mocks.hashPassword.mockResolvedValue("hash-seguro");
   mocks.transactionClient.perfil.findUnique.mockResolvedValue({ id: "perfil-motorista" });
@@ -73,11 +77,11 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-async function cadastrar(body?: unknown, perfis = ["ADMIN"]) {
+async function cadastrar(body?: unknown, perfis = ["ADMIN"], prefixo = "/motoristas") {
   const token = jwt.sign({ perfis }, "segredo-sintetico-motoristas", {
     subject: usuarioId,
   });
-  const response = await fetch(`${baseUrl}/motoristas`, {
+  const response = await fetch(`${baseUrl}${prefixo}`, {
     method: "POST",
     headers: {
       authorization: ["Bearer", token].join(" "),
@@ -143,5 +147,40 @@ describe("POST /motoristas", () => {
     });
     expect(mocks.findFirst).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("compatibilidade e correções do merge de motoristas", () => {
+  it("usa a rota canônica /api/v1/motoristas", async () => {
+    expect((await cadastrar(entrada, ["GESTOR"], "/api/v1/motoristas")).status).toBe(201);
+  });
+  it("retorna 409 no conflito detectado antes da transação", async () => {
+    mocks.findFirst.mockResolvedValue({ id: "existente" });
+    expect(await cadastrar(entrada)).toMatchObject({
+      status: 409,
+      body: { mensagem: "CPF ou CNH já cadastrado." },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+  it("rejeita senhas acima do limite de bytes do bcrypt", async () => {
+    expect(await cadastrar({ ...entrada, senha: "á".repeat(37) })).toMatchObject({
+      status: 400,
+      body: { mensagem: "A senha deve ter no máximo 72 bytes." },
+    });
+    expect(mocks.hashPassword).not.toHaveBeenCalled();
+  });
+  it.each(["PATCH", "DELETE"])("preserva %s e a auditoria trazidos pela master", async (method) => {
+    const token = jwt.sign({ perfis: ["ADMIN"] }, "segredo-sintetico-motoristas", {
+      subject: usuarioId,
+    });
+    const response = await fetch(`${baseUrl}/api/v1/motoristas/${usuarioId}`, {
+      method,
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      ...(method === "PATCH" ? { body: JSON.stringify({ ativo: false }) } : {}),
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: usuarioId }, data: { ativo: false } }),
+    );
   });
 });

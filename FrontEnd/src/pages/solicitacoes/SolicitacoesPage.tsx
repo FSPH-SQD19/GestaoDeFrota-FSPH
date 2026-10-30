@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -12,23 +12,29 @@ import {
   XCircle,
   ClipboardList,
   Siren,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
-import { Badge, Button, Card, Input, Modal, Table } from "../../components/common";
+import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { cn } from "../../lib/utils";
+import { criarSolicitacaoApi, listarSolicitacoesApi } from "../../services/solicitacoesService";
 import {
+  SETORES_FSPH,
   STATUS_SOLICITACAO_LABEL,
   STATUS_SOLICITACAO_VARIANT,
   TIPO_TRANSPORTE_LABEL,
+  type ListaSolicitacoesResposta,
   type NovaSolicitacaoViagem,
   type SolicitacaoViagem,
   type StatusSolicitacao,
+  type UrgenciaSolicitacao,
 } from "../../types/solicitacao";
 import { NovaSolicitacaoModal } from "./NovaSolicitacaoModal";
-import { criarSolicitacoesMock } from "./solicitacoesMock";
 
 type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA";
+type FiltroUrgencia = "TODAS" | UrgenciaSolicitacao;
 
 const FILTROS: { id: FiltroStatus; label: string; status: StatusSolicitacao[] | null }[] = [
   { id: "TODAS", label: "Todas", status: null },
@@ -38,6 +44,9 @@ const FILTROS: { id: FiltroStatus; label: string; status: StatusSolicitacao[] | 
   { id: "RECUSADA", label: "Recusadas", status: ["RECUSADA"] },
 ];
 
+const PAGE_SIZE = 20;
+const SEM_SOLICITACOES: SolicitacaoViagem[] = [];
+
 const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "2-digit",
@@ -46,67 +55,210 @@ const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 
-function formatarDataHora(iso?: string): string {
+function formatarDataHora(iso?: string | null): string {
   return iso ? dataHoraFmt.format(new Date(iso)) : "—";
 }
 
-function gerarProtocolo(total: number): string {
-  const ano = new Date().getFullYear();
-  return `SV-${ano}-${String(143 + total).padStart(4, "0")}`;
+function pesoFilaGestor(s: SolicitacaoViagem): number {
+  if (s.status === "PENDENTE" && s.urgencia === "URGENTE") return 0;
+  if (s.status === "PENDENTE") return 1;
+  return 2;
 }
 
 export const SolicitacoesPage: React.FC = () => {
-  const { user } = useAuth();
-  const solicitanteNome = user?.nome ?? "Solicitante";
+  const { token, hasRole } = useAuth();
+  const isGestor = hasRole(["GESTOR", "ADMIN"]);
 
-  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoViagem[]>(() =>
-    criarSolicitacoesMock(solicitanteNome),
-  );
+  const [page, setPage] = useState(1);
+  const [reloadTick, setReloadTick] = useState(0);
+  const [resultado, setResultado] = useState<{
+    chave: string;
+    dados: ListaSolicitacoesResposta | null;
+    erro: string;
+  } | null>(null);
+  const [fila, setFila] = useState<{
+    chave: string;
+    dados: ListaSolicitacoesResposta | null;
+    erro: string;
+  } | null>(null);
+
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("TODAS");
+  const [filtroSetor, setFiltroSetor] = useState<string>("TODOS");
+  const [filtroUrgencia, setFiltroUrgencia] = useState<FiltroUrgencia>("TODAS");
+
   const [isNovaOpen, setIsNovaOpen] = useState(false);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
-  const contagem = useMemo(() => {
-    const por = (s: StatusSolicitacao[]) => solicitacoes.filter((x) => s.includes(x.status)).length;
-    return {
-      total: solicitacoes.length,
-      pendentes: por(["PENDENTE"]),
-      aprovadas: por(["APROVADA", "EM_TRANSITO"]),
-      recusadas: por(["RECUSADA"]),
-    };
-  }, [solicitacoes]);
+  const statusSelecionados = useMemo(
+    () => FILTROS.find((f) => f.id === filtro)?.status ?? undefined,
+    [filtro],
+  );
 
-  const filtradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    const statusFiltro = FILTROS.find((f) => f.id === filtro)?.status;
-    return solicitacoes
-      .filter((s) => !statusFiltro || statusFiltro.includes(s.status))
-      .filter(
-        (s) =>
-          !termo ||
-          s.protocolo.toLowerCase().includes(termo) ||
-          s.destino.toLowerCase().includes(termo) ||
-          s.origem.toLowerCase().includes(termo),
-      )
-      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
-  }, [solicitacoes, busca, filtro]);
+  const chave = JSON.stringify([
+    page,
+    filtro,
+    filtroUrgencia,
+    filtroSetor,
+    busca.trim(),
+    token,
+    reloadTick,
+    isGestor,
+  ]);
+  const chaveFila = JSON.stringify([token, reloadTick, isGestor]);
+  const atual = resultado?.chave === chave ? resultado : null;
+  const filaAtual = fila?.chave === chaveFila ? fila : null;
+  const solicitacoes = atual?.dados?.data ?? SEM_SOLICITACOES;
+  const pendentesUrgentes = isGestor
+    ? (filaAtual?.dados?.data ?? SEM_SOLICITACOES)
+    : SEM_SOLICITACOES;
+  const totalUrgentes = filaAtual?.dados?.meta.total ?? 0;
+  const porStatusApi = atual?.dados?.meta.porStatus;
+  const totalPages = Math.max(1, atual?.dados?.meta.totalPages ?? 1);
+  const carregando = !atual;
+  const erroCarregamento = atual?.erro;
+
+  useEffect(() => {
+    let ativa = true;
+    void listarSolicitacoesApi(
+      {
+        page,
+        pageSize: PAGE_SIZE,
+        status: statusSelecionados,
+        urgencia: filtroUrgencia === "TODAS" ? undefined : filtroUrgencia,
+        setorOrigem: filtroSetor === "TODOS" ? undefined : filtroSetor,
+        busca: busca.trim() || undefined,
+      },
+      token,
+    )
+      .then((dados) => {
+        if (ativa) setResultado({ chave, dados, erro: "" });
+      })
+      .catch((error: unknown) => {
+        if (ativa)
+          setResultado({
+            chave,
+            dados: null,
+            erro:
+              error instanceof Error ? error.message : "Não foi possível carregar as solicitações.",
+          });
+      });
+    return () => {
+      ativa = false;
+    };
+  }, [page, statusSelecionados, filtroUrgencia, filtroSetor, busca, token, chave]);
+
+  useEffect(() => {
+    if (!isGestor) return;
+    let ativa = true;
+    void listarSolicitacoesApi(
+      { page: 1, pageSize: 6, status: ["PENDENTE"], urgencia: "URGENTE" },
+      token,
+    )
+      .then((dados) => {
+        if (ativa) setFila({ chave: chaveFila, dados, erro: "" });
+      })
+      .catch((error: unknown) => {
+        if (ativa)
+          setFila({
+            chave: chaveFila,
+            dados: null,
+            erro:
+              error instanceof Error
+                ? error.message
+                : "Não foi possível carregar a fila prioritária.",
+          });
+      });
+    return () => {
+      ativa = false;
+    };
+  }, [isGestor, token, chaveFila]);
+
+  const dispararRecarregamento = (resetarPagina = false) => {
+    if (resetarPagina) {
+      setPage(1);
+    }
+    setReloadTick((t) => t + 1);
+  };
+
+  const handleBuscaChange = (valor: string) => {
+    setBusca(valor);
+    setPage(1);
+  };
+
+  const handleFiltroStatusChange = (novoFiltro: FiltroStatus) => {
+    if (novoFiltro === filtro) return;
+    setFiltro(novoFiltro);
+    setPage(1);
+  };
+
+  const handleFiltroSetorChange = (novoSetor: string) => {
+    setFiltroSetor(novoSetor);
+    setPage(1);
+  };
+
+  const handleFiltroUrgenciaChange = (novaUrgencia: FiltroUrgencia) => {
+    setFiltroUrgencia(novaUrgencia);
+    setPage(1);
+  };
+
+  const handleMudarPagina = (novaPagina: number) => {
+    setPage(novaPagina);
+  };
+
+  const opcoesSetor = useMemo(() => {
+    const conjunto = new Set<string>(SETORES_FSPH);
+    for (const item of solicitacoes) {
+      if (item.setorOrigem) conjunto.add(item.setorOrigem);
+    }
+    for (const item of pendentesUrgentes) {
+      if (item.setorOrigem) conjunto.add(item.setorOrigem);
+    }
+    return [
+      { value: "TODOS", label: "Todos os setores" },
+      ...Array.from(conjunto).map((s) => ({ value: s, label: s })),
+    ];
+  }, [solicitacoes, pendentesUrgentes]);
+
+  const contagem = useMemo(() => {
+    if (porStatusApi) {
+      const totalApi =
+        porStatusApi.PENDENTE +
+        porStatusApi.APROVADA +
+        porStatusApi.EM_TRANSITO +
+        porStatusApi.CONCLUIDA +
+        porStatusApi.RECUSADA;
+
+      return {
+        total: totalApi,
+        pendentes: porStatusApi.PENDENTE,
+        aprovadas: porStatusApi.APROVADA + porStatusApi.EM_TRANSITO,
+        recusadas: porStatusApi.RECUSADA,
+      };
+    }
+
+    return { total: "—", pendentes: "—", aprovadas: "—", recusadas: "—" };
+  }, [porStatusApi]);
+
+  const linhasOrdenadas = useMemo(() => {
+    return [...solicitacoes].sort((a, b) => {
+      if (isGestor) {
+        const diffPeso = pesoFilaGestor(a) - pesoFilaGestor(b);
+        if (diffPeso !== 0) return diffPeso;
+      }
+      return b.criadoEm.localeCompare(a.criadoEm);
+    });
+  }, [solicitacoes, isGestor]);
 
   const handleNovaSolicitacao = async (dados: NovaSolicitacaoViagem) => {
-    // Simula latência de rede até a integração com a API.
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const nova: SolicitacaoViagem = {
-      ...dados,
-      id: `sol-${Date.now()}`,
-      protocolo: gerarProtocolo(solicitacoes.length),
-      solicitanteNome,
-      status: "PENDENTE",
-      criadoEm: new Date().toISOString(),
-    };
-    setSolicitacoes((prev) => [nova, ...prev]);
+    const nova = await criarSolicitacaoApi(dados, token);
     setIsNovaOpen(false);
     setFiltro("TODAS");
+    setBusca("");
+    setFiltroSetor("TODOS");
+    setFiltroUrgencia("TODAS");
+    dispararRecarregamento(true);
     setMensagemSucesso(
       `Solicitação ${nova.protocolo} enviada! Aguarde a análise do Gestor de Frota.`,
     );
@@ -128,6 +280,23 @@ export const SolicitacoesPage: React.FC = () => {
         </div>
       ),
     },
+    ...(isGestor
+      ? [
+          {
+            header: "Setor / Solicitante",
+            render: (s: SolicitacaoViagem) => (
+              <div className="min-w-[150px]">
+                <span className="inline-block text-xs font-bold text-slate-900">
+                  {s.setorOrigem}
+                </span>
+                <span className="block text-xs text-slate-500 truncate max-w-[180px]">
+                  {s.solicitanteNome}
+                </span>
+              </div>
+            ),
+          },
+        ]
+      : []),
     {
       header: "Itinerário",
       render: (s) => (
@@ -166,15 +335,17 @@ export const SolicitacoesPage: React.FC = () => {
     {
       header: "Ações",
       render: (s) => (
-        <button
-          type="button"
-          onClick={() => setSelecionada(s)}
-          className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-          title="Ver detalhes da viagem"
-          aria-label={`Ver detalhes da solicitação ${s.protocolo}`}
-        >
-          <Eye className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSelecionada(s)}
+            className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Ver detalhes da viagem"
+            aria-label={`Ver detalhes da solicitação ${s.protocolo}`}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ];
@@ -185,10 +356,12 @@ export const SolicitacoesPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Minhas Solicitações de Viagem
+            {isGestor ? "Gestão de Solicitações de Viagem" : "Minhas Solicitações de Viagem"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Solicite transporte oficial e acompanhe o andamento das suas viagens.
+            {isGestor
+              ? "Consulte os pedidos dos setores da FSPH e acompanhe as demandas urgentes."
+              : "Solicite transporte oficial e acompanhe o andamento das suas viagens."}
           </p>
         </div>
         <Button
@@ -223,6 +396,48 @@ export const SolicitacoesPage: React.FC = () => {
         </div>
       )}
 
+      {erroCarregamento && (
+        <div
+          role="alert"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm"
+        >
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            {erroCarregamento}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+            onClick={() => dispararRecarregamento(false)}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
+      {isGestor && (
+        <p className="text-sm text-slate-600">
+          Aprovação, recusa e alocação ainda não estão disponíveis no sistema. A consulta e o envio
+          de solicitações permanecem disponíveis.
+        </p>
+      )}
+      {isGestor && filaAtual?.erro && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+        >
+          Não foi possível carregar a fila prioritária. {filaAtual.erro}
+          <Button variant="outline" size="sm" onClick={() => dispararRecarregamento()}>
+            Recarregar fila prioritária
+          </Button>
+        </div>
+      )}
+      {isGestor && !filaAtual && (
+        <p role="status" className="text-sm text-slate-500">
+          Carregando fila prioritária...
+        </p>
+      )}
       {/* Indicadores */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
@@ -246,56 +461,176 @@ export const SolicitacoesPage: React.FC = () => {
         <MetricCard icon={XCircle} label="Recusadas" value={contagem.recusadas} tone="danger" />
       </div>
 
+      {/* Destaque de Fila Prioritária (URGENTE) para Gestor / Admin */}
+      {isGestor && pendentesUrgentes.length > 0 && (
+        <Card className="p-4 sm:p-5 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                <Siren className="w-5 h-5" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-rose-950">
+                  Fila de Análise Prioritária — {totalUrgentes} pedido(s) URGENTE(S) aguardando
+                  decisão
+                </h2>
+                <p className="text-xs text-rose-800">
+                  Exibindo {pendentesUrgentes.length} de {totalUrgentes} pedidos urgentes. Use os
+                  filtros Pendentes e Apenas urgentes para consultar todos.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {pendentesUrgentes.map((urg) => (
+              <div
+                key={urg.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-white border border-rose-200/80 shadow-2xs"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-xs text-slate-900">
+                      {urg.protocolo}
+                    </span>
+                    <Badge variant="danger">Urgente</Badge>
+                    <span className="text-xs font-semibold text-slate-600">{urg.setorOrigem}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-900 truncate">
+                    {urg.origem} → {urg.destino}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Saída: {formatarDataHora(urg.dataHoraPretendida)} · Solicitante:{" "}
+                    {urg.solicitanteNome}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Eye className="w-3.5 h-3.5" />}
+                    onClick={() => setSelecionada(urg)}
+                    aria-label={`Ver detalhes do pedido urgente ${urg.protocolo}`}
+                  >
+                    Ver detalhes
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Filtros */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="w-full lg:max-w-md">
-          <Input
-            placeholder="Buscar por protocolo, origem ou destino..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            leftIcon={<Search className="w-4 h-4 text-slate-400" />}
-            aria-label="Buscar solicitações"
-          />
-        </div>
-        <div
-          className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl overflow-x-auto"
-          role="tablist"
-        >
-          {FILTROS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              role="tab"
-              aria-selected={filtro === f.id}
-              onClick={() => setFiltro(f.id)}
-              className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
-                filtro === f.id
-                  ? "bg-white text-slate-900 shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900",
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+      <div className="flex flex-col gap-3">
+        <div className="grid gap-3 xl:grid-cols-2">
+          <div className="w-full">
+            <Input
+              placeholder="Buscar por protocolo, origem ou destino..."
+              value={busca}
+              onChange={(e) => handleBuscaChange(e.target.value)}
+              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+              aria-label="Buscar solicitações"
+              maxLength={100}
+            />
+          </div>
+
+          {isGestor && (
+            <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Select
+                aria-label="Filtrar por setor"
+                value={filtroSetor}
+                onChange={(e) => handleFiltroSetorChange(e.target.value)}
+                options={opcoesSetor}
+              />
+              <Select
+                aria-label="Filtrar por urgência"
+                value={filtroUrgencia}
+                onChange={(e) => handleFiltroUrgenciaChange(e.target.value as FiltroUrgencia)}
+                options={[
+                  { value: "TODAS", label: "Todas as urgências" },
+                  { value: "URGENTE", label: "Apenas urgentes" },
+                  { value: "NORMAL", label: "Urgência normal" },
+                ]}
+              />
+            </div>
+          )}
+
+          <div
+            className="flex min-w-0 items-center gap-1.5 bg-slate-100 p-1 rounded-2xl overflow-x-auto xl:col-span-2"
+            role="tablist"
+          >
+            {FILTROS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={filtro === f.id}
+                onClick={() => handleFiltroStatusChange(f.id)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
+                  filtro === f.id
+                    ? "bg-white text-slate-900 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900",
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <Table
         columns={columns}
-        data={filtradas}
+        data={linhasOrdenadas}
         keyExtractor={(s) => s.id}
-        emptyMessage="Nenhuma solicitação encontrada com esse filtro ou busca."
+        isLoading={carregando}
+        emptyMessage={
+          erroCarregamento
+            ? "Não foi possível carregar as solicitações."
+            : "Nenhuma solicitação encontrada com esse filtro ou busca."
+        }
       />
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <span className="text-xs text-slate-500">
+            Página <strong className="text-slate-800">{page}</strong> de{" "}
+            <strong className="text-slate-800">{totalPages}</strong>
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || carregando}
+              onClick={() => handleMudarPagina(Math.max(1, page - 1))}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || carregando}
+              onClick={() => handleMudarPagina(Math.min(totalPages, page + 1))}
+            >
+              Próxima
+            </Button>
+          </div>
+        </div>
+      )}
 
       <NovaSolicitacaoModal
         isOpen={isNovaOpen}
         onClose={() => setIsNovaOpen(false)}
         onSubmit={handleNovaSolicitacao}
-        setorPadrao="LACEN"
       />
 
-      <DetalhesSolicitacaoModal solicitacao={selecionada} onClose={() => setSelecionada(null)} />
+      <DetalhesSolicitacaoModal
+        solicitacao={selecionada}
+        isGestor={isGestor}
+        onClose={() => setSelecionada(null)}
+      />
     </div>
   );
 };
@@ -328,7 +663,7 @@ const toneStyles = {
 const MetricCard: React.FC<{
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  value: number;
+  value: number | string;
   tone: keyof typeof toneStyles;
 }> = ({ icon: Icon, label, value, tone }) => (
   <Card className={cn("p-4.5 rounded-2xl border", toneStyles[tone].card)}>
@@ -355,8 +690,9 @@ const InfoItem: React.FC<{ label: string; children: React.ReactNode }> = ({ labe
 
 const DetalhesSolicitacaoModal: React.FC<{
   solicitacao: SolicitacaoViagem | null;
+  isGestor: boolean;
   onClose: () => void;
-}> = ({ solicitacao: s, onClose }) => (
+}> = ({ solicitacao: s, isGestor, onClose }) => (
   <Modal
     isOpen={s !== null}
     onClose={onClose}
@@ -364,9 +700,21 @@ const DetalhesSolicitacaoModal: React.FC<{
     title={s ? `Solicitação ${s.protocolo}` : ""}
     description={s ? `Enviada em ${formatarDataHora(s.criadoEm)} por ${s.solicitanteNome}` : ""}
     footer={
-      <Button variant="outline" onClick={onClose}>
-        Fechar
-      </Button>
+      <>
+        {isGestor && s?.status === "PENDENTE" && (
+          <>
+            <Button variant="danger" disabled title="A recusa ainda não está disponível">
+              Recusar
+            </Button>
+            <Button variant="primary" disabled title="A aprovação ainda não está disponível">
+              Aprovar e Alocar
+            </Button>
+          </>
+        )}
+        <Button variant="outline" onClick={onClose}>
+          Fechar
+        </Button>
+      </>
     }
   >
     {s && (

@@ -11,9 +11,8 @@ const mocks = vi.hoisted(() => {
     findFirst: vi.fn(),
     hashPassword: vi.fn(),
     transactionClient,
-    transaction: vi.fn(
-      async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
-        callback(transactionClient),
+    transaction: vi.fn(async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
+      callback(transactionClient),
     ),
   };
 });
@@ -28,7 +27,15 @@ vi.mock("../../../src/service/password_s", () => ({
   hashPassword: mocks.hashPassword,
 }));
 
-import { cadastrarMotorista } from "../../../src/service/motorista_s";
+vi.mock("../../../src/service/auditoria_s", () => ({
+  registrarAuditoria: vi.fn().mockResolvedValue({}),
+}));
+
+import { registrarAuditoria } from "../../../src/service/auditoria_s";
+import { cadastrarMotorista as cadastrar } from "../../../src/service/motorista_s";
+
+const cadastrarMotorista = (dados: Parameters<typeof cadastrar>[0]) =>
+  cadastrar(dados, "administrador-teste");
 
 const entrada = {
   nome: "  Motorista de Teste  ",
@@ -158,5 +165,30 @@ describe("cadastro conjunto do motorista e sua conta", () => {
     await expect(cadastrarMotorista(entrada)).rejects.toThrow("Perfil MOTORISTA não encontrado.");
     expect(mocks.transactionClient.usuario.create).not.toHaveBeenCalled();
     expect(mocks.transactionClient.motorista.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("auditoria e falhas de criação", () => {
+  it("registra a criação sem credenciais na auditoria", async () => {
+    await cadastrarMotorista(entrada);
+    expect(registrarAuditoria).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuarioId: "administrador-teste",
+        acao: "CRIAR",
+        tabelaAfetada: "motoristas",
+        registroId: "motorista-sintetico",
+        dadosNovos: { id: "motorista-sintetico" },
+      }),
+    );
+  });
+  it("propaga falha da transação sem anunciar nem auditar sucesso", async () => {
+    mocks.transactionClient.motorista.create.mockRejectedValueOnce(new Error("Falha no banco"));
+    await expect(cadastrarMotorista(entrada)).rejects.toThrow("Falha no banco");
+    expect(registrarAuditoria).not.toHaveBeenCalled();
+  });
+  it("uma falha de auditoria não transforma cadastro concluído em erro", async () => {
+    vi.mocked(registrarAuditoria).mockRejectedValueOnce(new Error("Falha de auditoria"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(cadastrarMotorista(entrada)).resolves.toEqual({ id: "motorista-sintetico" });
   });
 });
