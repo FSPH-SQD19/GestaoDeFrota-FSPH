@@ -31,6 +31,7 @@ import {
   type StatusSolicitacao,
   type UrgenciaSolicitacao,
 } from "../../types/solicitacao";
+import { AnalisarSolicitacaoModal } from "./AnalisarSolicitacaoModal";
 import { NovaSolicitacaoModal } from "./NovaSolicitacaoModal";
 
 type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA";
@@ -87,6 +88,10 @@ export const SolicitacoesPage: React.FC = () => {
   const [filtroSetor, setFiltroSetor] = useState<string>("TODOS");
   const [filtroUrgencia, setFiltroUrgencia] = useState<FiltroUrgencia>("TODAS");
 
+  const [analise, setAnalise] = useState<{
+    solicitacao: SolicitacaoViagem;
+    modo: "APROVAR" | "RECUSAR";
+  } | null>(null);
   const [isNovaOpen, setIsNovaOpen] = useState(false);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
@@ -416,12 +421,6 @@ export const SolicitacoesPage: React.FC = () => {
         </div>
       )}
 
-      {isGestor && (
-        <p className="text-sm text-slate-600">
-          Aprovação, recusa e alocação ainda não estão disponíveis no sistema. A consulta e o envio
-          de solicitações permanecem disponíveis.
-        </p>
-      )}
       {isGestor && filaAtual?.erro && (
         <div
           role="alert"
@@ -620,6 +619,20 @@ export const SolicitacoesPage: React.FC = () => {
         </div>
       )}
 
+      {analise && (
+        <AnalisarSolicitacaoModal
+          key={`${analise.solicitacao.id}-${analise.modo}`}
+          solicitacao={analise.solicitacao}
+          modo={analise.modo}
+          token={token}
+          onClose={() => setAnalise(null)}
+          onConcluido={(mensagem) => {
+            setAnalise(null);
+            setMensagemSucesso(mensagem);
+            dispararRecarregamento();
+          }}
+        />
+      )}
       <NovaSolicitacaoModal
         isOpen={isNovaOpen}
         onClose={() => setIsNovaOpen(false)}
@@ -630,6 +643,10 @@ export const SolicitacoesPage: React.FC = () => {
         solicitacao={selecionada}
         isGestor={isGestor}
         onClose={() => setSelecionada(null)}
+        onDecidir={(solicitacao, modo) => {
+          setSelecionada(null);
+          setAnalise({ solicitacao, modo });
+        }}
       />
     </div>
   );
@@ -692,7 +709,8 @@ const DetalhesSolicitacaoModal: React.FC<{
   solicitacao: SolicitacaoViagem | null;
   isGestor: boolean;
   onClose: () => void;
-}> = ({ solicitacao: s, isGestor, onClose }) => (
+  onDecidir: (solicitacao: SolicitacaoViagem, modo: "APROVAR" | "RECUSAR") => void;
+}> = ({ solicitacao: s, isGestor, onClose, onDecidir }) => (
   <Modal
     isOpen={s !== null}
     onClose={onClose}
@@ -703,10 +721,10 @@ const DetalhesSolicitacaoModal: React.FC<{
       <>
         {isGestor && s?.status === "PENDENTE" && (
           <>
-            <Button variant="danger" disabled title="A recusa ainda não está disponível">
+            <Button variant="danger" onClick={() => onDecidir(s, "RECUSAR")}>
               Recusar
             </Button>
-            <Button variant="primary" disabled title="A aprovação ainda não está disponível">
+            <Button variant="primary" onClick={() => onDecidir(s, "APROVAR")}>
               Aprovar e Alocar
             </Button>
           </>
