@@ -205,3 +205,9 @@ Veja [Testes](TESTES.md) para os exemplos de componentes e [GitHub](GITHUB.md) p
 A aba Relatórios consulta `/api/v1/relatorios` para administradores e gestores. O período inicial vai do primeiro dia do mês atual até hoje. Aplicar um período refaz a consulta e invalida os dados anteriores; respostas antigas não substituem o resultado do novo período. A tela apresenta carregamento, falha com nova tentativa e ausência de registros.
 
 A exportação CSV utiliza exclusivamente o resultado do período consultado, com BOM UTF-8, escape de delimitadores/aspas e proteção contra fórmulas de planilha. Ela fica desabilitada quando não existem veículos no relatório. Indicadores ainda não disponíveis aparecem como `—`; os limites de dados estão descritos na tela e no contrato em [Backend](BACKEND.md).
+
+## Usuários
+
+A aba Usuários é restrita a administradores. A consulta de acesso utiliza somente o endpoint existente `GET /api/v1/auth/perfil`, que retorna o identificador e os perfis da sessão autenticada. A tela trata carregamento, falha e nova tentativa, e não apresenta essa resposta como uma lista de usuários.
+
+Não existem endpoints de listagem ou cadastro de usuários no backend atual. Por isso, a tela informa que a gestão está indisponível e desabilita o botão Novo usuário. Não há usuários fictícios, códigos gerados no navegador, cadastro em memória ou chamadas a endpoints inexistentes. Busca, filtro por setor e ações sem implementação foram removidos.
