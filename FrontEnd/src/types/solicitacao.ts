@@ -12,6 +12,27 @@ export interface SolicitacaoViagem {
   id: string;
   protocolo: string;
   solicitanteNome: string;
+  setorOrigem: string | null;
+  origem: string | null;
+  destino: string | null;
+  /** ISO 8601 */
+  dataHoraPretendida: string | null;
+  /** ISO 8601 */
+  dataHoraRetornoPrevista?: string | null;
+  quantidadePassageiros: number;
+  tipoTransporte: TipoTransporte;
+  urgencia: UrgenciaSolicitacao;
+  justificativa: string;
+  observacoes?: string;
+  status: StatusSolicitacao;
+  /** ISO 8601 */
+  criadoEm: string;
+  motivoRecusa?: string;
+  veiculoAlocado?: { placa: string; modelo: string } | null;
+  motoristaAlocado?: { nome: string | null } | null;
+}
+
+export interface NovaSolicitacaoViagem {
   setorOrigem: string;
   origem: string;
   destino: string;
@@ -24,27 +45,7 @@ export interface SolicitacaoViagem {
   urgencia: UrgenciaSolicitacao;
   justificativa: string;
   observacoes?: string;
-  status: StatusSolicitacao;
-  /** ISO 8601 */
-  criadoEm: string;
-  motivoRecusa?: string;
-  veiculoAlocado?: { placa: string; modelo: string };
-  motoristaAlocado?: { nome: string };
 }
-
-export type NovaSolicitacaoViagem = Pick<
-  SolicitacaoViagem,
-  | "setorOrigem"
-  | "origem"
-  | "destino"
-  | "dataHoraPretendida"
-  | "dataHoraRetornoPrevista"
-  | "quantidadePassageiros"
-  | "tipoTransporte"
-  | "urgencia"
-  | "justificativa"
-  | "observacoes"
->;
 
 export const STATUS_SOLICITACAO_LABEL: Record<StatusSolicitacao, string> = {
   PENDENTE: "Aguardando aprovação",
