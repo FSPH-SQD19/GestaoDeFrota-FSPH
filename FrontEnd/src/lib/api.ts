@@ -4,7 +4,6 @@ import { api } from "../services/api";
 interface ApiRequestOptions {
   method?: Method;
   body?: string;
-  token?: string | null;
 }
 
 function respostaDeErro(error: unknown): string {
@@ -52,7 +51,6 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     url: `/api/v1${path.startsWith("/") ? path : `/${path}`}`,
     method: options.method ?? "GET",
     data,
-    ...(options.token ? { headers: { Authorization: `Bearer ${options.token}` } } : {}),
   };
 
   try {

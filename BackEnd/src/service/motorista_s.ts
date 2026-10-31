@@ -108,8 +108,8 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
   if (!z.email().safeParse(email).success || email.length > 150) {
     throw new Error("E-mail inválido.");
   }
-  if (dados.senha.length < 4) {
-    throw new Error("A senha deve possuir pelo menos 4 caracteres.");
+  if (Array.from(dados.senha).length < 6) {
+    throw new Error("A senha deve possuir pelo menos 6 caracteres.");
   }
 
   if (Buffer.byteLength(dados.senha, "utf8") > 72) {

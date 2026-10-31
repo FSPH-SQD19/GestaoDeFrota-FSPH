@@ -22,14 +22,14 @@ type Motorista = {
 };
 interface Props {
   solicitacao: SolicitacaoViagem;
-  token: string | null;
+  sessionKey: string | null;
   modo: "APROVAR" | "RECUSAR";
   onClose: () => void;
   onConcluido: (mensagem: string) => void;
 }
 export function AnalisarSolicitacaoModal({
   solicitacao,
-  token,
+  sessionKey,
   modo,
   onClose,
   onConcluido,
@@ -63,7 +63,7 @@ export function AnalisarSolicitacaoModal({
       do {
         const resposta = await apiRequest<{ data: Veiculo[]; meta: { totalPages: number } }>(
           `/veiculos?page=${page}&pageSize=100&tipoFrota=ADMINISTRATIVA&status=DISPONIVEL`,
-          { token },
+          {},
         );
         if (!ativo) return [];
         veiculos.push(...resposta.data);
@@ -74,7 +74,7 @@ export function AnalisarSolicitacaoModal({
         (v) => v.ativo && v.tipoFrota === "ADMINISTRATIVA" && v.status === "DISPONIVEL",
       );
     };
-    void Promise.all([carregarVeiculos(), apiRequest<Motorista[]>("/motoristas", { token })])
+    void Promise.all([carregarVeiculos(), apiRequest<Motorista[]>("/motoristas", {})])
       .then(([veiculos, motoristas]) => {
         const fim = solicitacao.dataHoraRetornoPrevista;
         const limite = fim
@@ -104,7 +104,7 @@ export function AnalisarSolicitacaoModal({
     return () => {
       ativo = false;
     };
-  }, [modo, token, revisao, solicitacao.dataHoraRetornoPrevista]);
+  }, [modo, sessionKey, revisao, solicitacao.dataHoraRetornoPrevista]);
   const fechar = () => {
     if (!salvando.current) onClose();
   };
@@ -136,7 +136,6 @@ export function AnalisarSolicitacaoModal({
       await apiRequest(
         `/solicitacoes/${encodeURIComponent(solicitacao.id)}/${modo === "APROVAR" ? "aprovar" : "recusar"}`,
         {
-          token,
           method: "PATCH",
           body: JSON.stringify(
             modo === "APROVAR" ? { veiculoId, motoristaId } : { motivoRecusa: motivo.trim() },

@@ -56,12 +56,10 @@ describe("VeiculosPage", () => {
     expect(screen.getByRole("button", { name: "SVO (12)" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Próxima" }));
     expect(await screen.findByText("DEF5678")).toBeInTheDocument();
-    expect(apiRequest).toHaveBeenCalledWith("/veiculos?page=2&pageSize=10", { token: null });
+    expect(apiRequest).toHaveBeenCalledWith("/veiculos?page=2&pageSize=10", {});
     await user.click(screen.getByRole("button", { name: "SVO (12)" }));
     await waitFor(() =>
-      expect(apiRequest).toHaveBeenCalledWith("/veiculos?page=1&pageSize=10&tipoFrota=SVO", {
-        token: null,
-      }),
+      expect(apiRequest).toHaveBeenCalledWith("/veiculos?page=1&pageSize=10&tipoFrota=SVO", {}),
     );
   });
   it("envia busca ao servidor e volta à primeira página", async () => {
@@ -74,9 +72,7 @@ describe("VeiculosPage", () => {
       target: { value: "ABC" },
     });
     await waitFor(() =>
-      expect(apiRequest).toHaveBeenCalledWith("/veiculos?page=1&pageSize=10&busca=ABC", {
-        token: null,
-      }),
+      expect(apiRequest).toHaveBeenCalledWith("/veiculos?page=1&pageSize=10&busca=ABC", {}),
     );
   });
   it("valida antes de enviar o cadastro e conserva os dados após rejeição da API", async () => {

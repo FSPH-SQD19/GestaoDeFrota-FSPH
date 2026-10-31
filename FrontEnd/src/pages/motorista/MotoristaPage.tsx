@@ -129,10 +129,10 @@ function mapearMotorista(motorista: MotoristaApi): Motorista {
 }
 
 export const MotoristasPage: React.FC = () => {
-  const { token } = useAuth();
+  const { sessionKey } = useAuth();
   const [revisao, setRevisao] = useState(0);
   const [resultado, setResultado] = useState<{
-    token: string | null;
+    sessionKey: string | null;
     revisao: number;
     dados: Motorista[] | null;
     erro: string;
@@ -141,7 +141,8 @@ export const MotoristasPage: React.FC = () => {
   const salvando = useRef(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [hoje] = useState(dataHojeIso);
-  const atual = resultado?.token === token && resultado?.revisao === revisao ? resultado : null;
+  const atual =
+    resultado?.sessionKey === sessionKey && resultado?.revisao === revisao ? resultado : null;
   const motoristas = useMemo(() => atual?.dados ?? [], [atual]);
   const hasLoadedMotoristas = Boolean(atual?.dados);
   const isLoading = !atual;
@@ -159,17 +160,17 @@ export const MotoristasPage: React.FC = () => {
   const recarregarMotoristas = () => setRevisao((valor) => valor + 1);
   useEffect(() => {
     let ativo = true;
-    void apiRequest<MotoristaApi[]>("/motoristas", { token })
+    void apiRequest<MotoristaApi[]>("/motoristas", {})
       .then((response) => {
         if (!Array.isArray(response))
           throw new Error("A API retornou uma lista de motoristas inválida.");
         const dados = response.map(mapearMotorista);
-        if (ativo) setResultado({ token, revisao, dados, erro: "" });
+        if (ativo) setResultado({ sessionKey, revisao, dados, erro: "" });
       })
       .catch((error: unknown) => {
         if (ativo)
           setResultado({
-            token,
+            sessionKey,
             revisao,
             dados: null,
             erro:
@@ -179,7 +180,7 @@ export const MotoristasPage: React.FC = () => {
     return () => {
       ativo = false;
     };
-  }, [token, revisao]);
+  }, [sessionKey, revisao]);
 
   const atualizarFormulario = <K extends keyof FormularioMotorista>(
     campo: K,
@@ -217,7 +218,6 @@ export const MotoristasPage: React.FC = () => {
     try {
       await apiRequest<MotoristaApi>("/motoristas", {
         method: "POST",
-        token,
         body: JSON.stringify(validacao.data),
       });
       setModalCadastroAberto(false);
@@ -690,7 +690,7 @@ export const MotoristasPage: React.FC = () => {
               type="password"
               autoComplete="new-password"
               required
-              minLength={4}
+              minLength={6}
               value={formulario.senha}
               onChange={(e) => atualizarFormulario("senha", e.target.value)}
             />

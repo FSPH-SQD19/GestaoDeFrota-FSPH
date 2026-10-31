@@ -1,7 +1,7 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL || "");
 
 const perfis = [
   { nome: "ADMIN", descricao: "Administrador do sistema" },

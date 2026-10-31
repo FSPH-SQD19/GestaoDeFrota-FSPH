@@ -17,7 +17,7 @@ function renderSidebarWithRole(role: UserRole) {
     <AuthContext.Provider
       value={{
         user,
-        token: "token-test",
+        sessionKey: "sessionKey-test",
         isAuthenticated: true,
         isLoading: false,
         login: vi.fn(),

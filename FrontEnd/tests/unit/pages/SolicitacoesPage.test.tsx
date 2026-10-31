@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider } from "../../../src/contexts/AuthContext";
+import { AuthProvider } from "../../helpers/auth";
+import { setTestRoles } from "../../helpers/authState";
 import { apiRequest } from "../../../src/lib/api";
 import { SolicitacoesPage } from "../../../src/pages/solicitacoes/SolicitacoesPage";
 import type { SolicitacaoViagem } from "../../../src/types/solicitacao";
@@ -29,11 +30,7 @@ function resposta(page = 1) {
   };
 }
 function renderPage(roles = ["GESTOR"]) {
-  localStorage.setItem("@fsph_frota_token", "abc.def.ghi");
-  localStorage.setItem(
-    "@fsph_frota_user",
-    JSON.stringify({ id: "teste", nome: "Pessoa de teste", email: "teste@example.test", roles }),
-  );
+  setTestRoles(roles);
   return render(
     <AuthProvider>
       <SolicitacoesPage />
@@ -87,7 +84,7 @@ describe("SolicitacoesPage", () => {
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
         "/solicitacoes?page=1&pageSize=20&status=APROVADA%2CEM_TRANSITO&urgencia=URGENTE&setorOrigem=Hemose&busca=Hospital",
-        { token: "abc.def.ghi" },
+        {},
       ),
     );
   });

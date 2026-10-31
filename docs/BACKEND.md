@@ -2,7 +2,7 @@
 
 [Índice da documentação](README.md)
 
-Guia da API Express com TypeScript, Prisma, PostgreSQL, validação Zod e autenticação JWT. Em HML, configure a conexão Neon em `DATABASE_URL`. Os caminhos desta página são relativos à raiz do projeto.
+Guia da API Express com TypeScript, Prisma, PostgreSQL, validação Zod e autenticação JWT. Em desenvolvimento e HML, configure a conexão Neon em `DATABASE_URL`, com bancos/branches separados. Os caminhos desta página são relativos à raiz do projeto.
 
 ## Organização
 
@@ -48,21 +48,27 @@ Corpo do login:
 }
 ```
 
-O serviço exige usuário existente e ativo, compara a senha com bcrypt e assina um JWT com validade fixa de oito horas. A chave é gerada automaticamente em `BackEnd/.runtime/auth.key`, ignorada pelo Git, e reutilizada após reinícios. No Docker, ela fica no volume persistente `backend_auth`. A resposta contém `token` e `usuario`, com `id`, `nome`, `email` e `perfis`; não inclui o hash da senha.
+O serviço exige usuário existente e ativo, compara a senha com bcrypt e registra uma sessão no Neon. A resposta contém apenas `usuario`, com `id`, `nome`, `email` e `perfis`. O JWT segue em cookie `HttpOnly`, `SameSite=Lax`, com `Secure` em produção; não é exposto no JSON nem armazenado no localStorage.
 
-Nas rotas protegidas, envie o token recebido no login:
+Fluxo da interface:
 
-```text
-Authorization: Bearer TOKEN_RECEBIDO_NO_LOGIN
-```
+1. `GET /api/v1/auth/csrf`: recebe o token CSRF em JSON e o cookie assinado associado.
+2. `POST /api/v1/auth/login`: envia credenciais, cookies e `X-CSRF-Token`; recebe o cookie de sessão.
+3. `GET /api/v1/auth/sessao`: restaura a identidade consultando a sessão e o usuário no banco.
+4. Antes de alterar dados, obtenha novamente o CSRF após o login: a assinatura é vinculada ao cookie da sessão atual.
+5. `POST /api/v1/auth/logout`: com cookies e `X-CSRF-Token`, revoga a sessão no Neon e limpa o cookie.
 
-O middleware valida a assinatura, expiração, identificador e perfis do token. Para veículos, pelo menos um dos perfis deve ser `ADMIN` ou `GESTOR`.
+Os mesmos endpoints existem sob `/auth`. O Axios central envia cookies e CSRF automaticamente. Clientes de API que já tenham o JWT podem usar `Authorization: Bearer ...`; a mesma validação de sessão se aplica. O login não fornece um token Bearer separado.
+
+O middleware exige HS256, emissor, destinatário, identificador de sessão, emissão e expiração. A autorização usa os perfis atuais do banco, não claims de perfil enviados no token. Sessões revogadas, usuários inativos ou senha alterada são rejeitados. O JWT tem limite absoluto de oito horas. A interface controla 30 minutos sem interação com um timer no navegador e chama o logout; o banco não registra nem controla o tempo de inatividade.
+
+A chave local em `.runtime/auth.key` atende ao desenvolvimento. Em produção, `JWT_SECRET` compartilhada entre réplicas é obrigatória; o Node exige `APP_ORIGINS` com HTTPS e o Worker permite a própria origem HTTPS da aplicação; veja [Ambiente](AMBIENTE.md#prisma-e-autenticação).
 
 Auth e veículos usam `authenticate` e `requireRole` de `http_m.ts`, com identidade interna em `res.locals.usuario` no formato `{ id, perfis }`. `AuthToken` e `autorizarPerfis` são aliases de compatibilidade. As falhas desses middlewares passam por `HttpError` e pelo handler comum, retornando `{ statusCode, message, errors }`.
 
 A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Os nomes de perfis enviados pela API e usados pela interface devem seguir um mapeamento consistente.
 
-O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas e `500` para falhas internas. O controller de login usa os formatos `{ "error": "..." }` ou `{ "mensagem": "..." }`.
+O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas. O controller de login usa os formatos `{ "error": "..." }` ou `{ "mensagem": "..." }`.
 
 ## Listagem de veículos
 
@@ -221,3 +227,9 @@ As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas d
 Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
 
 A última coleta encaminha a viatura à desinfecção sem sobrescrever outros estados operacionais. A liberação do condutor é condicional ao cadastro ativo e ao status ocupado. A confirmação da desinfecção exige ausência de coletas ativas. Atualizações de status e auditoria permanecem na mesma transação; disputas transacionais ou emissão duplicada retornam `409`. Concorrência em PostgreSQL real não foi validada nesta revisão.
+
+### Compatibilidade com Cloudflare
+
+`worker.ts` adapta o Express ao runtime Cloudflare. O cliente Prisma, a chave de assinatura, o IP e a origem da requisição ficam em um contexto isolado; cada chamada usa seu próprio pool, encerrado com `waitUntil`. No servidor Node, `server.ts` inicializa a conexão local. O schema usa `engineType = "client"` e o adaptador PostgreSQL em ambos os ambientes; `bcryptjs` mantém compatibilidade com os hashes bcrypt já existentes no Neon.
+
+O limite de login usa `CF-Connecting-IP` recebido pelo Worker; no Node, usa o IP da conexão ou o proxy explicitamente configurado. O CD mantém o cache Hyperdrive desativado para evitar reutilizar consultas de sessões, usuários ou permissões após alterações.

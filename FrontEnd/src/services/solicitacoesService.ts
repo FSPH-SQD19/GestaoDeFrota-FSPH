@@ -8,7 +8,6 @@ import type {
 
 export function listarSolicitacoesApi(
   params: ListarSolicitacoesParams = {},
-  token?: string | null,
 ): Promise<ListaSolicitacoesResposta> {
   const query = new URLSearchParams({
     page: String(params.page ?? 1),
@@ -19,15 +18,11 @@ export function listarSolicitacoesApi(
   if (params.tipoTransporte) query.set("tipoTransporte", params.tipoTransporte);
   if (params.setorOrigem?.trim()) query.set("setorOrigem", params.setorOrigem.trim());
   if (params.busca?.trim()) query.set("busca", params.busca.trim());
-  return apiRequest<ListaSolicitacoesResposta>(`/solicitacoes?${query}`, { token });
+  return apiRequest<ListaSolicitacoesResposta>(`/solicitacoes?${query}`, {});
 }
-export function criarSolicitacaoApi(
-  dados: NovaSolicitacaoViagem,
-  token?: string | null,
-): Promise<SolicitacaoViagem> {
+export function criarSolicitacaoApi(dados: NovaSolicitacaoViagem): Promise<SolicitacaoViagem> {
   return apiRequest<SolicitacaoViagem>("/solicitacoes", {
     method: "POST",
     body: JSON.stringify(dados),
-    token,
   });
 }

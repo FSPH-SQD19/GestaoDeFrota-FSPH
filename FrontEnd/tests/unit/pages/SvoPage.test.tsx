@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider } from "../../../src/contexts/AuthContext";
+import { AuthProvider } from "../../helpers/auth";
+import { setTestRoles } from "../../helpers/authState";
 import { SvoPage } from "../../../src/pages/svo/SvoPage";
 import type {
   ChamadoSvo,
@@ -98,17 +99,7 @@ const MOTORISTAS_BASE: MotoristaSvo[] = [
 ];
 
 function renderSvoPage() {
-  localStorage.setItem(
-    "@fsph_frota_user",
-    JSON.stringify({
-      id: "user-svo",
-      nome: "Atendente SVO",
-      email: "svo@frota.com",
-      roles: ["SVO"],
-    }),
-  );
-  localStorage.setItem("@fsph_frota_token", "jwt.svo.token");
-
+  setTestRoles(["SVO"]);
   return render(
     <AuthProvider>
       <SvoPage />

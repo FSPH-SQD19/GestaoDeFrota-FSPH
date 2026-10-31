@@ -68,7 +68,7 @@ function renderModal(modo: "APROVAR" | "RECUSAR" = "APROVAR", dados = solicitaca
   return render(
     <AnalisarSolicitacaoModal
       solicitacao={dados}
-      token="token-teste"
+      sessionKey="sessionKey-teste"
       modo={modo}
       onClose={fechar}
       onConcluido={concluir}
@@ -89,7 +89,7 @@ describe("AnalisarSolicitacaoModal", () => {
     expect(screen.queryByRole("option", { name: "Condutor vencido" })).not.toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith(
       "/veiculos?page=2&pageSize=100&tipoFrota=ADMINISTRATIVA&status=DISPONIVEL",
-      { token: "token-teste" },
+      {},
     );
   });
   it("confere a capacidade antes de enviar", async () => {
@@ -112,7 +112,6 @@ describe("AnalisarSolicitacaoModal", () => {
     expect(screen.getByLabelText("Veículo administrativo")).toHaveValue("v2");
     await user.click(screen.getByRole("button", { name: "Confirmar aprovação" }));
     expect(apiRequest).toHaveBeenLastCalledWith("/solicitacoes/s1/aprovar", {
-      token: "token-teste",
       method: "PATCH",
       body: JSON.stringify({ veiculoId: "v2", motoristaId: "m1" }),
     });
@@ -134,7 +133,6 @@ describe("AnalisarSolicitacaoModal", () => {
     });
     await user.click(screen.getByRole("button", { name: "Confirmar recusa" }));
     expect(apiRequest).toHaveBeenCalledExactlyOnceWith("/solicitacoes/s1/recusar", {
-      token: "token-teste",
       method: "PATCH",
       body: JSON.stringify({ motivoRecusa: "Sem disponibilidade" }),
     });

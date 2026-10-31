@@ -1,9 +1,13 @@
+import { signTestToken } from "../../helpers/auth";
+vi.mock("../../../src/service/session_s", async () => {
+  const { resolveTestSession } = await import("../../helpers/auth");
+  return { resolveSession: resolveTestSession };
+});
 vi.mock("../../../src/service/auditoria_s", () => ({
   registrarAuditoria: vi.fn().mockResolvedValue({}),
 }));
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import jwt from "jsonwebtoken";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -46,7 +50,7 @@ const usuarioId = "00000000-0000-4000-8000-000000000001";
 const entrada = {
   nome: "Motorista",
   email: "motorista@example.com",
-  senha: "senha123",
+  senha: "senha-segura-de-teste",
   telefone: "(79) 99999-1234",
   cpf: "12345678909",
   numeroCnh: "12345678901",
@@ -78,7 +82,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 async function cadastrar(body?: unknown, perfis = ["ADMIN"], prefixo = "/motoristas") {
-  const token = jwt.sign({ perfis }, "segredo-sintetico-motoristas", {
+  const token = signTestToken({ perfis }, "segredo-sintetico-motoristas", {
     subject: usuarioId,
   });
   const response = await fetch(`${baseUrl}${prefixo}`, {
@@ -127,7 +131,7 @@ describe("POST /motoristas", () => {
     const resultado = await cadastrar(entrada);
 
     expect(resultado.status).toBe(201);
-    expect(mocks.hashPassword).toHaveBeenCalledWith("senha123");
+    expect(mocks.hashPassword).toHaveBeenCalledWith("senha-segura-de-teste");
     expect(mocks.transaction).toHaveBeenCalledOnce();
     expect(mocks.transactionClient.usuario.create).toHaveBeenCalledOnce();
     expect(mocks.transactionClient.motorista.create).toHaveBeenCalledOnce();
@@ -170,7 +174,7 @@ describe("compatibilidade e correções do merge de motoristas", () => {
     expect(mocks.hashPassword).not.toHaveBeenCalled();
   });
   it.each(["PATCH", "DELETE"])("preserva %s e a auditoria trazidos pela master", async (method) => {
-    const token = jwt.sign({ perfis: ["ADMIN"] }, "segredo-sintetico-motoristas", {
+    const token = signTestToken({ perfis: ["ADMIN"] }, "segredo-sintetico-motoristas", {
       subject: usuarioId,
     });
     const response = await fetch(`${baseUrl}/api/v1/motoristas/${usuarioId}`, {

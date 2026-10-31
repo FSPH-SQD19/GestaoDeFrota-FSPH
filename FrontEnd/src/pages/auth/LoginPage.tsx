@@ -10,7 +10,7 @@ import rotaSymbol from "../../assets/branding/rota/rota-symbol-color.svg";
 
 const loginSchema = z.object({
   usuario: z.string().trim().email("Informe um e-mail válido."),
-  senha: z.string().min(4, "A senha deve possuir pelo menos 4 caracteres."),
+  senha: z.string().min(6, "A senha deve possuir pelo menos 6 caracteres."),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;

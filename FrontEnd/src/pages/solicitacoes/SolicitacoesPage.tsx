@@ -67,7 +67,7 @@ function pesoFilaGestor(s: SolicitacaoViagem): number {
 }
 
 export const SolicitacoesPage: React.FC = () => {
-  const { token, hasRole } = useAuth();
+  const { sessionKey, hasRole } = useAuth();
   const isGestor = hasRole(["GESTOR", "ADMIN"]);
 
   const [page, setPage] = useState(1);
@@ -107,11 +107,11 @@ export const SolicitacoesPage: React.FC = () => {
     filtroUrgencia,
     filtroSetor,
     busca.trim(),
-    token,
+    sessionKey,
     reloadTick,
     isGestor,
   ]);
-  const chaveFila = JSON.stringify([token, reloadTick, isGestor]);
+  const chaveFila = JSON.stringify([sessionKey, reloadTick, isGestor]);
   const atual = resultado?.chave === chave ? resultado : null;
   const filaAtual = fila?.chave === chaveFila ? fila : null;
   const solicitacoes = atual?.dados?.data ?? SEM_SOLICITACOES;
@@ -126,17 +126,14 @@ export const SolicitacoesPage: React.FC = () => {
 
   useEffect(() => {
     let ativa = true;
-    void listarSolicitacoesApi(
-      {
-        page,
-        pageSize: PAGE_SIZE,
-        status: statusSelecionados,
-        urgencia: filtroUrgencia === "TODAS" ? undefined : filtroUrgencia,
-        setorOrigem: filtroSetor === "TODOS" ? undefined : filtroSetor,
-        busca: busca.trim() || undefined,
-      },
-      token,
-    )
+    void listarSolicitacoesApi({
+      page,
+      pageSize: PAGE_SIZE,
+      status: statusSelecionados,
+      urgencia: filtroUrgencia === "TODAS" ? undefined : filtroUrgencia,
+      setorOrigem: filtroSetor === "TODOS" ? undefined : filtroSetor,
+      busca: busca.trim() || undefined,
+    })
       .then((dados) => {
         if (ativa) setResultado({ chave, dados, erro: "" });
       })
@@ -152,15 +149,12 @@ export const SolicitacoesPage: React.FC = () => {
     return () => {
       ativa = false;
     };
-  }, [page, statusSelecionados, filtroUrgencia, filtroSetor, busca, token, chave]);
+  }, [page, statusSelecionados, filtroUrgencia, filtroSetor, busca, sessionKey, chave]);
 
   useEffect(() => {
     if (!isGestor) return;
     let ativa = true;
-    void listarSolicitacoesApi(
-      { page: 1, pageSize: 6, status: ["PENDENTE"], urgencia: "URGENTE" },
-      token,
-    )
+    void listarSolicitacoesApi({ page: 1, pageSize: 6, status: ["PENDENTE"], urgencia: "URGENTE" })
       .then((dados) => {
         if (ativa) setFila({ chave: chaveFila, dados, erro: "" });
       })
@@ -178,7 +172,7 @@ export const SolicitacoesPage: React.FC = () => {
     return () => {
       ativa = false;
     };
-  }, [isGestor, token, chaveFila]);
+  }, [isGestor, sessionKey, chaveFila]);
 
   const dispararRecarregamento = (resetarPagina = false) => {
     if (resetarPagina) {
@@ -257,7 +251,7 @@ export const SolicitacoesPage: React.FC = () => {
   }, [solicitacoes, isGestor]);
 
   const handleNovaSolicitacao = async (dados: NovaSolicitacaoViagem) => {
-    const nova = await criarSolicitacaoApi(dados, token);
+    const nova = await criarSolicitacaoApi(dados);
     setIsNovaOpen(false);
     setFiltro("TODAS");
     setBusca("");
@@ -624,7 +618,7 @@ export const SolicitacoesPage: React.FC = () => {
           key={`${analise.solicitacao.id}-${analise.modo}`}
           solicitacao={analise.solicitacao}
           modo={analise.modo}
-          token={token}
+          sessionKey={sessionKey}
           onClose={() => setAnalise(null)}
           onConcluido={(mensagem) => {
             setAnalise(null);

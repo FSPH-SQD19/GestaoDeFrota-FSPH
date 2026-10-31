@@ -40,7 +40,7 @@ const cadastrarMotorista = (dados: Parameters<typeof cadastrar>[0]) =>
 const entrada = {
   nome: "  Motorista de Teste  ",
   email: "  MOTORISTA@example.com ",
-  senha: "senha123",
+  senha: "senha-segura-de-teste",
   telefone: "(79) 99999-1234",
   cpf: "123.456.789-09",
   numeroCnh: "12345678901",
@@ -115,10 +115,14 @@ describe("dia de validade da CNH em America/Sao_Paulo", () => {
 });
 
 describe("cadastro conjunto do motorista e sua conta", () => {
+  it("aceita senha com exatamente seis caracteres", async () => {
+    await cadastrarMotorista({ ...entrada, senha: "abc123" });
+    expect(mocks.hashPassword).toHaveBeenCalledWith("abc123");
+  });
   it.each([
     [{ ...entrada, nome: "  " }, "Nome inválido."],
     [{ ...entrada, email: "email-inválido" }, "E-mail inválido."],
-    [{ ...entrada, senha: "123" }, "A senha deve possuir pelo menos 4 caracteres."],
+    [{ ...entrada, senha: "12345" }, "A senha deve possuir pelo menos 6 caracteres."],
     [{ ...entrada, telefone: "9999" }, "Telefone deve conter DDD e 8 ou 9 dígitos."],
   ])("valida os dados de acesso antes de consultar o banco", async (dados, mensagem) => {
     await expect(cadastrarMotorista(dados)).rejects.toThrow(mensagem);
@@ -130,7 +134,7 @@ describe("cadastro conjunto do motorista e sua conta", () => {
   it("cria a conta com perfil MOTORISTA e o motorista na mesma transação", async () => {
     await cadastrarMotorista(entrada);
 
-    expect(mocks.hashPassword).toHaveBeenCalledWith("senha123");
+    expect(mocks.hashPassword).toHaveBeenCalledWith("senha-segura-de-teste");
     expect(mocks.transactionClient.perfil.findUnique).toHaveBeenCalledWith({
       where: { nome: "MOTORISTA" },
       select: { id: true },

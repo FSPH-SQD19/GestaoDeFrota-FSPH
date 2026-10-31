@@ -1,3 +1,4 @@
+vi.mock("../../../src/lib/prisma", () => ({ initializePrisma: vi.fn() }));
 import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ listen: vi.fn(), getAuthConfig: vi.fn() }));
