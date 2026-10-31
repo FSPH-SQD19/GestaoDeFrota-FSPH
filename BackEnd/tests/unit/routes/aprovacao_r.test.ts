@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   veiculo: vi.fn(),
   motorista: vi.fn(),
   conflito: vi.fn(),
+  documentos: vi.fn(),
   update: vi.fn(),
   resultado: vi.fn(),
   auditoria: vi.fn(),
@@ -24,6 +25,7 @@ const tx = {
   },
   veiculo: { findUnique: mocks.veiculo },
   motorista: { findUnique: mocks.motorista },
+  documentoVeiculo: { findMany: mocks.documentos },
   auditoriaSistema: { create: mocks.auditoria },
 };
 vi.mock("../../../src/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
@@ -66,6 +68,7 @@ beforeEach(() => {
     validadeCnh: new Date("2026-11-10T00:00:00Z"),
   });
   mocks.conflito.mockResolvedValue(null);
+  mocks.documentos.mockResolvedValue([]);
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.resultado.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
   mocks.auditoria.mockResolvedValue({});
@@ -204,6 +207,27 @@ describe("regras de aprovação", () => {
     });
     expect((await decidir()).status).toBe(422);
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("bloqueia veículo com documento vencido (S19FROTA-186)", async () => {
+    mocks.documentos.mockResolvedValue([
+      { tipoDocumento: "CRLV", dataVencimento: new Date("2020-01-31T00:00:00Z") },
+    ]);
+    const response = await decidir();
+    expect(response.status).toBe(422);
+    expect(response.body.errors).toEqual([
+      { campo: "veiculoId", mensagem: "CRLV vencido em 31/01/2020." },
+    ]);
+    expect(mocks.documentos).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ veiculoId }) }),
+    );
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("aprova quando o documento vencido já foi renovado", async () => {
+    mocks.documentos.mockResolvedValue([
+      { tipoDocumento: "CRLV", dataVencimento: new Date("2020-01-31T00:00:00Z") },
+      { tipoDocumento: "CRLV", dataVencimento: new Date("2099-01-31T00:00:00Z") },
+    ]);
+    expect((await decidir()).status).toBe(200);
   });
   it("retorna conflito de horário antes de alterar o pedido", async () => {
     mocks.conflito.mockResolvedValue({ id: "outro" });
