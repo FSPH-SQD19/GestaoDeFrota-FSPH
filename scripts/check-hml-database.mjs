@@ -28,7 +28,10 @@ export async function prepareHmlDatabase(env = process.env, apiFetch = fetch) {
     "DATABASE_URL_MIGRATIONS",
     "JWT_SECRET",
   ]) {
-    if (!env[key]) throw new Error(`Configure ${key} no ambiente hml do GitHub.`);
+    if (!env[key]?.trim()) {
+      const location = key === "CLOUDFLARE_ACCOUNT_ID" ? "como secret ou variável" : "como secret";
+      throw new Error(`Configure ${key} ${location} no ambiente hml do GitHub.`);
+    }
   }
   if (!/^[a-f0-9]{128}$/.test(env.JWT_SECRET))
     throw new Error("JWT_SECRET deve conter 128 caracteres hexadecimais aleatórios.");
