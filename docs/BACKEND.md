@@ -181,3 +181,25 @@ A aprovação recebe UUIDs `veiculoId` e `motoristaId`. Exige solicitação pend
 As travas transacionais por recurso são obtidas em ordem fixa, seguidas da trava da solicitação. A consulta das travas retorna um inteiro para evitar desserializar o tipo void no Prisma. A decisão usa atualização condicional do status PENDENTE e auditoria na mesma transação. A recusa recebe `motivoRecusa` não vazio com até 2000 caracteres e também usa atualização condicional e auditoria. Ausência retorna 404; decisão já processada, conflito de alocação e concorrência conhecida retornam 409; recursos ou intervalo inválidos retornam 422; dados inválidos retornam 400.
 
 As regras e respostas são cobertas por testes HTTP com Prisma simulado. O teste de concorrência com PostgreSQL real não foi executado nesta sessão, pois o daemon Docker local está indisponível.
+
+### Manutenções
+
+As rotas existentes exigem autenticação e perfil `ADMIN` ou `GESTOR`:
+
+- `GET /api/v1/manutencoes`: paginação e filtros por veículo, tipo, status e intervalo de datas.
+- `POST /api/v1/manutencoes`: registra preventiva concluída ou corretiva aberta. Exige veículo ativo e fornecedor ativo quando informado.
+- `PATCH /api/v1/manutencoes/:id/concluir`: conclui apenas registros abertos, com atualização condicional e auditoria na mesma transação.
+
+Datas aceitam `AAAA-MM-DD` ou datetime ISO com fuso; o dia informado é preservado, sem horário, conforme a coluna `DATE`. Valores nulos, booleanos, números e datas inexistentes são rejeitados. Custos devem ser positivos e valores monetários e de odômetro aceitam até duas casas decimais.
+
+Cadastro e conclusão compartilham a trava por veículo com a aprovação de solicitações. A conclusão libera apenas veículos ativos ainda em `MANUTENCAO`, sem outras manutenções abertas, e retorna o status efetivamente persistido. Operações repetidas não duplicam a conclusão ou a auditoria. Disputas transacionais recuperáveis retornam `409`.
+
+A migration de status já pertencente à branch foi preservada e não foi aplicada ao banco nesta revisão. Ela define `ABERTA` como padrão também para registros antigos: antes de implantação em uma base com histórico, os responsáveis devem conferir a classificação desses registros. Os testes HTTP usam persistência simulada; a concorrência em PostgreSQL real permanece sem validação nesta sessão.
+
+### Operação SVO
+
+As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas de indicadores, chamados, viaturas e motoristas; registro de chamado; triagem; emissão de ordem; conclusão da coleta e confirmação de desinfecção. Os nove caminhos são verificados por testes HTTP de autenticação, autorização e validação, usando o aplicativo Express real e serviços simulados nos testes.
+
+Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
+
+A última coleta encaminha a viatura à desinfecção sem sobrescrever outros estados operacionais. A liberação do condutor é condicional ao cadastro ativo e ao status ocupado. A confirmação da desinfecção exige ausência de coletas ativas. Atualizações de status e auditoria permanecem na mesma transação; disputas transacionais ou emissão duplicada retornam `409`. Concorrência em PostgreSQL real não foi validada nesta revisão.
