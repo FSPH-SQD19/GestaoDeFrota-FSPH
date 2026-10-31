@@ -1,6 +1,10 @@
+import { signTestToken } from "../../helpers/auth";
+vi.mock("../../../src/service/session_s", async () => {
+  const { resolveTestSession } = await import("../../helpers/auth");
+  return { resolveSession: resolveTestSession };
+});
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import jwt from "jsonwebtoken";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ execucoes: vi.fn(), abastecimentos: vi.fn(), count: vi.fn() }));
 vi.mock("../../../src/lib/prisma", () => ({
@@ -31,7 +35,7 @@ function consultar(query: string, perfis?: string[]) {
   return fetch(`${baseUrl}/api/v1/relatorios?${query}`, {
     headers: perfis
       ? {
-          authorization: `Bearer ${jwt.sign({ perfis }, "relatorio-test", { subject: "usuario" })}`,
+          authorization: `Bearer ${signTestToken({ perfis }, "relatorio-test", { subject: "usuario" })}`,
         }
       : {},
   });

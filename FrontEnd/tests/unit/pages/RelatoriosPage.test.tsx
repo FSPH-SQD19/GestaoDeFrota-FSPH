@@ -49,9 +49,7 @@ describe("RelatoriosPage", () => {
     vi.mocked(apiRequest).mockResolvedValue({ ...vazio, viagensConcluidas: 27 });
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
     expect(await screen.findByText("27")).toBeInTheDocument();
-    expect(apiRequest).toHaveBeenLastCalledWith("/relatorios?inicio=2026-10-01&fim=2026-10-15", {
-      token: null,
-    });
+    expect(apiRequest).toHaveBeenLastCalledWith("/relatorios?inicio=2026-10-01&fim=2026-10-15", {});
   });
   it("mostra falhas sem apresentar zero como resposta e permite tentar novamente", async () => {
     vi.mocked(apiRequest).mockRejectedValueOnce(new Error("Falha de conexão"));

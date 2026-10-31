@@ -4,7 +4,7 @@ const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Pau
 const entrada = {
   nome: " Condutor ",
   email: " CONDUTOR@example.test ",
-  senha: "senha123",
+  senha: "senha-segura-de-teste",
   telefone: "(79) 99999-1234",
   cpf: "123.456.789-09",
   numeroCnh: "12345678901",
@@ -12,6 +12,9 @@ const entrada = {
   validadeCnh: hoje,
 };
 describe("cadastro de motorista", () => {
+  it("aceita senha com exatamente seis caracteres", () => {
+    expect(motoristaCadastroSchema.safeParse({ ...entrada, senha: "abc123" }).success).toBe(true);
+  });
   it("aceita validade até hoje e normaliza os dados do contrato", () => {
     expect(motoristaCadastroSchema.parse(entrada)).toMatchObject({
       nome: "Condutor",
@@ -24,7 +27,7 @@ describe("cadastro de motorista", () => {
   it.each([
     { nome: " " },
     { email: "inválido" },
-    { senha: "123" },
+    { senha: "12345" },
     { senha: "á".repeat(37) },
     { cpf: "11111111111" },
     { numeroCnh: "123" },

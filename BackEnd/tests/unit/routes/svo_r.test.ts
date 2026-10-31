@@ -1,6 +1,10 @@
+import { signTestToken } from "../../helpers/auth";
+vi.mock("../../../src/service/session_s", async () => {
+  const { resolveTestSession } = await import("../../helpers/auth");
+  return { resolveSession: resolveTestSession };
+});
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import jwt from "jsonwebtoken";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../src/config/auth", () => ({
@@ -35,7 +39,7 @@ async function request(method: string, path: string, perfil: string | null, body
       "content-type": "application/json",
       ...(perfil
         ? {
-            authorization: `Bearer ${jwt.sign({ perfis: [perfil] }, "svo-teste", { subject: id })}`,
+            authorization: `Bearer ${signTestToken({ perfis: [perfil] }, "svo-teste", { subject: id })}`,
           }
         : {}),
     },

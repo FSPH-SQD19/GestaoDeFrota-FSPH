@@ -1,3 +1,6 @@
+vi.mock("../../../src/config/auth", () => ({
+  getAuthConfig: () => ({ secret: "test", expiresIn: 28800 }),
+}));
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,7 +18,7 @@ async function execute(body: unknown) {
   const req = { body } as Request;
   const status = vi.fn();
   const json = vi.fn();
-  const res = { status, json } as unknown as Response;
+  const res = { status, json, setHeader: vi.fn(), cookie: vi.fn() } as unknown as Response;
   status.mockReturnValue(res);
   json.mockReturnValue(res);
   await loginController(req, res);
@@ -49,7 +52,7 @@ describe("login controller", () => {
 
     expect(login).toHaveBeenCalledWith({ email: "teste@example.test", senha: "teste" });
     expect(response.status).toHaveBeenCalledWith(200);
-    expect(response.json).toHaveBeenCalledExactlyOnceWith(result);
+    expect(response.json).toHaveBeenCalledExactlyOnceWith({ usuario: result.usuario });
   });
 
   it("retorna 401 quando o service rejeita as credenciais", async () => {

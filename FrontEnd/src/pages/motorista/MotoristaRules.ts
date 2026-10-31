@@ -66,7 +66,10 @@ export const motoristaCadastroSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email("Informe um e-mail válido.").max(150)),
   senha: z
     .string()
-    .min(4, "A senha deve possuir pelo menos 4 caracteres.")
+    .refine(
+      (senha) => Array.from(senha).length >= 6,
+      "A senha deve possuir pelo menos 6 caracteres.",
+    )
     .refine(
       (v) => new TextEncoder().encode(v).length <= 72,
       "A senha deve ter no máximo 72 bytes.",

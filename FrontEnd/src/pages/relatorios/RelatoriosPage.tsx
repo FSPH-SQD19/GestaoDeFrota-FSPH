@@ -120,7 +120,7 @@ const colunas: Column<RelatorioVeiculo>[] = [
 ];
 
 export const RelatoriosPage: React.FC = () => {
-  const { user, token } = useAuth();
+  const { user, sessionKey } = useAuth();
   const [hoje] = useState(() => new Date());
   const [intervalo, setIntervalo] = useState<IntervaloRelatorio>(intervaloInicial);
   const [visao, setVisao] = useState<VisaoGrafico>("consolidado");
@@ -130,14 +130,14 @@ export const RelatoriosPage: React.FC = () => {
     erro: string;
   } | null>(null);
   const [tentativa, setTentativa] = useState(0);
-  const chave = `${intervalo.inicio}_${intervalo.fim}_${token}_${tentativa}`;
+  const chave = `${intervalo.inicio}_${intervalo.fim}_${sessionKey}_${tentativa}`;
   const periodo = resposta?.chave === chave ? resposta.dados : null;
   const erro = resposta?.chave === chave ? resposta.erro : "";
   useEffect(() => {
     let ativo = true;
     void apiRequest<RelatorioPeriodo>(
       `/relatorios?inicio=${intervalo.inicio}&fim=${intervalo.fim}`,
-      { token },
+      {},
     )
       .then((dados) => {
         if (ativo) setResposta({ chave, dados, erro: "" });
@@ -153,7 +153,7 @@ export const RelatoriosPage: React.FC = () => {
     return () => {
       ativo = false;
     };
-  }, [intervalo.inicio, intervalo.fim, token, chave]);
+  }, [intervalo.inicio, intervalo.fim, sessionKey, chave]);
   const primeiroNome = user?.nome?.split(" ")[0] || "Gestor";
 
   return (

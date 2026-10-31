@@ -2,20 +2,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UsuariosPage } from "../../../src/pages/usuarios/UsuariosPage";
-import { AuthProvider } from "../../../src/contexts/AuthContext";
+import { AuthProvider } from "../../helpers/auth";
+import { setTestRoles } from "../../helpers/authState";
 import { apiRequest } from "../../../src/lib/api";
 vi.mock("../../../src/lib/api", () => ({ apiRequest: vi.fn() }));
 function renderPage(roles = ["ADMIN"]) {
-  localStorage.setItem("@fsph_frota_token", "abc.def.ghi");
-  localStorage.setItem(
-    "@fsph_frota_user",
-    JSON.stringify({
-      id: "admin-test",
-      nome: "Administrador de teste",
-      email: "admin@example.test",
-      roles,
-    }),
-  );
+  setTestRoles(roles);
   return render(
     <AuthProvider>
       <UsuariosPage />
@@ -37,7 +29,7 @@ describe("UsuariosPage", () => {
     expect(screen.getByRole("button", { name: "Novo usuário" })).toBeDisabled();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(await screen.findByText("admin-test")).toBeInTheDocument();
-    expect(apiRequest).toHaveBeenCalledExactlyOnceWith("/auth/perfil", { token: "abc.def.ghi" });
+    expect(apiRequest).toHaveBeenCalledExactlyOnceWith("/auth/perfil", {});
   });
   it("exibe apenas os perfis retornados pela API existente", async () => {
     vi.mocked(apiRequest).mockResolvedValue({

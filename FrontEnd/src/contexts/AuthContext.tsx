@@ -1,44 +1,35 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import type { User, UserRole, LoginCredentials, AuthState } from "../types/auth";
+import { api, clearAuthSession, resetCsrf, setUnauthorizedHandler } from "../services/api";
 import {
-  api,
-  AUTH_TOKEN_KEY,
-  AUTH_USER_KEY,
-  clearAuthSession,
-  setUnauthorizedHandler,
-} from "../services/api";
+  browserSessionExpired,
+  markBrowserLogout,
+  readBrowserSession,
+  startBrowserSession,
+  watchBrowserSession,
+} from "../services/browserSession";
 import { AuthContext } from "./auth";
 
 const validRoles = new Set<UserRole>(["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"]);
-
-interface LoginApiResponse {
-  token: string;
-  usuario: {
-    id: string;
-    nome: string;
-    email: string;
-    perfis: string[];
+interface SessionResponse {
+  usuario: { id: string; nome: string; email: string; perfis: string[] };
+}
+const emptyState: AuthState = {
+  user: null,
+  sessionKey: null,
+  isAuthenticated: false,
+  isLoading: false,
+};
+function sessionState({ usuario }: SessionResponse): AuthState {
+  const user: User = {
+    id: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+    roles: mapPerfis(usuario.perfis),
   };
+  return { user, sessionKey: crypto.randomUUID(), isAuthenticated: true, isLoading: false };
 }
-
-function clearSession() {
-  clearAuthSession();
-}
-
-function saveSession(user: User, token: string) {
-  try {
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-  } catch {
-    // O usuário precisará entrar novamente após recarregar a página.
-  }
-}
-
-function isTokenShape(value: string): boolean {
-  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
-}
-
 function mapPerfis(perfis: string[]): UserRole[] {
   const roles = perfis.flatMap((perfil): UserRole[] => {
     if (perfil === "ATENDENTE_SVO") return ["SVO"];
@@ -48,36 +39,6 @@ function mapPerfis(perfis: string[]): UserRole[] {
     throw new Error("Usuário sem perfil autorizado para o sistema.");
   }
   return roles;
-}
-
-function isStoredUser(value: unknown): value is User {
-  if (!value || typeof value !== "object") return false;
-  const user = value as Partial<User>;
-  return (
-    typeof user.id === "string" &&
-    typeof user.nome === "string" &&
-    typeof user.email === "string" &&
-    Array.isArray(user.roles) &&
-    user.roles.length > 0 &&
-    user.roles.every((role) => validRoles.has(role))
-  );
-}
-
-function readSession(): AuthState {
-  try {
-    const storedUser = localStorage.getItem(AUTH_USER_KEY);
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (storedUser && storedToken && isTokenShape(storedToken)) {
-      const user: unknown = JSON.parse(storedUser);
-      if (isStoredUser(user)) {
-        return { user, token: storedToken, isAuthenticated: true, isLoading: false };
-      }
-    }
-  } catch {
-    // JSON inválido ou armazenamento indisponível: voltar ao login.
-  }
-  clearSession();
-  return { user: null, token: null, isAuthenticated: false, isLoading: false };
 }
 
 function mensagemErroLogin(error: unknown): string {
@@ -93,49 +54,125 @@ function mensagemErroLogin(error: unknown): string {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>(readSession);
-
-  const logout = useCallback(() => {
-    clearSession();
-    setState({ user: null, token: null, isAuthenticated: false, isLoading: false });
+  const [state, setState] = useState<AuthState>(() =>
+    browserSessionExpired() ? emptyState : { ...emptyState, isLoading: true },
+  );
+  const generation = useRef(0);
+  const endSession = useCallback(() => {
+    generation.current++;
+    clearAuthSession();
+    resetCsrf();
+    setState(emptyState);
   }, []);
-
+  const revoking = useRef<Promise<boolean> | null>(null);
+  const retryLogout = useCallback(() => {
+    revoking.current ??= api
+      .post("/api/v1/auth/logout")
+      .then(() => {
+        markBrowserLogout(false);
+        return true;
+      })
+      .catch((error: unknown) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          markBrowserLogout(false);
+          return true;
+        }
+        return false;
+      })
+      .finally(() => {
+        revoking.current = null;
+      });
+    return revoking.current;
+  }, []);
+  const expireSession = useCallback(() => {
+    markBrowserLogout(true);
+    endSession(); // Oculta os dados imediatamente, inclusive sem conexão.
+    void retryLogout();
+  }, [endSession, retryLogout]);
   useEffect(() => {
-    setUnauthorizedHandler(logout);
-    return () => setUnauthorizedHandler(null);
-  }, [logout]);
-
-  const login = async ({ usuario, senha }: LoginCredentials) => {
-    if (!usuario?.trim() || !senha) {
-      throw new Error("Informe o e-mail e a senha.");
+    let active = true;
+    const current = generation.current;
+    clearAuthSession();
+    setUnauthorizedHandler(() => {
+      markBrowserLogout(false);
+      endSession();
+    });
+    const stored = readBrowserSession();
+    if (stored?.status === "pending" || (stored?.status === "active" && browserSessionExpired())) {
+      markBrowserLogout(true);
+      void retryLogout().then(() => {
+        if (active && generation.current === current) endSession();
+      });
+    } else if (stored?.status !== "ended") {
+      void api
+        .get<SessionResponse>("/api/v1/auth/sessao")
+        .then(({ data }) => {
+          if (!active || generation.current !== current) return;
+          if (browserSessionExpired()) {
+            expireSession();
+            return;
+          }
+          if (!readBrowserSession()) startBrowserSession();
+          setState(sessionState(data));
+        })
+        .catch(() => {
+          if (active && generation.current === current) setState(emptyState);
+        });
     }
+    const retry = () => {
+      if (readBrowserSession()?.status === "pending") void retryLogout();
+    };
+    const interval = window.setInterval(retry, 30_000);
+    window.addEventListener("online", retry);
+    return () => {
+      active = false;
+      setUnauthorizedHandler(null);
+      window.clearInterval(interval);
+      window.removeEventListener("online", retry);
+    };
+  }, [endSession, expireSession, retryLogout]);
+  useEffect(() => {
+    if (state.isAuthenticated) return watchBrowserSession(expireSession, endSession);
+  }, [state.isAuthenticated, expireSession, endSession]);
 
+  const logout = useCallback(async () => {
+    // Só confirme a saída depois que a API revogar a sessão.
     try {
-      const { data } = await api.post<LoginApiResponse>("/api/v1/auth/login", {
+      await api.post("/api/v1/auth/logout");
+      markBrowserLogout(false);
+      endSession();
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        markBrowserLogout(false);
+        endSession();
+      } else window.alert("Não foi possível encerrar a sessão. Tente novamente.");
+    }
+  }, [endSession]);
+  const login = async ({ usuario, senha }: LoginCredentials) => {
+    if (!usuario?.trim() || !senha) throw new Error("Informe o e-mail e a senha.");
+    if (readBrowserSession()?.status === "pending" && !(await retryLogout())) {
+      throw new Error(
+        "Não foi possível encerrar a sessão anterior. Verifique a conexão e tente novamente.",
+      );
+    }
+    const current = ++generation.current;
+    try {
+      const { data } = await api.post<SessionResponse>("/api/v1/auth/login", {
         email: usuario.trim(),
         senha,
       });
-
-      const user: User = {
-        id: data.usuario.id,
-        nome: data.usuario.nome,
-        email: data.usuario.email,
-        roles: mapPerfis(data.usuario.perfis),
-      };
-
-      saveSession(user, data.token);
-      setState({ user, token: data.token, isAuthenticated: true, isLoading: false });
+      resetCsrf();
+      if (generation.current === current) {
+        startBrowserSession();
+        setState(sessionState(data));
+      }
     } catch (error) {
       throw new Error(mensagemErroLogin(error));
     }
   };
-
-  const hasRole = (requiredRoles: UserRole[]): boolean => {
-    if (!state.user) return false;
-    if (requiredRoles.length === 0) return true;
-    return state.user.roles.some((role) => requiredRoles.includes(role));
-  };
-
+  const hasRole = (requiredRoles: UserRole[]) =>
+    !!state.user &&
+    (requiredRoles.length === 0 || state.user.roles.some((role) => requiredRoles.includes(role)));
   return (
     <AuthContext.Provider value={{ ...state, login, logout, hasRole }}>
       {children}

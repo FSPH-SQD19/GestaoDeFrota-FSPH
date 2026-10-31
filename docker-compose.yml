@@ -1,39 +1,18 @@
 services:
-  database:
-    image: postgis/postgis:16-3.4
-    container_name: db-sistemafrota
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT:-5433}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   backend:
     build:
       context: .
       dockerfile: BackEnd/Dockerfile
     container_name: frota-svo-backend
+    env_file:
+      - BackEnd/.env
     environment:
       NODE_ENV: development
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}?schema=public
     volumes:
       - backend_auth:/app/BackEnd/.runtime
     ports:
       - "${BACKEND_PORT:-3000}:3000"
-    depends_on:
-      database:
-        condition: service_healthy
 
   frontend:
     container_name: frota-svo-frontend
@@ -46,5 +25,4 @@ services:
       - backend
 
 volumes:
-  postgres_data:
   backend_auth:

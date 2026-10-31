@@ -1,6 +1,10 @@
+import { signTestToken } from "../../helpers/auth";
+vi.mock("../../../src/service/session_s", async () => {
+  const { resolveTestSession } = await import("../../helpers/auth");
+  return { resolveSession: resolveTestSession };
+});
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import jwt from "jsonwebtoken";
 import { Prisma } from "@prisma/client";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
@@ -100,7 +104,9 @@ async function request(
     headers: {
       "content-type": "application/json",
       ...(perfis
-        ? { authorization: `Bearer ${jwt.sign({ perfis }, "manutencao-teste", { subject: id })}` }
+        ? {
+            authorization: `Bearer ${signTestToken({ perfis }, "manutencao-teste", { subject: id })}`,
+          }
         : {}),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),

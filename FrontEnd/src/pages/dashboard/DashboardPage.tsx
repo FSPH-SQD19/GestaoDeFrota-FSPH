@@ -44,7 +44,7 @@ function formatarDataHora(valor?: string | null) {
 }
 
 export const DashboardPage: React.FC = () => {
-  const { user, token } = useAuth();
+  const { user, sessionKey } = useAuth();
   const [today] = useState(() => new Date());
   const [dados, setDados] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,9 +66,9 @@ export const DashboardPage: React.FC = () => {
       const [veiculos, solicitacoes] = await Promise.all([
         apiRequest<{ data: VeiculoResumo[]; meta: { total: number } }>(
           "/veiculos?page=1&pageSize=100",
-          { token },
+          {},
         ),
-        apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", { token }),
+        apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", {}),
       ]);
       setErrorMessage("");
       setDados({
@@ -83,7 +83,7 @@ export const DashboardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, []);
 
   const atualizarDados = () => {
     setIsLoading(true);
@@ -97,9 +97,9 @@ export const DashboardPage: React.FC = () => {
     void Promise.all([
       apiRequest<{ data: VeiculoResumo[]; meta: { total: number } }>(
         "/veiculos?page=1&pageSize=100",
-        { token },
+        {},
       ),
-      apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", { token }),
+      apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", {}),
     ])
       .then(([veiculos, solicitacoes]) => {
         if (!mounted) return;
@@ -123,7 +123,7 @@ export const DashboardPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [token]);
+  }, [sessionKey]);
 
   const porStatus = dados?.solicitacoes.meta.porStatus;
   const disponiveis =

@@ -3,7 +3,7 @@ import type { AuthState, LoginCredentials, UserRole } from "../types/auth";
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasRole: (requiredRoles: UserRole[]) => boolean;
 }
 

@@ -75,7 +75,7 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
 }
 
 export const VeiculosPage: React.FC = () => {
-  const { token } = useAuth();
+  const { sessionKey } = useAuth();
   const [anoMaximo] = useState(() => new Date().getFullYear() + 1);
   const [searchTerm, setSearchTerm] = useState("");
   const [consulta, setConsulta] = useState({ busca: "", tipoFrota: "", page: 1 });
@@ -106,8 +106,8 @@ export const VeiculosPage: React.FC = () => {
   if (consulta.busca) params.set("busca", consulta.busca);
   if (consulta.tipoFrota) params.set("tipoFrota", consulta.tipoFrota);
   const caminho = `/veiculos?${params}`;
-  const chave = `${token}_${revisao}_${caminho}`;
-  const chaveResumo = `${token}_${revisao}`;
+  const chave = `${sessionKey}_${revisao}_${caminho}`;
+  const chaveResumo = `${sessionKey}_${revisao}`;
   const atual = resultado?.chave === chave ? resultado : null;
   const contagens = resumo?.chave === chaveResumo ? resumo : null;
   const veiculos = atual?.dados?.data.map(mapearVeiculo) ?? [];
@@ -136,7 +136,7 @@ export const VeiculosPage: React.FC = () => {
 
   useEffect(() => {
     let ativo = true;
-    void apiRequest<Resposta>(caminho, { token })
+    void apiRequest<Resposta>(caminho, {})
       .then((dados) => {
         if (ativo) setResultado({ chave, dados, erro: "" });
       })
@@ -151,14 +151,14 @@ export const VeiculosPage: React.FC = () => {
     return () => {
       ativo = false;
     };
-  }, [caminho, chave, token]);
+  }, [caminho, chave, sessionKey]);
 
   useEffect(() => {
     let ativo = true;
     const total = async (tipo = "") => {
       const dados = await apiRequest<Resposta>(
         `/veiculos?page=1&pageSize=1${tipo ? `&tipoFrota=${tipo}` : ""}`,
-        { token },
+        {},
       );
       return dados.meta.total;
     };
@@ -179,7 +179,7 @@ export const VeiculosPage: React.FC = () => {
     return () => {
       ativo = false;
     };
-  }, [chaveResumo, token]);
+  }, [chaveResumo, sessionKey]);
 
   const atualizarFormulario = <K extends keyof FormularioVeiculo>(
     campo: K,
@@ -201,7 +201,6 @@ export const VeiculosPage: React.FC = () => {
     try {
       const response = await apiRequest<VeiculoApi>("/veiculos", {
         method: "POST",
-        token,
         body: JSON.stringify(validacao.data),
       });
       setFormulario(formularioVazio);

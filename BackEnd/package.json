@@ -16,7 +16,8 @@
     "test:watch": "vitest --watch",
     "test:coverage": "npm run test:types && vitest run --coverage",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "seed:demo": "tsx prisma/seed-demo.ts"
   },
   "keywords": [],
   "author": "",

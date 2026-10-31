@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider } from "../../../src/contexts/AuthContext";
+import { AuthProvider } from "../../helpers/auth";
+import { setTestRoles } from "../../helpers/authState";
 import { apiRequest } from "../../../src/lib/api";
 import { MotoristasPage } from "../../../src/pages/motorista/MotoristaPage";
 vi.mock("../../../src/lib/api", () => ({ apiRequest: vi.fn() }));
@@ -31,16 +32,7 @@ const lista = [
   { ...motorista, id: "m3", ativo: false, validadeCnh: ontem, status: "INATIVO", usuario: null },
 ];
 function renderPage() {
-  localStorage.setItem("@fsph_frota_token", "abc.def.ghi");
-  localStorage.setItem(
-    "@fsph_frota_user",
-    JSON.stringify({
-      id: "gestor",
-      nome: "Gestor",
-      email: "gestor@example.test",
-      roles: ["GESTOR"],
-    }),
-  );
+  setTestRoles(["GESTOR"]);
   return render(
     <AuthProvider>
       <MotoristasPage />
@@ -57,7 +49,9 @@ async function preencher() {
   fireEvent.change(screen.getByLabelText(/^E-mail de acesso/), {
     target: { value: "NOVO@example.test" },
   });
-  fireEvent.change(screen.getByLabelText(/^Senha inicial/), { target: { value: "senha123" } });
+  fireEvent.change(screen.getByLabelText(/^Senha inicial/), {
+    target: { value: "senha-segura-de-teste" },
+  });
   fireEvent.change(screen.getByLabelText(/^CPF/), { target: { value: "12345678909" } });
   fireEvent.change(screen.getByLabelText(/^Número da CNH/), { target: { value: "12345678901" } });
   fireEvent.change(screen.getByLabelText(/^Categoria da CNH/), { target: { value: "B" } });
@@ -74,7 +68,7 @@ describe("MotoristasPage", () => {
     expect(within(linhaHoje).getByText("Próxima")).toBeInTheDocument();
     expect(within(linhaHoje).queryByText("Vencida")).not.toBeInTheDocument();
     expect(screen.getAllByText("Em viagem")).toHaveLength(2);
-    expect(apiRequest).toHaveBeenCalledWith("/motoristas", { token: "abc.def.ghi" });
+    expect(apiRequest).toHaveBeenCalledWith("/motoristas", {});
   });
   it("filtra CNHs vencendo sem incluir as vencidas e permite consultar detalhes", async () => {
     const user = userEvent.setup();
@@ -117,9 +111,7 @@ describe("MotoristasPage", () => {
     await user.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText("Motorista e conta de acesso cadastrados.")).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Senha inicial/)).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(apiRequest).toHaveBeenLastCalledWith("/motoristas", { token: "abc.def.ghi" }),
-    );
+    await waitFor(() => expect(apiRequest).toHaveBeenLastCalledWith("/motoristas", {}));
     const envio = vi
       .mocked(apiRequest)
       .mock.calls.find(([, options]) => options?.method === "POST")!;

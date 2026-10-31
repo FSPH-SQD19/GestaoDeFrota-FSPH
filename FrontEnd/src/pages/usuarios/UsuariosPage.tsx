@@ -15,28 +15,29 @@ const PERFIL_LABEL: Record<string, string> = {
 };
 
 export const UsuariosPage: React.FC = () => {
-  const { user, token } = useAuth();
+  const { user, sessionKey } = useAuth();
   const [hoje] = useState(() => new Date());
   const [tentativa, setTentativa] = useState(0);
   const [resposta, setResposta] = useState<{
-    token: string | null;
+    sessionKey: string | null;
     tentativa: number;
     perfil: PerfilAutenticadoResponse["usuario"] | null;
     erro: string;
   } | null>(null);
   const administrador = user?.roles.includes("ADMIN") ?? false;
-  const atual = resposta?.token === token && resposta?.tentativa === tentativa ? resposta : null;
+  const atual =
+    resposta?.sessionKey === sessionKey && resposta?.tentativa === tentativa ? resposta : null;
   useEffect(() => {
     if (!administrador) return;
     let ativo = true;
-    void apiRequest<PerfilAutenticadoResponse>("/auth/perfil", { token })
+    void apiRequest<PerfilAutenticadoResponse>("/auth/perfil", {})
       .then(({ usuario }) => {
-        if (ativo) setResposta({ token, tentativa, perfil: usuario, erro: "" });
+        if (ativo) setResposta({ sessionKey, tentativa, perfil: usuario, erro: "" });
       })
       .catch((error: unknown) => {
         if (ativo)
           setResposta({
-            token,
+            sessionKey,
             tentativa,
             perfil: null,
             erro: error instanceof Error ? error.message : "Não foi possível consultar seu acesso.",
@@ -45,7 +46,7 @@ export const UsuariosPage: React.FC = () => {
     return () => {
       ativo = false;
     };
-  }, [administrador, token, tentativa]);
+  }, [administrador, sessionKey, tentativa]);
 
   if (!administrador || (atual?.perfil && !atual.perfil.perfis.includes("ADMIN"))) {
     return (

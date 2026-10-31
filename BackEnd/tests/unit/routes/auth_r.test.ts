@@ -1,143 +1,215 @@
-import { getAuthConfig } from "../../../src/config/auth";
-vi.mock("../../../src/config/auth", () => ({ getAuthConfig: vi.fn() }));
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import jwt from "jsonwebtoken";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { randomUUID } from "node:crypto";
 const mocks = vi.hoisted(() => ({
-  findUnique: vi.fn(),
-  comparePassword: vi.fn(),
-  findMany: vi.fn(),
-  count: vi.fn(),
+  user: vi.fn(),
+  create: vi.fn(),
+  session: vi.fn(),
+  touch: vi.fn(),
+  remove: vi.fn(),
+  compare: vi.fn(),
+  limit: vi.fn(),
 }));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
-    usuario: { findUnique: mocks.findUnique },
-    veiculo: { findMany: mocks.findMany, count: mocks.count },
+    usuario: { findUnique: mocks.user },
+    authSessao: {
+      create: mocks.create,
+      findUnique: mocks.session,
+      updateMany: mocks.touch,
+      deleteMany: mocks.remove,
+    },
+    $queryRaw: mocks.limit,
   },
 }));
-vi.mock("../../../src/service/password_s", () => ({ comparePassword: mocks.comparePassword }));
-
+vi.mock("../../../src/config/auth", () => ({
+  getAuthConfig: () => ({ secret: "segredo-sintetico-auth", expiresIn: 28800 }),
+}));
+vi.mock("../../../src/service/password_s", () => ({ comparePassword: mocks.compare }));
 import { app } from "../../../src/app";
-
-const secret = "segredo-sintetico-rotas-auth";
+import { passwordVersion } from "../../../src/service/session_s";
+const secret = "segredo-sintetico-auth";
 const usuario = {
-  id: "usuario-sintetico",
+  id: randomUUID(),
   nome: "Teste",
   email: "teste@example.test",
   ativo: true,
-  senhaHash: "hash-sintetico",
+  senhaHash: "hash",
   perfis: [{ perfil: { nome: "ADMIN" } }],
 };
-let server: Server;
-let baseUrl: string;
-
+let server: Server, base: string;
+let stored: {
+  id: string;
+  usuarioId: string;
+  senhaVersao: string;
+  expiraEm: Date;
+} | null;
 beforeAll(async () => {
   server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 afterAll(() => new Promise((resolve) => server.close(resolve)));
 beforeEach(() => {
-  vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
-
-  mocks.findUnique.mockResolvedValue(usuario);
-  mocks.comparePassword.mockResolvedValue(true);
-  mocks.findMany.mockResolvedValue([]);
-  mocks.count.mockResolvedValue(0);
+  stored = null;
+  mocks.user.mockResolvedValue(usuario);
+  mocks.compare.mockResolvedValue(true);
+  mocks.create.mockImplementation(async ({ data }) => {
+    stored = data;
+    return data;
+  });
+  mocks.session.mockImplementation(async () => stored && { ...stored, usuario });
+  mocks.touch.mockResolvedValue({ count: 1 });
+  mocks.remove.mockImplementation(async () => {
+    stored = null;
+    return { count: 1 };
+  });
+  mocks.limit.mockResolvedValue([{ tentativas: 1, expira_em: new Date(Date.now() + 900000) }]);
 });
-
-function token(perfis: string[], options: jwt.SignOptions = {}) {
-  return jwt.sign({ perfis }, secret, { subject: usuario.id, ...options });
+function cookie(response: Response, name: string) {
+  return response.headers
+    .getSetCookie()
+    .find((x) => x.startsWith(name + "="))!
+    .split(";")[0];
 }
-
-async function consultar(path: string, authorization?: string) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    headers: authorization ? { authorization } : {},
-  });
-  return { status: response.status, body: await response.json() };
+async function csrf(prefix: string, session = "") {
+  const response = await fetch(`${base}${prefix}/csrf`, { headers: { cookie: session } });
+  return {
+    nonce: (await response.json()).csrfToken as string,
+    cookie: cookie(response, "frota_csrf"),
+  };
 }
-
-describe.each(["/auth", "/api/v1/auth"])("rotas %s", (prefix) => {
-  describe.each(["/perfil", "/admin"])("GET %s", (endpoint) => {
-    it.each([
-      { caso: "sem autenticação", header: undefined, message: "Autenticação necessária." },
-      {
-        caso: "token inválido",
-        header: "Bearer abc.def.ghi",
-        message: "Token inválido ou expirado.",
-      },
-      {
-        caso: "assinatura inválida",
-        header: `Bearer ${jwt.sign({ perfis: ["ADMIN"] }, "outra-chave", { subject: usuario.id })}`,
-        message: "Token inválido ou expirado.",
-      },
-      {
-        caso: "token expirado",
-        header: `Bearer ${token(["ADMIN"], { expiresIn: -1 })}`,
-        message: "Token inválido ou expirado.",
-      },
-    ])("retorna 401 padronizado para $caso", async ({ header, message }) => {
-      expect(await consultar(`${prefix}${endpoint}`, header)).toEqual({
-        status: 401,
-        body: { statusCode: 401, message, errors: [] },
-      });
-      expect(mocks.findUnique).not.toHaveBeenCalled();
-    });
+async function login(prefix: string) {
+  const protection = await csrf(prefix);
+  const response = await fetch(`${base}${prefix}/login`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: protection.cookie,
+      "x-csrf-token": protection.nonce,
+    },
+    body: JSON.stringify({ email: usuario.email, senha: "senha-sintetica" }),
   });
-
-  it("retorna o perfil autenticado preservando o formato público", async () => {
-    expect(await consultar(`${prefix}/perfil`, `Bearer ${token(["MOTORISTA"])}`)).toEqual({
-      status: 200,
-      body: { usuario: { userId: usuario.id, perfis: ["MOTORISTA"] } },
+  const session = cookie(response, "frota_session");
+  return { response, protection: await csrf(prefix, session), cookie: session };
+}
+describe.each(["/auth", "/api/v1/auth"])("sessões HTTP %s", (prefix) => {
+  it("login retorna usuário e cookie HttpOnly, sem expor JWT no JSON", async () => {
+    const { response, cookie: session } = await login(prefix);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, perfis: ["ADMIN"] },
     });
+    expect(response.headers.getSetCookie().join()).toContain("HttpOnly");
+    expect(response.headers.getSetCookie().join()).toContain("SameSite=Lax");
+    const token = decodeURIComponent(session.split("=")[1]);
+    expect(
+      jwt.verify(token, secret, {
+        algorithms: ["HS256"],
+        issuer: "fsph-frota-api",
+        audience: "fsph-frota-web",
+      }),
+    ).toMatchObject({ sub: usuario.id, jti: stored!.id });
+    expect((await fetch(`${base}${prefix}/sessao`, { headers: { cookie: session } })).status).toBe(
+      200,
+    );
   });
-
-  it("formata falha de configuração pelo handler comum", async () => {
-    vi.mocked(getAuthConfig).mockImplementation(() => {
-      throw new Error("Arquivo de chave indisponível");
+  it("logout revoga a sessão e rejeita replay do mesmo cookie", async () => {
+    const { cookie: session, protection } = await login(prefix);
+    const response = await fetch(`${base}${prefix}/logout`, {
+      method: "POST",
+      headers: { cookie: `${session}; ${protection.cookie}`, "x-csrf-token": protection.nonce },
     });
-    expect(await consultar(`${prefix}/perfil`, `Bearer ${token(["ADMIN"])}`)).toEqual({
-      status: 500,
-      body: { statusCode: 500, message: "Configuração de autenticação inválida.", errors: [] },
-    });
+    expect(response.status).toBe(204);
+    expect(mocks.remove).toHaveBeenCalled();
+    expect((await fetch(`${base}${prefix}/sessao`, { headers: { cookie: session } })).status).toBe(
+      401,
+    );
   });
-
-  it.each(["GESTOR", "MOTORISTA"])("nega acesso administrativo ao perfil %s", async (perfil) => {
-    expect(await consultar(`${prefix}/admin`, `Bearer ${token([perfil])}`)).toEqual({
-      status: 403,
-      body: {
-        statusCode: 403,
-        message: "Você não tem permissão para realizar esta operação.",
-        errors: [],
-      },
-    });
+  it("rejeita usuário inativo e mudança de senha", async () => {
+    const { cookie: session } = await login(prefix);
+    mocks.session.mockImplementation(async () => ({
+      ...stored,
+      usuario: { ...usuario, ativo: false },
+    }));
+    expect((await fetch(`${base}${prefix}/sessao`, { headers: { cookie: session } })).status).toBe(
+      401,
+    );
+    mocks.session.mockImplementation(async () => ({
+      ...stored,
+      usuario: { ...usuario, senhaHash: "outro-hash" },
+    }));
+    expect((await fetch(`${base}${prefix}/sessao`, { headers: { cookie: session } })).status).toBe(
+      401,
+    );
   });
-
-  it("autoriza ADMIN mesmo entre múltiplos perfis", async () => {
-    expect(await consultar(`${prefix}/admin`, `Bearer ${token(["MOTORISTA", "ADMIN"])}`)).toEqual({
-      status: 200,
-      body: { mensagem: "Acesso autorizado." },
-    });
+  it("revalida permissões atuais para rotas administrativas", async () => {
+    const { cookie: session } = await login(prefix);
+    mocks.session.mockImplementation(async () => ({
+      ...stored,
+      usuario: { ...usuario, perfis: [{ perfil: { nome: "MOTORISTA" } }] },
+    }));
+    expect((await fetch(`${base}${prefix}/admin`, { headers: { cookie: session } })).status).toBe(
+      403,
+    );
   });
-
-  it("aceita o JWT emitido pelo login em perfil, admin e veículos", async () => {
-    // Duração fixa de oito horas, sem configuração por ambiente.
-    const response = await fetch(`${baseUrl}${prefix}/login`, {
+  it("mantém a expiração absoluta sem registrar atividade no banco", async () => {
+    const { cookie: session } = await login(prefix);
+    expect((await fetch(`${base}${prefix}/sessao`, { headers: { cookie: session } })).status).toBe(
+      200,
+    );
+    expect(mocks.touch).not.toHaveBeenCalled();
+    stored!.expiraEm = new Date(Date.now() - 1);
+    expect((await fetch(`${base}${prefix}/sessao`, { headers: { cookie: session } })).status).toBe(
+      401,
+    );
+  });
+  it("recusa login sem CSRF e de origem não autorizada", async () => {
+    const response = await fetch(`${base}${prefix}/login`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: usuario.email, senha: "senha-sintetica" }),
+      body: "{}",
     });
-    expect(response.status).toBe(200);
-    const result = (await response.json()) as { token: string };
-    const payload = jwt.verify(result.token, secret) as jwt.JwtPayload;
-    expect(payload.exp! - payload.iat!).toBe(28800);
-    const header = `Bearer ${result.token}`;
-    expect((await consultar(`${prefix}/perfil`, header)).body).toEqual({
-      usuario: { userId: usuario.id, perfis: ["ADMIN"] },
+    expect(response.status).toBe(403);
+    expect(mocks.user).not.toHaveBeenCalled();
+    expect(
+      (await fetch(`${base}${prefix}/csrf`, { headers: { origin: "https://atacante.example" } }))
+        .status,
+    ).toBe(403);
+  });
+  it("limita tentativas por IP e conta antes de comparar senha", async () => {
+    const protection = await csrf(prefix);
+    mocks.limit.mockResolvedValue([{ tentativas: 31, expira_em: new Date() }]);
+    const response = await fetch(`${base}${prefix}/login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: protection.cookie,
+        "x-csrf-token": protection.nonce,
+      },
+      body: JSON.stringify({ email: usuario.email, senha: "senha" }),
     });
-    expect((await consultar(`${prefix}/admin`, header)).status).toBe(200);
-    expect((await consultar("/api/v1/veiculos", header)).status).toBe(200);
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("900");
+    expect(mocks.compare).not.toHaveBeenCalled();
+  });
+  it("não permite alterações autenticadas por cookie sem proteção CSRF", async () => {
+    const { cookie: session } = await login(prefix);
+    expect(
+      (
+        await fetch(`${base}/api/v1/fornecedores`, {
+          method: "POST",
+          headers: { cookie: session, "content-type": "application/json" },
+          body: "{}",
+        })
+      ).status,
+    ).toBe(403);
+  });
+  it("usa fingerprint de senha sem persistir outra cópia do hash bcrypt", async () => {
+    await login(prefix);
+    expect(stored!.senhaVersao).toBe(passwordVersion(usuario.senhaHash));
+    expect(stored!.senhaVersao).not.toBe(usuario.senhaHash);
   });
 });
