@@ -1,6 +1,6 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
-const DEFAULT_API_URL = "http://localhost:3000";
+const DEFAULT_API_URL = import.meta.env.DEV ? "http://localhost:3000" : "/";
 function apiBaseUrl(): string {
   const fromEnv = import.meta.env.VITE_API_URL;
   return typeof fromEnv === "string" && fromEnv.trim()

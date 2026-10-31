@@ -22,6 +22,7 @@ function upsert(rows: Map<string, Row>, key: string, { create, update }: Upsert)
 }
 
 it("cria e atualiza apenas os perfis de acesso, sem criar usuários de demonstração", async () => {
+  vi.stubEnv("DATABASE_URL", "postgresql://user:pass@localhost:5432/test");
   const perfis = new Map<string, Row>();
   mocks.perfil.upsert.mockImplementation((args: Upsert) =>
     upsert(perfis, String(args.where.nome), args),

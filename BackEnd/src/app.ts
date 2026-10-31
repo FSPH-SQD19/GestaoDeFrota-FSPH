@@ -18,7 +18,13 @@ if (process.env.TRUST_PROXY_HOPS) {
 }
 app.use(
   cors({
-    origin: allowedOrigins(),
+    origin: (origin, callback) => {
+      try {
+        callback(null, !origin || allowedOrigins().includes(origin));
+      } catch (error) {
+        callback(error as Error);
+      }
+    },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   }),

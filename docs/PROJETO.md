@@ -77,15 +77,15 @@ Os limites e fluxos específicos são definidos pela especificação de requisit
 
 ### Ferramentas do projeto
 
-| Camada                  | Ferramentas                                                                 |
-| ----------------------- | --------------------------------------------------------------------------- |
-| Front-end               | React 19, TypeScript, Vite 8 e Tailwind CSS 4.                              |
-| Formulários e validação | React Hook Form e Zod; o back-end também usa Zod no módulo de veículos.     |
-| Componentes e ícones    | Componentes próprios em `FrontEnd/src/components/common` e Lucide React.    |
-| API                     | Express, TypeScript, JWT e bcrypt.                                          |
-| Banco e ORM             | Neon PostgreSQL + PostGIS em desenvolvimento e HML, com Prisma 6.           |
-| Qualidade e CI          | Oxlint, Vitest, Testing Library, jsdom, checagem de tipos e GitHub Actions. |
-| Execução                | npm workspaces e Docker Compose; conexão Neon por `DATABASE_URL`.           |
+| Camada                  | Ferramentas                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| Front-end               | React 19, TypeScript, Vite 8 e Tailwind CSS 4.                                              |
+| Formulários e validação | React Hook Form e Zod; o back-end também usa Zod no módulo de veículos.                     |
+| Componentes e ícones    | Componentes próprios em `FrontEnd/src/components/common` e Lucide React.                    |
+| API                     | Express, TypeScript, JWT e bcrypt.                                                          |
+| Banco e ORM             | Neon PostgreSQL + PostGIS em desenvolvimento e HML, com Prisma 6.                           |
+| Qualidade e CI          | Oxlint, Vitest, Testing Library, jsdom, checagem de tipos e GitHub Actions.                 |
+| Execução                | npm workspaces e Docker Compose em desenvolvimento; Cloudflare Workers + Hyperdrive em HML. |
 
 ### Referência da especificação
 

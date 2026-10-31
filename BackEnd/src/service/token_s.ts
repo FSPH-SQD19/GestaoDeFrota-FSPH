@@ -1,8 +1,9 @@
+import { getWorkerRuntime } from "../config/runtime";
 import jwt from "jsonwebtoken";
 import { getAuthConfig } from "../config/auth";
 
-const issuer = () => process.env.JWT_ISSUER || "fsph-frota-api";
-const audience = () => process.env.JWT_AUDIENCE || "fsph-frota-web";
+const issuer = () => getWorkerRuntime()?.issuer || process.env.JWT_ISSUER || "fsph-frota-api";
+const audience = () => getWorkerRuntime()?.audience || process.env.JWT_AUDIENCE || "fsph-frota-web";
 
 export function signToken(usuarioId: string, sessaoId: string) {
   const { secret, expiresIn } = getAuthConfig();

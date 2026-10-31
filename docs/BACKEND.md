@@ -62,7 +62,7 @@ Os mesmos endpoints existem sob `/auth`. O Axios central envia cookies e CSRF au
 
 O middleware exige HS256, emissor, destinatário, identificador de sessão, emissão e expiração. A autorização usa os perfis atuais do banco, não claims de perfil enviados no token. Sessões revogadas, usuários inativos ou senha alterada são rejeitados. O JWT tem limite absoluto de oito horas. A interface controla 30 minutos sem interação com um timer no navegador e chama o logout; o banco não registra nem controla o tempo de inatividade.
 
-A chave local em `.runtime/auth.key` atende ao desenvolvimento. Em produção, `JWT_SECRET` compartilhada entre réplicas e `APP_ORIGINS` com HTTPS são obrigatórias; veja [Ambiente](AMBIENTE.md#prisma-e-autenticação).
+A chave local em `.runtime/auth.key` atende ao desenvolvimento. Em produção, `JWT_SECRET` compartilhada entre réplicas é obrigatória; o Node exige `APP_ORIGINS` com HTTPS e o Worker permite a própria origem HTTPS da aplicação; veja [Ambiente](AMBIENTE.md#prisma-e-autenticação).
 
 Auth e veículos usam `authenticate` e `requireRole` de `http_m.ts`, com identidade interna em `res.locals.usuario` no formato `{ id, perfis }`. `AuthToken` e `autorizarPerfis` são aliases de compatibilidade. As falhas desses middlewares passam por `HttpError` e pelo handler comum, retornando `{ statusCode, message, errors }`.
 
@@ -227,3 +227,9 @@ As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas d
 Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
 
 A última coleta encaminha a viatura à desinfecção sem sobrescrever outros estados operacionais. A liberação do condutor é condicional ao cadastro ativo e ao status ocupado. A confirmação da desinfecção exige ausência de coletas ativas. Atualizações de status e auditoria permanecem na mesma transação; disputas transacionais ou emissão duplicada retornam `409`. Concorrência em PostgreSQL real não foi validada nesta revisão.
+
+### Compatibilidade com Cloudflare
+
+`worker.ts` adapta o Express ao runtime Cloudflare. O cliente Prisma, a chave de assinatura, o IP e a origem da requisição ficam em um contexto isolado; cada chamada usa seu próprio pool, encerrado com `waitUntil`. No servidor Node, `server.ts` inicializa a conexão local. O schema usa `engineType = "client"` e o adaptador PostgreSQL em ambos os ambientes; `bcryptjs` mantém compatibilidade com os hashes bcrypt já existentes no Neon.
+
+O limite de login usa `CF-Connecting-IP` recebido pelo Worker; no Node, usa o IP da conexão ou o proxy explicitamente configurado. O CD mantém o cache Hyperdrive desativado para evitar reutilizar consultas de sessões, usuários ou permissões após alterações.

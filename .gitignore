@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.dev.vars*
 
 # Chave de autenticação gerada localmente
 **/.runtime/
@@ -20,3 +21,5 @@
 Thumbs.db
 .vscode/
 .idea/
+
+.wrangler/

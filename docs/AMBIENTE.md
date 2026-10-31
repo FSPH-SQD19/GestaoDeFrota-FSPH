@@ -105,7 +105,7 @@ O schema está em `BackEnd/prisma/schema.prisma`, as migrations em `BackEnd/pris
 
 Em desenvolvimento, a API gera uma chave aleatória em `BackEnd/.runtime/auth.key` e a reutiliza nos reinícios; no Docker de desenvolvimento, o volume `backend_auth` preserva esse arquivo. Os arquivos `.runtime` não são versionados.
 
-Em produção, defina `JWT_SECRET` como segredo de implantação com 128 caracteres hexadecimais aleatórios. Todas as réplicas do mesmo ambiente devem usar a mesma chave. A API recusa iniciar em produção sem esse segredo; a chave local é apenas uma conveniência de desenvolvimento. Gere uma chave com:
+No servidor Node em produção, defina `JWT_SECRET` como segredo de implantação com 128 caracteres hexadecimais aleatórios. Todas as réplicas do mesmo ambiente devem usar a mesma chave. A API recusa iniciar em produção sem esse segredo; a chave local é apenas uma conveniência de desenvolvimento. Gere uma chave com:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
@@ -113,7 +113,7 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 Configure também:
 
-- `APP_ORIGINS`: origens exatas da interface, separadas por vírgula, sem barra final. Obrigatória em produção e limitada a HTTPS; em desenvolvimento, os padrões são localhost/127.0.0.1 nas portas 5173 e 4173. Com portas personalizadas no Compose, ajuste esta variável.
+- `APP_ORIGINS`: origens exatas da interface, separadas por vírgula, sem barra final. Obrigatória no servidor Node em produção e limitada a HTTPS; em desenvolvimento, os padrões são localhost/127.0.0.1 nas portas 5173 e 4173. Com portas personalizadas no Compose, ajuste esta variável.
 - `JWT_ISSUER` e `JWT_AUDIENCE`: identificadores do ambiente. Os padrões são `fsph-frota-api` e `fsph-frota-web`; use valores distintos em desenvolvimento e HML.
 - `TRUST_PROXY_HOPS`: opcional, número exato de proxies confiáveis. Sem configuração, a API usa o IP da conexão. Não habilite sem conhecer a topologia; um proxy mal configurado pode permitir falsificação do IP usado no limite de login.
 
@@ -153,3 +153,38 @@ O comando cria contas ADMIN, GESTOR, MOTORISTA, SVO e SOLICITANTE, com três mot
 As contas usam e-mails `@demo.frota.test`. A senha aleatória comum é salva em `BackEnd/.runtime/demo-access.json`, ignorado pelo Git. O comando pode ser reexecutado: usa identificadores estáveis, preserva registros existentes e não redefine senhas. Preserve o arquivo de acessos para reutilizar essas credenciais. O seed normal (`npm run seed --workspace=backend`) continua criando apenas os perfis.
 
 O seed usa a data corrente de America/Sao_Paulo como referência; `SEED_DEMO_DATE=AAAA-MM-DD` permite uma data fixa. O comando recusa execução com `NODE_ENV=production`. Ele não apaga os dados existentes e executa a inserção em uma transação.
+
+## CD de homologação na Cloudflare
+
+A branch `hml` já publica interface e API no mesmo Worker (`gestao-frota-hml`), pelo workflow `.github/workflows/cd-hml.yml`. A configuração de HML usa o binding `HYPERDRIVE` existente em `wrangler.jsonc`; o banco não é recriado. Nesta branch, o CD só é disparado após o código chegar à `hml`.
+
+O Prisma usa o mesmo schema e o adaptador PostgreSQL (`@prisma/adapter-pg`) nos dois ambientes. No Node local, reutiliza o pool configurado por `DATABASE_URL`; no Worker, cada requisição cria seu cliente a partir de `HYPERDRIVE.connectionString` e encerra esse cliente ao terminar. As transações de negócio continuam no mesmo banco.
+
+Configure estes secrets no environment `hml` do GitHub:
+
+- `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN`: o token precisa publicar Workers/secrets e consultar/editar a configuração Hyperdrive.
+- `DATABASE_URL_MIGRATIONS`: conexão direta ao mesmo host/branch e database do Hyperdrive. O CD compara os destinos antes de executar migrations; URLs Neon com `-pooler` são reconhecidas como o mesmo endpoint.
+- `JWT_SECRET`: 128 caracteres hexadecimais aleatórios, compartilhados entre as requisições/instâncias de HML.
+
+O CD executa formatação, lint, testes, build e empacotamento do Worker; confere o destino do banco; desativa o cache de consultas Hyperdrive; aplica `prisma migrate deploy`; e publica o Worker com a chave JWT. A desativação do cache é necessária para que logout, bloqueios e permissões sejam observados nas consultas seguintes. O script não altera as credenciais nem a origem do Hyperdrive.
+
+No Worker, a origem HTTPS da própria requisição é permitida para a interface e os cookies usam `Secure` e prefixo `__Host-`. `APP_ORIGINS` só é necessária para permitir origens adicionais. `JWT_ISSUER` e `JWT_AUDIENCE` são definidos para HML no Wrangler; secrets e clientes não são compartilhados em variáveis mutáveis entre requisições concorrentes.
+
+O front-end compilado usa a API do mesmo domínio (`/`) por padrão; o Vite local continua usando `http://localhost:3000`. `VITE_API_URL` pode substituir esse destino quando necessário. Em HML, o workflow fixa `/`; as rotas SPA e os aliases da API estão configurados no Wrangler.
+
+Para validar o pacote sem publicar:
+
+```bash
+npm run build
+npm run cloudflare:check
+```
+
+O seed padrão cria somente os perfis. As contas e os dados DEMO são opcionais e exclusivos do banco escolhido; não são executados automaticamente pelo CD. Para HML, execute o seed explicitamente em um terminal com sua `DATABASE_URL` de homologação (o seed de demonstração recusa `NODE_ENV=production`). A chave e o arquivo local de acessos `.runtime` não são enviados à Cloudflare.
+
+### Promoção de código entre branches
+
+O fluxo de promoção é `DevOps → master → hml`. Todas usam a mesma implementação e o mesmo histórico de migrations. O push em `master` não publica HML: o workflow de CD aceita somente `hml`. A diferença entre ambientes está na configuração de execução, não em versões distintas das regras de negócio.
+
+No desenvolvimento, `DATABASE_URL` vem do `.env` local ignorado pelo Git. No Worker, a conexão vem exclusivamente do binding Hyperdrive de HML; uma `DATABASE_URL` local não substitui esse binding. A URL direta de migrations é conferida contra a origem do Hyperdrive antes de qualquer alteração de schema. O deploy não copia usuários, senhas, dados DEMO ou arquivos `.runtime` entre bancos.
+
+Depois de alterar o `.env` local, reinicie a API para inicializar o novo pool. No Worker, a conexão é criada por requisição; a configuração é aplicada no deploy. A troca de ambiente exige login novamente, pois as chaves e os identificadores JWT são próprios de cada ambiente.

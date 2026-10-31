@@ -1,8 +1,9 @@
+import { getWorkerRuntime } from "../config/runtime";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Request, Response, RequestHandler } from "express";
 import { getAuthConfig } from "../config/auth";
 
-const production = () => process.env.NODE_ENV === "production";
+const production = () => !!getWorkerRuntime() || process.env.NODE_ENV === "production";
 export const sessionCookieName = () => (production() ? "__Host-frota_session" : "frota_session");
 const csrfCookieName = () => (production() ? "__Host-frota_csrf" : "frota_csrf");
 export const cookieOptions = () => ({
@@ -13,7 +14,10 @@ export const cookieOptions = () => ({
 });
 
 export function allowedOrigins() {
-  const configured = process.env.APP_ORIGINS;
+  const runtime = getWorkerRuntime();
+  const configured = runtime
+    ? [runtime.origin, runtime.appOrigins].filter(Boolean).join(",")
+    : process.env.APP_ORIGINS;
   if (production() && !configured) throw new Error("APP_ORIGINS é obrigatória em produção.");
   const origins = (
     configured ||

@@ -1,3 +1,4 @@
+import { getWorkerRuntime } from "../config/runtime";
 import { createHash } from "node:crypto";
 import type { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
@@ -19,7 +20,11 @@ async function consume(scope: string, value: string, limit: number) {
 export const limitLogin: RequestHandler = async (req, res, next) => {
   try {
     // Persistência compartilhada no Neon: reinícios e réplicas não zeram o limite.
-    const ipBlocked = await consume("ip", req.ip || req.socket.remoteAddress || "unknown", 30);
+    const ipBlocked = await consume(
+      "ip",
+      getWorkerRuntime()?.clientIp || req.ip || req.socket.remoteAddress || "unknown",
+      30,
+    );
     const email =
       typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase().slice(0, 254) : "";
     const accountBlocked = email ? await consume("account", email, 10) : false;

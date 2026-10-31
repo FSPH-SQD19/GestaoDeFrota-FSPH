@@ -2,10 +2,11 @@ import "dotenv/config";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma";
 import { hashPassword } from "../src/service/password_s";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL || "");
 const namespace = "frota-demo-v1";
 function id(key: string) {
   const hex = createHash("sha256").update(`${namespace}:${key}`).digest("hex");

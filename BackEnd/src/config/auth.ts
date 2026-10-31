@@ -1,3 +1,4 @@
+import { getWorkerRuntime } from "./runtime";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -32,6 +33,13 @@ export function loadAuthConfig(directory = resolve(__dirname, "../../.runtime"))
 }
 
 export function getAuthConfig(): AuthConfig {
+  const runtime = getWorkerRuntime();
+  if (runtime) return { secret: runtime.secret, expiresIn: 8 * 60 * 60 };
   config ??= loadAuthConfig();
   return config;
+}
+
+export function validateAuthSecret(secret: string): void {
+  if (!/^[a-f0-9]{128}$/.test(secret))
+    throw new Error("JWT_SECRET deve conter 128 caracteres hexadecimais aleatórios.");
 }
