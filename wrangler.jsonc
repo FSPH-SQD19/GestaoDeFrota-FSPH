@@ -13,8 +13,11 @@
       "/auth/*",
       "/api/*",
       "/motoristas",
-      "/motoristas/*"
-    ]
+      "/motoristas/*",
+      "/solicitacoes",
+      "/solicitacoes/*",
+    ],
+    "not_found_handling": "single-page-application",
   },
   "env": {
     "hml": {
@@ -22,8 +25,8 @@
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
-          "id": "d85792d851b94d7d99f875cc8a32476f"
-        }
+          "id": "d85792d851b94d7d99f875cc8a32476f",
+        },
       ],
       "assets": {
         "directory": "./FrontEnd/dist",
@@ -34,9 +37,17 @@
           "/auth/*",
           "/api/*",
           "/motoristas",
-          "/motoristas/*"
-        ]
-      }
-    }
-  }
+          "/motoristas/*",
+          "/solicitacoes",
+          "/solicitacoes/*",
+        ],
+        "not_found_handling": "single-page-application",
+      },
+      "vars": {
+        "NODE_ENV": "production",
+        "JWT_ISSUER": "fsph-frota-api-hml",
+        "JWT_AUDIENCE": "fsph-frota-web-hml",
+      },
+    },
+  },
 }

@@ -13,9 +13,13 @@
 # Build artifacts
 **/dist/
 **/coverage/
+**/playwright-report/
+**/test-results/
 
 # OS and Editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+.wrangler/

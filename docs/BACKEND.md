@@ -2,7 +2,7 @@
 
 [Índice da documentação](README.md)
 
-Guia da API Express com TypeScript, Prisma, PostgreSQL, validação Zod e autenticação JWT. Localmente, o servidor Node lê `DATABASE_URL`; em HML, o Cloudflare Worker conecta ao Neon pela binding Hyperdrive. Os caminhos desta página são relativos à raiz do projeto.
+Guia da API Express com TypeScript, Prisma, PostgreSQL, validação Zod e autenticação JWT. Em desenvolvimento e HML, configure a conexão Neon em `DATABASE_URL`, com bancos/branches separados. Os caminhos desta página são relativos à raiz do projeto.
 
 ## Organização
 
@@ -11,7 +11,6 @@ BackEnd/
 ├── src/
 │   ├── app.ts          Configuração do Express, rotas e tratamento de erros
 │   ├── server.ts       Inicialização do servidor HTTP
-│   ├── worker.ts       Adaptador HTTP para Cloudflare Workers em HML
 │   ├── routes/         Endpoints e aplicação dos middlewares
 │   ├── controller/     Entradas HTTP e respostas
 │   ├── service/        Validações e regras dos serviços
@@ -22,7 +21,7 @@ BackEnd/
 └── prisma.config.ts    Caminhos e configuração do Prisma
 ```
 
-O fluxo das rotas de veículos é: rota → autenticação e perfil → controller → serviço → Prisma. O middleware de erros formata as falhas. `app.ts` exporta a aplicação para uso nos testes; `server.ts` abre a porta HTTP no desenvolvimento local. `worker.ts` adapta a mesma aplicação para o runtime Cloudflare e inicializa o Prisma com a connection string fornecida pelo Hyperdrive.
+O fluxo das rotas de veículos é: rota → autenticação e perfil → controller → serviço → Prisma. O middleware de erros formata as falhas. `app.ts` exporta a aplicação para uso nos testes; `server.ts` abre a porta HTTP.
 
 ## Endpoints disponíveis
 
@@ -35,6 +34,8 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 | GET    | `/auth/admin`, `/api/v1/auth/admin`   | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
 | GET    | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
 | POST   | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
+| GET    | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
+| POST   | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
 
 ## Autenticação
 
@@ -47,21 +48,27 @@ Corpo do login:
 }
 ```
 
-O serviço exige usuário existente e ativo, compara a senha com bcryptjs e assina um JWT com validade fixa de oito horas. No Node local, a chave é gerada automaticamente em `BackEnd/.runtime/auth.key`, ignorada pelo Git, e reutilizada após reinícios. No Docker, ela fica no volume persistente `backend_auth`. O Worker usa o secret `JWT_SECRET` configurado no ambiente Cloudflare de HML. A resposta contém `token` e `usuario`, com `id`, `nome`, `email` e `perfis`; não inclui o hash da senha.
+O serviço exige usuário existente e ativo, compara a senha com bcrypt e registra uma sessão no Neon. A resposta contém apenas `usuario`, com `id`, `nome`, `email` e `perfis`. O JWT segue em cookie `HttpOnly`, `SameSite=Lax`, com `Secure` em produção; não é exposto no JSON nem armazenado no localStorage.
 
-Nas rotas protegidas, envie o token recebido no login:
+Fluxo da interface:
 
-```text
-Authorization: Bearer TOKEN_RECEBIDO_NO_LOGIN
-```
+1. `GET /api/v1/auth/csrf`: recebe o token CSRF em JSON e o cookie assinado associado.
+2. `POST /api/v1/auth/login`: envia credenciais, cookies e `X-CSRF-Token`; recebe o cookie de sessão.
+3. `GET /api/v1/auth/sessao`: restaura a identidade consultando a sessão e o usuário no banco.
+4. Antes de alterar dados, obtenha novamente o CSRF após o login: a assinatura é vinculada ao cookie da sessão atual.
+5. `POST /api/v1/auth/logout`: com cookies e `X-CSRF-Token`, revoga a sessão no Neon e limpa o cookie.
 
-O middleware valida a assinatura, expiração, identificador e perfis do token. Para veículos, pelo menos um dos perfis deve ser `ADMIN` ou `GESTOR`.
+Os mesmos endpoints existem sob `/auth`. O Axios central envia cookies e CSRF automaticamente. Clientes de API que já tenham o JWT podem usar `Authorization: Bearer ...`; a mesma validação de sessão se aplica. O login não fornece um token Bearer separado.
+
+O middleware exige HS256, emissor, destinatário, identificador de sessão, emissão e expiração. A autorização usa os perfis atuais do banco, não claims de perfil enviados no token. Sessões revogadas, usuários inativos ou senha alterada são rejeitados. O JWT tem limite absoluto de oito horas. A interface controla 30 minutos sem interação com um timer no navegador e chama o logout; o banco não registra nem controla o tempo de inatividade.
+
+A chave local em `.runtime/auth.key` atende ao desenvolvimento. Em produção, `JWT_SECRET` compartilhada entre réplicas é obrigatória; o Node exige `APP_ORIGINS` com HTTPS e o Worker permite a própria origem HTTPS da aplicação; veja [Ambiente](AMBIENTE.md#prisma-e-autenticação).
 
 Auth e veículos usam `authenticate` e `requireRole` de `http_m.ts`, com identidade interna em `res.locals.usuario` no formato `{ id, perfis }`. `AuthToken` e `autorizarPerfis` são aliases de compatibilidade. As falhas desses middlewares passam por `HttpError` e pelo handler comum, retornando `{ statusCode, message, errors }`.
 
 A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Os nomes de perfis enviados pela API e usados pela interface devem seguir um mapeamento consistente.
 
-O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas e `500` para falhas internas. O controller de login usa os formatos `{ "error": "..." }` ou `{ "mensagem": "..." }`.
+O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas. O controller de login usa os formatos `{ "error": "..." }` ou `{ "mensagem": "..." }`.
 
 ## Listagem de veículos
 
@@ -118,6 +125,22 @@ Placa duplicada retorna `409`; fornecedor ausente do banco ou inativo retorna `4
 
 Após salvar, o serviço tenta registrar auditoria com usuário, ação, tabela, identificador e dados novos. Uma falha da auditoria é registrada no console, mas não desfaz o cadastro nem muda a resposta de sucesso.
 
+## Documentos do veículo
+
+Controle de CRLV/licenciamento, IPVA e seguro (RF010-DOC, RB01). Corpo do cadastro:
+
+```json
+{ "tipoDocumento": "CRLV", "dataVencimento": "2027-03-31" }
+```
+
+`tipoDocumento` aceita `CRLV`, `IPVA` ou `SEGURO`; `dataVencimento` usa `AAAA-MM-DD`, entre 2000 e 2100. Documento já vencido pode ser cadastrado. Renovar é cadastrar um novo documento do mesmo tipo: por tipo, vale o de maior vencimento e o histórico é mantido. Mesmo tipo com o mesmo vencimento retorna `409`; veículo inexistente `404`; veículo inativo `422`.
+
+A situação é calculada a cada consulta no dia de America/Sao_Paulo: `VENCIDO` depois da data de vencimento, `PROXIMO_VENCIMENTO` a partir de 90 dias antes (inclusive o próprio dia) e `VIGENTE` antes disso. A coluna `status` guarda só a situação no momento do cadastro.
+
+A listagem retorna `{ data, resumo }`. Cada item traz `tipoDocumento`, `dataVencimento`, `situacao`, `diasParaVencer` (negativo quando vencido) e `atual` (se é o documento que vale para o tipo). O `resumo` traz `situacaoGeral` (a pior entre os documentos atuais, ou `null` sem documentos), `bloqueiaAlocacao` e `tiposSemRegistro`.
+
+A aprovação de solicitação (`PATCH .../aprovar`) recusa com `422` o veículo cujo documento atual de algum tipo vence antes do dia do retorno previsto (ou antes de hoje). Cada documento pendente vem em `errors`, com `campo: "veiculoId"`. Veículo sem documento cadastrado não é bloqueado.
+
 ## Erros das rotas de veículos
 
 ```json
@@ -151,3 +174,62 @@ npm run build --workspace=backend
 Centralize o acesso ao banco em `BackEnd/src/lib/prisma.ts` e mantenha alterações do schema acompanhadas de migrations. Veja [Ambiente](AMBIENTE.md) para configurar a API e [Testes](TESTES.md) para adicionar cenários.
 
 A API valida o ano do veículo até o ano atual mais um; a constraint da migration limita o banco ao intervalo de 1950 a 2100. Ao alterar validações, confira os dois níveis.
+
+## Relatório operacional
+
+`GET /api/v1/relatorios?inicio=2026-10-01&fim=2026-10-30` exige JWT e perfil `ADMIN` ou `GESTOR`. Datas devem ser válidas no formato `YYYY-MM-DD`, com início anterior ou igual ao fim. O intervalo inclui todo o dia final, no fuso UTC-03:00.
+
+- Viagens concluídas: execuções com `dataHoraFim` no período.
+- Quilometragem: soma de `kmFinal - kmInicial` dessas execuções; registros sem ambos os odômetros ou com diferença negativa não entram na soma nem na média.
+- Km médio por veículo: quilometragem dividida pelas execuções com odômetros válidos daquele veículo.
+- Litros abastecidos: soma dos abastecimentos pela própria `dataHora`, incluindo veículos sem viagem no período. Abastecimento não equivale a consumo por viagem.
+- Viagens em aberto: solicitações pendentes, aprovadas ou em trânsito cuja saída pretendida está no período. Não representa um saldo histórico.
+- Motoristas: contagem das execuções encerradas, agrupadas pelo identificador do motorista.
+
+Desvios de rota e consumo por viagem retornam `null`, pois não há registros suficientes para esses cálculos. Ordens de coleta SVO não têm odômetros nem data de encerramento no schema atual e não entram na contagem de viagens. A quilometragem não equivale ao odômetro acumulado do veículo. Sem registros, o endpoint retorna listas vazias e somas iguais a zero.
+
+## Cadastro de motorista com conta de acesso
+
+Nesta branch, o `POST /api/v1/motoristas` (também disponível no alias `/motoristas`) cadastra a conta e o motorista na mesma transação, como já implementado pela branch antes desta revisão. O corpo contém `nome`, `email`, `senha`, `telefone`, `cpf`, `numeroCnh`, `categoriaCnh` e `validadeCnh`. O perfil MOTORISTA deve existir no banco. A senha é armazenada somente como hash bcrypt; o nome, o e-mail e o identificador da conta são os únicos campos de usuário incluídos na resposta do motorista.
+
+O CPF é validado e normalizado; a CNH exige 11 dígitos; o telefone exige DDD e 8 ou 9 dígitos; o e-mail é normalizado para minúsculas. A senha segue o mínimo de 4 caracteres já definido pela branch, com rejeição acima de 72 bytes para evitar truncamento do bcrypt. A validade da CNH usa o validador compartilhado e aceita o dia atual até o fim do dia em America/Sao_Paulo. Cadastro duplicado retorna 409, inclusive quando detectado antes da transação. Erros de validação retornam 400; falhas internas mantêm mensagens genéricas.
+
+A revisão preserva auditoria com o usuário responsável e os endpoints de atualização e inativação da master. A auditoria de cadastro recebe os dados públicos do motorista, sem senha nem hash. Uma falha da auditoria é registrada no servidor e não converte uma criação já concluída em erro. Nenhum endpoint ou migration novo foi criado.
+
+## Aprovação e recusa de solicitações
+
+Esta branch já implementa `PATCH /solicitacoes/:id/aprovar` e `PATCH /solicitacoes/:id/recusar`. A revisão conecta essas mesmas rotas também ao prefixo canônico `/api/v1/solicitacoes`, preservando o alias original. Administradores e gestores podem decidir; listagem e criação mantêm a permissão dos perfis SOLICITANTE, GESTOR e ADMIN.
+
+A aprovação recebe UUIDs `veiculoId` e `motoristaId`. Exige solicitação pendente, saída e retorno previstos válidos, veículo administrativo ativo e disponível com capacidade suficiente, motorista ativo e disponível e CNH válida até a data do retorno em America/Sao_Paulo. O serviço verifica sobreposição de intervalos em viagens aprovadas ou em trânsito; horários adjacentes não conflitam.
+
+As travas transacionais por recurso são obtidas em ordem fixa, seguidas da trava da solicitação. A consulta das travas retorna um inteiro para evitar desserializar o tipo void no Prisma. A decisão usa atualização condicional do status PENDENTE e auditoria na mesma transação. A recusa recebe `motivoRecusa` não vazio com até 2000 caracteres e também usa atualização condicional e auditoria. Ausência retorna 404; decisão já processada, conflito de alocação e concorrência conhecida retornam 409; recursos ou intervalo inválidos retornam 422; dados inválidos retornam 400.
+
+As regras e respostas são cobertas por testes HTTP com Prisma simulado. O teste de concorrência com PostgreSQL real não foi executado nesta sessão, pois o daemon Docker local está indisponível.
+
+### Manutenções
+
+As rotas existentes exigem autenticação e perfil `ADMIN` ou `GESTOR`:
+
+- `GET /api/v1/manutencoes`: paginação e filtros por veículo, tipo, status e intervalo de datas.
+- `POST /api/v1/manutencoes`: registra preventiva concluída ou corretiva aberta. Exige veículo ativo e fornecedor ativo quando informado.
+- `PATCH /api/v1/manutencoes/:id/concluir`: conclui apenas registros abertos, com atualização condicional e auditoria na mesma transação.
+
+Datas aceitam `AAAA-MM-DD` ou datetime ISO com fuso; o dia informado é preservado, sem horário, conforme a coluna `DATE`. Valores nulos, booleanos, números e datas inexistentes são rejeitados. Custos devem ser positivos e valores monetários e de odômetro aceitam até duas casas decimais.
+
+Cadastro e conclusão compartilham a trava por veículo com a aprovação de solicitações. A conclusão libera apenas veículos ativos ainda em `MANUTENCAO`, sem outras manutenções abertas, e retorna o status efetivamente persistido. Operações repetidas não duplicam a conclusão ou a auditoria. Disputas transacionais recuperáveis retornam `409`.
+
+A migration de status já pertencente à branch foi preservada e não foi aplicada ao banco nesta revisão. Ela define `ABERTA` como padrão também para registros antigos: antes de implantação em uma base com histórico, os responsáveis devem conferir a classificação desses registros. Os testes HTTP usam persistência simulada; a concorrência em PostgreSQL real permanece sem validação nesta sessão.
+
+### Operação SVO
+
+As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas de indicadores, chamados, viaturas e motoristas; registro de chamado; triagem; emissão de ordem; conclusão da coleta e confirmação de desinfecção. Os nove caminhos são verificados por testes HTTP de autenticação, autorização e validação, usando o aplicativo Express real e serviços simulados nos testes.
+
+Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
+
+A última coleta encaminha a viatura à desinfecção sem sobrescrever outros estados operacionais. A liberação do condutor é condicional ao cadastro ativo e ao status ocupado. A confirmação da desinfecção exige ausência de coletas ativas. Atualizações de status e auditoria permanecem na mesma transação; disputas transacionais ou emissão duplicada retornam `409`. Concorrência em PostgreSQL real não foi validada nesta revisão.
+
+### Compatibilidade com Cloudflare
+
+`worker.ts` adapta o Express ao runtime Cloudflare. O cliente Prisma, a chave de assinatura, o IP e a origem da requisição ficam em um contexto isolado; cada chamada usa seu próprio pool, encerrado com `waitUntil`. No servidor Node, `server.ts` inicializa a conexão local. O schema usa `engineType = "client"` e o adaptador PostgreSQL em ambos os ambientes; `bcryptjs` mantém compatibilidade com os hashes bcrypt já existentes no Neon.
+
+O limite de login usa `CF-Connecting-IP` recebido pelo Worker; no Node, usa o IP da conexão ou o proxy explicitamente configurado. O CD mantém o cache Hyperdrive desativado para evitar reutilizar consultas de sessões, usuários ou permissões após alterações.

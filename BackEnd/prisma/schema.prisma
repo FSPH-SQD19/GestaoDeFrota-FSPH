@@ -16,6 +16,7 @@ model Usuario {
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now()) @map("criado_em")
 
+  sessoes      AuthSessao[]
   perfis       UsuarioPerfil[]
   motorista    Motorista?
   solicitacoes SolicitacaoViagem[]
@@ -136,6 +137,8 @@ model Manutencao {
   odometroRegistro Decimal?  @map("odometro_registro") @db.Decimal(10, 2)
   custoTotal       Decimal?  @map("custo_total") @db.Decimal(12, 2)
   dataManutencao   DateTime? @map("data_manutencao") @db.Date
+  status        String    @default("ABERTA") @db.VarChar(20)
+  dataConclusao DateTime? @map("data_conclusao")
 
   veiculo    Veiculo     @relation(fields: [veiculoId], references: [id])
   fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id])
@@ -291,4 +294,25 @@ model ContadorProtocolo {
 
   @@id([prefixo, ano])
   @@map("contadores_protocolo")
+}
+
+model AuthSessao {
+  id           String   @id @db.Uuid
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  senhaVersao  String   @map("senha_versao") @db.VarChar(64)
+  expiraEm     DateTime @map("expira_em")
+  usuario      Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([expiraEm])
+  @@map("auth_sessoes")
+}
+
+model AuthLoginLimite {
+  chave      String   @id @db.VarChar(64)
+  tentativas Int
+  expiraEm   DateTime @map("expira_em")
+
+  @@index([expiraEm])
+  @@map("auth_login_limites")
 }

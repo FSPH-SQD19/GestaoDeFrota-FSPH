@@ -1,8 +1,12 @@
+import { signTestToken } from "../../helpers/auth";
+vi.mock("../../../src/service/session_s", async () => {
+  const { resolveTestSession } = await import("../../helpers/auth");
+  return { resolveSession: resolveTestSession };
+});
 import { getAuthConfig } from "../../../src/config/auth";
 vi.mock("../../../src/config/auth", () => ({ getAuthConfig: vi.fn() }));
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import jwt from "jsonwebtoken";
 import { Prisma } from "@prisma/client";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,7 +60,7 @@ let server: Server;
 let baseUrl: string;
 
 function token(perfis: string[]) {
-  return jwt.sign({ perfis }, secret, { subject: usuarioId });
+  return signTestToken({ perfis }, secret, { subject: usuarioId });
 }
 
 type Corpo = {
@@ -260,14 +264,13 @@ describe("autenticação (JWT)", () => {
     { caso: "token malformado", valor: "Bearer abc.def.ghi" },
     {
       caso: "token de outra chave",
-      valor: `Bearer ${jwt.sign({ perfis: ["ADMIN"] }, "outra", { subject: usuarioId })}`,
+      valor: `Bearer ${signTestToken({ perfis: ["ADMIN"] }, "outra", { subject: usuarioId })}`,
     },
     {
       caso: "token expirado",
-      valor: `Bearer ${jwt.sign({ perfis: ["ADMIN"] }, secret, { subject: usuarioId, expiresIn: -10 })}`,
+      valor: `Bearer ${signTestToken({ perfis: ["ADMIN"] }, secret, { subject: usuarioId, expiresIn: -10 })}`,
     },
-    { caso: "token sem perfis", valor: `Bearer ${jwt.sign({}, secret, { subject: usuarioId })}` },
-    { caso: "token sem subject", valor: `Bearer ${jwt.sign({ perfis: ["ADMIN"] }, secret)}` },
+    { caso: "token sem subject", valor: `Bearer ${signTestToken({ perfis: ["ADMIN"] }, secret)}` },
   ])("retorna 401 para $caso", async ({ valor }) => {
     expect(await comToken(valor)).toBe(401);
   });

@@ -1,141 +1,51 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { hashPassword } from "../src/service/password_s";
+import { createPrismaClient } from "../src/lib/prisma";
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error("DATABASE_URL não configurada.");
-
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: databaseUrl }),
-});
+const prisma = createPrismaClient(process.env.DATABASE_URL || "");
 
 const perfis = [
-  { nome: "ADMIN", descricao: "Teste ADM" },
-  { nome: "GESTOR", descricao: "Teste Gestor frota" },
-  { nome: "MOTORISTA", descricao: "Teste motorista" },
-  { nome: "SVO", descricao: "Teste SVO" },
+  { nome: "ADMIN", descricao: "Administrador do sistema" },
+  { nome: "GESTOR", descricao: "Gestor da frota" },
+  { nome: "MOTORISTA", descricao: "Motorista da frota" },
+  { nome: "SVO", descricao: "Atendente do Serviço de Verificação de Óbitos" },
+  { nome: "SOLICITANTE", descricao: "Solicitante de transporte institucional" },
 ];
 
-const usuarios = [
-  {
-    nome: "Administrador Teste",
-    email: "admin@frota.com",
-    senha: "Admin@123",
-    perfil: "ADMIN",
-  },
-  {
-    nome: "Gestor Teste",
-    email: "gestor@frota.com",
-    senha: "Gestor@123",
-    perfil: "GESTOR",
-  },
-  {
-    nome: "Motorista Teste",
-    email: "motorista@frota.com",
-    senha: "Motorista@123",
-    perfil: "MOTORISTA",
-  },
-  {
-    nome: "SVO Teste",
-    email: "svo@frota.com",
-    senha: "Svo@123",
-    perfil: "SVO",
-  },
-];
+function mostrarBancoDestino() {
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    console.warn("AVISO: DATABASE_URL não está definida no ambiente do seed.");
+    return;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    const banco = url.pathname.replace(/^\//, "") || "não informado";
+    console.log(`Banco de destino do seed: ${url.hostname}:${url.port || "5432"}/${banco}`);
+  } catch {
+    console.warn("AVISO: DATABASE_URL existe, mas não pôde ser interpretada como URL.");
+  }
+}
 
 async function main() {
-  console.log("Iniciando seed...");
+  console.log("Iniciando seed de perfis de acesso...");
+  mostrarBancoDestino();
 
-  // 1. Criar ou atualizar os perfis
-  for (const dadosPerfil of perfis) {
+  for (const perfil of perfis) {
     await prisma.perfil.upsert({
-      where: { nome: dadosPerfil.nome },
-      update: { descricao: dadosPerfil.descricao },
-      create: dadosPerfil,
+      where: { nome: perfil.nome },
+      update: { descricao: perfil.descricao },
+      create: perfil,
     });
-
-    console.log(`Perfil criado/atualizado: ${dadosPerfil.nome}`);
+    console.log(`Perfil criado/atualizado: ${perfil.nome}`);
   }
 
-  // 2. Criar ou atualizar usuários e seus perfis
-  for (const dados of usuarios) {
-    const senhaHash = await hashPassword(dados.senha);
-
-    const usuario = await prisma.usuario.upsert({
-      where: { email: dados.email },
-      update: {
-        nome: dados.nome,
-        senhaHash,
-        ativo: true,
-      },
-      create: {
-        nome: dados.nome,
-        email: dados.email,
-        senhaHash,
-        ativo: true,
-      },
-    });
-
-    const perfil = await prisma.perfil.findUniqueOrThrow({
-      where: { nome: dados.perfil },
-    });
-
-    await prisma.usuarioPerfil.upsert({
-      where: {
-        usuarioId_perfilId: {
-          usuarioId: usuario.id,
-          perfilId: perfil.id,
-        },
-      },
-      update: {},
-      create: {
-        usuarioId: usuario.id,
-        perfilId: perfil.id,
-      },
-    });
-
-    console.log(`Usuário criado/atualizado: ${dados.email} (${dados.perfil})`);
-  }
-
-  // 3. Buscar o usuário motorista já criado
-  const usuarioMotorista = await prisma.usuario.findUniqueOrThrow({
-    where: { email: "motorista@frota.com" },
-  });
-
-  // 4. Criar ou atualizar o motorista de teste
-  await prisma.motorista.upsert({
-    where: { cpf: "123.456.789-09" },
-    update: {
-      usuarioId: usuarioMotorista.id,
-      numeroCnh: "TESTE123456",
-      categoriaCnh: "B",
-      validadeCnh: new Date("2025-12-31T00:00:00.000Z"),
-      telefone: "(79) 99999-1234",
-      status: "DISPONIVEL",
-      ativo: true,
-    },
-    create: {
-      usuarioId: usuarioMotorista.id,
-      cpf: "123.456.789-09",
-      numeroCnh: "TESTE123456",
-      categoriaCnh: "B",
-      validadeCnh: new Date("2025-12-31T00:00:00.000Z"),
-      telefone: "(79) 99999-1234",
-      status: "DISPONIVEL",
-      ativo: true,
-    },
-  });
-
-  console.log("Motorista de teste criado/atualizado:");
-  console.log("Nome: Motorista Teste");
-  console.log("Telefone: (79) 99999-1234");
-  console.log("Status no banco: DISPONIVEL");
-  console.log("CNH vencida para teste de validação.");
+  console.log("Seed de perfis concluído com sucesso.");
 }
 
 main()
-  .catch((erro) => {
+  .catch((erro: unknown) => {
     console.error("Erro ao executar seed:", erro);
     process.exitCode = 1;
   })
