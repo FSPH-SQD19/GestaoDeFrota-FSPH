@@ -34,6 +34,8 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 | GET    | `/auth/admin`, `/api/v1/auth/admin`   | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
 | GET    | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
 | POST   | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
+| GET    | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
+| POST   | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
 
 ## Autenticação
 
@@ -116,6 +118,22 @@ Exemplo de corpo:
 Placa duplicada retorna `409`; fornecedor ausente do banco ou inativo retorna `422`. O sucesso retorna `201`, o veículo e o header `Location`.
 
 Após salvar, o serviço tenta registrar auditoria com usuário, ação, tabela, identificador e dados novos. Uma falha da auditoria é registrada no console, mas não desfaz o cadastro nem muda a resposta de sucesso.
+
+## Documentos do veículo
+
+Controle de CRLV/licenciamento, IPVA e seguro (RF010-DOC, RB01). Corpo do cadastro:
+
+```json
+{ "tipoDocumento": "CRLV", "dataVencimento": "2027-03-31" }
+```
+
+`tipoDocumento` aceita `CRLV`, `IPVA` ou `SEGURO`; `dataVencimento` usa `AAAA-MM-DD`, entre 2000 e 2100. Documento já vencido pode ser cadastrado. Renovar é cadastrar um novo documento do mesmo tipo: por tipo, vale o de maior vencimento e o histórico é mantido. Mesmo tipo com o mesmo vencimento retorna `409`; veículo inexistente `404`; veículo inativo `422`.
+
+A situação é calculada a cada consulta no dia de America/Sao_Paulo: `VENCIDO` depois da data de vencimento, `PROXIMO_VENCIMENTO` a partir de 90 dias antes (inclusive o próprio dia) e `VIGENTE` antes disso. A coluna `status` guarda só a situação no momento do cadastro.
+
+A listagem retorna `{ data, resumo }`. Cada item traz `tipoDocumento`, `dataVencimento`, `situacao`, `diasParaVencer` (negativo quando vencido) e `atual` (se é o documento que vale para o tipo). O `resumo` traz `situacaoGeral` (a pior entre os documentos atuais, ou `null` sem documentos), `bloqueiaAlocacao` e `tiposSemRegistro`.
+
+A aprovação de solicitação (`PATCH .../aprovar`) recusa com `422` o veículo cujo documento atual de algum tipo vence antes do dia do retorno previsto (ou antes de hoje). Cada documento pendente vem em `errors`, com `campo: "veiculoId"`. Veículo sem documento cadastrado não é bloqueado.
 
 ## Erros das rotas de veículos
 

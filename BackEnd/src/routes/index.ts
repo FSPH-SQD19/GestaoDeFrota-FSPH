@@ -16,6 +16,10 @@ import {
   listarManutencoesController,
 } from "../controller/manutencao_c";
 import solicitacaoRoutes from "./solicitacao_r";
+import {
+  criarDocumentoVeiculoController,
+  listarDocumentosVeiculoController,
+} from "../controller/documento_veiculo_c";
 
 const router = Router();
 const veiculos = Router();
@@ -26,6 +30,8 @@ const manutencoes = Router();
 veiculos.use(authenticate, requireRole("ADMIN", "GESTOR"));
 veiculos.get("/", listarVeiculosController);
 veiculos.post("/", criarVeiculoController);
+veiculos.get("/:id/documentos", listarDocumentosVeiculoController);
+veiculos.post("/:id/documentos", criarDocumentoVeiculoController);
 
 router.get("/health", healthController);
 router.use("/auth", authRoutes);

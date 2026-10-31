@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
+import { exigirDocumentosEmDia } from "./documento_veiculo_s";
 
 export const aprovarSolicitacaoSchema = z.object({
   veiculoId: z.uuid(),
@@ -96,6 +97,8 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
         if (veiculo.capacidadeMaxima < solicitacao.quantidadePassageiros) {
           throw new HttpError(422, "Capacidade do veículo insuficiente para os passageiros.");
         }
+
+        await exigirDocumentosEmDia(tx, veiculoId, dataLocal(fim));
 
         const motorista = await tx.motorista.findUnique({
           where: { id: motoristaId },
