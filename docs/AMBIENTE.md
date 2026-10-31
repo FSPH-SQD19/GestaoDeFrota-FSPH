@@ -162,7 +162,8 @@ O Prisma usa o mesmo schema e o adaptador PostgreSQL (`@prisma/adapter-pg`) nos 
 
 Configure estes secrets no environment `hml` do GitHub:
 
-- `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN`: o token precisa publicar Workers/secrets e consultar/editar a configuração Hyperdrive.
+- `CLOUDFLARE_ACCOUNT_ID`: pode ser um secret ou uma variável (`Variables`) do environment `hml` ou do repositório. O workflow prioriza o secret quando ambos existem.
+- `CLOUDFLARE_API_TOKEN`: secret com permissão para publicar Workers/secrets e consultar/editar a configuração Hyperdrive.
 - `DATABASE_URL_MIGRATIONS`: conexão direta ao mesmo host/branch e database do Hyperdrive. O CD compara os destinos antes de executar migrations; URLs Neon com `-pooler` são reconhecidas como o mesmo endpoint.
 - `JWT_SECRET`: 128 caracteres hexadecimais aleatórios, compartilhados entre as requisições/instâncias de HML.
 
