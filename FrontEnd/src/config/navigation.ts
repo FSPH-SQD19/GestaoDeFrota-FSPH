@@ -18,6 +18,7 @@ import type { UserRole } from "../types/auth";
  */
 
 export type TabId =
+  | "rastreamento"
   | "dashboard"
   | "solicitacoes"
   | "viagens"
@@ -69,6 +70,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "OPERAÇÃO DA FROTA",
     items: [
+      {
+        id: "rastreamento",
+        label: () => "Mapa e operação",
+        icon: Route,
+        roles: ["ADMIN", "GESTOR", "SVO"],
+      },
       {
         id: "veiculos",
         label: () => "Veículos",

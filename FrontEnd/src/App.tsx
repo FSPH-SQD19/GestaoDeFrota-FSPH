@@ -6,8 +6,8 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
-import { Card, Badge } from "./components/common";
-import { Route } from "lucide-react";
+const MotoristaPwa = lazy(() => import("./features/motorista/MotoristaPwa"));
+const CentralOperacional = lazy(() => import("./features/motorista/CentralOperacional"));
 
 const SvoPage = lazy(() =>
   import("./pages/svo/SvoPage").then((module) => ({ default: module.SvoPage })),
@@ -42,7 +42,11 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const roles = user?.roles ?? [];
   const [authView, setAuthView] = useState<"login" | "forgot">("login");
-  const [activeTab, setActiveTab] = useState<TabId>(() => telaInicial(roles));
+  const [activeTab, setActiveTab] = useState<TabId>(() =>
+    window.location.pathname === "/motorista" && roles.includes("MOTORISTA")
+      ? "viagens"
+      : telaInicial(roles),
+  );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (isLoading) {
@@ -65,7 +69,34 @@ const AppContent: React.FC = () => {
   }
 
   // Se o perfil atual não tiver acesso à aba selecionada, cai na tela inicial do perfil
-  const currentTab: TabId = podeAcessar(activeTab, roles) ? activeTab : telaInicial(roles);
+  const currentTab: TabId =
+    window.location.pathname === "/motorista" && roles.includes("MOTORISTA")
+      ? "viagens"
+      : podeAcessar(activeTab, roles)
+        ? activeTab
+        : telaInicial(roles);
+
+  if (currentTab === "viagens")
+    return (
+      <Suspense
+        fallback={
+          <div role="status" className="grid min-h-dvh place-items-center bg-slate-100">
+            Carregando suas viagens...
+          </div>
+        }
+      >
+        <MotoristaPwa
+          onOpenManagement={
+            roles.some((role) => ["ADMIN", "GESTOR", "SVO", "SOLICITANTE"].includes(role))
+              ? () => {
+                  window.history.replaceState(null, "", "/");
+                  setActiveTab(telaInicial(roles));
+                }
+              : undefined
+          }
+        />
+      </Suspense>
+    );
 
   // Shell Autenticado (Sidebar Flutuante + Header + Conteúdo)
   return (
@@ -73,7 +104,11 @@ const AppContent: React.FC = () => {
       {/* Sidebar Flutuante Dark em Cápsula (Figma) */}
       <Sidebar
         activeTab={currentTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          if (window.location.pathname === "/motorista" && tab !== "viagens")
+            window.history.replaceState(null, "", "/");
+          setActiveTab(tab);
+        }}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
@@ -95,19 +130,7 @@ const AppContent: React.FC = () => {
             {currentTab === "dashboard" && <DashboardPage />}
             {currentTab === "veiculos" && <VeiculosPage />}
 
-            {currentTab === "viagens" && (
-              <Card className="p-10 text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                  <Route className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">Minhas Viagens</h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Viagens escaladas para você, checklist de saída e retorno, registro de odômetro e
-                  abastecimento (visão mobile / PWA).
-                </p>
-                <Badge variant="info">Módulo mobile / PWA em desenvolvimento</Badge>
-              </Card>
-            )}
+            {currentTab === "rastreamento" && <CentralOperacional />}
 
             {currentTab === "motoristas" && <MotoristasPage />}
 

@@ -8,6 +8,7 @@ import {
   readBrowserSession,
   startBrowserSession,
   watchBrowserSession,
+  usuarioSaidaOffline,
 } from "../services/browserSession";
 import { AuthContext } from "./auth";
 
@@ -21,6 +22,30 @@ const emptyState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
 };
+const OFFLINE_IDENTITY_KEY = "@fsph_frota_offline_identity";
+function offlineIdentity(): AuthState | null {
+  if (navigator.onLine || browserSessionExpired()) return null;
+  try {
+    const cached = JSON.parse(
+      sessionStorage.getItem(OFFLINE_IDENTITY_KEY) || "null",
+    ) as User | null;
+    if (
+      !cached ||
+      cached.id !== usuarioSaidaOffline() ||
+      !Array.isArray(cached.roles) ||
+      !cached.roles.includes("MOTORISTA")
+    )
+      return null;
+    return {
+      user: cached,
+      sessionKey: crypto.randomUUID(),
+      isAuthenticated: true,
+      isLoading: false,
+    };
+  } catch {
+    return null;
+  }
+}
 function sessionState({ usuario }: SessionResponse): AuthState {
   const user: User = {
     id: usuario.id,
@@ -28,6 +53,11 @@ function sessionState({ usuario }: SessionResponse): AuthState {
     email: usuario.email,
     roles: mapPerfis(usuario.perfis),
   };
+  try {
+    sessionStorage.setItem(OFFLINE_IDENTITY_KEY, JSON.stringify(user));
+  } catch {
+    /* unavailable */
+  }
   return { user, sessionKey: crypto.randomUUID(), isAuthenticated: true, isLoading: false };
 }
 function mapPerfis(perfis: string[]): UserRole[] {
@@ -54,14 +84,28 @@ function mensagemErroLogin(error: unknown): string {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>(() =>
-    browserSessionExpired() ? emptyState : { ...emptyState, isLoading: true },
+  const [state, setState] = useState<AuthState>(
+    () =>
+      offlineIdentity() ??
+      (browserSessionExpired() ? emptyState : { ...emptyState, isLoading: true }),
   );
   const generation = useRef(0);
   const endSession = useCallback(() => {
     generation.current++;
     clearAuthSession();
     resetCsrf();
+    try {
+      const cached = JSON.parse(
+        sessionStorage.getItem(OFFLINE_IDENTITY_KEY) || "null",
+      ) as User | null;
+      if (cached?.id)
+        void import("../features/motorista/offline")
+          .then((m) => m.limparOfflineSincronizado(cached.id))
+          .catch(() => {});
+      sessionStorage.removeItem(OFFLINE_IDENTITY_KEY);
+    } catch {
+      /* unavailable */
+    }
     setState(emptyState);
   }, []);
   const revoking = useRef<Promise<boolean> | null>(null);
@@ -98,7 +142,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       endSession();
     });
     const stored = readBrowserSession();
-    if (stored?.status === "pending" || (stored?.status === "active" && browserSessionExpired())) {
+    const offline = offlineIdentity();
+    if (offline) {
+      /* Initial state already restored from the current tab identity. */
+    } else if (
+      stored?.status === "pending" ||
+      (stored?.status === "active" && browserSessionExpired())
+    ) {
       markBrowserLogout(true);
       void retryLogout().then(() => {
         if (active && generation.current === current) endSession();

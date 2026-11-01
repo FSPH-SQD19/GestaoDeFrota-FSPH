@@ -134,8 +134,13 @@ export async function listarAbastecimentos(filtros: ListarAbastecimentosFiltros)
   };
 }
 
-export async function criarAbastecimento(input: CriarAbastecimentoInput, usuarioId: string) {
-  const veiculo = await prisma.veiculo.findUnique({
+export async function criarAbastecimento(
+  input: CriarAbastecimentoInput,
+  usuarioId: string,
+  transaction?: Prisma.TransactionClient,
+) {
+  const db = transaction ?? prisma;
+  const veiculo = await db.veiculo.findUnique({
     where: { id: input.veiculoId },
     select: { ativo: true },
   });
@@ -146,7 +151,7 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
   }
 
   if (input.motoristaId) {
-    const motorista = await prisma.motorista.findUnique({
+    const motorista = await db.motorista.findUnique({
       where: { id: input.motoristaId },
       select: { ativo: true },
     });
@@ -158,7 +163,7 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
   }
 
   if (input.fornecedorId) {
-    const fornecedor = await prisma.fornecedor.findUnique({
+    const fornecedor = await db.fornecedor.findUnique({
       where: { id: input.fornecedorId },
       select: { ativo: true },
     });
@@ -171,7 +176,7 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
 
   const dataHora = input.dataHora ?? new Date();
 
-  const anterior = await prisma.abastecimento.findFirst({
+  const anterior = await db.abastecimento.findFirst({
     where: {
       veiculoId: input.veiculoId,
       dataHora: { lte: dataHora },
@@ -181,7 +186,7 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
     select: { odometro: true },
   });
 
-  const proximo = await prisma.abastecimento.findFirst({
+  const proximo = await db.abastecimento.findFirst({
     where: {
       veiculoId: input.veiculoId,
       dataHora: { gt: dataHora },
@@ -209,7 +214,7 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
     ]);
   }
 
-  const abastecimento = await prisma.$transaction(async (tx) => {
+  const salvar = async (tx: Prisma.TransactionClient) => {
     const criado = await tx.abastecimento.create({
       data: { ...input, dataHora },
     });
@@ -225,7 +230,8 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
     });
 
     return criado;
-  });
+  };
+  const abastecimento = transaction ? await salvar(transaction) : await prisma.$transaction(salvar);
 
   const resposta = serializarAbastecimento(abastecimento);
 

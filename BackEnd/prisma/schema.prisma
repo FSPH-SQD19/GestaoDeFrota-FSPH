@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "client"
 }
 
@@ -64,22 +64,23 @@ model Fornecedor {
 }
 
 model Veiculo {
-  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  propriedade      String   @default("PROPRIO") @db.VarChar(10)
-  placa            String  @unique @db.VarChar(8)
-  modelo           String  @db.VarChar(100)
+  saidas           SaidaOperacional[]
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propriedade      String             @default("PROPRIO") @db.VarChar(10)
+  placa            String             @unique @db.VarChar(8)
+  modelo           String             @db.VarChar(100)
   ano              Int?
-  tipoFrota        String  @map("tipo_frota") @db.VarChar(20)
-  fornecedorId     String? @map("fornecedor_id") @db.Uuid
-  criadoEm         DateTime @default(now()) @map("criado_em")
-  atualizadoEm     DateTime @default(now()) @updatedAt @map("atualizado_em")
-  capacidadeMaxima Int     @default(4) @map("capacidade_maxima")
-  odometroAtual    Decimal @default(0) @map("odometro_atual") @db.Decimal(10, 2)
-  combustivel      String?  @db.VarChar(30)
-  status           String  @default("DISPONIVEL") @db.VarChar(30)
-  ativo            Boolean @default(true)
+  tipoFrota        String             @map("tipo_frota") @db.VarChar(20)
+  fornecedorId     String?            @map("fornecedor_id") @db.Uuid
+  criadoEm         DateTime           @default(now()) @map("criado_em")
+  atualizadoEm     DateTime           @default(now()) @updatedAt @map("atualizado_em")
+  capacidadeMaxima Int                @default(4) @map("capacidade_maxima")
+  odometroAtual    Decimal            @default(0) @map("odometro_atual") @db.Decimal(10, 2)
+  combustivel      String?            @db.VarChar(30)
+  status           String             @default("DISPONIVEL") @db.VarChar(30)
+  ativo            Boolean            @default(true)
 
-  fornecedor     Fornecedor?          @relation(fields: [fornecedorId], references: [id])
+  fornecedor     Fornecedor?         @relation(fields: [fornecedorId], references: [id])
   documentos     DocumentoVeiculo[]
   manutencoes    Manutencao[]
   abastecimentos Abastecimento[]
@@ -94,15 +95,16 @@ model Veiculo {
 }
 
 model Motorista {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuarioId    String?  @unique @map("usuario_id") @db.Uuid
-  cpf          String   @unique @db.VarChar(14)
-  numeroCnh    String   @unique @map("numero_cnh") @db.VarChar(20)
-  categoriaCnh String?  @map("categoria_cnh") @db.VarChar(5)
-  validadeCnh  DateTime @map("validade_cnh") @db.Date
-  telefone     String?  @db.VarChar(20)
-  status       String   @default("DISPONIVEL") @db.VarChar(20)
-  ativo        Boolean  @default(true)
+  saidas       SaidaOperacional[]
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId    String?            @unique @map("usuario_id") @db.Uuid
+  cpf          String             @unique @db.VarChar(14)
+  numeroCnh    String             @unique @map("numero_cnh") @db.VarChar(20)
+  categoriaCnh String?            @map("categoria_cnh") @db.VarChar(5)
+  validadeCnh  DateTime           @map("validade_cnh") @db.Date
+  telefone     String?            @db.VarChar(20)
+  status       String             @default("DISPONIVEL") @db.VarChar(20)
+  ativo        Boolean            @default(true)
 
   usuario        Usuario?            @relation(fields: [usuarioId], references: [id])
   abastecimentos Abastecimento[]
@@ -137,8 +139,8 @@ model Manutencao {
   odometroRegistro Decimal?  @map("odometro_registro") @db.Decimal(10, 2)
   custoTotal       Decimal?  @map("custo_total") @db.Decimal(12, 2)
   dataManutencao   DateTime? @map("data_manutencao") @db.Date
-  status        String    @default("ABERTA") @db.VarChar(20)
-  dataConclusao DateTime? @map("data_conclusao")
+  status           String    @default("ABERTA") @db.VarChar(20)
+  dataConclusao    DateTime? @map("data_conclusao")
 
   veiculo    Veiculo     @relation(fields: [veiculoId], references: [id])
   fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id])
@@ -169,29 +171,32 @@ model Abastecimento {
 }
 
 model SolicitacaoViagem {
-  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  protocolo               String    @unique @db.VarChar(20)
-  solicitanteId           String    @map("solicitante_id") @db.Uuid
-  setorOrigem             String?   @map("setor_origem") @db.VarChar(100)
-  dataHoraPretendida      DateTime? @map("data_hora_pretendida")
-  dataHoraRetornoPrevista DateTime? @map("data_hora_retorno_prevista")
+  saidaOperacional        SaidaOperacional?
+  id                      String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  protocolo               String            @unique @db.VarChar(20)
+  solicitanteId           String            @map("solicitante_id") @db.Uuid
+  setorOrigem             String?           @map("setor_origem") @db.VarChar(100)
+  dataHoraPretendida      DateTime?         @map("data_hora_pretendida")
+  dataHoraRetornoPrevista DateTime?         @map("data_hora_retorno_prevista")
+  origemCoordenadas       Float[]           @default([]) @map("origem_coordenadas")
+  destinoCoordenadas      Float[]           @default([]) @map("destino_coordenadas")
   origem                  String?
   destino                 String?
-  quantidadePassageiros   Int       @default(1) @map("quantidade_passageiros")
-  tipoTransporte          String    @default("PASSAGEIROS") @map("tipo_transporte") @db.VarChar(30)
-  urgencia                String    @default("NORMAL") @db.VarChar(20)
-  status                  String    @default("PENDENTE") @db.VarChar(30)
+  quantidadePassageiros   Int               @default(1) @map("quantidade_passageiros")
+  tipoTransporte          String            @default("PASSAGEIROS") @map("tipo_transporte") @db.VarChar(30)
+  urgencia                String            @default("NORMAL") @db.VarChar(20)
+  status                  String            @default("PENDENTE") @db.VarChar(30)
   justificativa           String?
   observacoes             String?
-  motivoRecusa            String?   @map("motivo_recusa")
-  veiculoAlocadoId        String?   @map("veiculo_alocado_id") @db.Uuid
-  motoristaAlocadoId      String?   @map("motorista_alocado_id") @db.Uuid
-  criadoEm                DateTime  @default(now()) @map("criado_em")
+  motivoRecusa            String?           @map("motivo_recusa")
+  veiculoAlocadoId        String?           @map("veiculo_alocado_id") @db.Uuid
+  motoristaAlocadoId      String?           @map("motorista_alocado_id") @db.Uuid
+  criadoEm                DateTime          @default(now()) @map("criado_em")
 
-  solicitante       Usuario          @relation(fields: [solicitanteId], references: [id])
-  veiculoAlocado    Veiculo?         @relation(fields: [veiculoAlocadoId], references: [id])
-  motoristaAlocado  Motorista?       @relation(fields: [motoristaAlocadoId], references: [id])
-  execucao          ExecucaoViagem?
+  solicitante      Usuario         @relation(fields: [solicitanteId], references: [id])
+  veiculoAlocado   Veiculo?        @relation(fields: [veiculoAlocadoId], references: [id])
+  motoristaAlocado Motorista?      @relation(fields: [motoristaAlocadoId], references: [id])
+  execucao         ExecucaoViagem?
 
   @@index([solicitanteId, criadoEm])
   @@index([criadoEm])
@@ -217,17 +222,17 @@ model ExecucaoViagem {
 }
 
 model ChamadoSvo {
-  id                 String                                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  numeroProtocolo    String?                                @unique @map("numero_protocolo") @db.VarChar(20)
-  atendenteId        String?                                @map("atendente_id") @db.Uuid
-  nomeFalecido       String?                                @map("nome_falecido") @db.VarChar(150)
-  enderecoOcorrencia String?                                @map("endereco_ocorrencia")
-  localizacaoGeo     Unsupported("geometry(Point, 4326)")?  @map("localizacao_geo")
-  relatoOcorrencia   String?                                @map("relato_ocorrencia")
-  statusTriagem      String                                 @default("EM_ANALISE") @map("status_triagem") @db.VarChar(30)
+  id                 String                                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numeroProtocolo    String?                               @unique @map("numero_protocolo") @db.VarChar(20)
+  atendenteId        String?                               @map("atendente_id") @db.Uuid
+  nomeFalecido       String?                               @map("nome_falecido") @db.VarChar(150)
+  enderecoOcorrencia String?                               @map("endereco_ocorrencia")
+  localizacaoGeo     Unsupported("geometry(Point, 4326)")? @map("localizacao_geo")
+  relatoOcorrencia   String?                               @map("relato_ocorrencia")
+  statusTriagem      String                                @default("EM_ANALISE") @map("status_triagem") @db.VarChar(30)
 
-  atendente    Usuario?         @relation(fields: [atendenteId], references: [id])
-  ordemColeta  OrdemColetaSvo?
+  atendente   Usuario?        @relation(fields: [atendenteId], references: [id])
+  ordemColeta OrdemColetaSvo?
 
   @@index([atendenteId])
   @@index([statusTriagem])
@@ -236,13 +241,16 @@ model ChamadoSvo {
 }
 
 model OrdemColetaSvo {
-  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chamadoId             String    @unique @map("chamado_id") @db.Uuid
-  veiculoId             String?   @map("veiculo_id") @db.Uuid
-  motoristaId           String?   @map("motorista_id") @db.Uuid
-  status                String    @default("AGUARDANDO_DESPACHO") @db.VarChar(30)
-  numeroDeclaracaoObito String?   @map("numero_declaracao_obito") @db.VarChar(50)
-  dataHoraSaida         DateTime? @map("data_hora_saida")
+  saidaVinculo          SaidaOrdem?
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chamadoId             String      @unique @map("chamado_id") @db.Uuid
+  veiculoId             String?     @map("veiculo_id") @db.Uuid
+  motoristaId           String?     @map("motorista_id") @db.Uuid
+  status                String      @default("AGUARDANDO_DESPACHO") @db.VarChar(30)
+  numeroDeclaracaoObito String?     @map("numero_declaracao_obito") @db.VarChar(50)
+  sequencia             Int         @default(0)
+  baseCoordenadas       Float[]     @default([]) @map("base_coordenadas")
+  dataHoraSaida         DateTime?   @map("data_hora_saida")
 
   chamado   ChamadoSvo @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
   veiculo   Veiculo?   @relation(fields: [veiculoId], references: [id])
@@ -297,11 +305,11 @@ model ContadorProtocolo {
 }
 
 model AuthSessao {
-  id           String   @id @db.Uuid
-  usuarioId    String   @map("usuario_id") @db.Uuid
-  senhaVersao  String   @map("senha_versao") @db.VarChar(64)
-  expiraEm     DateTime @map("expira_em")
-  usuario      Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  id          String   @id @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  senhaVersao String   @map("senha_versao") @db.VarChar(64)
+  expiraEm    DateTime @map("expira_em")
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
   @@index([expiraEm])
@@ -315,4 +323,92 @@ model AuthLoginLimite {
 
   @@index([expiraEm])
   @@map("auth_login_limites")
+}
+
+// Diário operacional compartilhado pelos fluxos administrativo e SVO.
+model SaidaOperacional {
+  motorista        Motorista           @relation(fields: [motoristaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "saidas_motorista_fk")
+  veiculo          Veiculo             @relation(fields: [veiculoId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "saidas_veiculo_fk")
+  solicitacao      SolicitacaoViagem?  @relation(fields: [solicitacaoId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "saidas_solicitacao_fk")
+  posicoes         PosicaoSaida[]
+  ultimaPosicao    UltimaPosicaoSaida?
+  id               String              @id @db.Uuid
+  motoristaId      String              @map("motorista_id") @db.Uuid
+  veiculoId        String              @map("veiculo_id") @db.Uuid
+  solicitacaoId    String?             @unique @map("solicitacao_id") @db.Uuid
+  tipo             String              @db.VarChar(20)
+  status           String              @default("EM_ANDAMENTO") @db.VarChar(20)
+  inicio           DateTime            @default(now())
+  fim              DateTime?
+  kmInicial        Decimal             @map("km_inicial") @db.Decimal(10, 2)
+  kmFinal          Decimal?            @map("km_final") @db.Decimal(10, 2)
+  checklistSaida   Json                @map("checklist_saida")
+  checklistRetorno Json?               @map("checklist_retorno")
+  pontos           Json
+  ocorrencias      String?
+  ordens           SaidaOrdem[]
+  comandos         ComandoSaida[]
+
+  @@index([motoristaId, inicio])
+  @@map("saidas_operacionais")
+}
+
+model SaidaOrdem {
+  ordem      OrdemColetaSvo   @relation(fields: [ordemId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "saida_ordem_fk")
+  ordemId    String           @id @map("ordem_id") @db.Uuid
+  saidaId    String           @map("saida_id") @db.Uuid
+  visitadaEm DateTime?        @map("visitada_em")
+  saida      SaidaOperacional @relation(fields: [saidaId], references: [id])
+
+  @@map("saida_ordens")
+}
+
+model ComandoSaida {
+  id       String           @id @db.Uuid
+  saidaId  String           @map("saida_id") @db.Uuid
+  tipo     String
+  payload  Json
+  criadoEm DateTime         @default(now()) @map("criado_em")
+  saida    SaidaOperacional @relation(fields: [saidaId], references: [id])
+
+  @@map("comandos_saida")
+}
+
+model LocalOperacional {
+  id          String  @id @default(uuid()) @db.Uuid
+  nome        String  @db.VarChar(150)
+  coordenadas Float[]
+  tipo        String  @db.VarChar(20)
+
+  @@map("locais_operacionais")
+}
+
+model PosicaoSaida {
+  saida       SaidaOperacional                     @relation(fields: [saidaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "posicoes_saida_fk")
+  id          String                               @id @db.Uuid
+  saidaId     String                               @map("saida_id") @db.Uuid
+  ponto       Unsupported("geography(Point,4326)")
+  capturadaEm DateTime                             @map("capturada_em")
+  recebidaEm  DateTime                             @default(now()) @map("recebida_em")
+  precisao    Float
+  velocidade  Float?
+  direcao     Float?
+
+  @@index([capturadaEm], map: "posicoes_retencao")
+  @@index([ponto], type: Gist)
+  @@index([saidaId, capturadaEm])
+  @@map("posicoes_saida")
+}
+
+model UltimaPosicaoSaida {
+  saida       SaidaOperacional                     @relation(fields: [saidaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "ultima_saida_fk")
+  saidaId     String                               @id @map("saida_id") @db.Uuid
+  amostraId   String                               @map("amostra_id") @db.Uuid
+  ponto       Unsupported("geography(Point,4326)")
+  capturadaEm DateTime                             @map("capturada_em")
+  recebidaEm  DateTime                             @default(now()) @map("recebida_em")
+  precisao    Float
+
+  @@index([ponto], type: Gist)
+  @@map("ultimas_posicoes_saida")
 }

@@ -1,0 +1,16 @@
+map $http_authorization $authorized {
+    default 0;
+    "Bearer ${OSRM_TOKEN}" 1;
+}
+limit_req_zone $binary_remote_addr zone=routes:10m rate=10r/s;
+server {
+    listen 80;
+    location /route/v1/driving/ {
+        if ($authorized = 0) { return 401; }
+        limit_req zone=routes burst=20 nodelay;
+        proxy_pass http://osrm:5000;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 8s;
+    }
+    location / { return 404; }
+}

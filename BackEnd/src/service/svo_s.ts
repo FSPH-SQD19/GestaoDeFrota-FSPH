@@ -1,3 +1,4 @@
+import { diarioConfig } from "../config/diario";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -441,19 +442,38 @@ export async function emitirOrdemColetaSvo(
       throw new HttpError(422, "CNH do motorista vencida.");
     }
 
+    if (diarioConfig().enabled) {
+      const ativa = await tx.saidaOperacional.findFirst({
+        where: {
+          status: "EM_ANDAMENTO",
+          OR: [{ motoristaId: motorista.id }, { veiculoId: veiculo.id }],
+        },
+      });
+      const conflito = await tx.solicitacaoViagem.findFirst({
+        where: {
+          motoristaAlocadoId: motorista.id,
+          status: { in: ["APROVADA", "EM_TRANSITO"] },
+          OR: [{ status: "EM_TRANSITO" }, { dataHoraRetornoPrevista: { gte: new Date() } }],
+        },
+      });
+      if (ativa || conflito)
+        throw new HttpError(409, "Recursos já alocados em saída ou viagem administrativa.");
+    }
     const ordem = await tx.ordemColetaSvo.create({
       data: {
         chamadoId,
         veiculoId: veiculo.id,
         motoristaId: motorista.id,
         numeroDeclaracaoObito: input.numeroDeclaracaoObito || undefined,
-        status: "EM_ANDAMENTO",
-        dataHoraSaida: new Date(),
+        status: diarioConfig().enabled ? "AGUARDANDO_DESPACHO" : "EM_ANDAMENTO",
+        dataHoraSaida: diarioConfig().enabled ? undefined : new Date(),
       },
     });
 
-    await tx.veiculo.update({ where: { id: veiculo.id }, data: { status: "EM_VIAGEM" } });
-    await tx.motorista.update({ where: { id: motorista.id }, data: { status: "OCUPADO" } });
+    if (!diarioConfig().enabled) {
+      await tx.veiculo.update({ where: { id: veiculo.id }, data: { status: "EM_VIAGEM" } });
+      await tx.motorista.update({ where: { id: motorista.id }, data: { status: "OCUPADO" } });
+    }
 
     await tx.auditoriaSistema.create({
       data: {
@@ -503,6 +523,11 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
       throw new HttpError(409, "Ordem de coleta já foi concluída.");
     }
 
+    if (
+      diarioConfig().enabled &&
+      (await tx.saidaOrdem.findUnique({ where: { ordemId: chamado.ordemColeta.id } }))
+    )
+      throw new HttpError(409, "Conclua a saída no diário de bordo ao retornar à base.");
     const ordem = await tx.ordemColetaSvo.update({
       where: { id: chamado.ordemColeta.id },
       data: { status: "CONCLUIDA" },

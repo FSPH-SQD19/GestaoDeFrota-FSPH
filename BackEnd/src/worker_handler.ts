@@ -7,6 +7,9 @@ export interface WorkerBindings {
   APP_ORIGINS?: string;
   JWT_ISSUER?: string;
   JWT_AUDIENCE?: string;
+  DRIVER_PWA_ENABLED?: string;
+  OSRM_URL?: string;
+  OSRM_TOKEN?: string;
 }
 export interface WorkerContext {
   waitUntil(promise: Promise<unknown>): void;
@@ -29,6 +32,9 @@ export function createWorkerHandler(
           origin: new URL(request.url).origin,
           clientIp: request.headers.get("CF-Connecting-IP") || "unknown",
           appOrigins: env.APP_ORIGINS,
+          driverPwaEnabled: env.DRIVER_PWA_ENABLED,
+          osrmUrl: env.OSRM_URL,
+          osrmToken: env.OSRM_TOKEN,
           issuer: env.JWT_ISSUER || "fsph-frota-api-hml",
           audience: env.JWT_AUDIENCE || "fsph-frota-web-hml",
         },

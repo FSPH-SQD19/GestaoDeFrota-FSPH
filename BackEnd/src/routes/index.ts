@@ -1,3 +1,4 @@
+import diarioRoutes from "./diario_r";
 import { gerarRelatorio, periodoRelatorioSchema } from "../service/relatorio_s";
 import { validar } from "../controller/veiculo_c";
 import { Router } from "express";
@@ -22,6 +23,7 @@ import {
 } from "../controller/documento_veiculo_c";
 
 const router = Router();
+router.use("/api/v1", diarioRoutes);
 const veiculos = Router();
 const abastecimento = Router();
 const manutencoes = Router();

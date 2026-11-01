@@ -1,3 +1,4 @@
+import { diarioConfig } from "../config/diario";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -134,6 +135,16 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
           throw new HttpError(409, "Veículo ou motorista já possui viagem neste horário.");
         }
 
+        if (
+          diarioConfig().enabled &&
+          ((await tx.ordemColetaSvo.findFirst({
+            where: { motoristaId, status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] } },
+          })) ||
+            (await tx.saidaOperacional.findFirst({
+              where: { status: "EM_ANDAMENTO", OR: [{ motoristaId }, { veiculoId }] },
+            })))
+        )
+          throw new HttpError(409, "Motorista ou veículo já alocado em saída/SVO.");
         const alteracao = await tx.solicitacaoViagem.updateMany({
           where: {
             id,
