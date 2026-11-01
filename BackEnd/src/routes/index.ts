@@ -7,6 +7,8 @@ import {
 import {
   criarSolicitacaoController,
   listarSolicitacoesController,
+  iniciarViagemController,
+  concluirViagemController,
 } from "../controller/solicitacao_c";
 import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
@@ -40,6 +42,18 @@ abastecimento.post("/", criarAbastecimentoController);
 router.use("/api/v1/abastecimentos", abastecimento);
 
 // Solicitacoes de viagens
+router.post(
+  "/api/v1/solicitacoes/:id/iniciar",
+  authenticate,
+  requireRole("MOTORISTA"),
+  iniciarViagemController,
+);
+router.post(
+  "/api/v1/solicitacoes/:id/concluir",
+  authenticate,
+  requireRole("MOTORISTA"),
+  concluirViagemController,
+);
 solicitacoes.use(authenticate, requireRole("SOLICITANTE", "GESTOR", "ADMIN"));
 solicitacoes.get("/", listarSolicitacoesController);
 solicitacoes.post("/", criarSolicitacaoController);
