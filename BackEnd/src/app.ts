@@ -29,7 +29,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   }),
 );
-app.use(express.json({ limit: "32kb" }));
+app.use(express.json({ limit: "512kb" }));
 app.use(protectRequests);
 app.use(routes);
 app.use("/api/v1/motoristas", motoristaRoutes);

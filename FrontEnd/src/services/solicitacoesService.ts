@@ -1,5 +1,8 @@
 import { apiRequest } from "../lib/api";
 import type {
+  ConcluirViagemInput,
+  ExecucaoViagemResposta,
+  IniciarViagemInput,
   ListarSolicitacoesParams,
   ListaSolicitacoesResposta,
   NovaSolicitacaoViagem,
@@ -20,8 +23,29 @@ export function listarSolicitacoesApi(
   if (params.busca?.trim()) query.set("busca", params.busca.trim());
   return apiRequest<ListaSolicitacoesResposta>(`/solicitacoes?${query}`, {});
 }
+
 export function criarSolicitacaoApi(dados: NovaSolicitacaoViagem): Promise<SolicitacaoViagem> {
   return apiRequest<SolicitacaoViagem>("/solicitacoes", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function iniciarViagemApi(
+  id: string,
+  dados: IniciarViagemInput,
+): Promise<ExecucaoViagemResposta> {
+  return apiRequest<ExecucaoViagemResposta>(`/solicitacoes/${encodeURIComponent(id)}/iniciar`, {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function concluirViagemApi(
+  id: string,
+  dados: ConcluirViagemInput,
+): Promise<ExecucaoViagemResposta> {
+  return apiRequest<ExecucaoViagemResposta>(`/solicitacoes/${encodeURIComponent(id)}/concluir`, {
     method: "POST",
     body: JSON.stringify(dados),
   });
