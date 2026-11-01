@@ -7,8 +7,11 @@ import motoristaRoutes from "./routes/motorista_r";
 import veiculoRoutes from "./routes/veiculo_r";
 import fornecedorRoutes from "./routes/fornecedor_r";
 import svoRoutes from "./routes/svo_r";
+import { securityHeaders } from "./middleware/security_headers";
 
 export const app = express();
+app.disable("x-powered-by");
+app.use(securityHeaders);
 
 // Defina TRUST_PROXY_HOPS somente com o número exato de proxies confiáveis.
 if (process.env.TRUST_PROXY_HOPS) {

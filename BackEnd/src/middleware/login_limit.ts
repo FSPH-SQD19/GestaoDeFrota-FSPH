@@ -2,6 +2,7 @@ import { getWorkerRuntime } from "../config/runtime";
 import { createHash } from "node:crypto";
 import type { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
+import type { UsuarioAutenticado } from "./http_m";
 
 const WINDOW_MS = 15 * 60 * 1000;
 
@@ -31,6 +32,28 @@ export const limitLogin: RequestHandler = async (req, res, next) => {
     if (ipBlocked || accountBlocked) {
       res.setHeader("Retry-After", String(WINDOW_MS / 1000));
       res.status(429).json({ error: "Muitas tentativas. Tente novamente em 15 minutos." });
+      return;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const limitPasswordChange: RequestHandler = async (req, res, next) => {
+  try {
+    const usuario = res.locals.usuario as UsuarioAutenticado | undefined;
+    const ipBlocked = await consume(
+      "pwd-ip",
+      getWorkerRuntime()?.clientIp || req.ip || req.socket.remoteAddress || "unknown",
+      20,
+    );
+    const userBlocked = usuario?.id ? await consume("pwd-user", usuario.id, 10) : false;
+    if (ipBlocked || userBlocked) {
+      res.setHeader("Retry-After", String(WINDOW_MS / 1000));
+      res.status(429).json({
+        message: "Muitas tentativas de alteração de senha. Tente novamente em 15 minutos.",
+      });
       return;
     }
     next();
