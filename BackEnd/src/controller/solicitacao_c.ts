@@ -22,22 +22,14 @@ import {
 
 export async function iniciarViagemController(req: Request, res: Response) {
   const dados = validar(iniciarViagemSchema, req.body ?? {});
-  const execucao = await iniciarViagem(
-    String(req.params.id),
-    dados,
-    usuarioAutenticado(res).id,
-  );
+  const execucao = await iniciarViagem(String(req.params.id), dados, usuarioAutenticado(res).id);
 
   return res.status(201).json(execucao);
 }
 
 export async function concluirViagemController(req: Request, res: Response) {
   const dados = validar(concluirViagemSchema, req.body ?? {});
-  const execucao = await concluirViagem(
-    String(req.params.id),
-    dados,
-    usuarioAutenticado(res).id,
-  );
+  const execucao = await concluirViagem(String(req.params.id), dados, usuarioAutenticado(res).id);
 
   return res.status(200).json(execucao);
 }

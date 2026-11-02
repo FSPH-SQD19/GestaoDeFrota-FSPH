@@ -11,43 +11,71 @@ const tx = vi.hoisted(() => ({
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: { $transaction: async (fn: (client: typeof tx) => unknown) => fn(tx) },
 }));
-import { executarViagem, iniciarViagemSchema, concluirViagemSchema } from "../../../src/service/execucao_s";
+import {
+  executarViagem,
+  iniciarViagemSchema,
+  concluirViagemSchema,
+} from "../../../src/service/execucao_s";
 
 const id = "00000000-0000-4000-8000-000000000001";
 const saida = { kmInicial: 100, checklistSaida: { pneus: true } };
 const retorno = { kmFinal: 120, checklistRetorno: { pneus: true } };
 const viagem = {
-  status: "APROVADA", veiculoAlocadoId: id,
-  motoristaAlocado: { ativo: true, usuarioId: id }, execucao: null,
+  status: "APROVADA",
+  veiculoAlocadoId: id,
+  motoristaAlocado: { ativo: true, usuarioId: id },
+  execucao: null,
 };
 beforeEach(() => {
   vi.clearAllMocks();
   tx.solicitacaoViagem.findUnique.mockResolvedValue(viagem);
-  tx.veiculo.findUniqueOrThrow.mockResolvedValue({ ativo: true, status: "DISPONIVEL", odometroAtual: new Prisma.Decimal(100) });
+  tx.veiculo.findUniqueOrThrow.mockResolvedValue({
+    ativo: true,
+    status: "DISPONIVEL",
+    odometroAtual: new Prisma.Decimal(100),
+  });
   tx.execucaoViagem.create.mockResolvedValue(saida);
   tx.execucaoViagem.update.mockResolvedValue(retorno);
 });
 function emTransito() {
   tx.solicitacaoViagem.findUnique.mockResolvedValue({
-    ...viagem, status: "EM_TRANSITO", execucao: { kmInicial: new Prisma.Decimal(100), dataHoraFim: null },
+    ...viagem,
+    status: "EM_TRANSITO",
+    execucao: { kmInicial: new Prisma.Decimal(100), dataHoraFim: null },
   });
 }
 describe("execução de viagens", () => {
   it("inicia e registra checklist, horário e status", async () => {
     expect(await executarViagem(id, id, saida)).toMatchObject({ status: "EM_TRANSITO" });
-    expect(tx.execucaoViagem.create).toHaveBeenCalledWith({ data: { ...saida, solicitacaoId: id, dataHoraInicio: expect.any(Date) } });
-    expect(tx.veiculo.update).toHaveBeenCalledWith({ where: { id }, data: { status: "EM_VIAGEM" } });
+    expect(tx.execucaoViagem.create).toHaveBeenCalledWith({
+      data: { ...saida, solicitacaoId: id, dataHoraInicio: expect.any(Date) },
+    });
+    expect(tx.veiculo.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: "EM_VIAGEM" },
+    });
   });
   it.each([100, 120])("conclui com km final %s e libera veículo", async (kmFinal) => {
     emTransito();
     await executarViagem(id, id, { ...retorno, kmFinal });
-    expect(tx.veiculo.update).toHaveBeenCalledWith({ where: { id }, data: { status: "DISPONIVEL", odometroAtual: kmFinal } });
-    expect(tx.solicitacaoViagem.update).toHaveBeenCalledWith({ where: { id }, data: { status: "CONCLUIDA" } });
-    expect(tx.execucaoViagem.update).toHaveBeenCalledWith({ where: { solicitacaoId: id }, data: { ...retorno, kmFinal, dataHoraFim: expect.any(Date) } });
+    expect(tx.veiculo.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: "DISPONIVEL", odometroAtual: kmFinal },
+    });
+    expect(tx.solicitacaoViagem.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: "CONCLUIDA" },
+    });
+    expect(tx.execucaoViagem.update).toHaveBeenCalledWith({
+      where: { solicitacaoId: id },
+      data: { ...retorno, kmFinal, dataHoraFim: expect.any(Date) },
+    });
   });
   it("rejeita km final menor sem alterar registros", async () => {
     emTransito();
-    await expect(executarViagem(id, id, { ...retorno, kmFinal: 99 })).rejects.toMatchObject({ statusCode: 422 });
+    await expect(executarViagem(id, id, { ...retorno, kmFinal: 99 })).rejects.toMatchObject({
+      statusCode: 422,
+    });
     expect(tx.execucaoViagem.update).not.toHaveBeenCalled();
     expect(tx.veiculo.update).not.toHaveBeenCalled();
   });
