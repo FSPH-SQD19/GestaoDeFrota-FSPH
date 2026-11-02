@@ -117,8 +117,12 @@ describe("NotificacoesDropdown no Header", () => {
     expect(screen.getByText("Solicitação urgente SV-2026-0099")).toBeInTheDocument();
     expect(screen.getByText("Viagem SV-2026-0050 aprovada")).toBeInTheDocument();
 
-    // Filtra apenas não lidas
+    // Filtra apenas não lidas consultando o servidor com apenasNaoLidas=true
     await user.click(screen.getByRole("button", { name: /Não lidas \(2\)/i }));
+    expect(listarNotificacoesApi).toHaveBeenLastCalledWith({
+      apenasNaoLidas: true,
+      limit: 25,
+    });
     expect(screen.queryByText("Viagem SV-2026-0050 aprovada")).not.toBeInTheDocument();
 
     // Marca a primeira notificação como lida
@@ -137,6 +141,81 @@ describe("NotificacoesDropdown no Header", () => {
       expect(screen.queryByTestId("notificacoes-badge")).not.toBeInTheDocument();
     });
     expect(screen.getByText("Nenhuma notificação não lida.")).toBeInTheDocument();
+  });
+
+  it("busca notificações não lidas mais antigas no servidor quando não estão entre as 25 iniciais", async () => {
+    const user = userEvent.setup({ delay: null });
+    const agoraIso = new Date().toISOString();
+
+    const vinteCincoLidas = Array.from({ length: 25 }, (_, i) => ({
+      id: `00000000-0000-4000-8000-0000000001${String(i).padStart(2, "0")}`,
+      tipo: "VIAGEM_APROVADA",
+      titulo: `Viagem lida #${i + 1}`,
+      mensagem: "Viagem concluída anteriormente.",
+      referenciaTipo: "SOLICITACAO_VIAGEM",
+      referenciaId: null,
+      lida: true,
+      lidaEm: agoraIso,
+      criadoEm: agoraIso,
+    }));
+
+    const pendenciaAntiga = {
+      id: "00000000-0000-4000-8000-000000000999",
+      tipo: "DOCUMENTO_VEICULO_VENCENDO",
+      titulo: "CRLV vencido — QWE1D23",
+      mensagem: "O documento CRLV do veículo QWE1D23 venceu.",
+      referenciaTipo: "VEICULO",
+      referenciaId: null,
+      lida: false,
+      lidaEm: null,
+      criadoEm: "2026-10-01T10:00:00.000Z",
+    };
+
+    vi.mocked(listarNotificacoesApi).mockImplementation(async (params) => {
+      if (params?.apenasNaoLidas) {
+        return {
+          data: [pendenciaAntiga],
+          meta: { naoLidas: 1, retornadas: 1 },
+        };
+      }
+      return {
+        data: vinteCincoLidas,
+        meta: { naoLidas: 1, retornadas: 25 },
+      };
+    });
+
+    renderizarHeaderComUsuario();
+    expect(await screen.findByTestId("notificacoes-badge")).toHaveTextContent("1");
+
+    await user.click(screen.getByRole("button", { name: "Notificações" }));
+    expect(screen.getByText(/Há 1 pendência não lida mais antiga/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Não lidas \(1\)/i }));
+    expect(await screen.findByText("CRLV vencido — QWE1D23")).toBeInTheDocument();
+  });
+
+  it("exibe estado explícito de erro em vez de lista vazia quando a consulta à API falha e permite tentar novamente", async () => {
+    const user = userEvent.setup({ delay: null });
+
+    vi.mocked(listarNotificacoesApi)
+      .mockRejectedValueOnce(new Error("Erro de rede"))
+      .mockRejectedValueOnce(new Error("Erro de rede"))
+      .mockResolvedValueOnce({
+        data: [],
+        meta: { naoLidas: 0, retornadas: 0 },
+      });
+
+    renderizarHeaderComUsuario();
+    await waitFor(() => expect(listarNotificacoesApi).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "Notificações" }));
+
+    const alertaErro = await screen.findByRole("alert");
+    expect(alertaErro).toHaveTextContent("Não foi possível consultar as notificações.");
+    expect(screen.queryByText("Nenhuma notificação no momento.")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Tentar novamente/i }));
+    expect(await screen.findByText("Nenhuma notificação no momento.")).toBeInTheDocument();
   });
 
   it("atualiza o contador automaticamente quando um evento operacional dispara atualização", async () => {

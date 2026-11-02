@@ -7,6 +7,7 @@ import {
   CheckCheck,
   CheckCircle2,
   FileWarning,
+  RefreshCw,
   ShieldCheck,
   XCircle,
 } from "lucide-react";
@@ -20,6 +21,9 @@ import {
 import type { NotificacaoItem } from "../../types/notificacao";
 
 export const INTERVALO_POLLING_NOTIFICACOES_MS = 30_000;
+const LIMITE_PADRAO_NOTIFICACOES = 25;
+
+type FiltroNotificacoes = "TODAS" | "NAO_LIDAS";
 
 function estiloTipoNotificacao(tipo: string): {
   Icone: React.ComponentType<{ className?: string }>;
@@ -83,16 +87,19 @@ function formatarTempoNotificacao(iso: string): string {
 
 export const NotificacoesDropdown: React.FC = () => {
   const [aberto, setAberto] = useState(false);
-  const [filtro, setFiltro] = useState<"TODAS" | "NAO_LIDAS">("TODAS");
+  const [filtro, setFiltro] = useState<FiltroNotificacoes>("TODAS");
   const [notificacoes, setNotificacoes] = useState<NotificacaoItem[]>([]);
   const [naoLidas, setNaoLidas] = useState(0);
   const [carregando, setCarregando] = useState(false);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
   const [marcandoTodas, setMarcandoTodas] = useState(false);
   const [marcandoIds, setMarcandoIds] = useState<Record<string, boolean>>({});
   const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const montadoRef = useRef(true);
+  const filtroRef = useRef<FiltroNotificacoes>("TODAS");
+  const requisicaoIdRef = useRef(0);
 
   useEffect(() => {
     montadoRef.current = true;
@@ -101,27 +108,45 @@ export const NotificacoesDropdown: React.FC = () => {
     };
   }, []);
 
-  const aplicarResposta = useCallback(
-    (resposta: Awaited<ReturnType<typeof listarNotificacoesApi>>) => {
-      if (!montadoRef.current) return;
-      setNotificacoes(resposta.data);
-      setNaoLidas(resposta.meta.naoLidas);
-    },
-    [],
-  );
+  const consultarNotificacoesSilenciosamente = useCallback((filtroAlvo?: FiltroNotificacoes) => {
+    if (browserSessionExpired()) return Promise.resolve();
+    const filtroConsulta = filtroAlvo ?? filtroRef.current;
+    const idRequisicao = ++requisicaoIdRef.current;
+
+    return listarNotificacoesApi({
+      apenasNaoLidas: filtroConsulta === "NAO_LIDAS",
+      limit: LIMITE_PADRAO_NOTIFICACOES,
+    })
+      .then((resposta) => {
+        if (
+          !montadoRef.current ||
+          idRequisicao !== requisicaoIdRef.current ||
+          filtroRef.current !== filtroConsulta
+        ) {
+          return;
+        }
+        setNotificacoes(resposta.data);
+        setNaoLidas(resposta.meta.naoLidas);
+        setErroCarregamento(null);
+      })
+      .catch(() => {
+        if (
+          !montadoRef.current ||
+          browserSessionExpired() ||
+          idRequisicao !== requisicaoIdRef.current ||
+          filtroRef.current !== filtroConsulta
+        ) {
+          return;
+        }
+        setErroCarregamento("Não foi possível consultar as notificações.");
+      });
+  }, []);
 
   useEffect(() => {
-    if (!browserSessionExpired()) {
-      void listarNotificacoesApi({ limit: 25 })
-        .then(aplicarResposta)
-        .catch(() => {});
-    }
+    void consultarNotificacoesSilenciosamente();
 
     const atualizarEmSegundoPlano = () => {
-      if (browserSessionExpired()) return;
-      void listarNotificacoesApi({ limit: 25 })
-        .then(aplicarResposta)
-        .catch(() => {});
+      void consultarNotificacoesSilenciosamente();
     };
 
     const intervalo = window.setInterval(() => {
@@ -144,7 +169,7 @@ export const NotificacoesDropdown: React.FC = () => {
       document.removeEventListener("visibilitychange", aoMudarVisibilidade);
       window.removeEventListener(EVENTO_ATUALIZAR_NOTIFICACOES, atualizarEmSegundoPlano);
     };
-  }, [aplicarResposta]);
+  }, [consultarNotificacoesSilenciosamente]);
 
   useEffect(() => {
     if (!aberto) return;
@@ -169,31 +194,60 @@ export const NotificacoesDropdown: React.FC = () => {
     };
   }, [aberto]);
 
+  function carregarComFeedback(filtroAlvo: FiltroNotificacoes, mostrarLoading: boolean) {
+    if (browserSessionExpired()) return;
+    if (mostrarLoading) {
+      setCarregando(true);
+    }
+    void consultarNotificacoesSilenciosamente(filtroAlvo).finally(() => {
+      if (mostrarLoading && montadoRef.current) {
+        setCarregando(false);
+      }
+    });
+  }
+
   function alternarDropdown() {
     const proximoEstado = !aberto;
     setAberto(proximoEstado);
     setErroAcao(null);
-    if (proximoEstado && !browserSessionExpired()) {
-      const mostrarLoading = notificacoes.length === 0;
-      if (mostrarLoading) setCarregando(true);
-      void listarNotificacoesApi({ limit: 25 })
-        .then(aplicarResposta)
-        .catch(() => {})
-        .finally(() => {
-          if (mostrarLoading && montadoRef.current) setCarregando(false);
-        });
+    if (proximoEstado) {
+      carregarComFeedback(filtroRef.current, notificacoes.length === 0);
     }
+  }
+
+  function selecionarFiltro(novoFiltro: FiltroNotificacoes) {
+    if (novoFiltro === filtroRef.current && !erroCarregamento) return;
+    filtroRef.current = novoFiltro;
+    setFiltro(novoFiltro);
+    setErroAcao(null);
+    const temVisiveisLocais =
+      novoFiltro === "NAO_LIDAS"
+        ? notificacoes.some((item) => !item.lida)
+        : notificacoes.length > 0;
+    carregarComFeedback(novoFiltro, !temVisiveisLocais);
+  }
+
+  function tentarNovamente() {
+    setErroCarregamento(null);
+    setErroAcao(null);
+    carregarComFeedback(filtroRef.current, true);
   }
 
   async function marcarUmaComoLida(item: NotificacaoItem) {
     if (item.lida || marcandoIds[item.id]) return;
 
+    requisicaoIdRef.current += 1;
     setErroAcao(null);
     setMarcandoIds((atual) => ({ ...atual, [item.id]: true }));
 
     try {
       const atualizada = await marcarNotificacaoLidaApi(item.id);
       if (!montadoRef.current) return;
+
+      const proximoTotalNaoLidas = Math.max(0, naoLidas - 1);
+      const naoLidasRestantesCarregadas = notificacoes.filter(
+        (n) => n.id !== item.id && !n.lida,
+      ).length;
 
       setNotificacoes((lista) =>
         lista.map((n) =>
@@ -206,7 +260,11 @@ export const NotificacoesDropdown: React.FC = () => {
             : n,
         ),
       );
-      setNaoLidas((total) => Math.max(0, total - 1));
+      setNaoLidas(proximoTotalNaoLidas);
+
+      if (filtroRef.current === "NAO_LIDAS" && proximoTotalNaoLidas > naoLidasRestantesCarregadas) {
+        void consultarNotificacoesSilenciosamente("NAO_LIDAS");
+      }
     } catch {
       if (montadoRef.current) {
         setErroAcao("Não foi possível atualizar a notificação. Tente novamente.");
@@ -225,6 +283,7 @@ export const NotificacoesDropdown: React.FC = () => {
   async function marcarTodasComoLidas() {
     if (naoLidas === 0 || marcandoTodas) return;
 
+    requisicaoIdRef.current += 1;
     setErroAcao(null);
     setMarcandoTodas(true);
 
@@ -252,6 +311,13 @@ export const NotificacoesDropdown: React.FC = () => {
     () => (filtro === "NAO_LIDAS" ? notificacoes.filter((item) => !item.lida) : notificacoes),
     [filtro, notificacoes],
   );
+
+  const naoLidasCarregadas = useMemo(
+    () => notificacoes.filter((item) => !item.lida).length,
+    [notificacoes],
+  );
+  const naoLidasAnterioresOcultas =
+    filtro === "TODAS" && !carregando ? Math.max(0, naoLidas - naoLidasCarregadas) : 0;
 
   const textoBadge = naoLidas > 99 ? "99+" : String(naoLidas);
 
@@ -318,7 +384,7 @@ export const NotificacoesDropdown: React.FC = () => {
           <div className="flex items-center gap-1.5 border-b border-slate-100 px-4 py-2">
             <button
               type="button"
-              onClick={() => setFiltro("TODAS")}
+              onClick={() => selecionarFiltro("TODAS")}
               className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer ${
                 filtro === "TODAS"
                   ? "bg-slate-900 text-white"
@@ -329,7 +395,7 @@ export const NotificacoesDropdown: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setFiltro("NAO_LIDAS")}
+              onClick={() => selecionarFiltro("NAO_LIDAS")}
               className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer ${
                 filtro === "NAO_LIDAS"
                   ? "bg-slate-900 text-white"
@@ -340,6 +406,23 @@ export const NotificacoesDropdown: React.FC = () => {
             </button>
           </div>
 
+          {naoLidasAnterioresOcultas > 0 && (
+            <div className="flex items-center justify-between gap-2 border-b border-sky-100 bg-sky-50/75 px-4 py-2 text-[11px] font-medium text-sky-900">
+              <span>
+                {naoLidasAnterioresOcultas === 1
+                  ? "Há 1 pendência não lida mais antiga."
+                  : `Há ${naoLidasAnterioresOcultas} pendências não lidas mais antigas.`}
+              </span>
+              <button
+                type="button"
+                onClick={() => selecionarFiltro("NAO_LIDAS")}
+                className="shrink-0 font-extrabold text-sky-700 underline-offset-2 hover:underline cursor-pointer"
+              >
+                Ver não lidas
+              </button>
+            </div>
+          )}
+
           {erroAcao && (
             <div
               role="alert"
@@ -349,10 +432,45 @@ export const NotificacoesDropdown: React.FC = () => {
             </div>
           )}
 
+          {erroCarregamento && notificacoesVisiveis.length > 0 && (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800"
+            >
+              <span>Falha ao atualizar as notificações.</span>
+              <button
+                type="button"
+                onClick={tentarNovamente}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold text-amber-900 transition-colors hover:bg-amber-100 cursor-pointer"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Tentar novamente</span>
+              </button>
+            </div>
+          )}
+
           <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
-            {carregando && notificacoes.length === 0 ? (
+            {carregando && notificacoesVisiveis.length === 0 ? (
               <div className="px-4 py-8 text-center text-xs font-medium text-slate-500">
                 Carregando alertas operacionais...
+              </div>
+            ) : erroCarregamento && notificacoesVisiveis.length === 0 ? (
+              <div role="alert" className="px-4 py-8 text-center">
+                <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                  <AlertTriangle className="h-4.5 w-4.5" />
+                </div>
+                <p className="text-xs font-bold text-slate-800">{erroCarregamento}</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Não foi possível confirmar se há alertas pendentes no momento.
+                </p>
+                <button
+                  type="button"
+                  onClick={tentarNovamente}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 cursor-pointer"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>Tentar novamente</span>
+                </button>
               </div>
             ) : notificacoesVisiveis.length === 0 ? (
               <div className="px-4 py-8 text-center">

@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   usuarioFindMany: vi.fn(),
   motoristaFindMany: vi.fn(),
   motoristaFindFirst: vi.fn(),
-  veiculoFindMany: vi.fn(),
+  documentoVeiculoFindMany: vi.fn(),
+  solicitacaoViagemFindMany: vi.fn(),
   notificacaoCreateMany: vi.fn(),
   notificacaoFindMany: vi.fn(),
   notificacaoCount: vi.fn(),
@@ -21,7 +22,8 @@ vi.mock("../../../src/lib/prisma", () => ({
       findMany: mocks.motoristaFindMany,
       findFirst: mocks.motoristaFindFirst,
     },
-    veiculo: { findMany: mocks.veiculoFindMany },
+    documentoVeiculo: { findMany: mocks.documentoVeiculoFindMany },
+    solicitacaoViagem: { findMany: mocks.solicitacaoViagemFindMany },
     notificacao: {
       createMany: mocks.notificacaoCreateMany,
       findMany: mocks.notificacaoFindMany,
@@ -34,6 +36,8 @@ vi.mock("../../../src/lib/prisma", () => ({
 }));
 
 import {
+  INTERVALO_SINCRONIZACAO_NOTIFICACOES_MS,
+  invalidarCacheSincronizacaoNotificacoes,
   listarNotificacoes,
   listarNotificacoesQuerySchema,
   marcarNotificacaoComoLida,
@@ -55,10 +59,14 @@ const notificacaoId = "00000000-0000-4000-8000-0000000000a1";
 describe("notificacao_s — central de notificações e alertas operacionais", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    invalidarCacheSincronizacaoNotificacoes();
     mocks.notificacaoCreateMany.mockResolvedValue({ count: 0 });
+    mocks.notificacaoFindMany.mockResolvedValue([]);
+    mocks.notificacaoUpdateMany.mockResolvedValue({ count: 0 });
     mocks.motoristaFindMany.mockResolvedValue([]);
     mocks.motoristaFindFirst.mockResolvedValue(null);
-    mocks.veiculoFindMany.mockResolvedValue([]);
+    mocks.documentoVeiculoFindMany.mockResolvedValue([]);
+    mocks.solicitacaoViagemFindMany.mockResolvedValue([]);
   });
 
   it("valida os parâmetros da query de listagem", () => {
@@ -75,7 +83,7 @@ describe("notificacao_s — central de notificações e alertas operacionais", (
     expect(() => listarNotificacoesQuerySchema.parse({ limit: "51" })).toThrow();
   });
 
-  it("sincroniza alertas de 30 dias para GESTOR ignorando documentos históricos já renovados", async () => {
+  it("sincroniza alertas de 30 dias para GESTOR usando apenas documentos atuais por veículo e tipo", async () => {
     const referencia = new Date("2026-11-02T12:00:00.000Z");
 
     mocks.motoristaFindMany.mockResolvedValue([
@@ -87,34 +95,39 @@ describe("notificacao_s — central de notificações e alertas operacionais", (
       },
     ]);
 
-    mocks.veiculoFindMany.mockResolvedValue([
+    mocks.documentoVeiculoFindMany.mockResolvedValue([
+      // CRLV já renovado para 2027 (e mesmo que mock retorne histórico antigo, mantém apenas o atual)
       {
-        id: "00000000-0000-4000-8000-0000000000c1",
-        placa: "QWE1D23",
-        modelo: "Fiat Toro",
-        documentos: [
-          // CRLV antigo vencido, porém já renovado para 2027 -> NÃO deve alertar
-          {
-            id: "00000000-0000-4000-8000-0000000000d1",
-            tipoDocumento: "CRLV",
-            dataVencimento: new Date("2026-10-10T00:00:00.000Z"),
-          },
-          {
-            id: "00000000-0000-4000-8000-0000000000d2",
-            tipoDocumento: "CRLV",
-            dataVencimento: new Date("2027-10-10T00:00:00.000Z"),
-          },
-          // SEGURO atual vencendo em 10 dias -> DEVE alertar
-          {
-            id: "00000000-0000-4000-8000-0000000000d3",
-            tipoDocumento: "SEGURO",
-            dataVencimento: new Date("2026-11-12T00:00:00.000Z"),
-          },
-        ],
+        id: "00000000-0000-4000-8000-0000000000d2",
+        veiculoId: "00000000-0000-4000-8000-0000000000c1",
+        tipoDocumento: "CRLV",
+        dataVencimento: new Date("2027-10-10T00:00:00.000Z"),
+        veiculo: { placa: "QWE1D23", modelo: "Fiat Toro" },
+      },
+      {
+        id: "00000000-0000-4000-8000-0000000000d1",
+        veiculoId: "00000000-0000-4000-8000-0000000000c1",
+        tipoDocumento: "CRLV",
+        dataVencimento: new Date("2026-10-10T00:00:00.000Z"),
+        veiculo: { placa: "QWE1D23", modelo: "Fiat Toro" },
+      },
+      // SEGURO atual vencendo em 10 dias -> DEVE alertar
+      {
+        id: "00000000-0000-4000-8000-0000000000d3",
+        veiculoId: "00000000-0000-4000-8000-0000000000c1",
+        tipoDocumento: "SEGURO",
+        dataVencimento: new Date("2026-11-12T00:00:00.000Z"),
+        veiculo: { placa: "QWE1D23", modelo: "Fiat Toro" },
       },
     ]);
 
     await sincronizarAlertasVencimento({ id: gestorId, perfis: ["GESTOR"] }, referencia);
+
+    expect(mocks.documentoVeiculoFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distinct: ["veiculoId", "tipoDocumento"],
+      }),
+    );
 
     expect(mocks.notificacaoCreateMany).toHaveBeenCalledOnce();
     const chamada = mocks.notificacaoCreateMany.mock.calls[0]?.[0] as {
@@ -126,8 +139,92 @@ describe("notificacao_s — central de notificações e alertas operacionais", (
     expect(chamada.data.map((d) => d.tipo)).toEqual(["CNH_VENCENDO", "DOCUMENTO_VEICULO_VENCENDO"]);
     expect(chamada.data[1]?.titulo).toContain("SEGURO");
     expect(chamada.data[1]?.chaveUnica).toBe(
-      `doc-30d:00000000-0000-4000-8000-0000000000d3:2026-11-12:${gestorId}`,
+      `doc-30d:00000000-0000-4000-8000-0000000000d3:2026-11-12:PROXIMO:${gestorId}`,
     );
+  });
+
+  it("atualiza contagem regressiva no mesmo estágio e gera novo alerta não lido quando o documento vence", async () => {
+    const docId = "00000000-0000-4000-8000-0000000000d9";
+    const veiculoId = "00000000-0000-4000-8000-0000000000c9";
+
+    mocks.documentoVeiculoFindMany.mockResolvedValue([
+      {
+        id: docId,
+        veiculoId,
+        tipoDocumento: "IPVA",
+        dataVencimento: new Date("2026-11-05T00:00:00.000Z"),
+        veiculo: { placa: "ABC1D23", modelo: "Renault Duster" },
+      },
+    ]);
+
+    // 1) Faltando 2 dias: existe aviso no estágio PROXIMO com texto antigo ("3 dia(s)") -> atualiza texto
+    const chaveProximo = `doc-30d:${docId}:2026-11-05:PROXIMO:${gestorId}`;
+    mocks.notificacaoFindMany.mockResolvedValueOnce([
+      {
+        id: notificacaoId,
+        chaveUnica: chaveProximo,
+        titulo: "IPVA próximo do vencimento — ABC1D23",
+        mensagem:
+          "O documento IPVA do veículo ABC1D23 (Renault Duster) vence em 3 dia(s) (05/11/2026).",
+      },
+    ]);
+
+    await sincronizarAlertasVencimento(
+      { id: gestorId, perfis: ["GESTOR"] },
+      new Date("2026-11-03T12:00:00.000Z"),
+    );
+
+    expect(mocks.notificacaoUpdate).toHaveBeenCalledWith({
+      where: { id: notificacaoId },
+      data: {
+        titulo: "IPVA próximo do vencimento — ABC1D23",
+        mensagem:
+          "O documento IPVA do veículo ABC1D23 (Renault Duster) vence em 2 dia(s) (05/11/2026).",
+      },
+    });
+
+    // 2) Após vencer (06/11): mesmo que o aviso anterior já tivesse sido lido, cria nova chave VENCIDO
+    mocks.notificacaoCreateMany.mockClear();
+    await sincronizarAlertasVencimento(
+      { id: gestorId, perfis: ["GESTOR"] },
+      new Date("2026-11-06T12:00:00.000Z"),
+    );
+
+    const loteVencido = mocks.notificacaoCreateMany.mock.calls[0]?.[0]?.data;
+    expect(loteVencido).toHaveLength(1);
+    expect(loteVencido[0]).toMatchObject({
+      titulo: "IPVA vencido — ABC1D23",
+      chaveUnica: `doc-30d:${docId}:2026-11-05:VENCIDO:${gestorId}`,
+    });
+  });
+
+  it("baixa automaticamente alertas não lidos de vencimento quando o documento ou CNH é renovado", async () => {
+    const agora = new Date("2026-11-02T12:00:00.000Z");
+
+    // Documento atual já renovado para 2027 (sem alertas ativos de vencimento)
+    mocks.documentoVeiculoFindMany.mockResolvedValue([
+      {
+        id: "00000000-0000-4000-8000-0000000000d8",
+        veiculoId: "00000000-0000-4000-8000-0000000000c8",
+        tipoDocumento: "CRLV",
+        dataVencimento: new Date("2027-11-02T00:00:00.000Z"),
+        veiculo: { placa: "XYZ9K88", modelo: "Chevrolet Spin" },
+      },
+    ]);
+
+    await sincronizarAlertasVencimento({ id: gestorId, perfis: ["GESTOR"] }, agora);
+
+    expect(mocks.notificacaoUpdateMany).toHaveBeenCalledWith({
+      where: {
+        usuarioId: gestorId,
+        tipo: { in: ["CNH_VENCENDO", "DOCUMENTO_VEICULO_VENCENDO"] },
+        lida: false,
+      },
+      data: {
+        lida: true,
+        lidaEm: agora,
+      },
+    });
   });
 
   it("sincroniza alerta da própria CNH para usuário MOTORISTA", async () => {
@@ -151,8 +248,11 @@ describe("notificacao_s — central de notificações e alertas operacionais", (
     expect(criada.titulo).toContain("CNH vencida");
   });
 
-  it("notifica ADMIN e GESTOR ao criar solicitação urgente", async () => {
+  it("realiza nova tentativa ao falhar salvar solicitação urgente e reconcilia pendentes na sincronização", async () => {
     mocks.usuarioFindMany.mockResolvedValue([{ id: gestorId }, { id: adminId }]);
+    mocks.notificacaoCreateMany
+      .mockRejectedValueOnce(new Error("Falha transitória de conexão"))
+      .mockResolvedValueOnce({ count: 2 });
 
     await notificarSolicitacaoUrgente({
       id: "00000000-0000-4000-8000-0000000000e1",
@@ -161,14 +261,78 @@ describe("notificacao_s — central de notificações e alertas operacionais", (
       destino: "HEMOSE",
     });
 
-    expect(mocks.notificacaoCreateMany).toHaveBeenCalledOnce();
-    const lote = mocks.notificacaoCreateMany.mock.calls[0]?.[0]?.data;
+    expect(mocks.notificacaoCreateMany).toHaveBeenCalledTimes(2);
+    const lote = mocks.notificacaoCreateMany.mock.calls[1]?.[0]?.data;
     expect(lote).toHaveLength(2);
     expect(lote[0]).toMatchObject({
       usuarioId: gestorId,
       tipo: "SOLICITACAO_URGENTE",
       titulo: "Solicitação urgente SV-2026-0099",
     });
+
+    // Caso todas as tentativas iniciais tivessem falhado, a sincronização recupera solicitações urgentes PENDENTES
+    mocks.notificacaoCreateMany.mockClear();
+    mocks.solicitacaoViagemFindMany.mockResolvedValueOnce([
+      {
+        id: "00000000-0000-4000-8000-0000000000e9",
+        protocolo: "SV-2026-0150",
+        setorOrigem: "SVO",
+        destino: "HUSE",
+      },
+    ]);
+
+    await sincronizarAlertasVencimento(
+      { id: gestorId, perfis: ["GESTOR"] },
+      new Date("2026-11-02T12:00:00.000Z"),
+    );
+
+    expect(mocks.notificacaoCreateMany).toHaveBeenCalledOnce();
+    expect(mocks.notificacaoCreateMany.mock.calls[0]?.[0]?.data[0]).toMatchObject({
+      usuarioId: gestorId,
+      tipo: "SOLICITACAO_URGENTE",
+      chaveUnica: `urg:00000000-0000-4000-8000-0000000000e9:${gestorId}`,
+    });
+  });
+
+  it("evita reprocessar consultas de frota a cada polling de 30s usando cache e intervalo de sincronização", async () => {
+    const t0 = new Date("2026-11-02T12:00:00.000Z");
+    const t30s = new Date(t0.getTime() + 30_000);
+    const tAposJanela = new Date(t0.getTime() + INTERVALO_SINCRONIZACAO_NOTIFICACOES_MS + 1_000);
+
+    mocks.notificacaoFindMany.mockResolvedValue([]);
+    mocks.notificacaoCount.mockResolvedValue(0);
+
+    // 1ª chamada de GESTOR 1 sincroniza e consulta frota
+    await listarNotificacoes(
+      { id: gestorId, perfis: ["GESTOR"] },
+      { apenasNaoLidas: false, limit: 25 },
+      t0,
+    );
+    expect(mocks.documentoVeiculoFindMany).toHaveBeenCalledTimes(1);
+
+    // Polling 30s depois do mesmo GESTOR 1 não refaz a sincronização pesada
+    await listarNotificacoes(
+      { id: gestorId, perfis: ["GESTOR"] },
+      { apenasNaoLidas: false, limit: 25 },
+      t30s,
+    );
+    expect(mocks.documentoVeiculoFindMany).toHaveBeenCalledTimes(1);
+
+    // Outro gestor (ADMIN) dentro da janela de 5 min reaproveita o snapshot da frota sem nova query em documentos
+    await listarNotificacoes(
+      { id: adminId, perfis: ["ADMIN"] },
+      { apenasNaoLidas: false, limit: 25 },
+      t30s,
+    );
+    expect(mocks.documentoVeiculoFindMany).toHaveBeenCalledTimes(1);
+
+    // Após expirar a janela de 5 minutos, volta a consultar o banco
+    await listarNotificacoes(
+      { id: gestorId, perfis: ["GESTOR"] },
+      { apenasNaoLidas: false, limit: 25 },
+      tAposJanela,
+    );
+    expect(mocks.documentoVeiculoFindMany).toHaveBeenCalledTimes(2);
   });
 
   it("notifica solicitante e motorista na aprovação e trunca recusa longa", async () => {

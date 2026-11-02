@@ -12,7 +12,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 const mocks = vi.hoisted(() => ({
   motoristaFindMany: vi.fn(),
   motoristaFindFirst: vi.fn(),
-  veiculoFindMany: vi.fn(),
+  documentoVeiculoFindMany: vi.fn(),
+  solicitacaoViagemFindMany: vi.fn(),
   notificacaoCreateMany: vi.fn(),
   notificacaoFindMany: vi.fn(),
   notificacaoCount: vi.fn(),
@@ -27,7 +28,8 @@ vi.mock("../../../src/lib/prisma", () => ({
       findMany: mocks.motoristaFindMany,
       findFirst: mocks.motoristaFindFirst,
     },
-    veiculo: { findMany: mocks.veiculoFindMany },
+    documentoVeiculo: { findMany: mocks.documentoVeiculoFindMany },
+    solicitacaoViagem: { findMany: mocks.solicitacaoViagemFindMany },
     notificacao: {
       createMany: mocks.notificacaoCreateMany,
       findMany: mocks.notificacaoFindMany,
@@ -40,6 +42,7 @@ vi.mock("../../../src/lib/prisma", () => ({
 }));
 
 import { app } from "../../../src/app";
+import { invalidarCacheSincronizacaoNotificacoes } from "../../../src/service/notificacao_s";
 
 const secret = "chave-sintetica-dos-testes-de-notificacoes";
 const usuarioId = "00000000-0000-4000-8000-000000000001";
@@ -60,11 +63,14 @@ afterAll(() => new Promise((resolve) => server.close(resolve)));
 
 beforeEach(() => {
   vi.resetAllMocks();
+  invalidarCacheSincronizacaoNotificacoes();
   vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
   mocks.motoristaFindMany.mockResolvedValue([]);
   mocks.motoristaFindFirst.mockResolvedValue(null);
-  mocks.veiculoFindMany.mockResolvedValue([]);
+  mocks.documentoVeiculoFindMany.mockResolvedValue([]);
+  mocks.solicitacaoViagemFindMany.mockResolvedValue([]);
   mocks.notificacaoCreateMany.mockResolvedValue({ count: 0 });
+  mocks.notificacaoUpdateMany.mockResolvedValue({ count: 0 });
   mocks.notificacaoFindMany.mockResolvedValue([
     {
       id: realN1,
