@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Modal, Select, Textarea } from "../../components/common";
 import { apiRequest } from "../../lib/api";
+import { dispararAtualizacaoNotificacoes } from "../../services/notificacoesService";
 import type { SolicitacaoViagem } from "../../types/solicitacao";
 
 type Veiculo = {
@@ -142,6 +143,7 @@ export function AnalisarSolicitacaoModal({
           ),
         },
       );
+      dispararAtualizacaoNotificacoes();
       onConcluido(
         `Solicitação ${solicitacao.protocolo} ${modo === "APROVAR" ? "aprovada e alocada" : "recusada"}.`,
       );

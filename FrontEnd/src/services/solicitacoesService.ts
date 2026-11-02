@@ -1,4 +1,5 @@
 import { apiRequest } from "../lib/api";
+import { dispararAtualizacaoNotificacoes } from "./notificacoesService";
 import type {
   ConcluirViagemInput,
   ExecucaoViagemResposta,
@@ -24,11 +25,15 @@ export function listarSolicitacoesApi(
   return apiRequest<ListaSolicitacoesResposta>(`/solicitacoes?${query}`, {});
 }
 
-export function criarSolicitacaoApi(dados: NovaSolicitacaoViagem): Promise<SolicitacaoViagem> {
-  return apiRequest<SolicitacaoViagem>("/solicitacoes", {
+export async function criarSolicitacaoApi(
+  dados: NovaSolicitacaoViagem,
+): Promise<SolicitacaoViagem> {
+  const criada = await apiRequest<SolicitacaoViagem>("/solicitacoes", {
     method: "POST",
     body: JSON.stringify(dados),
   });
+  dispararAtualizacaoNotificacoes();
+  return criada;
 }
 
 export function iniciarViagemApi(
