@@ -4,8 +4,9 @@ import type {
   ConcluirViagemInput,
   ExecucaoViagemResposta,
   IniciarViagemInput,
-  ListarSolicitacoesParams,
   ListaSolicitacoesResposta,
+  ListaMinhasViagensResposta,
+  ListarSolicitacoesParams,
   NovaSolicitacaoViagem,
   SolicitacaoViagem,
 } from "../types/solicitacao";
@@ -23,6 +24,17 @@ export function listarSolicitacoesApi(
   if (params.setorOrigem?.trim()) query.set("setorOrigem", params.setorOrigem.trim());
   if (params.busca?.trim()) query.set("busca", params.busca.trim());
   return apiRequest<ListaSolicitacoesResposta>(`/solicitacoes?${query}`, {});
+}
+
+export function listarMinhasViagensApi(
+  params: ListarSolicitacoesParams = {},
+): Promise<ListaMinhasViagensResposta> {
+  const query = new URLSearchParams({
+    page: String(params.page ?? 1),
+    pageSize: String(params.pageSize ?? 20),
+  });
+  if (params.status?.length) query.set("status", params.status.join(","));
+  return apiRequest<ListaMinhasViagensResposta>(`/solicitacoes/minhas?${query}`, {});
 }
 
 export async function criarSolicitacaoApi(
