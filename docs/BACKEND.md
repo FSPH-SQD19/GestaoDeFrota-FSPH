@@ -25,17 +25,20 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 
 ## Endpoints disponíveis
 
-| Método | Caminho                               | Autenticação                | Resultado                                                    |
-| ------ | ------------------------------------- | --------------------------- | ------------------------------------------------------------ |
-| GET    | `/health`                             | Pública                     | Status do processo da API; não consulta o banco.             |
-| POST   | `/auth/login`                         | Pública                     | Login com e-mail e senha.                                    |
-| POST   | `/api/v1/auth/login`                  | Pública                     | Alias do mesmo login.                                        |
-| GET    | `/auth/perfil`, `/api/v1/auth/perfil` | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
-| GET    | `/auth/admin`, `/api/v1/auth/admin`   | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
-| GET    | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
-| POST   | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
-| GET    | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
-| POST   | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
+| Método | Caminho                                                     | Autenticação                | Resultado                                                    |
+| ------ | ----------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ |
+| GET    | `/health`                                                   | Pública                     | Status do processo da API; não consulta o banco.             |
+| POST   | `/auth/login`                                               | Pública                     | Login com e-mail e senha.                                    |
+| POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                        |
+| GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
+| GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
+| GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
+| POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
+| GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
+| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
+| GET    | `/notificacoes`, `/api/v1/notificacoes`                     | JWT                         | Lista notificações e contador de não lidas do usuário.       |
+| PATCH  | `/notificacoes/:id/lida`, `/api/v1/notificacoes/:id/lida`   | JWT                         | Marca uma notificação do usuário autenticado como lida.      |
+| PATCH  | `/notificacoes/ler-todas`, `/api/v1/notificacoes/ler-todas` | JWT                         | Marca todas as notificações não lidas do usuário como lidas. |
 
 ## Autenticação
 
@@ -233,3 +236,13 @@ A última coleta encaminha a viatura à desinfecção sem sobrescrever outros es
 `worker.ts` adapta o Express ao runtime Cloudflare. O cliente Prisma, a chave de assinatura, o IP e a origem da requisição ficam em um contexto isolado; cada chamada usa seu próprio pool, encerrado com `waitUntil`. No servidor Node, `server.ts` inicializa a conexão local. O schema usa `engineType = "client"` e o adaptador PostgreSQL em ambos os ambientes; `bcryptjs` mantém compatibilidade com os hashes bcrypt já existentes no Neon.
 
 O limite de login usa `CF-Connecting-IP` recebido pelo Worker; no Node, usa o IP da conexão ou o proxy explicitamente configurado. O CD mantém o cache Hyperdrive desativado para evitar reutilizar consultas de sessões, usuários ou permissões após alterações.
+
+### Central de notificações
+
+As rotas `/api/v1/notificacoes` (e o alias `/notificacoes`) exigem sessão autenticada e operam estritamente sobre os registros do próprio `usuarioId`:
+
+- `GET /api/v1/notificacoes`: aceita `apenasNaoLidas` (`true` ou `false`, padrão `false`) e `limit` (`1` a `50`, padrão `20`). Retorna `{ data, meta: { naoLidas, retornadas } }`.
+- `PATCH /api/v1/notificacoes/:id/lida`: marca um alerta do usuário como lido (`404` se inexistente ou pertencente a outra conta).
+- `PATCH /api/v1/notificacoes/ler-todas`: marca em lote todos os alertas pendentes do usuário e retorna `{ atualizadas, naoLidas: 0 }`.
+
+Os alertas operacionais cobrem quatro gatilhos deduplicados por `chave_unica`: solicitações urgentes destinadas a `ADMIN` e `GESTOR`, decisão de aprovação ou recusa enviada ao solicitante (e ao condutor alocado quando aplicável), conclusão da desinfecção de viatura SVO para `SVO`, `GESTOR` e `ADMIN`, e reconciliação sob demanda de CNH ou documento atual de veículo vencido ou a vencer em até 30 dias.

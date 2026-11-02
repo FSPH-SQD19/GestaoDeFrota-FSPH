@@ -16,6 +16,7 @@ import {
   listarManutencoesController,
 } from "../controller/manutencao_c";
 import solicitacaoRoutes from "./solicitacao_r";
+import notificacaoRoutes from "./notificacao_r";
 import {
   criarDocumentoVeiculoController,
   listarDocumentosVeiculoController,
@@ -61,5 +62,7 @@ manutencoes.post("/", criarManutencaoController);
 manutencoes.patch("/:id/concluir", concluirManutencaoController);
 
 router.use("/api/v1/manutencoes", manutencoes);
+router.use("/notificacoes", notificacaoRoutes);
+router.use("/api/v1/notificacoes", notificacaoRoutes);
 
 export default router;

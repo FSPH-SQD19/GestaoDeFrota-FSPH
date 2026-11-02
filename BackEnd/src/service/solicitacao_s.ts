@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError, type UsuarioAutenticado } from "../middleware/http_m";
+import { notificarSolicitacaoUrgente } from "./notificacao_s";
 
 export const STATUS_SOLICITACAO = [
   "PENDENTE",
@@ -293,6 +294,15 @@ export async function criarSolicitacao(
     },
     { maxWait: 5000, timeout: 10000 },
   );
+
+  if (registro.urgencia === "URGENTE") {
+    await notificarSolicitacaoUrgente({
+      id: registro.id,
+      protocolo: registro.protocolo,
+      setorOrigem: registro.setorOrigem,
+      destino: registro.destino,
+    });
+  }
 
   return serializarSolicitacao(registro);
 }

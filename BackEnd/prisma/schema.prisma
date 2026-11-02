@@ -23,6 +23,7 @@ model Usuario {
   chamados     ChamadoSvo[]
   desinfeccoes DesinfeccaoSvo[]
   auditorias   AuditoriaSistema[]
+  notificacoes Notificacao[]
 
   @@map("usuarios")
 }
@@ -315,4 +316,24 @@ model AuthLoginLimite {
 
   @@index([expiraEm])
   @@map("auth_login_limites")
+}
+
+model Notificacao {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId      String    @map("usuario_id") @db.Uuid
+  tipo           String    @db.VarChar(40)
+  titulo         String    @db.VarChar(150)
+  mensagem       String    @db.VarChar(500)
+  referenciaTipo String?   @map("referencia_tipo") @db.VarChar(40)
+  referenciaId   String?   @map("referencia_id") @db.Uuid
+  chaveUnica     String?   @unique @map("chave_unica") @db.VarChar(160)
+  lida           Boolean   @default(false)
+  lidaEm         DateTime? @map("lida_em")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, lida, criadoEm])
+  @@index([usuarioId, criadoEm])
+  @@map("notificacoes")
 }
