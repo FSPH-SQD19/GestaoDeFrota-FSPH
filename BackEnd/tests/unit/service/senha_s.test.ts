@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   comparePassword: vi.fn(),
   hashPassword: vi.fn(),
   registrarAuditoria: vi.fn(),
+  recordFailure: vi.fn(),
+  clearFailures: vi.fn(),
 }));
 
 vi.mock("../../../src/lib/prisma", () => ({
@@ -42,6 +44,11 @@ vi.mock("../../../src/service/auditoria_s", () => ({
   registrarAuditoria: mocks.registrarAuditoria,
 }));
 
+vi.mock("../../../src/middleware/login_limit", () => ({
+  recordPasswordChangeFailure: mocks.recordFailure,
+  clearPasswordChangeFailures: mocks.clearFailures,
+}));
+
 import { passwordVersion } from "../../../src/service/session_s";
 import {
   alterarMinhaSenha,
@@ -70,6 +77,8 @@ describe("senha_s", () => {
     mocks.deleteSessoes.mockResolvedValue({ count: 2 });
     mocks.updateSessoes.mockResolvedValue({ count: 1 });
     mocks.registrarAuditoria.mockResolvedValue({});
+    mocks.recordFailure.mockResolvedValue(undefined);
+    mocks.clearFailures.mockResolvedValue(undefined);
   });
 
   it("valida tamanho mínimo e limite de 72 bytes UTF-8 da nova senha", () => {
@@ -79,7 +88,7 @@ describe("senha_s", () => {
     expect(validarNovaSenha("NovaSenha@2026")).toBe("NovaSenha@2026");
   });
 
-  it("rejeita senha atual incorreta ou igual à nova sem gravar no banco", async () => {
+  it("contabiliza apenas falha de senha atual incorreta e não penaliza senha atual correta", async () => {
     await expect(
       alterarMinhaSenha({
         usuarioId,
@@ -88,7 +97,10 @@ describe("senha_s", () => {
         novaSenha: "NovaSenha@2026",
       }),
     ).rejects.toThrow("senha atual informada está incorreta");
+    expect(mocks.recordFailure).toHaveBeenCalledExactlyOnceWith(usuarioId);
     expect(mocks.updateUsuario).not.toHaveBeenCalled();
+
+    mocks.recordFailure.mockClear();
 
     await expect(
       alterarMinhaSenha({
@@ -98,10 +110,11 @@ describe("senha_s", () => {
         novaSenha: "SenhaAtual@123",
       }),
     ).rejects.toThrow("diferente da senha atual");
+    expect(mocks.recordFailure).not.toHaveBeenCalled();
     expect(mocks.updateUsuario).not.toHaveBeenCalled();
   });
 
-  it("atualiza hash, preserva sessão atual, revoga demais sessões e registra auditoria sem expor senha", async () => {
+  it("atualiza hash, preserva sessão atual, limpa falhas anteriores e registra auditoria", async () => {
     await alterarMinhaSenha({
       usuarioId,
       sessaoId,
@@ -121,6 +134,8 @@ describe("senha_s", () => {
       where: { id: sessaoId, usuarioId },
       data: { senhaVersao: passwordVersion("hash-novo-bcrypt") },
     });
+    expect(mocks.recordFailure).not.toHaveBeenCalled();
+    expect(mocks.clearFailures).toHaveBeenCalledExactlyOnceWith(usuarioId);
     expect(mocks.registrarAuditoria).toHaveBeenCalledWith({
       usuarioId,
       acao: "ALTERAR_SENHA",
@@ -130,7 +145,7 @@ describe("senha_s", () => {
     });
   });
 
-  it("permite ao ADMIN redefinir senha de outro usuário revogando todas as sessões dele", async () => {
+  it("permite ao ADMIN redefinir senha de outro usuário revogando sessões e limpando bloqueio", async () => {
     mocks.findUnique.mockResolvedValueOnce({
       id: outroUsuarioId,
       email: "motorista@frota.com",
@@ -150,6 +165,7 @@ describe("senha_s", () => {
     expect(mocks.deleteSessoes).toHaveBeenCalledWith({
       where: { usuarioId: outroUsuarioId },
     });
+    expect(mocks.clearFailures).toHaveBeenCalledExactlyOnceWith(outroUsuarioId);
     expect(mocks.registrarAuditoria).toHaveBeenCalledWith({
       usuarioId,
       acao: "REDEFINIR_SENHA_ADMIN",

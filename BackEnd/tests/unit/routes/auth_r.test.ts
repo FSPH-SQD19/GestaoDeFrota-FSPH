@@ -298,4 +298,66 @@ describe.each(["/auth", "/api/v1/auth"])("sessões HTTP %s", (prefix) => {
     });
     expect(redefinicaoNegada.status).toBe(403);
   });
+  it("isola limite de alteração de senha por usuário sem bloquear outros no mesmo IP", async () => {
+    const { cookie: session, protection } = await login(prefix);
+    mocks.compare.mockClear();
+
+    // Usuário atual atingiu 10 falhas inválidas
+    mocks.limit.mockResolvedValueOnce([
+      { tentativas: 10, expira_em: new Date(Date.now() + 900000) },
+    ]);
+    const bloqueada = await fetch(`${base}${prefix}/alterar-senha`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        cookie: `${session}; ${protection.cookie}`,
+        "x-csrf-token": protection.nonce,
+      },
+      body: JSON.stringify({
+        senhaAtual: "senha-sintetica",
+        novaSenha: "NovaSenhaForte@2026",
+      }),
+    });
+    expect(bloqueada.status).toBe(429);
+    expect(bloqueada.headers.get("Retry-After")).toBe("900");
+    expect(mocks.compare).not.toHaveBeenCalled();
+
+    // Outro usuário autenticado no mesmo IP (0 falhas registradas) não sofre bloqueio
+    const outroUsuario = { ...usuario, id: randomUUID(), email: "outro@example.test" };
+    const sessaoOutroId = randomUUID();
+    const tokenOutro = jwt.sign({}, secret, {
+      algorithm: "HS256",
+      subject: outroUsuario.id,
+      jwtid: sessaoOutroId,
+      issuer: "fsph-frota-api",
+      audience: "fsph-frota-web",
+      expiresIn: 28800,
+    });
+    const cookieOutro = `frota_session=${encodeURIComponent(tokenOutro)}`;
+    const csrfOutro = await csrf(prefix, cookieOutro);
+    mocks.session.mockImplementationOnce(async () => ({
+      id: sessaoOutroId,
+      usuarioId: outroUsuario.id,
+      senhaVersao: passwordVersion(outroUsuario.senhaHash),
+      expiraEm: new Date(Date.now() + 900000),
+      usuario: outroUsuario,
+    }));
+    mocks.user.mockResolvedValueOnce(outroUsuario);
+    mocks.limit.mockResolvedValueOnce([]); // SELECT sem falhas para o segundo usuário
+    mocks.compare.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    const permitida = await fetch(`${base}${prefix}/alterar-senha`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        cookie: `${cookieOutro}; ${csrfOutro.cookie}`,
+        "x-csrf-token": csrfOutro.nonce,
+      },
+      body: JSON.stringify({
+        senhaAtual: "senha-sintetica",
+        novaSenha: "NovaSenhaForte@2026",
+      }),
+    });
+    expect(permitida.status).toBe(200);
+  });
 });

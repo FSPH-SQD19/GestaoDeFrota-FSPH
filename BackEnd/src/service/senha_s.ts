@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
+import {
+  clearPasswordChangeFailures,
+  recordPasswordChangeFailure,
+} from "../middleware/login_limit";
 import { registrarAuditoria } from "./auditoria_s";
 import * as passwordService from "./password_s";
 import { passwordVersion } from "./session_s";
@@ -66,6 +70,7 @@ export async function alterarMinhaSenha({
 
   const senhaAtualCorreta = await passwordService.comparePassword(senhaAtual, usuario.senhaHash);
   if (!senhaAtualCorreta) {
+    await recordPasswordChangeFailure(usuario.id);
     throw new HttpError(400, "A senha atual informada está incorreta.", [
       { campo: "senhaAtual", mensagem: "A senha atual informada está incorreta." },
     ]);
@@ -101,6 +106,8 @@ export async function alterarMinhaSenha({
       });
     }
   });
+
+  await clearPasswordChangeFailures(usuario.id);
 
   try {
     await registrarAuditoria({
@@ -168,6 +175,8 @@ export async function redefinirSenhaPorAdmin({
       });
     }
   });
+
+  await clearPasswordChangeFailures(usuarioAlvo.id);
 
   try {
     await registrarAuditoria({
