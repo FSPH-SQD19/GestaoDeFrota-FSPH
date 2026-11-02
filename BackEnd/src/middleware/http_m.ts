@@ -1,5 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../service/token_s";
+import { resolveSession } from "../service/session_s";
+import { readCookie, sessionCookieName } from "./session_http";
 import { getAuthConfig } from "../config/auth";
 
 export type ErroDetalhe = { campo: string; mensagem: string };
@@ -18,6 +20,9 @@ export class HttpError extends Error {
 export type UsuarioAutenticado = {
   id: string;
   perfis: string[];
+  nome?: string;
+  email?: string;
+  sessaoId?: string;
 };
 
 export function usuarioAutenticado(res: { locals: Record<string, unknown> }): UsuarioAutenticado {
@@ -28,35 +33,31 @@ export function usuarioAutenticado(res: { locals: Record<string, unknown> }): Us
   return usuario;
 }
 
-export const authenticate: RequestHandler = (req, res, next) => {
-  const [esquema, token, extra] = (req.headers.authorization ?? "").split(" ");
-  if (esquema !== "Bearer" || !token || extra !== undefined) {
-    return next(new HttpError(401, "Autenticação necessária."));
-  }
-
+export const authenticate: RequestHandler = async (req, res, next) => {
+  res.setHeader?.("Cache-Control", "no-store");
+  const header = req.headers.authorization;
+  const match = header?.match(/^Bearer ([A-Za-z0-9_.-]+)$/i);
+  const token = header ? match?.[1] : readCookie(req, sessionCookieName());
+  if (!token) return next(new HttpError(401, "Autenticação necessária."));
   let secret: string;
   try {
     secret = getAuthConfig().secret;
   } catch {
     return next(new HttpError(500, "Configuração de autenticação inválida."));
   }
-
+  let identity;
   try {
-    const payload = jwt.verify(token, secret);
-    if (
-      typeof payload === "string" ||
-      typeof payload.sub !== "string" ||
-      !payload.sub.trim() ||
-      !Array.isArray(payload.perfis) ||
-      !payload.perfis.every((perfil: unknown) => typeof perfil === "string")
-    ) {
-      return next(new HttpError(401, "Token inválido ou expirado."));
-    }
-
-    res.locals.usuario = { id: payload.sub, perfis: payload.perfis } satisfies UsuarioAutenticado;
-    return next();
+    identity = verifyToken(token, secret);
   } catch {
     return next(new HttpError(401, "Token inválido ou expirado."));
+  }
+  try {
+    const usuario = await resolveSession(identity.usuarioId, identity.sessaoId);
+    if (!usuario) return next(new HttpError(401, "Token inválido ou expirado."));
+    res.locals.usuario = usuario;
+    next();
+  } catch (error) {
+    next(error);
   }
 };
 

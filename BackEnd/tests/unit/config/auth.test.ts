@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import jwt from "jsonwebtoken";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadAuthConfig } from "../../../src/config/auth";
 
 let directory: string;
@@ -51,5 +51,23 @@ describe("chave local de autenticação", () => {
     const file = join(directory, "arquivo");
     writeFileSync(file, "sintetico");
     expect(() => loadAuthConfig(file)).toThrow();
+  });
+});
+
+describe("chave compartilhada em produção", () => {
+  it("exige secret configurado em produção", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("JWT_SECRET", undefined);
+    expect(() => loadAuthConfig(directory)).toThrow("JWT_SECRET é obrigatória");
+  });
+  it("usa a mesma chave configurada independentemente do diretório", () => {
+    vi.stubEnv("JWT_SECRET", "a".repeat(128));
+    expect(loadAuthConfig(join(directory, "a")).secret).toBe(
+      loadAuthConfig(join(directory, "b")).secret,
+    );
+  });
+  it("recusa secret fraco", () => {
+    vi.stubEnv("JWT_SECRET", "senha");
+    expect(() => loadAuthConfig(directory)).toThrow("128 caracteres");
   });
 });

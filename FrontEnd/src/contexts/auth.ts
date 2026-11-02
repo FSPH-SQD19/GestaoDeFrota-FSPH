@@ -3,9 +3,8 @@ import type { AuthState, LoginCredentials, UserRole } from "../types/auth";
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasRole: (requiredRoles: UserRole[]) => boolean;
-  switchRoleForTesting?: (role: UserRole) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

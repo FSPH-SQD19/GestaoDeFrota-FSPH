@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertTriangle, Send } from "lucide-react";
+import { AlertCircle, AlertTriangle, Send } from "lucide-react";
 import { Button, Input, Modal, Select, Textarea } from "../../components/common";
 import {
   SETORES_FSPH,
@@ -95,6 +95,9 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   onSubmit,
   setorPadrao,
 }) => {
+  const enviando = useRef(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -107,38 +110,59 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
   });
 
   useEffect(() => {
-    if (isOpen) reset({ ...defaultValues, setorOrigem: setorPadrao ?? "" });
+    if (isOpen) {
+      reset({ ...defaultValues, setorOrigem: setorPadrao ?? "" });
+    }
   }, [isOpen, reset, setorPadrao]);
+
+  const handleClose = () => {
+    if (enviando.current) return;
+    setErroEnvio(null);
+    onClose();
+  };
 
   const urgencia = useWatch({ control, name: "urgencia" });
 
   const submit = async (data: SolicitacaoFormData) => {
-    await onSubmit({
-      setorOrigem: data.setorOrigem,
-      origem: data.origem.trim(),
-      destino: data.destino.trim(),
-      dataHoraPretendida: new Date(data.dataHoraPretendida).toISOString(),
-      dataHoraRetornoPrevista: data.dataHoraRetornoPrevista
-        ? new Date(data.dataHoraRetornoPrevista).toISOString()
-        : undefined,
-      quantidadePassageiros: Number(data.quantidadePassageiros),
-      tipoTransporte: data.tipoTransporte,
-      urgencia: data.urgencia,
-      justificativa: data.justificativa.trim(),
-      observacoes: data.observacoes?.trim() || undefined,
-    });
+    if (enviando.current) return;
+    enviando.current = true;
+    setErroEnvio(null);
+    try {
+      await onSubmit({
+        setorOrigem: data.setorOrigem,
+        origem: data.origem.trim(),
+        destino: data.destino.trim(),
+        dataHoraPretendida: new Date(data.dataHoraPretendida).toISOString(),
+        dataHoraRetornoPrevista: data.dataHoraRetornoPrevista
+          ? new Date(data.dataHoraRetornoPrevista).toISOString()
+          : undefined,
+        quantidadePassageiros: Number(data.quantidadePassageiros),
+        tipoTransporte: data.tipoTransporte,
+        urgencia: data.urgencia,
+        justificativa: data.justificativa.trim(),
+        observacoes: data.observacoes?.trim() || undefined,
+      });
+    } catch (err) {
+      setErroEnvio(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível enviar a solicitação. Tente novamente.",
+      );
+    } finally {
+      enviando.current = false;
+    }
   };
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       size="lg"
       title="Nova Solicitação de Viagem"
       description="Preencha os dados da viagem. O Gestor de Frota analisará e alocará veículo e motorista."
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          <Button variant="ghost" onClick={handleClose} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button
@@ -153,114 +177,133 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
         </>
       }
     >
-      <form id={FORM_ID} onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
-        {/* Setor e urgência */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Setor solicitante"
-            required
-            placeholder="Selecione o setor"
-            options={SETORES_FSPH.map((s) => ({ value: s, label: s }))}
-            error={errors.setorOrigem?.message}
-            {...register("setorOrigem")}
-          />
-          <Select
-            label="Urgência"
-            required
-            options={[
-              { value: "NORMAL", label: "Normal" },
-              { value: "URGENTE", label: "Urgente" },
-            ]}
-            error={errors.urgencia?.message}
-            {...register("urgencia")}
-          />
-        </div>
-
-        {urgencia === "URGENTE" && (
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>
-              Solicitações urgentes têm prioridade na fila do gestor. Use apenas quando o atraso
-              comprometer a assistência ou a integridade de amostras.
-            </span>
+      <form
+        id={FORM_ID}
+        onSubmit={(event) => {
+          void handleSubmit(submit)(event);
+        }}
+        className="space-y-5"
+        noValidate
+      >
+        {erroEnvio && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+            <span>{erroEnvio}</span>
           </div>
         )}
 
-        {/* Itinerário */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Origem"
-            required
-            placeholder="Ex: LACEN — Rua Campo do Brito"
-            error={errors.origem?.message}
-            {...register("origem")}
-          />
-          <Input
-            label="Destino"
-            required
-            placeholder="Ex: Hospital Regional de Itabaiana"
-            error={errors.destino?.message}
-            {...register("destino")}
-          />
-        </div>
+        <fieldset disabled={isSubmitting} className="space-y-5">
+          {/* Setor e urgência */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Setor solicitante"
+              required
+              placeholder="Selecione o setor"
+              options={SETORES_FSPH.map((s) => ({ value: s, label: s }))}
+              error={errors.setorOrigem?.message}
+              {...register("setorOrigem")}
+            />
+            <Select
+              label="Urgência"
+              required
+              options={[
+                { value: "NORMAL", label: "Normal" },
+                { value: "URGENTE", label: "Urgente" },
+              ]}
+              error={errors.urgencia?.message}
+              {...register("urgencia")}
+            />
+          </div>
 
-        {/* Datas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            id="dataHoraPretendida"
-            label="Data e hora de saída"
-            type="datetime-local"
-            required
-            error={errors.dataHoraPretendida?.message}
-            {...register("dataHoraPretendida")}
-          />
-          <Input
-            id="dataHoraRetornoPrevista"
-            label="Retorno previsto"
-            type="datetime-local"
-            helperText="Opcional — deixe em branco se for só ida."
-            error={errors.dataHoraRetornoPrevista?.message}
-            {...register("dataHoraRetornoPrevista")}
-          />
-        </div>
+          {urgencia === "URGENTE" && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                Solicitações urgentes têm prioridade na fila do gestor. Use apenas quando o atraso
+                comprometer a assistência ou a integridade de amostras.
+              </span>
+            </div>
+          )}
 
-        {/* Carga */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Tipo de transporte"
-            required
-            options={tiposTransporte.map((t) => ({ value: t, label: TIPO_TRANSPORTE_LABEL[t] }))}
-            error={errors.tipoTransporte?.message}
-            {...register("tipoTransporte")}
-          />
-          <Input
-            id="quantidadePassageiros"
-            label="Nº de passageiros"
-            type="number"
-            min={0}
-            max={15}
-            required
-            error={errors.quantidadePassageiros?.message}
-            {...register("quantidadePassageiros")}
-          />
-        </div>
+          {/* Itinerário */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Origem"
+              required
+              placeholder="Ex: LACEN — Rua Campo do Brito"
+              error={errors.origem?.message}
+              {...register("origem")}
+            />
+            <Input
+              label="Destino"
+              required
+              placeholder="Ex: Hospital Regional de Itabaiana"
+              error={errors.destino?.message}
+              {...register("destino")}
+            />
+          </div>
 
-        <Textarea
-          label="Justificativa"
-          required
-          rows={3}
-          placeholder="Descreva o motivo da viagem..."
-          error={errors.justificativa?.message}
-          {...register("justificativa")}
-        />
+          {/* Datas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              id="dataHoraPretendida"
+              label="Data e hora de saída"
+              type="datetime-local"
+              required
+              error={errors.dataHoraPretendida?.message}
+              {...register("dataHoraPretendida")}
+            />
+            <Input
+              id="dataHoraRetornoPrevista"
+              label="Retorno previsto"
+              type="datetime-local"
+              helperText="Opcional — deixe em branco se for só ida."
+              error={errors.dataHoraRetornoPrevista?.message}
+              {...register("dataHoraRetornoPrevista")}
+            />
+          </div>
 
-        <Textarea
-          label="Observações"
-          rows={2}
-          placeholder="Contato no destino, cuidados com a carga, etc. (opcional)"
-          error={errors.observacoes?.message}
-          {...register("observacoes")}
-        />
+          {/* Carga */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Tipo de transporte"
+              required
+              options={tiposTransporte.map((t) => ({ value: t, label: TIPO_TRANSPORTE_LABEL[t] }))}
+              error={errors.tipoTransporte?.message}
+              {...register("tipoTransporte")}
+            />
+            <Input
+              id="quantidadePassageiros"
+              label="Nº de passageiros"
+              type="number"
+              min={0}
+              max={15}
+              required
+              error={errors.quantidadePassageiros?.message}
+              {...register("quantidadePassageiros")}
+            />
+          </div>
+
+          <Textarea
+            label="Justificativa"
+            required
+            rows={3}
+            placeholder="Descreva o motivo da viagem..."
+            error={errors.justificativa?.message}
+            {...register("justificativa")}
+          />
+
+          <Textarea
+            label="Observações"
+            rows={2}
+            placeholder="Contato no destino, cuidados com a carga, etc. (opcional)"
+            error={errors.observacoes?.message}
+            {...register("observacoes")}
+          />
+        </fieldset>
       </form>
     </Modal>
   );

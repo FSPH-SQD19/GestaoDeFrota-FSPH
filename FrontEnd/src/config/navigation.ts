@@ -33,7 +33,6 @@ export interface NavItem {
   roles: UserRole[];
   /** Rótulo pode variar conforme o perfil (ex.: "Minhas Solicitações" para o solicitante). */
   label: (roles: UserRole[]) => string;
-  badge?: (roles: UserRole[]) => string | undefined;
 }
 
 export interface NavSection {
@@ -58,8 +57,6 @@ export const NAV_SECTIONS: NavSection[] = [
         label: (roles) => (isGestao(roles) ? "Solicitações" : "Minhas Solicitações"),
         icon: ClipboardList,
         roles: ["ADMIN", "GESTOR", "SOLICITANTE"],
-        // Contador da fila de análise: só faz sentido para quem aprova.
-        badge: (roles) => (isGestao(roles) ? "1" : undefined),
       },
       {
         id: "viagens",
@@ -88,7 +85,7 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "svo",
         label: () => "Módulo SVO",
         icon: PhoneCall,
-        roles: ["ADMIN", "ATENDENTE_SVO"],
+        roles: ["ADMIN", "SVO"],
       },
     ],
   },
@@ -115,19 +112,13 @@ export const NAV_SECTIONS: NavSection[] = [
 export const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
   ADMIN: "dashboard",
   GESTOR: "dashboard",
-  ATENDENTE_SVO: "svo",
+  SVO: "svo",
   MOTORISTA: "viagens",
   SOLICITANTE: "solicitacoes",
 };
 
 /** Ordem de prioridade quando o usuário possui mais de um perfil. */
-const PRIORIDADE_PERFIS: UserRole[] = [
-  "ADMIN",
-  "GESTOR",
-  "ATENDENTE_SVO",
-  "MOTORISTA",
-  "SOLICITANTE",
-];
+const PRIORIDADE_PERFIS: UserRole[] = ["ADMIN", "GESTOR", "SVO", "MOTORISTA", "SOLICITANTE"];
 
 const ROLES_POR_TAB = new Map<TabId, UserRole[]>(
   NAV_SECTIONS.flatMap((s) => s.items).map((item) => [item.id, item.roles]),

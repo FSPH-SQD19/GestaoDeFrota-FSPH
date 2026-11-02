@@ -53,11 +53,11 @@ export type AbastecimentoResposta = Omit<Abastecimento, "odometro" | "litros" | 
   valorTotal: number | null;
 };
 
-function decimalParaNumero(valor: Prisma.Decimal | null): number | null {
+export function decimalParaNumero(valor: Prisma.Decimal | null): number | null {
   return valor === null ? null : Number(valor);
 }
 
-function temNoMaximoDuasCasas(valor: number): boolean {
+export function temNoMaximoDuasCasas(valor: number): boolean {
   return Math.abs(valor * 100 - Math.round(valor * 100)) < 1e-9;
 }
 

@@ -2,6 +2,8 @@ node_modules/
 **/node_modules/
 **/dist/
 **/coverage/
+**/playwright-report/
+**/test-results/
 .wrangler/
 FrontEnd/src/assets/
 FrontEnd/public/logo-preview.html

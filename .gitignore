@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.dev.vars*
 
 # Chave de autenticação gerada localmente
 **/.runtime/
@@ -12,9 +13,13 @@
 # Build artifacts
 **/dist/
 **/coverage/
+**/playwright-report/
+**/test-results/
 
 # OS and Editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+.wrangler/

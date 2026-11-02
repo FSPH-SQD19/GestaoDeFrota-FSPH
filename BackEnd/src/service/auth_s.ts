@@ -1,4 +1,5 @@
-import jwt from "jsonwebtoken";
+import { createSession } from "./session_s";
+import { signToken } from "./token_s";
 import { prisma } from "../lib/prisma";
 import { comparePassword } from "./password_s";
 import { getAuthConfig } from "../config/auth";
@@ -31,18 +32,10 @@ export async function login({ email, senha }: LoginInput) {
   }
 
   const perfis = usuario.perfis.map((usuarioPerfil) => usuarioPerfil.perfil.nome);
-  const { secret, expiresIn } = getAuthConfig();
-
-  const token = jwt.sign(
-    {
-      perfis,
-    },
-    secret,
-    {
-      subject: usuario.id,
-      expiresIn,
-    },
-  );
+  if (!perfis.length) throw new Error("Credenciais inválidas");
+  const { expiresIn } = getAuthConfig();
+  const sessaoId = await createSession(usuario.id, usuario.senhaHash, expiresIn);
+  const token = signToken(usuario.id, sessaoId);
 
   return {
     token,

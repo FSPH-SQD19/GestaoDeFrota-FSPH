@@ -22,14 +22,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const roles = user?.roles ?? [];
 
-  const userInitial = user?.nome ? user.nome.charAt(0).toUpperCase() : "V";
-  const activeRoleName = user?.roles?.[0] || "GESTOR";
+  const userInitial = user?.nome ? user.nome.charAt(0).toUpperCase() : "?";
+  const activeRoleName = user?.roles?.[0];
 
   const roleDisplayMap: Record<string, string> = {
     ADMIN: "Administrador",
     GESTOR: "Gestor de Frota",
     MOTORISTA: "Motorista Oficial",
-    ATENDENTE_SVO: "Atendente SVO",
+    SVO: "Atendente SVO",
     SOLICITANTE: "Solicitante Setorial",
   };
 
@@ -139,8 +139,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
                     const label = item.label(roles);
-                    const badge = item.badge?.(roles);
-
                     return (
                       <button
                         key={item.id}
@@ -174,26 +172,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           />
                           {!isCollapsed && <span>{label}</span>}
                         </div>
-
-                        {/* Badge de Contagem / Notificação */}
-                        {badge && (
-                          <>
-                            {!isCollapsed ? (
-                              <span
-                                className={cn(
-                                  "px-2 py-0.5 rounded-full text-[11px] font-bold",
-                                  isActive
-                                    ? "bg-slate-900 text-white"
-                                    : "bg-rose-500 text-white shadow-xs",
-                                )}
-                              >
-                                {badge}
-                              </span>
-                            ) : (
-                              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#090D16]" />
-                            )}
-                          </>
-                        )}
                       </button>
                     );
                   })}
@@ -217,16 +195,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shrink-0">
                   {userInitial}
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#090D16]" />
               </div>
 
               {!isCollapsed && (
                 <div className="flex flex-col min-w-0 animate-in fade-in duration-200">
                   <span className="text-xs font-bold text-white leading-tight truncate">
-                    {user?.nome || "Vitor Santos"}
+                    {user?.nome || "Usuário"}
                   </span>
                   <span className="text-[10px] text-slate-400 leading-tight truncate">
-                    {roleDisplayMap[activeRoleName] || activeRoleName}
+                    {activeRoleName ? roleDisplayMap[activeRoleName] || activeRoleName : ""}
                   </span>
                 </div>
               )}

@@ -6,10 +6,11 @@ A documentação está organizada em [docs/README.md](docs/README.md), com guias
 
 ## Início rápido
 
-Na raiz, com uma versão de Node.js compatível com o `package.json`:
+Configure a conexão Neon de desenvolvimento em `BackEnd/.env` conforme o [guia de ambiente](docs/AMBIENTE.md). Depois, na raiz, com uma versão de Node.js compatível com o `package.json`:
 
 ```bash
 npm ci
+npm exec --workspace=backend -- prisma migrate deploy
 npm run dev
 ```
 

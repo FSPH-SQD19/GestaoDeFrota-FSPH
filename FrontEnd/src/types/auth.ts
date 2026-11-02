@@ -1,4 +1,13 @@
-export type UserRole = "ADMIN" | "GESTOR" | "MOTORISTA" | "ATENDENTE_SVO" | "SOLICITANTE";
+// Perfis alinhados aos nomes da API e do banco (migration/seed).
+export type UserRole = "ADMIN" | "GESTOR" | "MOTORISTA" | "SVO" | "SOLICITANTE";
+
+export const ROTULOS_PERFIL: Record<UserRole, string> = {
+  ADMIN: "Administrador",
+  GESTOR: "Gestor de frota",
+  MOTORISTA: "Motorista",
+  SVO: "Atendente SVO",
+  SOLICITANTE: "Solicitante Setor",
+};
 
 export interface User {
   id: string;
@@ -10,7 +19,7 @@ export interface User {
 
 export interface AuthState {
   user: User | null;
-  token: string | null;
+  sessionKey: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }

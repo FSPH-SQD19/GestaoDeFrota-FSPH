@@ -1,3 +1,6 @@
+vi.mock("../../../src/service/session_s", () => ({
+  createSession: vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000002"),
+}));
 import { getAuthConfig } from "../../../src/config/auth";
 vi.mock("../../../src/config/auth", () => ({ getAuthConfig: vi.fn() }));
 import jwt, { type JwtPayload } from "jsonwebtoken";
@@ -15,6 +18,7 @@ vi.mock("../../../src/service/password_s", () => ({
   comparePassword: mocks.comparePassword,
 }));
 
+import { createSession } from "../../../src/service/session_s";
 import { login } from "../../../src/service/auth_s";
 
 const credentials = { email: "teste@example.test", senha: "senha-de-teste" };
@@ -31,6 +35,7 @@ const usuario = {
 describe("login service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(createSession).mockResolvedValue("00000000-0000-4000-8000-000000000002");
     vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
 
     mocks.findUnique.mockResolvedValue(usuario);
@@ -72,7 +77,12 @@ describe("login service", () => {
       email: usuario.email,
       perfis: ["GESTOR"],
     });
-    expect(payload).toMatchObject({ sub: usuario.id, perfis: ["GESTOR"] });
+    expect(payload).toMatchObject({
+      sub: usuario.id,
+      iss: "fsph-frota-api",
+      aud: "fsph-frota-web",
+      jti: "00000000-0000-4000-8000-000000000002",
+    });
     expect(payload.exp! - payload.iat!).toBe(8 * 60 * 60);
     expect(() => jwt.verify(result.token, "outra-chave")).toThrow();
   });

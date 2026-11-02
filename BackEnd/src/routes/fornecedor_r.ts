@@ -6,16 +6,18 @@ import {
   inativarFornecedorController,
 } from "../controller/fornecedor_c";
 
+import { requireRole } from "../middleware/http_m";
 import { AuthToken } from "../middleware/auth_m";
 
 const router = Router();
+router.use(AuthToken, requireRole("ADMIN", "GESTOR"));
 
-router.get("/", AuthToken, listarFornecedoresController);
+router.get("/", listarFornecedoresController);
 
-router.post("/", AuthToken, cadastrarFornecedorController);
+router.post("/", cadastrarFornecedorController);
 
-router.patch("/:id", AuthToken, atualizarFornecedorController);
+router.patch("/:id", atualizarFornecedorController);
 
-router.delete("/:id", AuthToken, inativarFornecedorController);
+router.delete("/:id", inativarFornecedorController);
 
 export default router;

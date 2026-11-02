@@ -30,6 +30,7 @@ FrontEnd/src/
 ├── components/common/   Componentes reutilizáveis
 ├── components/layout/   Cabeçalho e menu lateral
 ├── contexts/            Estado da sessão e hook de autenticação
+├── services/            Cliente HTTP (Axios) com JWT e tratamento de 401
 ├── pages/               Login, recuperação, dashboard e veículos
 ├── types/               Tipos de autenticação e navegação
 ├── lib/                 Utilitários compartilhados
@@ -37,7 +38,7 @@ FrontEnd/src/
 └── index.css            Tailwind, fontes e tokens de interface
 ```
 
-A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a navegação, e os contextos compartilham informações da sessão. A instalação dos dois workspaces é centralizada na raiz.
+A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a navegação, e os contextos compartilham informações da sessão. As chamadas à API usam `src/services/api.ts`, que anexa `Authorization: Bearer <token>` e, em `401` fora do login, limpa a sessão. A instalação dos dois workspaces é centralizada na raiz. A URL base da API é `VITE_API_URL` (modelo em `FrontEnd/.env.example`; padrão local `http://localhost:3000`).
 
 ## Identidade visual e componentes
 
@@ -150,7 +151,7 @@ Os cinco perfis estão definidos em `src/types/auth.ts` e representam as seguint
 1. `ADMIN` — Acesso irrestrito a configurações, auditoria e usuários.
 2. `GESTOR` — Gestor de Frota da FSPH (aprova viagens, escala motoristas e gerencia viaturas).
 3. `MOTORISTA` — Condutor oficial (diários de bordo, checklists e viagens atribuídas).
-4. `ATENDENTE_SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO.
+4. `SVO` — Triagem de óbitos e controle da quarentena sanitária de viaturas SVO (nome alinhado à API).
 5. `SOLICITANTE` — Setores assistenciais (LACEN, Hemocentro, SES) que solicitam transporte.
 
 ### Exibir elementos por perfil
@@ -198,3 +199,49 @@ npm run check
 O repositório utiliza verificação estrita de TypeScript (`tsc -b`). Não deixe variáveis ou importações não utilizadas no código (`noUnusedLocals`). Não comite arquivos `.env` ou credenciais.
 
 Veja [Testes](TESTES.md) para os exemplos de componentes e [GitHub](GITHUB.md) para o fluxo de PR da equipe.
+
+## Relatórios
+
+A aba Relatórios consulta `/api/v1/relatorios` para administradores e gestores. O período inicial vai do primeiro dia do mês atual até hoje. Aplicar um período refaz a consulta e invalida os dados anteriores; respostas antigas não substituem o resultado do novo período. A tela apresenta carregamento, falha com nova tentativa e ausência de registros.
+
+A exportação CSV utiliza exclusivamente o resultado do período consultado, com BOM UTF-8, escape de delimitadores/aspas e proteção contra fórmulas de planilha. Ela fica desabilitada quando não existem veículos no relatório. Indicadores ainda não disponíveis aparecem como `—`; os limites de dados estão descritos na tela e no contrato em [Backend](BACKEND.md).
+
+## Usuários
+
+A aba Usuários é restrita a administradores. A consulta de acesso utiliza somente o endpoint existente `GET /api/v1/auth/perfil`, que retorna o identificador e os perfis da sessão autenticada. A tela trata carregamento, falha e nova tentativa, e não apresenta essa resposta como uma lista de usuários.
+
+Não existem endpoints de listagem ou cadastro de usuários no backend atual. Por isso, a tela informa que a gestão está indisponível e desabilita o botão Novo usuário. Não há usuários fictícios, códigos gerados no navegador, cadastro em memória ou chamadas a endpoints inexistentes. Busca, filtro por setor e ações sem implementação foram removidos.
+
+## Veículos: validação e paginação
+
+A tela consulta `GET /api/v1/veiculos` com `page`, `pageSize=10`, `busca` e `tipoFrota`. A busca por placa ou modelo aguarda 300 ms após digitar; mudanças de busca ou frota retornam à primeira página. Respostas antigas são descartadas. Os indicadores de cada frota consultam os totais da API com `pageSize=1` e não contam apenas a página carregada. Falhas de listagem e de contagem são apresentadas separadamente, com nova tentativa.
+
+O cadastro utiliza `POST /api/v1/veiculos` pelo cliente HTTP compartilhado, respeitando `VITE_API_URL` e o tratamento de sessão expirada. O Zod valida placa brasileira (antiga ou Mercosul), modelo entre 2 e 100 caracteres, capacidade inteira de 1 a 50, ano opcional entre 1950 e o ano atual mais um e combustível opcional de até 30 caracteres. Placa e espaços são normalizados antes do envio. Durante o envio, o modal permanece aberto e bloqueia alterações e submissões repetidas. Uma rejeição preserva os dados preenchidos; o sucesso recarrega a listagem e as contagens.
+
+## Solicitações para gestores
+
+Administradores e gestores consultam a mesma tela de solicitações, com visão dos setores. A listagem usa `GET /api/v1/solicitacoes` com paginação de 20 itens e filtros de status, urgência, setor e busca no servidor. O suporte a `setorOrigem` já está presente nesta branch. Os indicadores utilizam `meta.porStatus`, que acompanha os filtros de busca/setor/urgência e não se limita à página atual. O filtro de status só restringe a tabela.
+
+A fila prioritária faz uma consulta independente por pendentes urgentes: mostra até seis registros e o total informado pela API. Os filtros da tabela permitem consultar os demais pedidos. Uma falha dessa consulta é exibida separadamente, sem esconder o resultado da tabela. Alterar filtros invalida o resultado anterior, e respostas de consultas antigas são descartadas.
+
+Listagem e criação utilizam o cliente HTTP compartilhado com `VITE_API_URL` e encerramento de sessão em respostas 401. Erros de validação exibem as mensagens dos campos retornadas pela API. O cadastro preserva o formulário em caso de falha e bloqueia fechamento, alterações e envios repetidos enquanto aguarda a resposta. O setor deve ser escolhido, sem assumir um setor para o usuário.
+
+Nesta branch, as rotas de aprovação e recusa já estão disponíveis e foram conectadas aos botões dos detalhes para administradores e gestores. Aprovar abre a seleção de veículo e motorista; recusar exige justificativa. O sucesso recarrega a tabela e a fila urgente. Respostas de conflito mantêm as seleções para nova tentativa, sem simular uma decisão local.
+
+O modal de aprovação consulta todas as páginas de veículos administrativos disponíveis e os motoristas ativos e disponíveis, com CNH válida até a data local do retorno. Capacidade insuficiente é bloqueada antes do envio e novamente conferida no servidor. Solicitações sem intervalo completo de saída/retorno mostram a limitação e não podem ser aprovadas. A recusa aceita o motivo não vazio, limitado a 2000 caracteres conforme a API, e não depende do carregamento de recursos. Durante uma decisão, edição, fechamento e submissões repetidas ficam bloqueados.
+
+## Motoristas: integração e conta de acesso
+
+A tela usa o cliente HTTP compartilhado em `GET` e `POST /api/v1/motoristas`, respeitando `VITE_API_URL` e a limpeza de sessão em respostas 401. A listagem diferencia falha, carregamento e ausência de resultados; uma nova consulta invalida respostas antigas. A tela aceita status operacionais EM_VIAGEM e EM_ROTA e os apresenta separadamente do campo `ativo` do cadastro.
+
+O cadastro envia os dados da conta que já eram exigidos por esta branch (nome, e-mail, senha e telefone), além de CPF e CNH. A validação segue o contrato existente, normalizando os dados e verificando o limite de 72 bytes da senha. Enquanto aguarda o POST, bloqueia fechamento, edição e novo envio. Falhas preservam o formulário. O sucesso limpa as credenciais preenchidas, fecha o modal e recarrega a lista; uma falha posterior nessa consulta é apresentada como erro de listagem, sem repetir o cadastro.
+
+CNHs válidas até hoje não são consideradas vencidas. Os indicadores excluem cadastros inativos das contagens de vencimento, e o filtro de CNHs vencendo inclui somente as que vencem de hoje até 30 dias, sem misturar CNHs já vencidas. Os dados da API são conferidos antes de formatar as datas.
+
+## Central SVO
+
+A central usa o cliente HTTP compartilhado e os endpoints existentes em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, despacho, conclusão e desinfecção recarregam os dados da API após o sucesso.
+
+Falhas na consulta de indicadores, viaturas ou motoristas permanecem visíveis mesmo que a listagem carregue depois. Repetir o filtro atual não deixa a tela presa em carregamento, e a página é ajustada quando o resultado filtrado diminui. A emissão não pré-seleciona motoristas ocupados em outras viaturas e exige uma seleção elegível.
+
+Validação visual em Playwright, pois o plugin Browser não estava disponível: `http://127.0.0.1:4173/`, viewports 1440 × 1000 e 390 × 844. O fluxo registro → triagem → emissão → conclusão → desinfecção, a busca e o filtro atual foram exercitados com respostas de API simuladas apenas no teste externo ao repositório. Não houve erro de console, overlay do Vite ou transbordamento horizontal. Essa verificação não substitui a integração com PostgreSQL real.

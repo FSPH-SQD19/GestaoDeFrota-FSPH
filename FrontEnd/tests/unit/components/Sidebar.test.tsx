@@ -17,13 +17,12 @@ function renderSidebarWithRole(role: UserRole) {
     <AuthContext.Provider
       value={{
         user,
-        token: "token-test",
+        sessionKey: "sessionKey-test",
         isAuthenticated: true,
         isLoading: false,
         login: vi.fn(),
         logout: vi.fn(),
         hasRole: (required) => required.includes(role),
-        switchRoleForTesting: vi.fn(),
       }}
     >
       <Sidebar activeTab={telaInicial([role])} onSelectTab={vi.fn()} />
@@ -37,13 +36,13 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(telaInicial(["GESTOR"])).toBe("dashboard");
     expect(telaInicial(["SOLICITANTE"])).toBe("solicitacoes");
     expect(telaInicial(["MOTORISTA"])).toBe("viagens");
-    expect(telaInicial(["ATENDENTE_SVO"])).toBe("svo");
+    expect(telaInicial(["SVO"])).toBe("svo");
   });
 
-  it("bloqueia acesso ao dashboard para SOLICITANTE, MOTORISTA e ATENDENTE_SVO", () => {
+  it("bloqueia acesso ao dashboard para SOLICITANTE, MOTORISTA e SVO", () => {
     expect(podeAcessar("dashboard", ["SOLICITANTE"])).toBe(false);
     expect(podeAcessar("dashboard", ["MOTORISTA"])).toBe(false);
-    expect(podeAcessar("dashboard", ["ATENDENTE_SVO"])).toBe(false);
+    expect(podeAcessar("dashboard", ["SVO"])).toBe(false);
     expect(podeAcessar("dashboard", ["GESTOR"])).toBe(true);
     expect(podeAcessar("dashboard", ["ADMIN"])).toBe(true);
   });
@@ -65,8 +64,8 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(screen.queryByRole("button", { name: /solicitações/i })).not.toBeInTheDocument();
   });
 
-  it('exibe apenas "Módulo SVO" para ATENDENTE_SVO (segregação de frotas)', () => {
-    renderSidebarWithRole("ATENDENTE_SVO");
+  it('exibe apenas "Módulo SVO" para SVO (segregação de frotas)', () => {
+    renderSidebarWithRole("SVO");
 
     expect(screen.getByRole("button", { name: "Módulo SVO" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /dashboard/i })).not.toBeInTheDocument();

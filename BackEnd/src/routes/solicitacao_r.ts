@@ -9,9 +9,19 @@ import {
 
 const router = Router();
 
-router.get("/", authenticate, listarSolicitacoesController);
+router.get(
+  "/",
+  authenticate,
+  requireRole("SOLICITANTE", "GESTOR", "ADMIN"),
+  listarSolicitacoesController,
+);
 
-router.post("/", authenticate, criarSolicitacaoController);
+router.post(
+  "/",
+  authenticate,
+  requireRole("SOLICITANTE", "GESTOR", "ADMIN"),
+  criarSolicitacaoController,
+);
 
 router.patch(
   "/:id/aprovar",

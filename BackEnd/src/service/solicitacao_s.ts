@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError, type UsuarioAutenticado } from "../middleware/http_m";
+import { notificarSolicitacaoUrgente } from "./notificacao_s";
 
 export const STATUS_SOLICITACAO = [
   "PENDENTE",
@@ -122,6 +123,12 @@ export const listarSolicitacoesSchema = z.object({
   ),
   urgencia: z.enum(URGENCIAS, { error: "Urgência inválida." }).optional(),
   tipoTransporte: z.enum(TIPOS_TRANSPORTE, { error: "Tipo de transporte inválido." }).optional(),
+  setorOrigem: z
+    .string()
+    .trim()
+    .max(100, "Setor de origem deve ter no máximo 100 caracteres.")
+    .transform((valor) => valor || undefined)
+    .optional(),
   busca: z
     .string()
     .trim()
@@ -186,12 +193,13 @@ export async function listarSolicitacoes(
   filtros: ListarSolicitacoesFiltros,
   usuario: UsuarioAutenticado,
 ) {
-  const { page, pageSize, status, urgencia, tipoTransporte, busca } = filtros;
+  const { page, pageSize, status, urgencia, tipoTransporte, setorOrigem, busca } = filtros;
 
   const whereBase: Prisma.SolicitacaoViagemWhereInput = {
     ...(podeVerTodas(usuario) ? {} : { solicitanteId: usuario.id }),
     ...(urgencia ? { urgencia } : {}),
     ...(tipoTransporte ? { tipoTransporte } : {}),
+    ...(setorOrigem ? { setorOrigem } : {}),
     ...(busca
       ? {
           OR: [
@@ -286,6 +294,15 @@ export async function criarSolicitacao(
     },
     { maxWait: 5000, timeout: 10000 },
   );
+
+  if (registro.urgencia === "URGENTE") {
+    await notificarSolicitacaoUrgente({
+      id: registro.id,
+      protocolo: registro.protocolo,
+      setorOrigem: registro.setorOrigem,
+      destino: registro.destino,
+    });
+  }
 
   return serializarSolicitacao(registro);
 }
