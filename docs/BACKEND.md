@@ -71,7 +71,20 @@ Auth e veículos usam `authenticate` e `requireRole` de `http_m.ts`, com identid
 
 A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Os nomes de perfis enviados pela API e usados pela interface devem seguir um mapeamento consistente.
 
-O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas. O controller de login usa os formatos `{ "error": "..." }` ou `{ "mensagem": "..." }`.
+O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas.
+
+## Tratamento de erros
+
+As falhas da API Express usam um único formato: `{ statusCode, message, errors }`. O campo `errors` contém os detalhes de validação por campo e fica vazio quando não há detalhes adicionais. Login, motoristas, fornecedores, CSRF e limites de tentativas seguem esse contrato; respostas de sucesso mantêm seus formatos próprios.
+
+- `lib/http_error.ts` define `HttpError`, com status HTTP, mensagem pública e detalhes opcionais. Serviços traduzem erros de persistência quando conhecem o significado de negócio (por exemplo, CNPJ duplicado).
+- Controllers validam a entrada e retornam sucesso. Falhas síncronas ou rejeições de handlers assíncronos seguem automaticamente para o middleware pelo Express 5; não é necessário envolver cada controller em `try/catch`.
+- `middleware/error_m.ts`, registrado por último no `app.ts`, gera a resposta e registra falhas internas uma única vez. Erros inesperados retornam `500` com mensagem genérica, sem expor stack ou detalhes de infraestrutura. JSON malformado retorna `400` e corpo acima de 512 KB retorna `413`.
+- Proteções de acesso encaminham `HttpError` ao mesmo middleware. Limites de tentativas preservam o cabeçalho `Retry-After`.
+
+Mensagens públicas devem orientar a pessoa sobre o próximo passo, sem expor códigos internos ou termos de implementação. `lib/validar.ts` mantém os detalhes por campo e fornece mensagens em português quando o schema não define uma orientação própria. Identificadores e formatos técnicos continuam sendo validados internamente.
+
+Tratamentos locais permanecem quando recuperam uma operação ou isolam falhas secundárias, como notificações. O fallback `503` do Worker permanece fora do Express, pois também cobre falhas antes da inicialização da aplicação.
 
 ## Listagem de veículos
 
@@ -230,6 +243,16 @@ As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas d
 Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
 
 A última coleta encaminha a viatura à desinfecção sem sobrescrever outros estados operacionais. A liberação do condutor é condicional ao cadastro ativo e ao status ocupado. A confirmação da desinfecção exige ausência de coletas ativas. Atualizações de status e auditoria permanecem na mesma transação; disputas transacionais ou emissão duplicada retornam `409`. Concorrência em PostgreSQL real não foi validada nesta revisão.
+
+### Escalas e plantões do SVO
+
+Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatura SVO em um turno (`inicioTurno` e `fimTurno`, ISO 8601 com fuso, até 24 horas). Pela ATA, não há vínculo fixo entre motorista e viatura: a mesma viatura pode ter mais de um motorista no turno.
+
+- `POST /api/v1/svo/escalas`: `{ motoristaId, veiculoId, inicioTurno, fimTurno, observacoes? }` (observações até 300 caracteres). Retorna `201`. Erros: `400` validação, `422` turno já terminado, motorista inativo, CNH vencendo antes do fim do turno ou viatura que não seja SVO ativa, `409` motorista com outra escala no mesmo horário.
+- `GET /api/v1/svo/escalas`: filtros `situacao` (`AGENDADA`, `EM_ANDAMENTO`, `SUSPENSA` ou `ENCERRADA`), `motoristaId`, `veiculoId`, `page` e `pageSize` (padrão 20, até 100). Resposta `{ data, meta }`; cada item traz `motorista { id, nome, telefone, ativo }`, `veiculo { id, placa, modelo, status, ativo }`, horários, `encerradaEm` e `situacao`. `AGENDADA`, `EM_ANDAMENTO` e `SUSPENSA` vêm em ordem cronológica; o restante, da mais recente para a mais antiga.
+- `PATCH /api/v1/svo/escalas/:id/encerrar`: grava `encerradaEm`. Encerrar antes do início cancela a escala e libera o horário do motorista. `404` inexistente, `409` já encerrada.
+
+A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
 
 ### Compatibilidade com Cloudflare
 

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./contexts/auth";
 import { LoginPage } from "./pages/auth/LoginPage";
@@ -6,6 +6,8 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
+import { api } from "./services/api";
+
 const MotoristaPwa = lazy(() => import("./features/motorista/MotoristaPwa"));
 const CentralOperacional = lazy(() => import("./features/motorista/CentralOperacional"));
 
@@ -22,6 +24,11 @@ const VeiculosPage = lazy(() =>
 const SolicitacoesPage = lazy(() =>
   import("./pages/solicitacoes/SolicitacoesPage").then((module) => ({
     default: module.SolicitacoesPage,
+  })),
+);
+const MinhasViagensPage = lazy(() =>
+  import("./pages/viagens/MinhasViagensPage").then((module) => ({
+    default: module.MinhasViagensPage,
   })),
 );
 const MotoristasPage = lazy(() =>
@@ -48,6 +55,28 @@ const AppContent: React.FC = () => {
       : telaInicial(roles),
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [pwaConfig, setPwaConfig] = useState<{ motoristaId: string; enabled: boolean } | null>(
+    null,
+  );
+  const motoristaId = isAuthenticated && roles.includes("MOTORISTA") ? user?.id : undefined;
+  const pwaHabilitado = pwaConfig?.motoristaId === motoristaId ? pwaConfig?.enabled : null;
+
+  useEffect(() => {
+    if (!motoristaId) return;
+    let active = true;
+    void api
+      .get<{ enabled: boolean }>("/api/v1/motorista/config")
+      .then(({ data }) => {
+        if (active) setPwaConfig({ motoristaId, enabled: data.enabled !== false });
+      })
+      .catch(() => {
+        // O PWA restaura a saída local e apresenta a falha de conexão ou sessão.
+        if (active) setPwaConfig({ motoristaId, enabled: true });
+      });
+    return () => {
+      active = false;
+    };
+  }, [motoristaId]);
 
   if (isLoading) {
     return (
@@ -76,7 +105,7 @@ const AppContent: React.FC = () => {
         ? activeTab
         : telaInicial(roles);
 
-  if (currentTab === "viagens")
+  if (currentTab === "viagens" && pwaHabilitado !== false)
     return (
       <Suspense
         fallback={
@@ -85,16 +114,22 @@ const AppContent: React.FC = () => {
           </div>
         }
       >
-        <MotoristaPwa
-          onOpenManagement={
-            roles.some((role) => ["ADMIN", "GESTOR", "SVO", "SOLICITANTE"].includes(role))
-              ? () => {
-                  window.history.replaceState(null, "", "/");
-                  setActiveTab(telaInicial(roles));
-                }
-              : undefined
-          }
-        />
+        {pwaHabilitado === null ? (
+          <div role="status" className="grid min-h-dvh place-items-center bg-slate-100">
+            Carregando suas viagens...
+          </div>
+        ) : (
+          <MotoristaPwa
+            onOpenManagement={
+              roles.some((role) => ["ADMIN", "GESTOR", "SVO", "SOLICITANTE"].includes(role))
+                ? () => {
+                    window.history.replaceState(null, "", "/");
+                    setActiveTab(telaInicial(roles));
+                  }
+                : undefined
+            }
+          />
+        )}
       </Suspense>
     );
 
@@ -131,6 +166,7 @@ const AppContent: React.FC = () => {
             {currentTab === "veiculos" && <VeiculosPage />}
 
             {currentTab === "rastreamento" && <CentralOperacional />}
+            {currentTab === "viagens" && <MinhasViagensPage />}
 
             {currentTab === "motoristas" && <MotoristasPage />}
 

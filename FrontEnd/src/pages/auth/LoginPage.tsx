@@ -43,7 +43,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
       if (err instanceof Error) {
         setErrorMessage(err.message);
       } else {
-        setErrorMessage("Ocorreu um erro ao tentar acessar. Verifique suas credenciais.");
+        setErrorMessage("Não foi possível entrar no sistema. Tente novamente.");
       }
     }
   };

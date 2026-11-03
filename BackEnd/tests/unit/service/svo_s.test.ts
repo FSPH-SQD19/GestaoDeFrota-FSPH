@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@prisma/client";
-import { HttpError } from "../../../src/middleware/http_m";
+import { HttpError } from "../../../src/lib/http_error";
 
 const mocks = vi.hoisted(() => ({
   chamadoCount: vi.fn(),

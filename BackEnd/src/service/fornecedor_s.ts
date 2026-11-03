@@ -1,3 +1,4 @@
+import { HttpError } from "../lib/http_error";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -47,20 +48,21 @@ export async function listarFornecedores() {
 }
 
 export async function cadastrarFornecedor(dados: NovoFornecedor, usuarioResponsavelId: string) {
-  const razaoSocial = dados.razaoSocial?.trim();
-  const cnpj = dados.cnpj?.replace(/\D/g, "");
-  const tipoServico = dados.tipoServico?.trim().toUpperCase();
+  const razaoSocial = typeof dados.razaoSocial === "string" ? dados.razaoSocial.trim() : undefined;
+  const cnpj = typeof dados.cnpj === "string" ? dados.cnpj.replace(/\D/g, "") : undefined;
+  const tipoServico =
+    typeof dados.tipoServico === "string" ? dados.tipoServico.trim().toUpperCase() : undefined;
 
   if (!razaoSocial || !cnpj || !tipoServico) {
-    throw new Error("CAMPOS_OBRIGATORIOS");
+    throw new HttpError(400, "Preencha os campos obrigatórios do fornecedor.");
   }
 
   if (!/^\d{14}$/.test(cnpj)) {
-    throw new Error("CNPJ_INVALIDO");
+    throw new HttpError(400, "Confira o CNPJ informado e tente novamente.");
   }
 
   if (!TIPOS_PERMITIDOS.includes(tipoServico)) {
-    throw new Error("TIPO_SERVICO_INVALIDO");
+    throw new HttpError(400, "Selecione o tipo de serviço do fornecedor.");
   }
 
   const existente = await prisma.fornecedor.findUnique({
@@ -68,7 +70,10 @@ export async function cadastrarFornecedor(dados: NovoFornecedor, usuarioResponsa
   });
 
   if (existente) {
-    throw new Error("CNPJ_JA_CADASTRADO");
+    throw new HttpError(
+      409,
+      "Já existe um fornecedor com este CNPJ. Confira o cadastro existente.",
+    );
   }
 
   let fornecedor;
@@ -84,7 +89,10 @@ export async function cadastrarFornecedor(dados: NovoFornecedor, usuarioResponsa
     });
   } catch (erro) {
     if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002") {
-      throw new Error("CNPJ_JA_CADASTRADO");
+      throw new HttpError(
+        409,
+        "Já existe um fornecedor com este CNPJ. Confira o cadastro existente.",
+      );
     }
 
     throw erro;
@@ -101,7 +109,7 @@ export async function atualizarFornecedor(
   usuarioResponsavelId: string,
 ) {
   if (!z.uuid().safeParse(id).success) {
-    throw new Error("ID_INVALIDO");
+    throw new HttpError(400, "Não foi possível identificar o fornecedor. Selecione-o novamente.");
   }
 
   if (
@@ -109,14 +117,14 @@ export async function atualizarFornecedor(
     dados.tipoServico === undefined &&
     dados.ativo === undefined
   ) {
-    throw new Error("CAMPOS_OBRIGATORIOS");
+    throw new HttpError(400, "Preencha os campos obrigatórios do fornecedor.");
   }
 
   const dadosAtualizados: AtualizarFornecedor = {};
 
   if (dados.razaoSocial !== undefined) {
     if (typeof dados.razaoSocial !== "string" || !dados.razaoSocial.trim()) {
-      throw new Error("CAMPOS_OBRIGATORIOS");
+      throw new HttpError(400, "Preencha os campos obrigatórios do fornecedor.");
     }
 
     dadosAtualizados.razaoSocial = dados.razaoSocial.trim();
@@ -124,13 +132,13 @@ export async function atualizarFornecedor(
 
   if (dados.tipoServico !== undefined) {
     if (typeof dados.tipoServico !== "string") {
-      throw new Error("TIPO_SERVICO_INVALIDO");
+      throw new HttpError(400, "Selecione o tipo de serviço do fornecedor.");
     }
 
     const tipoServico = dados.tipoServico.trim().toUpperCase();
 
     if (!TIPOS_PERMITIDOS.includes(tipoServico)) {
-      throw new Error("TIPO_SERVICO_INVALIDO");
+      throw new HttpError(400, "Selecione o tipo de serviço do fornecedor.");
     }
 
     dadosAtualizados.tipoServico = tipoServico;
@@ -138,7 +146,7 @@ export async function atualizarFornecedor(
 
   if (dados.ativo !== undefined) {
     if (typeof dados.ativo !== "boolean") {
-      throw new Error("ATIVO_INVALIDO");
+      throw new HttpError(400, "Informe se o fornecedor está ativo ou inativo.");
     }
 
     dadosAtualizados.ativo = dados.ativo;
@@ -153,7 +161,7 @@ export async function atualizarFornecedor(
     });
   } catch (erro) {
     if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2025") {
-      throw new Error("FORNECEDOR_NAO_ENCONTRADO");
+      throw new HttpError(404, "Fornecedor não encontrado. Atualize a lista e tente novamente.");
     }
 
     throw erro;
@@ -166,7 +174,7 @@ export async function atualizarFornecedor(
 
 export async function inativarFornecedor(id: string, usuarioResponsavelId: string) {
   if (!z.uuid().safeParse(id).success) {
-    throw new Error("ID_INVALIDO");
+    throw new HttpError(400, "Não foi possível identificar o fornecedor. Selecione-o novamente.");
   }
 
   let fornecedor;
@@ -178,7 +186,7 @@ export async function inativarFornecedor(id: string, usuarioResponsavelId: strin
     });
   } catch (erro) {
     if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2025") {
-      throw new Error("FORNECEDOR_NAO_ENCONTRADO");
+      throw new HttpError(404, "Fornecedor não encontrado. Atualize a lista e tente novamente.");
     }
 
     throw erro;

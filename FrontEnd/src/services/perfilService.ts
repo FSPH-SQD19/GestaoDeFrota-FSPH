@@ -16,7 +16,7 @@ export interface RespostaMensagem {
 export function alterarMinhaSenhaApi(payload: AlterarMinhaSenhaPayload): Promise<RespostaMensagem> {
   return apiRequest<RespostaMensagem>("/auth/alterar-senha", {
     method: "PATCH",
-    body: JSON.stringify(payload),
+    data: payload,
   });
 }
 
@@ -28,7 +28,7 @@ export function redefinirSenhaUsuarioApi(
     `/auth/usuarios/${encodeURIComponent(usuarioId)}/redefinir-senha`,
     {
       method: "PATCH",
-      body: JSON.stringify(payload),
+      data: payload,
     },
   );
 }

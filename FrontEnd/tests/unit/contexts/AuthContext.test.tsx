@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -27,10 +28,18 @@ const data = {
 };
 function Consumer() {
   const auth = useAuth();
+  const [error, setError] = useState("");
   return (
     <>
       <span>{auth.isLoading ? "carregando" : auth.user?.nome || "desconectado"}</span>
-      <button onClick={() => void auth.login({ usuario: "teste@example.test", senha: "senha" })}>
+      {error && <span role="alert">{error}</span>}
+      <button
+        onClick={() =>
+          void auth
+            .login({ usuario: "teste@example.test", senha: "senha" })
+            .catch((error: Error) => setError(error.message))
+        }
+      >
         Entrar
       </button>
       <button onClick={() => void auth.logout()}>Sair</button>
@@ -49,6 +58,29 @@ beforeEach(() => {
   mocks.post.mockResolvedValue({ data });
 });
 describe("sessão por cookie", () => {
+  it("apresenta a mensagem do contrato centralizado ao rejeitar o login", async () => {
+    mocks.get.mockRejectedValue(new Error("Sem sessão"));
+    mocks.post.mockRejectedValue({
+      isAxiosError: true,
+      message: "Request failed with status code 429",
+      response: {
+        status: 429,
+        data: {
+          statusCode: 429,
+          message: "Muitas tentativas. Tente novamente em 15 minutos.",
+          errors: [],
+        },
+      },
+    });
+    setup();
+    await screen.findByText("desconectado");
+    await userEvent.click(screen.getByText("Entrar"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Muitas tentativas. Tente novamente em 15 minutos.",
+    );
+    expect(screen.getByText("desconectado")).toBeInTheDocument();
+  });
+
   it("restaura pelo servidor sem persistir JWT ou usuário", async () => {
     setup();
     expect(await screen.findByText("Pessoa")).toBeInTheDocument();

@@ -1,6 +1,7 @@
+import { validar } from "../lib/validar";
 import type { Request, Response } from "express";
-import type { z } from "zod";
-import { HttpError, usuarioAutenticado } from "../middleware/http_m";
+import { usuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import {
   atualizarVeiculo,
   atualizarVeiculoSchema,
@@ -9,22 +10,6 @@ import {
   listarVeiculos,
   listarVeiculosSchema,
 } from "../service/veiculo_s";
-
-//  Validar com o mega Zod e converte falhas para o erro 400.
-export function validar<T extends z.ZodType>(schema: T, dados: unknown): z.infer<T> {
-  const resultado = schema.safeParse(dados);
-  if (resultado.success) {
-    return resultado.data;
-  }
-  throw new HttpError(
-    400,
-    "Dados inválidos.",
-    resultado.error.issues.map((issue) => ({
-      campo: issue.path.join("."),
-      mensagem: issue.message,
-    })),
-  );
-}
 
 export async function listarVeiculosController(req: Request, res: Response) {
   const filtros = validar(listarVeiculosSchema, req.query);
@@ -41,7 +26,7 @@ export async function atualizarVeiculoController(req: Request, res: Response) {
   const id = req.params.id;
 
   if (typeof id !== "string" || !id) {
-    throw new HttpError(400, "ID do veículo inválido ou não informado.");
+    throw new HttpError(400, "Selecione um veículo e tente novamente.");
   }
 
   const dados = validar(atualizarVeiculoSchema, req.body ?? {});

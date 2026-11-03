@@ -1,12 +1,15 @@
-import axios, { type AxiosRequestConfig, type Method } from "axios";
+import axios, { type Method } from "axios";
 import { api } from "../services/api";
 
 interface ApiRequestOptions {
   method?: Method;
-  body?: string;
+  data?: unknown;
 }
 
-function respostaDeErro(error: unknown): string {
+export function respostaDeErro(
+  error: unknown,
+  padrao = "Não foi possível concluir a operação.",
+): string {
   if (axios.isAxiosError(error)) {
     const body = error.response?.data;
     if (body && typeof body === "object") {
@@ -32,29 +35,27 @@ function respostaDeErro(error: unknown): string {
       if (message) return message;
     }
     if (error.response?.status === 401) return "Sua sessão expirou. Entre novamente.";
+    if (!error.response) {
+      if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT")
+        return "O sistema demorou para responder. Aguarde um momento e tente novamente.";
+      return "Não foi possível conectar ao sistema. Verifique sua conexão e tente novamente.";
+    }
+    if (error.response.status === 403) return "Você não tem permissão para realizar esta ação.";
+    if (error.response.status >= 500)
+      return "O sistema está indisponível no momento. Tente novamente em alguns instantes.";
+    return padrao;
   }
   if (error instanceof Error && error.message) return error.message;
-  return "Não foi possível concluir a operação.";
+  return padrao;
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  let data: unknown;
-  if (options.body) {
-    try {
-      data = JSON.parse(options.body);
-    } catch {
-      throw new Error("O corpo da requisição não contém JSON válido.");
-    }
-  }
-
-  const config: AxiosRequestConfig = {
-    url: `/api/v1${path.startsWith("/") ? path : `/${path}`}`,
-    method: options.method ?? "GET",
-    data,
-  };
-
   try {
-    const response = await api.request<T>(config);
+    const response = await api.request<T>({
+      url: `/api/v1${path.startsWith("/") ? path : `/${path}`}`,
+      method: options.method ?? "GET",
+      data: options.data,
+    });
     return response.data;
   } catch (error) {
     throw new Error(respostaDeErro(error));

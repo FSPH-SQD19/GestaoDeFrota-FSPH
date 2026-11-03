@@ -53,7 +53,7 @@ export function createWorkerHandler(
     } catch {
       console.error("Falha de configuração ou execução do Worker.");
       return Response.json(
-        { message: "Serviço temporariamente indisponível." },
+        { message: "O sistema está indisponível no momento. Tente novamente em alguns instantes." },
         { status: 503, headers: { "Cache-Control": "no-store" } },
       );
     }

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { distanciaDaRota, estadoPosicao } from "../../../src/features/motorista/geo";
+import { mensagemErro } from "../../../src/features/motorista/offline";
 import {
   confirmarSaidaSessao,
   limparSaidaSessao,
@@ -8,6 +9,27 @@ import {
   browserSessionExpired,
   IDLE_TIMEOUT_MS,
 } from "../../../src/services/browserSession";
+describe("mensagens do diário", () => {
+  it("mostra os campos rejeitados pela API na sincronização", () => {
+    expect(
+      mensagemErro({
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: {
+            message: "Revise os campos indicados e tente novamente.",
+            errors: [{ campo: "kmFinal", mensagem: "Informe a quilometragem final." }],
+          },
+        },
+      }),
+    ).toBe("Informe a quilometragem final.");
+  });
+  it("orienta o motorista quando a sincronização perde a conexão", () => {
+    expect(
+      mensagemErro({ isAxiosError: true, code: "ERR_NETWORK", message: "Network Error" }),
+    ).toBe("Não foi possível conectar ao sistema. Verifique sua conexão e tente novamente.");
+  });
+});
 describe("GPS e atualização", () => {
   it("mede desvio em metros sem tratar coordenadas como metros", () => {
     expect(

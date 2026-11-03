@@ -76,7 +76,7 @@ const ConteudoMinhaContaModal: React.FC<ConteudoProps> = ({ usuario, onClose }) 
     }
 
     if (new TextEncoder().encode(novaSenha).length > BYTES_MAXIMOS_BCRYPT) {
-      setErroNovaSenha("A nova senha deve ter no máximo 72 bytes.");
+      setErroNovaSenha("A senha é muito longa. Use uma senha mais curta.");
       return;
     }
 

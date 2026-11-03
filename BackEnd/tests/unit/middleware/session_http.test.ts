@@ -28,27 +28,23 @@ function protection(session = "") {
   };
 }
 function check(path: string, cookie?: string, nonce?: string, origin?: string) {
-  const next = vi.fn(),
-    status = vi.fn(),
-    json = vi.fn();
-  const res = { status, json };
-  status.mockReturnValue(res);
+  const next = vi.fn();
   protectRequests(
     {
       method: "POST",
       path,
       headers: { cookie, "x-csrf-token": nonce, origin },
     } as unknown as Request,
-    res as unknown as Response,
+    {} as Response,
     next,
   );
-  return { next, status };
+  return { next, error: next.mock.calls[0]?.[0] };
 }
 describe("proteção do navegador", () => {
   it("aceita assinatura válida e rejeita token adulterado", () => {
     const p = protection();
     expect(check("/auth/login", p.cookie, p.nonce).next).toHaveBeenCalledOnce();
-    expect(check("/auth/login", p.cookie, "a".repeat(64)).status).toHaveBeenCalledWith(403);
+    expect(check("/auth/login", p.cookie, "a".repeat(64)).error).toMatchObject({ statusCode: 403 });
   });
   it("vincula o CSRF ao cookie da sessão atual", () => {
     const p = protection("frota_session=sessao-a");
@@ -56,20 +52,20 @@ describe("proteção do navegador", () => {
       check("/api/v1/veiculos", `frota_session=sessao-a; ${p.cookie}`, p.nonce).next,
     ).toHaveBeenCalledOnce();
     expect(
-      check("/api/v1/veiculos", `frota_session=sessao-b; ${p.cookie}`, p.nonce).status,
-    ).toHaveBeenCalledWith(403);
+      check("/api/v1/veiculos", `frota_session=sessao-b; ${p.cookie}`, p.nonce).error,
+    ).toMatchObject({ statusCode: 403 });
   });
   it.each(["/auth/login", "/AUTH/LOGIN/", "/api/v1/auth/logout/"])(
     "protege aliases e barra final: %s",
     (path) => {
-      expect(check(path).status).toHaveBeenCalledWith(403);
+      expect(check(path).error).toMatchObject({ statusCode: 403 });
     },
   );
   it("bloqueia origem externa mesmo com CSRF válido", () => {
     const p = protection();
-    expect(
-      check("/auth/login", p.cookie, p.nonce, "https://externo.example").status,
-    ).toHaveBeenCalledWith(403);
+    expect(check("/auth/login", p.cookie, p.nonce, "https://externo.example").error).toMatchObject({
+      statusCode: 403,
+    });
   });
   it("configura cookies de produção com Secure e prefixo Host", () => {
     vi.stubEnv("NODE_ENV", "production");

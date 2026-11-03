@@ -1,7 +1,8 @@
 import type { Notificacao } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError, type UsuarioAutenticado } from "../middleware/http_m";
+import { type UsuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { TIPOS_DOCUMENTO, dataDoBanco, dataLocal } from "./documento_veiculo_s";
 import {
   type DocumentoAtualSincronizacao,
@@ -45,7 +46,7 @@ const booleanoQuerySchema = z.preprocess(
     if (valor === "false") return false;
     return valor;
   },
-  z.boolean({ error: "Parâmetro apenasNaoLidas deve ser true ou false." }),
+  z.boolean({ error: "Escolha se deseja ver todas as notificações ou apenas as não lidas." }),
 );
 
 export const listarNotificacoesQuerySchema = z.object({
@@ -81,13 +82,6 @@ type NovaNotificacaoInput = {
   referenciaId?: string | null;
   chaveUnica?: string | null;
 };
-
-function clienteNotificacaoDisponivel(): boolean {
-  const candidato = prisma as unknown as {
-    notificacao?: { createMany?: unknown };
-  };
-  return typeof candidato?.notificacao?.createMany === "function";
-}
 
 function truncar(texto: string, max: number): string {
   if (texto.length <= max) return texto;
@@ -164,7 +158,7 @@ async function listarIdsUsuariosAtivosPorPerfis(perfis: readonly string[]): Prom
 }
 
 async function criarNotificacoesEmLote(itens: NovaNotificacaoInput[]): Promise<void> {
-  if (itens.length === 0 || !clienteNotificacaoDisponivel()) return;
+  if (itens.length === 0) return;
 
   await prisma.notificacao.createMany({
     data: itens.map((item) => ({
@@ -181,7 +175,7 @@ async function criarNotificacoesEmLote(itens: NovaNotificacaoInput[]): Promise<v
 }
 
 async function registrarNotificacoesEmLote(itens: NovaNotificacaoInput[]): Promise<void> {
-  if (itens.length === 0 || !clienteNotificacaoDisponivel()) return;
+  if (itens.length === 0) return;
   await executarComRetentativa(() => criarNotificacoesEmLote(itens));
 }
 
@@ -245,14 +239,7 @@ function montarAlertaCnh(
 }
 
 async function buscarDocumentosAtuaisVeiculosAtivos(): Promise<DocumentoAtualSincronizacao[]> {
-  const candidato = prisma as unknown as {
-    documentoVeiculo?: { findMany?: unknown };
-  };
-  if (typeof candidato.documentoVeiculo?.findMany !== "function") {
-    return [];
-  }
-
-  const registros = await prisma.documentoVeiculo.findMany({
+  const documentos = await prisma.documentoVeiculo.findMany({
     where: {
       tipoDocumento: { in: [...TIPOS_DOCUMENTO] },
       veiculo: { ativo: true },
@@ -272,34 +259,10 @@ async function buscarDocumentosAtuaisVeiculosAtivos(): Promise<DocumentoAtualSin
       },
     },
   });
-
-  const porVeiculoETipo = new Map<string, DocumentoAtualSincronizacao>();
-  for (const doc of registros) {
-    if (typeof doc.tipoDocumento !== "string") continue;
-    const chave = `${doc.veiculoId}:${doc.tipoDocumento}`;
-    const existente = porVeiculoETipo.get(chave);
-    if (!existente || doc.dataVencimento > existente.dataVencimento) {
-      porVeiculoETipo.set(chave, {
-        id: doc.id,
-        veiculoId: doc.veiculoId,
-        tipoDocumento: doc.tipoDocumento,
-        dataVencimento: doc.dataVencimento,
-        veiculo: doc.veiculo,
-      });
-    }
-  }
-
-  return [...porVeiculoETipo.values()];
+  return documentos.filter((doc): doc is DocumentoAtualSincronizacao => doc.tipoDocumento !== null);
 }
 
 async function buscarSolicitacoesUrgentesPendentes(): Promise<SolicitacaoUrgenteSincronizacao[]> {
-  const candidato = prisma as unknown as {
-    solicitacaoViagem?: { findMany?: unknown };
-  };
-  if (typeof candidato.solicitacaoViagem?.findMany !== "function") {
-    return [];
-  }
-
   return prisma.solicitacaoViagem.findMany({
     where: {
       status: "PENDENTE",
@@ -374,24 +337,12 @@ async function reconciliarAlertasVencimentoUsuario(
   alertasVencimento: NovaNotificacaoInput[],
   agora: Date,
 ): Promise<void> {
-  const candidato = prisma as unknown as {
-    notificacao?: {
-      findMany?: unknown;
-      update?: unknown;
-      updateMany?: unknown;
-    };
-  };
-
   const chavesAtivas = alertasVencimento
     .map((item) => item.chaveUnica)
     .filter((chave): chave is string => Boolean(chave));
 
   // Atualiza texto de avisos ainda ativos no mesmo estágio (ex.: contagem regressiva de dias)
-  if (
-    chavesAtivas.length > 0 &&
-    typeof candidato.notificacao?.findMany === "function" &&
-    typeof candidato.notificacao?.update === "function"
-  ) {
+  if (chavesAtivas.length > 0) {
     const existentes = await prisma.notificacao.findMany({
       where: {
         usuarioId,
@@ -405,7 +356,7 @@ async function reconciliarAlertasVencimentoUsuario(
       },
     });
 
-    if (Array.isArray(existentes) && existentes.length > 0) {
+    if (existentes.length > 0) {
       const esperadoPorChave = new Map(
         alertasVencimento
           .filter((item): item is NovaNotificacaoInput & { chaveUnica: string } =>
@@ -444,24 +395,22 @@ async function reconciliarAlertasVencimentoUsuario(
   }
 
   // Baixa automaticamente avisos não lidos de documentos/CNH já renovados ou substituídos por novo estágio
-  if (typeof candidato.notificacao?.updateMany === "function") {
-    await prisma.notificacao.updateMany({
-      where: {
-        usuarioId,
-        tipo: { in: ["CNH_VENCENDO", "DOCUMENTO_VEICULO_VENCENDO"] },
-        lida: false,
-        ...(chavesAtivas.length > 0
-          ? {
-              OR: [{ chaveUnica: null }, { chaveUnica: { notIn: chavesAtivas } }],
-            }
-          : {}),
-      },
-      data: {
-        lida: true,
-        lidaEm: agora,
-      },
-    });
-  }
+  await prisma.notificacao.updateMany({
+    where: {
+      usuarioId,
+      tipo: { in: ["CNH_VENCENDO", "DOCUMENTO_VEICULO_VENCENDO"] },
+      lida: false,
+      ...(chavesAtivas.length > 0
+        ? {
+            OR: [{ chaveUnica: null }, { chaveUnica: { notIn: chavesAtivas } }],
+          }
+        : {}),
+    },
+    data: {
+      lida: true,
+      lidaEm: agora,
+    },
+  });
 }
 
 export async function sincronizarAlertasVencimento(
@@ -469,8 +418,6 @@ export async function sincronizarAlertasVencimento(
   agora: Date = new Date(),
   opcoes?: { usarCacheFrota?: boolean },
 ): Promise<void> {
-  if (!clienteNotificacaoDisponivel()) return;
-
   const hoje = dataLocal(agora);
   const limiteCnh = somarDiasIso(hoje, DIAS_ALERTA_NOTIFICACAO);
   const ehGestao = usuario.perfis.some((perfil) => perfil === "ADMIN" || perfil === "GESTOR");
@@ -605,9 +552,11 @@ export async function listarNotificacoes(
 
 export async function marcarNotificacaoComoLida(id: string, usuarioId: string) {
   if (!idNotificacaoSchema.safeParse(id).success) {
-    throw new HttpError(400, "ID da notificação inválido.", [
-      { campo: "id", mensagem: "Informe um UUID válido." },
-    ]);
+    throw new HttpError(
+      400,
+      "Não foi possível identificar a notificação. Atualize a lista e tente novamente.",
+      [{ campo: "id", mensagem: "Atualize a página e selecione o registro novamente." }],
+    );
   }
 
   const existente = await prisma.notificacao.findFirst({
@@ -658,7 +607,6 @@ export async function notificarSolicitacaoUrgente(dados: {
   destino?: string | null;
 }): Promise<void> {
   invalidarCacheSincronizacaoNotificacoes();
-  if (!clienteNotificacaoDisponivel()) return;
 
   try {
     await executarComRetentativa(async () => {
@@ -685,7 +633,6 @@ export async function notificarSolicitacaoAprovada(dados: {
   motoristaUsuarioId?: string | null;
 }): Promise<void> {
   invalidarCacheSincronizacaoNotificacoes();
-  if (!clienteNotificacaoDisponivel()) return;
 
   try {
     const veiculoTexto = dados.veiculoPlaca ? ` com o veículo ${dados.veiculoPlaca}` : "";
@@ -728,7 +675,6 @@ export async function notificarSolicitacaoRecusada(dados: {
   motivoRecusa: string;
 }): Promise<void> {
   invalidarCacheSincronizacaoNotificacoes();
-  if (!clienteNotificacaoDisponivel()) return;
 
   try {
     await registrarNotificacoesEmLote([
@@ -753,8 +699,6 @@ export async function notificarViaturaSvoLiberada(dados: {
   modelo: string;
   referenciaDesinfeccao?: string;
 }): Promise<void> {
-  if (!clienteNotificacaoDisponivel()) return;
-
   try {
     await executarComRetentativa(async () => {
       const destinatarios = await listarIdsUsuariosAtivosPorPerfis(["SVO", "GESTOR", "ADMIN"]);

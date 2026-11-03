@@ -1,8 +1,9 @@
 import diarioRoutes from "./diario_r";
 import { gerarRelatorio, periodoRelatorioSchema } from "../service/relatorio_s";
-import { validar } from "../controller/veiculo_c";
+import { validar } from "../lib/validar";
 import { Router } from "express";
-import { criarVeiculoController, listarVeiculosController } from "../controller/veiculo_c";
+import veiculos from "./veiculo_r";
+import dashboardRoutes from "./dashboard_r";
 import {
   listarAbastecimentosController,
   criarAbastecimentoController,
@@ -19,22 +20,16 @@ import {
 import solicitacaoRoutes from "./solicitacao_r";
 import notificacaoRoutes from "./notificacao_r";
 import {
-  criarDocumentoVeiculoController,
-  listarDocumentosVeiculoController,
-} from "../controller/documento_veiculo_c";
+  criarEscalaSvoController,
+  encerrarEscalaSvoController,
+  listarEscalasSvoController,
+} from "../controller/escala_svo_c";
 
 const router = Router();
 router.use("/api/v1", diarioRoutes);
-const veiculos = Router();
 const abastecimento = Router();
 const manutencoes = Router();
-
-// Consultar carrinhos (VrumVrum)
-veiculos.use(authenticate, requireRole("ADMIN", "GESTOR"));
-veiculos.get("/", listarVeiculosController);
-veiculos.post("/", criarVeiculoController);
-veiculos.get("/:id/documentos", listarDocumentosVeiculoController);
-veiculos.post("/:id/documentos", criarDocumentoVeiculoController);
+const escalasSvo = Router();
 
 router.get("/health", healthController);
 router.use("/auth", authRoutes);
@@ -42,6 +37,7 @@ router.use("/motoristas", motoristaRoutes);
 
 router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/veiculos", veiculos);
+router.use("/api/v1/dashboard", dashboardRoutes);
 router.use("/solicitacoes", solicitacaoRoutes);
 
 // Consultar abastecimento
@@ -64,6 +60,15 @@ manutencoes.post("/", criarManutencaoController);
 manutencoes.patch("/:id/concluir", concluirManutencaoController);
 
 router.use("/api/v1/manutencoes", manutencoes);
+
+// Escalas e plantoes do SVO
+escalasSvo.use(authenticate, requireRole("ADMIN", "GESTOR", "SVO"));
+escalasSvo.get("/", listarEscalasSvoController);
+escalasSvo.post("/", criarEscalaSvoController);
+escalasSvo.patch("/:id/encerrar", encerrarEscalaSvoController);
+
+router.use("/api/v1/svo/escalas", escalasSvo);
+
 router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
 

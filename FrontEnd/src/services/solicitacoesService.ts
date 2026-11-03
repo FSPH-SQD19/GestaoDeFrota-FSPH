@@ -4,8 +4,9 @@ import type {
   ConcluirViagemInput,
   ExecucaoViagemResposta,
   IniciarViagemInput,
-  ListarSolicitacoesParams,
   ListaSolicitacoesResposta,
+  ListaMinhasViagensResposta,
+  ListarSolicitacoesParams,
   NovaSolicitacaoViagem,
   SolicitacaoViagem,
 } from "../types/solicitacao";
@@ -25,12 +26,23 @@ export function listarSolicitacoesApi(
   return apiRequest<ListaSolicitacoesResposta>(`/solicitacoes?${query}`, {});
 }
 
+export function listarMinhasViagensApi(
+  params: ListarSolicitacoesParams = {},
+): Promise<ListaMinhasViagensResposta> {
+  const query = new URLSearchParams({
+    page: String(params.page ?? 1),
+    pageSize: String(params.pageSize ?? 20),
+  });
+  if (params.status?.length) query.set("status", params.status.join(","));
+  return apiRequest<ListaMinhasViagensResposta>(`/solicitacoes/minhas?${query}`, {});
+}
+
 export async function criarSolicitacaoApi(
   dados: NovaSolicitacaoViagem,
 ): Promise<SolicitacaoViagem> {
   const criada = await apiRequest<SolicitacaoViagem>("/solicitacoes", {
     method: "POST",
-    body: JSON.stringify(dados),
+    data: dados,
   });
   dispararAtualizacaoNotificacoes();
   return criada;
@@ -42,7 +54,7 @@ export function iniciarViagemApi(
 ): Promise<ExecucaoViagemResposta> {
   return apiRequest<ExecucaoViagemResposta>(`/solicitacoes/${encodeURIComponent(id)}/iniciar`, {
     method: "POST",
-    body: JSON.stringify(dados),
+    data: dados,
   });
 }
 
@@ -52,6 +64,6 @@ export function concluirViagemApi(
 ): Promise<ExecucaoViagemResposta> {
   return apiRequest<ExecucaoViagemResposta>(`/solicitacoes/${encodeURIComponent(id)}/concluir`, {
     method: "POST",
-    body: JSON.stringify(dados),
+    data: dados,
   });
 }

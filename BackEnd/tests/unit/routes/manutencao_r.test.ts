@@ -241,7 +241,9 @@ describe("rotas existentes de manutenção", () => {
     try {
       const resposta = await request();
       expect(resposta.status).toBe(500);
-      expect(resposta.body.message).toBe("Erro interno do servidor.");
+      expect(resposta.body.message).toBe(
+        "O sistema não conseguiu concluir a operação. Tente novamente em alguns instantes.",
+      );
       await expect(mocks.transaction.mock.results[0]?.value).rejects.toBe(falha);
     } finally {
       log.mockRestore();

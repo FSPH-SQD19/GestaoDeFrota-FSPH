@@ -24,6 +24,10 @@ A localização pode ser centralizada pelo botão sobre o mapa. Movimentar o map
 
 ## Fluxos
 
+Com `DRIVER_PWA_ENABLED=false`, **Minhas Viagens** usa a página integrada aos endpoints de solicitações da master, com checklist e fotos de saída e retorno. Com a flag ativa, a interface usa o PWA e as operações passam pelo diário; os endpoints de início e conclusão de solicitações retornam `409` para impedir alterações que deixariam o diário inconsistente. A consulta da configuração exige sessão; uma falha de rede mantém o caminho do PWA para permitir restaurar a saída local.
+
+O diário segue a validação compartilhada em `lib/validar.ts`, os erros `HttpError` em `lib/http_error.ts` e o middleware comum da API. A interface exibe detalhes de campo e orientações de conexão pelo mesmo `respostaDeErro` usado pelos demais módulos.
+
 Administrativo: aprovação continua na central. O motorista confirma o veículo, registra odômetro e checklist e inicia a saída online. O retorno conclui solicitação e execução na mesma transação e libera veículo/motorista.
 
 SVO: com o módulo habilitado, emissão deixa a ordem em `AGUARDANDO_DESPACHO`. Uma saída reúne todas as ordens abertas do mesmo motorista e veículo na sequência definida pela central. Ordens antigas `EM_ANDAMENTO` podem ser incorporadas. Cada coleta deve ser registrada em sequência; no retorno, todas são concluídas e o veículo entra em `DESINFECCAO`. A confirmação de desinfecção continua no módulo SVO. Não acrescentar ordens a uma saída já iniciada.

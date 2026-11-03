@@ -1,5 +1,6 @@
 import { openDB } from "idb";
 import { api, resetCsrf } from "../../services/api";
+import { respostaDeErro } from "../../lib/api";
 import type { Offline, Tarefas } from "./types";
 const database = () =>
   openDB("rota-motorista", 1, {
@@ -38,8 +39,7 @@ export async function limparOfflineSincronizado(userId: string) {
   }
 }
 export function mensagemErro(e: unknown) {
-  const err = e as { response?: { data?: { message?: string } }; message?: string };
-  return err.response?.data?.message ?? err.message ?? "Falha ao sincronizar.";
+  return respostaDeErro(e, "Não foi possível sincronizar os registros. Tente novamente.");
 }
 const running = new Map<string, Promise<void>>();
 export function sincronizar(userId: string): Promise<void> {

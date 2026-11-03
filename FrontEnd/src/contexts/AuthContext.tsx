@@ -1,3 +1,4 @@
+import { respostaDeErro } from "../lib/api";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import type { User, UserRole, LoginCredentials, AuthState } from "../types/auth";
@@ -66,21 +67,23 @@ function mapPerfis(perfis: string[]): UserRole[] {
     return validRoles.has(perfil as UserRole) ? [perfil as UserRole] : [];
   });
   if (roles.length === 0) {
-    throw new Error("Usuário sem perfil autorizado para o sistema.");
+    throw new Error("Seu usuário não tem acesso ao sistema. Entre em contato com o administrador.");
   }
   return roles;
 }
 
 function mensagemErroLogin(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { error?: string; mensagem?: string } | undefined;
+    const data = error.response?.data as
+      { message?: string; error?: string; mensagem?: string } | undefined;
+    if (typeof data?.message === "string" && data.message.trim()) return data.message;
     if (typeof data?.error === "string" && data.error.trim()) return data.error;
     if (typeof data?.mensagem === "string" && data.mensagem.trim()) return data.mensagem;
-    if (error.response?.status === 401) return "Credenciais inválidas";
-    if (error.response?.status === 400) return "email e senha são obrigatórios";
+    if (error.response?.status === 401)
+      return "E-mail ou senha incorretos. Confira os dados e tente novamente.";
+    if (error.response?.status === 400) return "Informe o e-mail e a senha.";
   }
-  if (error instanceof Error && error.message) return error.message;
-  return "Ocorreu um erro ao tentar acessar. Verifique suas credenciais.";
+  return respostaDeErro(error, "Não foi possível entrar no sistema. Tente novamente.");
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

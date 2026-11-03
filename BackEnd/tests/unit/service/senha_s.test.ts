@@ -84,7 +84,9 @@ describe("senha_s", () => {
   it("valida tamanho mínimo e limite de 72 bytes UTF-8 da nova senha", () => {
     expect(() => validarNovaSenha("")).toThrow("Informe uma nova senha válida");
     expect(() => validarNovaSenha("curta12")).toThrow("pelo menos 8 caracteres");
-    expect(() => validarNovaSenha("😀".repeat(20))).toThrow("72 bytes");
+    expect(() => validarNovaSenha("😀".repeat(20))).toThrow(
+      "A senha é muito longa. Use uma senha mais curta.",
+    );
     expect(validarNovaSenha("NovaSenha@2026")).toBe("NovaSenha@2026");
   });
 

@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError, type UsuarioAutenticado } from "../middleware/http_m";
+import type { UsuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
+import { validar } from "../lib/validar";
 import {
   inicioSchema,
   comandoSchema,
@@ -313,7 +315,7 @@ export async function executarComando(
         validarHorario(comando.dataHora, saida.inicio);
         if (comando.odometro < Number(saida.kmInicial))
           throw new HttpError(422, "Odômetro abaixo da saída.");
-        const dados = criarAbastecimentoSchema.parse({
+        const dados = validar(criarAbastecimentoSchema, {
           ...comando,
           veiculoId: saida.veiculoId,
           motoristaId: saida.motoristaId,

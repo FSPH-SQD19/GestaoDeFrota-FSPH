@@ -358,7 +358,7 @@ export const NotificacoesDropdown: React.FC = () => {
         <div
           role="dialog"
           aria-label="Central de notificações"
-          className="absolute right-0 z-40 mt-2 w-[calc(100vw-2rem)] max-w-96 rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-96"
+          className="fixed top-[4.5rem] right-4 z-40 flex max-h-[calc(100dvh-5rem)] w-[calc(100vw-2rem)] max-w-96 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:absolute sm:top-full sm:right-0 sm:mt-2 sm:max-h-[calc(100vh-6rem)] sm:w-96"
         >
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
             <div className="flex items-center gap-2">
@@ -449,7 +449,7 @@ export const NotificacoesDropdown: React.FC = () => {
             </div>
           )}
 
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+          <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-slate-100">
             {carregando && notificacoesVisiveis.length === 0 ? (
               <div className="px-4 py-8 text-center text-xs font-medium text-slate-500">
                 Carregando alertas operacionais...

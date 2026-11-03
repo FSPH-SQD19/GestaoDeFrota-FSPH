@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { authenticate, requireRole, usuarioAutenticado, HttpError } from "../middleware/http_m";
-import { validar } from "../controller/veiculo_c";
+import { authenticate, requireRole, usuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
+import { validar } from "../lib/validar";
 import { diarioConfig } from "../config/diario";
 import {
   coordenadasSchema,

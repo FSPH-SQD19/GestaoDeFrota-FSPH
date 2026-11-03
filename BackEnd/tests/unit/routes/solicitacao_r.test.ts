@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 const mocks = vi.hoisted(() => ({
   usuarioFindUnique: vi.fn(),
   findMany: vi.fn(),
+  findFirst: vi.fn(),
   count: vi.fn(),
   groupBy: vi.fn(),
   create: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("../../../src/lib/prisma", () => ({
     usuario: { findUnique: mocks.usuarioFindUnique },
     solicitacaoViagem: {
       findMany: mocks.findMany,
+      findFirst: mocks.findFirst,
       count: mocks.count,
       groupBy: mocks.groupBy,
       create: mocks.create,
@@ -125,6 +127,42 @@ beforeEach(() => {
   );
 });
 
+describe("GET /api/v1/solicitacoes/minhas", () => {
+  it("restringe a rota ao perfil MOTORISTA", async () => {
+    expect((await chamar("/minhas")).status).toBe(401);
+    expect((await chamar("/minhas", { perfis: ["SOLICITANTE"] })).status).toBe(403);
+    expect(mocks.findMany).not.toHaveBeenCalled();
+  });
+
+  it("filtra pelo motorista autenticado e devolve a viagem ativa fora do filtro", async () => {
+    const acesso = { motoristaAlocado: { usuarioId, ativo: true } };
+    const execucao = { kmInicial: "100", dataHoraInicio: new Date() };
+    mocks.findFirst.mockResolvedValue({ ...registro, status: "EM_TRANSITO", execucao });
+
+    const resposta = await chamar("/minhas?status=CONCLUIDA&page=2&pageSize=5", {
+      perfis: ["MOTORISTA"],
+    });
+
+    expect(resposta.status).toBe(200);
+    expect(mocks.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ...acesso, NOT: { status: "EM_TRANSITO" }, status: { in: ["CONCLUIDA"] } },
+        skip: 5,
+        take: 5,
+      }),
+    );
+    expect(mocks.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ...acesso, status: "EM_TRANSITO" },
+      }),
+    );
+    expect(resposta.json.viagemEmAndamento).toMatchObject({
+      status: "EM_TRANSITO",
+      execucao: { kmInicial: "100" },
+    });
+  });
+});
+
 describe("GET /api/v1/solicitacoes", () => {
   it("exige autenticação", async () => {
     const resposta = await chamar("");
@@ -132,7 +170,7 @@ describe("GET /api/v1/solicitacoes", () => {
     expect(resposta.status).toBe(401);
     expect(resposta.json).toEqual({
       statusCode: 401,
-      message: "Autenticação necessária.",
+      message: "Entre no sistema para continuar.",
       errors: [],
     });
   });
@@ -192,7 +230,7 @@ describe("GET /api/v1/solicitacoes", () => {
       const resposta = await chamar(query, { perfis: ["GESTOR"] });
 
       expect(resposta.status).toBe(400);
-      expect(resposta.json.message).toBe("Dados inválidos.");
+      expect(resposta.json.message).toBe("Revise os campos indicados e tente novamente.");
       expect(mocks.findMany).not.toHaveBeenCalled();
     },
   );
@@ -267,7 +305,9 @@ describe("POST /api/v1/solicitacoes", () => {
     const resposta = await chamar("", { perfis: ["SOLICITANTE"], body: "{quebrado" });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json.message).toBe("JSON inválido.");
+    expect(resposta.json.message).toBe(
+      "Não foi possível ler os dados enviados. Revise os dados e tente novamente.",
+    );
   });
 
   it("retorna 403 para usuário inativo", async () => {
@@ -288,7 +328,7 @@ describe("POST /api/v1/solicitacoes", () => {
     expect(resposta.status).toBe(500);
     expect(resposta.json).toEqual({
       statusCode: 500,
-      message: "Erro interno do servidor.",
+      message: "O sistema não conseguiu concluir a operação. Tente novamente em alguns instantes.",
       errors: [],
     });
   });
