@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
 import { registrarAuditoria } from "./auditoria_s";
+import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
 // validar
 
@@ -174,6 +175,7 @@ export async function criarVeiculo(input: CriarVeiculoInput, usuarioId: string) 
   }
 
   const resposta = serializarVeiculo(veiculo);
+  invalidarCacheSincronizacaoNotificacoes();
   try {
     await registrarAuditoria({
       usuarioId,
@@ -296,6 +298,7 @@ export async function atualizarVeiculo(
   }
 
   const resposta = serializarVeiculo(veiculo);
+  invalidarCacheSincronizacaoNotificacoes();
 
   try {
     await registrarAuditoria({

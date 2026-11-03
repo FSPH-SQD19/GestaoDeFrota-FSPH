@@ -7,8 +7,11 @@ import motoristaRoutes from "./routes/motorista_r";
 import veiculoRoutes from "./routes/veiculo_r";
 import fornecedorRoutes from "./routes/fornecedor_r";
 import svoRoutes from "./routes/svo_r";
+import { securityHeaders } from "./middleware/security_headers";
 
 export const app = express();
+app.disable("x-powered-by");
+app.use(securityHeaders);
 
 // Defina TRUST_PROXY_HOPS somente com o número exato de proxies confiáveis.
 if (process.env.TRUST_PROXY_HOPS) {
@@ -29,7 +32,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   }),
 );
-app.use(express.json({ limit: "32kb" }));
+app.use(express.json({ limit: "512kb" }));
 app.use(protectRequests);
 app.use(routes);
 app.use("/api/v1/motoristas", motoristaRoutes);

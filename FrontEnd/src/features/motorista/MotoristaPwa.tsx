@@ -7,6 +7,7 @@ import {
   CornerUpRight,
   Fuel,
   History,
+  KeyRound,
   LocateFixed,
   LogOut,
   MapPin,
@@ -16,6 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useAuth } from "../../contexts/auth";
+import { NotificacoesDropdown } from "../../components/layout/NotificacoesDropdown";
 import { useDiarioMotorista, type Inicio } from "./useDiarioMotorista";
 import { PrimaryButton, PrepararViagem, AbastecimentoForm, RetornoForm } from "./DriverForms";
 import DriverDialog from "./DriverDialog";
@@ -26,6 +28,11 @@ import type { Coordenadas, Ponto, Veiculo } from "./types";
 import logo from "../../assets/branding/rota/rota-symbol-color.svg";
 import "./driver.css";
 const Mapa = lazy(() => import("./Mapa"));
+const MinhaContaModal = lazy(() =>
+  import("../../components/layout/MinhaContaModal").then((module) => ({
+    default: module.MinhaContaModal,
+  })),
+);
 type Modal = "inicio" | "combustivel" | "retorno" | "percurso" | "pendencias" | "viagens" | null;
 export default function MotoristaPwa({ onOpenManagement }: { onOpenManagement?: () => void }) {
   const panelRef = useRef<HTMLElement>(null);
@@ -48,6 +55,7 @@ export default function MotoristaPwa({ onOpenManagement }: { onOpenManagement?: 
   const d = useDiarioMotorista(),
     { logout } = useAuth();
   const [view, setView] = useState("viagens"),
+    [contaAberta, setContaAberta] = useState(false),
     [modal, setModal] = useState<Modal>(null),
     [inicio, setInicio] = useState<Inicio | null>(null),
     [viagemSelecionada, setViagemSelecionada] = useState<string | null>(null),
@@ -144,9 +152,16 @@ export default function MotoristaPwa({ onOpenManagement }: { onOpenManagement?: 
             ROTA<small>FSPH</small>
           </strong>
         </div>
-        <button className="driver-avatar" aria-label="Abrir conta" onClick={() => setView("conta")}>
-          <UserRound size={21} />
-        </button>
+        <div className="driver-topbar-actions">
+          <NotificacoesDropdown />
+          <button
+            className="driver-avatar"
+            aria-label="Abrir conta"
+            onClick={() => setView("conta")}
+          >
+            <UserRound size={21} />
+          </button>
+        </div>
       </header>
       <div className="driver-status" role="status">
         <span className={`driver-status-dot ${!online ? "is-offline" : ""}`} />
@@ -408,6 +423,14 @@ export default function MotoristaPwa({ onOpenManagement }: { onOpenManagement?: 
                 </div>
                 <RefreshCw size={20} />
               </button>
+              <button
+                className="driver-task-row"
+                onClick={() => setContaAberta(true)}
+                disabled={!online}
+              >
+                <strong>Alterar minha senha</strong>
+                <KeyRound size={20} />
+              </button>
               {onOpenManagement && (
                 <button className="driver-task-row" onClick={onOpenManagement}>
                   <strong>Abrir gestão</strong>
@@ -620,6 +643,11 @@ export default function MotoristaPwa({ onOpenManagement }: { onOpenManagement?: 
             </>
           )}
         </DriverDialog>
+      )}
+      {contaAberta && (
+        <Suspense fallback={null}>
+          <MinhaContaModal isOpen usuario={d.user} onClose={() => setContaAberta(false)} />
+        </Suspense>
       )}
     </main>
   );

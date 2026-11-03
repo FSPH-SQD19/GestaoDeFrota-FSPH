@@ -1,5 +1,6 @@
 import axios from "axios";
 import { api } from "./api";
+import { dispararAtualizacaoNotificacoes } from "./notificacoesService";
 
 export type StatusTriagem = "EM_ANALISE" | "APROVADO" | "RECUSADO";
 export type EtapaFiltroSvo =
@@ -185,6 +186,7 @@ export async function concluirDesinfeccaoSvo(veiculoId: string): Promise<Viatura
   const { data } = await api.patch<ViaturaSvo>(
     `${BASE}/viaturas/${encodeURIComponent(veiculoId)}/desinfeccao`,
   );
+  dispararAtualizacaoNotificacoes();
   return data;
 }
 

@@ -65,6 +65,7 @@ test("lista unificada seleciona viagem administrativa entre todos os tipos e pre
   ];
   let ativa: Saida | null = null;
   let inicio: Record<string, unknown> | undefined;
+  let senhaAlterada = false;
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route("https://fonts.googleapis.com/**", (r) =>
@@ -93,6 +94,31 @@ test("lista unificada seleciona viagem administrativa entre todos os tipos e pre
         },
       });
     if (path.endsWith("/auth/csrf")) return r.fulfill({ json: { csrfToken: "a".repeat(64) } });
+    if (path.endsWith("/auth/alterar-senha")) {
+      expect(r.request().method()).toBe("PATCH");
+      expect(r.request().postDataJSON()).toEqual({
+        senhaAtual: "SenhaAnterior123!",
+        novaSenha: "NovaSenha123!",
+      });
+      senhaAlterada = true;
+      return r.fulfill({ json: { mensagem: "Senha alterada com sucesso." } });
+    }
+    if (path.endsWith("/notificacoes"))
+      return r.fulfill({
+        json: {
+          data: [
+            {
+              id: id(90),
+              tipo: "VIAGEM_APROVADA",
+              titulo: "Nova viagem aprovada",
+              mensagem: "Uma viagem administrativa foi atribuída a você.",
+              lida: false,
+              criadoEm: new Date().toISOString(),
+            },
+          ],
+          meta: { naoLidas: 1, retornadas: 1 },
+        },
+      });
     if (path.endsWith("/motorista/config")) return r.fulfill({ json: { enabled: true } });
     if (path.endsWith("/motorista/fornecedores")) return r.fulfill({ json: [] });
     if (path.endsWith("/motorista/tarefas"))
@@ -130,6 +156,25 @@ test("lista unificada seleciona viagem administrativa entre todos os tipos e pre
   });
   await page.goto("/motorista");
   await expect(page.getByRole("heading", { name: "Hemose", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Notificações", exact: true }).click();
+  const notificacoes = page.getByRole("dialog", { name: "Central de notificações" });
+  await expect(notificacoes.getByText("Nova viagem aprovada", { exact: true })).toBeVisible();
+  const bounds = await notificacoes.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await page.screenshot({ path: testInfo.outputPath("notificacoes-motorista.png") });
+  await page.getByRole("button", { name: "Notificações", exact: true }).click();
+  await page.getByRole("button", { name: "Abrir conta", exact: true }).click();
+  await page.getByRole("button", { name: "Alterar minha senha", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Minha Conta", exact: true })).toBeVisible();
+  await page.getByLabel(/^Senha atual/).fill("SenhaAnterior123!");
+  await page.getByLabel(/^Nova senha/).fill("NovaSenha123!");
+  await page.getByLabel(/^Confirmar nova senha/).fill("NovaSenha123!");
+  await page.getByRole("button", { name: "Salvar nova senha", exact: true }).click();
+  await expect(page.getByText("Senha alterada com sucesso.", { exact: true })).toBeVisible();
+  expect(senhaAlterada).toBe(true);
+  await page.getByRole("button", { name: "Fechar", exact: true }).first().click();
+  await page.getByRole("button", { name: "Viagens", exact: true }).click();
   await expect(page.getByText(/Próxima viagem · Passageiros/)).toBeVisible();
   await page.getByRole("button", { name: "Ver todas as viagens (5)", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Todas as viagens", exact: true });

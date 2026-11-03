@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
 import { exigirDocumentosEmDia } from "./documento_veiculo_s";
+import { notificarSolicitacaoAprovada, notificarSolicitacaoRecusada } from "./notificacao_s";
 
 export const aprovarSolicitacaoSchema = z.object({
   veiculoId: z.uuid(),
@@ -40,9 +41,13 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
   validarId(id);
 
   const { veiculoId, motoristaId } = dados;
+  let contextoNotificacao: {
+    veiculoPlaca: string | null;
+    motoristaUsuarioId: string | null;
+  } | null = null;
 
   try {
-    return await prisma.$transaction(
+    const aprovada = await prisma.$transaction(
       async (tx) => {
         // Trava os recursos em ordem fixa.
         const recursos = [`motorista:${motoristaId}`, `veiculo:${veiculoId}`].sort();
@@ -162,7 +167,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
           throw new HttpError(409, "Solicitação já processada.");
         }
 
-        const aprovada = await tx.solicitacaoViagem.findUniqueOrThrow({
+        const aprovadaTx = await tx.solicitacaoViagem.findUniqueOrThrow({
           where: { id },
         });
 
@@ -174,7 +179,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
             registroId: id,
             dadosNovos: {
               status: "APROVADA",
-              protocolo: aprovada.protocolo,
+              protocolo: aprovadaTx.protocolo,
               veiculoAlocadoId: veiculoId,
               motoristaAlocadoId: motoristaId,
               dataHoraPretendida: inicio.toISOString(),
@@ -183,7 +188,12 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
           },
         });
 
-        return aprovada;
+        contextoNotificacao = {
+          veiculoPlaca: veiculo.placa ?? null,
+          motoristaUsuarioId: motorista.usuarioId ?? null,
+        };
+
+        return aprovadaTx;
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
@@ -191,6 +201,23 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
         timeout: 15000,
       },
     );
+
+    if (aprovada.solicitanteId) {
+      const ctx = contextoNotificacao as {
+        veiculoPlaca: string | null;
+        motoristaUsuarioId: string | null;
+      } | null;
+      await notificarSolicitacaoAprovada({
+        id: aprovada.id,
+        protocolo: aprovada.protocolo,
+        destino: aprovada.destino ?? null,
+        solicitanteId: aprovada.solicitanteId,
+        veiculoPlaca: ctx?.veiculoPlaca ?? null,
+        motoristaUsuarioId: ctx?.motoristaUsuarioId ?? null,
+      });
+    }
+
+    return aprovada;
   } catch (erro) {
     if (
       erro instanceof Prisma.PrismaClientKnownRequestError &&
@@ -206,7 +233,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
 export async function recusarSolicitacao(id: string, dados: RecusarInput, usuarioId: string) {
   validarId(id);
 
-  return prisma.$transaction(async (tx) => {
+  const recusada = await prisma.$transaction(async (tx) => {
     const alteracao = await tx.solicitacaoViagem.updateMany({
       where: {
         id,
@@ -230,7 +257,7 @@ export async function recusarSolicitacao(id: string, dados: RecusarInput, usuari
       );
     }
 
-    const recusada = await tx.solicitacaoViagem.findUniqueOrThrow({
+    const recusadaTx = await tx.solicitacaoViagem.findUniqueOrThrow({
       where: { id },
     });
 
@@ -241,13 +268,24 @@ export async function recusarSolicitacao(id: string, dados: RecusarInput, usuari
         tabelaAfetada: "solicitacoes_viagem",
         registroId: id,
         dadosNovos: {
-          protocolo: recusada.protocolo,
+          protocolo: recusadaTx.protocolo,
           status: "RECUSADA",
           motivoRecusa: dados.motivoRecusa,
         },
       },
     });
 
-    return recusada;
+    return recusadaTx;
   });
+
+  if (recusada.solicitanteId) {
+    await notificarSolicitacaoRecusada({
+      id: recusada.id,
+      protocolo: recusada.protocolo,
+      solicitanteId: recusada.solicitanteId,
+      motivoRecusa: dados.motivoRecusa,
+    });
+  }
+
+  return recusada;
 }

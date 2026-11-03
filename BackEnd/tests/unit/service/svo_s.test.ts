@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   auditoriaCreate: vi.fn(),
   queryRaw: vi.fn(),
   transaction: vi.fn(),
+  saidaAtiva: vi.fn(),
+  conflitoAdministrativo: vi.fn(),
 }));
 
 vi.mock("../../../src/lib/prisma", () => ({
@@ -129,6 +131,8 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
         auditoriaSistema: {
           create: mocks.auditoriaCreate,
         },
+        saidaOperacional: { findFirst: mocks.saidaAtiva },
+        solicitacaoViagem: { findFirst: mocks.conflitoAdministrativo },
       }),
     );
   });
@@ -392,6 +396,31 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     expect(mocks.ordemCreate).toHaveBeenCalledOnce();
     expect(mocks.auditoriaCreate).toHaveBeenCalledOnce();
   });
+
+  it("aguarda despacho no PWA e preserva os recursos até o início pelo motorista", async () => {
+    vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+    prepararEmissao();
+    await emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId }, usuarioId);
+    expect(mocks.ordemCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: "AGUARDANDO_DESPACHO", dataHoraSaida: undefined }),
+    });
+    expect(mocks.veiculoUpdate).not.toHaveBeenCalled();
+    expect(mocks.motoristaUpdate).not.toHaveBeenCalled();
+    expect(mocks.auditoriaCreate).toHaveBeenCalledOnce();
+  });
+
+  it.each(["saidaAtiva", "conflitoAdministrativo"] as const)(
+    "impede despacho SVO no PWA quando há %s",
+    async (conflito) => {
+      vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+      prepararEmissao();
+      mocks[conflito].mockResolvedValue({ id: "ocupado" });
+      await expect(
+        emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId }, usuarioId),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mocks.ordemCreate).not.toHaveBeenCalled();
+    },
+  );
 
   it("impede alocação em outra viatura mesmo com status do motorista desatualizado", async () => {
     prepararEmissao();

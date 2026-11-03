@@ -64,7 +64,17 @@ body.driver-mode {
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 4px 24px #10182812;
-  z-index: 2;
+  z-index: 5;
+}
+.driver-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.driver-topbar [aria-label="Central de notificações"] {
+  position: fixed;
+  top: calc(max(16px, env(safe-area-inset-top)) + 70px);
+  right: 16px;
 }
 .driver-brand {
   display: flex;
@@ -599,6 +609,11 @@ body.driver-mode {
   margin-top: 3px;
 }
 @media (min-width: 768px) {
+  .driver-topbar [aria-label="Central de notificações"] {
+    top: 94px;
+    left: 24px;
+    right: auto;
+  }
   .driver-topbar {
     width: 400px;
     right: auto;

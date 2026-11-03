@@ -5,29 +5,45 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { randomUUID } from "node:crypto";
 const mocks = vi.hoisted(() => ({
   user: vi.fn(),
+  updateUser: vi.fn(),
   create: vi.fn(),
   session: vi.fn(),
   touch: vi.fn(),
   remove: vi.fn(),
   compare: vi.fn(),
+  hash: vi.fn(),
   limit: vi.fn(),
+  audit: vi.fn(),
 }));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
-    usuario: { findUnique: mocks.user },
+    usuario: { findUnique: mocks.user, update: mocks.updateUser },
     authSessao: {
       create: mocks.create,
       findUnique: mocks.session,
       updateMany: mocks.touch,
       deleteMany: mocks.remove,
     },
+    auditoriaSistema: { create: mocks.audit },
+    $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
+      cb({
+        usuario: { update: mocks.updateUser },
+        authSessao: {
+          updateMany: mocks.touch,
+          deleteMany: mocks.remove,
+        },
+      }),
+    ),
     $queryRaw: mocks.limit,
   },
 }));
 vi.mock("../../../src/config/auth", () => ({
   getAuthConfig: () => ({ secret: "segredo-sintetico-auth", expiresIn: 28800 }),
 }));
-vi.mock("../../../src/service/password_s", () => ({ comparePassword: mocks.compare }));
+vi.mock("../../../src/service/password_s", () => ({
+  comparePassword: mocks.compare,
+  hashPassword: mocks.hash,
+}));
 import { app } from "../../../src/app";
 import { passwordVersion } from "../../../src/service/session_s";
 const secret = "segredo-sintetico-auth";
@@ -55,7 +71,10 @@ afterAll(() => new Promise((resolve) => server.close(resolve)));
 beforeEach(() => {
   stored = null;
   mocks.user.mockResolvedValue(usuario);
+  mocks.updateUser.mockResolvedValue(usuario);
   mocks.compare.mockResolvedValue(true);
+  mocks.hash.mockResolvedValue("novo-hash-bcrypt");
+  mocks.audit.mockResolvedValue({});
   mocks.create.mockImplementation(async ({ data }) => {
     stored = data;
     return data;
@@ -96,9 +115,12 @@ async function login(prefix: string) {
   return { response, protection: await csrf(prefix, session), cookie: session };
 }
 describe.each(["/auth", "/api/v1/auth"])("sessões HTTP %s", (prefix) => {
-  it("login retorna usuário e cookie HttpOnly, sem expor JWT no JSON", async () => {
+  it("login retorna usuário, cookie HttpOnly e cabeçalhos HTTP de segurança", async () => {
     const { response, cookie: session } = await login(prefix);
     expect(response.status).toBe(200);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
+    expect(response.headers.get("x-powered-by")).toBeNull();
     expect(await response.json()).toEqual({
       usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, perfis: ["ADMIN"] },
     });
@@ -211,5 +233,131 @@ describe.each(["/auth", "/api/v1/auth"])("sessões HTTP %s", (prefix) => {
     await login(prefix);
     expect(stored!.senhaVersao).toBe(passwordVersion(usuario.senhaHash));
     expect(stored!.senhaVersao).not.toBe(usuario.senhaHash);
+  });
+  it("permite alterar a própria senha autenticado com CSRF e restringe redefinição ao ADMIN", async () => {
+    const { cookie: session, protection } = await login(prefix);
+    mocks.compare
+      .mockResolvedValueOnce(true) // senhaAtual confere
+      .mockResolvedValueOnce(false); // novaSenha é diferente da atual
+
+    const alteracao = await fetch(`${base}${prefix}/alterar-senha`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        cookie: `${session}; ${protection.cookie}`,
+        "x-csrf-token": protection.nonce,
+      },
+      body: JSON.stringify({
+        senhaAtual: "senha-sintetica",
+        novaSenha: "NovaSenhaForte@2026",
+      }),
+    });
+    expect(alteracao.status).toBe(200);
+    expect(await alteracao.json()).toEqual({ mensagem: "Senha alterada com sucesso." });
+
+    // Restaura sessão em memória para testar redefinição por ADMIN vs não-ADMIN
+    const sessionJti = (jwt.decode(decodeURIComponent(session.split("=")[1])) as jwt.JwtPayload)
+      .jti!;
+    stored = {
+      id: sessionJti,
+      usuarioId: usuario.id,
+      senhaVersao: passwordVersion(usuario.senhaHash),
+      expiraEm: new Date(Date.now() + 900000),
+    };
+    const alvoId = randomUUID();
+    const redefinicaoAdmin = await fetch(`${base}${prefix}/usuarios/${alvoId}/redefinir-senha`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        cookie: `${session}; ${protection.cookie}`,
+        "x-csrf-token": protection.nonce,
+      },
+      body: JSON.stringify({ novaSenha: "SenhaRedefinida@2026" }),
+    });
+    expect(redefinicaoAdmin.status).toBe(200);
+
+    // Usuário sem perfil ADMIN recebe 403
+    stored = {
+      id: sessionJti,
+      usuarioId: usuario.id,
+      senhaVersao: passwordVersion(usuario.senhaHash),
+      expiraEm: new Date(Date.now() + 900000),
+    };
+    mocks.session.mockImplementationOnce(async () => ({
+      ...stored,
+      usuario: { ...usuario, perfis: [{ perfil: { nome: "GESTOR" } }] },
+    }));
+    const redefinicaoNegada = await fetch(`${base}${prefix}/usuarios/${alvoId}/redefinir-senha`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        cookie: `${session}; ${protection.cookie}`,
+        "x-csrf-token": protection.nonce,
+      },
+      body: JSON.stringify({ novaSenha: "SenhaRedefinida@2026" }),
+    });
+    expect(redefinicaoNegada.status).toBe(403);
+  });
+  it("isola limite de alteração de senha por usuário sem bloquear outros no mesmo IP", async () => {
+    const { cookie: session, protection } = await login(prefix);
+    mocks.compare.mockClear();
+
+    // Usuário atual atingiu 10 falhas inválidas
+    mocks.limit.mockResolvedValueOnce([
+      { tentativas: 10, expira_em: new Date(Date.now() + 900000) },
+    ]);
+    const bloqueada = await fetch(`${base}${prefix}/alterar-senha`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        cookie: `${session}; ${protection.cookie}`,
+        "x-csrf-token": protection.nonce,
+      },
+      body: JSON.stringify({
+        senhaAtual: "senha-sintetica",
+        novaSenha: "NovaSenhaForte@2026",
+      }),
+    });
+    expect(bloqueada.status).toBe(429);
+    expect(bloqueada.headers.get("Retry-After")).toBe("900");
+    expect(mocks.compare).not.toHaveBeenCalled();
+
+    // Outro usuário autenticado no mesmo IP (0 falhas registradas) não sofre bloqueio
+    const outroUsuario = { ...usuario, id: randomUUID(), email: "outro@example.test" };
+    const sessaoOutroId = randomUUID();
+    const tokenOutro = jwt.sign({}, secret, {
+      algorithm: "HS256",
+      subject: outroUsuario.id,
+      jwtid: sessaoOutroId,
+      issuer: "fsph-frota-api",
+      audience: "fsph-frota-web",
+      expiresIn: 28800,
+    });
+    const cookieOutro = `frota_session=${encodeURIComponent(tokenOutro)}`;
+    const csrfOutro = await csrf(prefix, cookieOutro);
+    mocks.session.mockImplementationOnce(async () => ({
+      id: sessaoOutroId,
+      usuarioId: outroUsuario.id,
+      senhaVersao: passwordVersion(outroUsuario.senhaHash),
+      expiraEm: new Date(Date.now() + 900000),
+      usuario: outroUsuario,
+    }));
+    mocks.user.mockResolvedValueOnce(outroUsuario);
+    mocks.limit.mockResolvedValueOnce([]); // SELECT sem falhas para o segundo usuário
+    mocks.compare.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    const permitida = await fetch(`${base}${prefix}/alterar-senha`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        cookie: `${cookieOutro}; ${csrfOutro.cookie}`,
+        "x-csrf-token": csrfOutro.nonce,
+      },
+      body: JSON.stringify({
+        senhaAtual: "senha-sintetica",
+        novaSenha: "NovaSenhaForte@2026",
+      }),
+    });
+    expect(permitida.status).toBe(200);
   });
 });

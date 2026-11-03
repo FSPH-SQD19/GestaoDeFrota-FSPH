@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
 import { registrarAuditoria } from "./auditoria_s";
+import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
 export const TIPOS_DOCUMENTO = ["CRLV", "IPVA", "SEGURO"] as const;
 export const SITUACOES_DOCUMENTO = ["VIGENTE", "PROXIMO_VENCIMENTO", "VENCIDO"] as const;
@@ -204,6 +205,7 @@ export async function criarDocumentoVeiculo(
   });
 
   const resposta = serializarDocumento(documento, hoje, !maisRecente);
+  invalidarCacheSincronizacaoNotificacoes();
 
   try {
     await registrarAuditoria({

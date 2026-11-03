@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   veiculo: vi.fn(),
   motorista: vi.fn(),
   conflito: vi.fn(),
+  conflitoSvo: vi.fn(),
+  saidaAtiva: vi.fn(),
   documentos: vi.fn(),
   update: vi.fn(),
   resultado: vi.fn(),
@@ -30,6 +32,8 @@ const tx = {
   veiculo: { findUnique: mocks.veiculo },
   motorista: { findUnique: mocks.motorista },
   documentoVeiculo: { findMany: mocks.documentos },
+  ordemColetaSvo: { findFirst: mocks.conflitoSvo },
+  saidaOperacional: { findFirst: mocks.saidaAtiva },
   auditoriaSistema: { create: mocks.auditoria },
 };
 vi.mock("../../../src/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
@@ -72,6 +76,8 @@ beforeEach(() => {
     validadeCnh: new Date("2026-11-10T00:00:00Z"),
   });
   mocks.conflito.mockResolvedValue(null);
+  mocks.conflitoSvo.mockResolvedValue(null);
+  mocks.saidaAtiva.mockResolvedValue(null);
   mocks.documentos.mockResolvedValue([]);
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.resultado.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
@@ -100,6 +106,19 @@ async function decidir(
   return { status: response.status, body: await response.json() };
 }
 describe.each(["/api/v1/solicitacoes", "/solicitacoes"])("decisões em %s", (prefix) => {
+  it.each(["conflitoSvo", "saidaAtiva"] as const)(
+    "impede aprovação com PWA ativo quando há %s",
+    async (conflito) => {
+      vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+      mocks[conflito].mockResolvedValue({ id: "ocupado" });
+      expect((await decidir("aprovar", { veiculoId, motoristaId }, ["ADMIN"], prefix)).status).toBe(
+        409,
+      );
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.auditoria).not.toHaveBeenCalled();
+    },
+  );
+
   it("aprova com trava, atualização condicional e auditoria", async () => {
     const response = await decidir("aprovar", { veiculoId, motoristaId }, ["ADMIN"], prefix);
     expect(response.status).toBe(200);

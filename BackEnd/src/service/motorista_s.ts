@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { validarDataValidadeCnh } from "./validarCNH_s";
 import { registrarAuditoria } from "./auditoria_s";
+import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
 interface MotoristaInput {
   nome: string;
@@ -197,6 +198,7 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
         },
       });
     });
+    invalidarCacheSincronizacaoNotificacoes();
     await registrarAuditoriaMotorista(usuarioResponsavelId, "CRIAR", motorista.id, motorista);
     return motorista;
   } catch (error) {
@@ -246,6 +248,7 @@ export async function atualizarMotorista(
       },
     });
 
+    invalidarCacheSincronizacaoNotificacoes();
     await registrarAuditoriaMotorista(usuarioResponsavelId, "ATUALIZAR", motorista.id, motorista);
 
     return motorista;
@@ -281,6 +284,7 @@ export async function excluirMotorista(id: string, usuarioResponsavelId: string)
       },
     });
 
+    invalidarCacheSincronizacaoNotificacoes();
     await registrarAuditoriaMotorista(usuarioResponsavelId, "ATUALIZAR", motorista.id, {
       operacao: "INATIVAR",
       motorista,

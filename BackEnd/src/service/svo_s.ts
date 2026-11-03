@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
+import { notificarViaturaSvoLiberada } from "./notificacao_s";
 
 export const STATUS_ORDEM_ATIVA = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] as const;
 const PREFIXO_PROTOCOLO_SVO = "SVO";
@@ -591,6 +592,26 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
 }
 
 export async function concluirDesinfeccaoSvo(veiculoId: string, usuarioId?: string) {
+  const referenciaDesinfeccao = new Date();
+  const atualizada = await executarConclusaoDesinfeccaoSvo(
+    veiculoId,
+    referenciaDesinfeccao,
+    usuarioId,
+  );
+  await notificarViaturaSvoLiberada({
+    veiculoId: atualizada.id,
+    placa: atualizada.placa,
+    modelo: atualizada.modelo,
+    referenciaDesinfeccao: referenciaDesinfeccao.toISOString(),
+  });
+  return atualizada;
+}
+
+async function executarConclusaoDesinfeccaoSvo(
+  veiculoId: string,
+  dataHoraConclusao: Date,
+  usuarioId?: string,
+) {
   return transacionarSvo(async (tx) => {
     await bloquearRecursosSvo(tx, veiculoId);
     const veiculo = await tx.veiculo.findUnique({ where: { id: veiculoId } });
@@ -610,7 +631,7 @@ export async function concluirDesinfeccaoSvo(veiculoId: string, usuarioId?: stri
       where: { veiculoId, status: "EM_ANDAMENTO" },
       data: {
         status: "CONCLUIDA",
-        dataHoraConclusao: new Date(),
+        dataHoraConclusao,
         responsavelId: usuarioId ?? null,
       },
     });
