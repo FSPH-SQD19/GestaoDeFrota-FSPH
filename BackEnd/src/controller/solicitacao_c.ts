@@ -11,6 +11,7 @@ import {
   criarSolicitacao,
   criarSolicitacaoSchema,
   listarSolicitacoes,
+  listarMinhasViagens,
   listarSolicitacoesSchema,
 } from "../service/solicitacao_s";
 import {
@@ -32,6 +33,13 @@ export async function concluirViagemController(req: Request, res: Response) {
   const execucao = await concluirViagem(String(req.params.id), dados, usuarioAutenticado(res).id);
 
   return res.status(200).json(execucao);
+}
+
+export async function listarMinhasViagensController(req: Request, res: Response) {
+  const filtros = validar(listarSolicitacoesSchema, req.query);
+  const resultado = await listarMinhasViagens(filtros, usuarioAutenticado(res).id);
+
+  return res.status(200).json(resultado);
 }
 
 export async function listarSolicitacoesController(req: Request, res: Response) {

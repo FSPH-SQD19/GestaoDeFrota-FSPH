@@ -4,16 +4,63 @@ import { prisma } from "../lib/prisma";
 import { HttpError } from "../middleware/http_m";
 
 const kmSchema = z.number().min(0).max(99999999.99).multipleOf(0.01);
-const checklistSchema = z.record(z.string(), z.json());
+const fotoSchema = z
+  .string()
+  .trim()
+  .max(160_000)
+  .regex(/^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/]+={0,2}$/i, "Informe uma imagem em Base64.")
+  .refine((foto) => (foto.length - foto.indexOf(",") - 1) % 4 === 0, "Imagem Base64 inválida.");
+
+const itensSaidaSchema = z.object({
+  pneus: z.boolean(),
+  documentos: z.boolean(),
+  combustivel: z.boolean(),
+  freiosLuzes: z.boolean(),
+  limpeza: z.boolean(),
+});
+
+const itensRetornoSchema = z.object({
+  pneusLataria: z.boolean(),
+  estacionadoLocalCorreto: z.boolean(),
+  documentosChaveDevolvidos: z.boolean(),
+  limpezaInterna: z.boolean(),
+});
 
 export const iniciarViagemSchema = z.object({
   kmInicial: kmSchema,
-  checklistSaida: checklistSchema,
+  checklistSaida: itensSaidaSchema
+    .extend({
+      fotoOdometro: fotoSchema,
+      observacoes: z.string().trim().max(300).optional(),
+      fotoAvaria: fotoSchema.optional(),
+    })
+    .refine(
+      (dados) =>
+        Object.keys(itensSaidaSchema.shape).every(
+          (chave) => dados[chave as keyof typeof itensSaidaSchema.shape],
+        ) || (dados.observacoes?.length ?? 0) >= 5,
+      { path: ["observacoes"], message: "Descreva o problema identificado (mín. 5 caracteres)." },
+    ),
 });
 
 export const concluirViagemSchema = z.object({
   kmFinal: kmSchema,
-  checklistRetorno: checklistSchema,
+  checklistRetorno: itensRetornoSchema
+    .extend({
+      fotoOdometro: fotoSchema,
+      semOcorrencias: z.boolean(),
+      ocorrencias: z.string().trim().max(500).optional(),
+      fotoAvaria: fotoSchema.optional(),
+    })
+    .refine(
+      (dados) =>
+        (dados.semOcorrencias &&
+          Object.keys(itensRetornoSchema.shape).every(
+            (chave) => dados[chave as keyof typeof itensRetornoSchema.shape],
+          )) ||
+        (dados.ocorrencias?.length ?? 0) >= 5,
+      { path: ["ocorrencias"], message: "Descreva a ocorrência (mín. 5 caracteres)." },
+    ),
 });
 
 type IniciarViagemInput = z.infer<typeof iniciarViagemSchema>;
@@ -58,6 +105,13 @@ export async function executarViagem(
       throw new HttpError(409, "Viagem sem veículo alocado.");
     }
 
+    const motoristaId = viagem.motoristaAlocado.id;
+    await tx.$queryRaw`SELECT id FROM motoristas WHERE id = ${motoristaId}::uuid FOR UPDATE`;
+    const motorista = await tx.motorista.findUniqueOrThrow({ where: { id: motoristaId } });
+    if (!motorista.ativo || motorista.usuarioId !== usuarioId) {
+      throw new HttpError(403, "Somente o motorista alocado pode executar esta viagem.");
+    }
+
     await tx.$queryRaw`SELECT id FROM veiculos WHERE id = ${veiculoId}::uuid FOR UPDATE`;
     const veiculo = await tx.veiculo.findUniqueOrThrow({ where: { id: veiculoId } });
     let execucao;
@@ -69,6 +123,14 @@ export async function executarViagem(
       if (new Prisma.Decimal(dados.kmInicial).lessThan(veiculo.odometroAtual)) {
         throw new HttpError(422, "Km inicial não pode ser menor que o odômetro atual.");
       }
+      if (motorista.status !== "DISPONIVEL") {
+        throw new HttpError(409, "Motorista indisponível.");
+      }
+
+      await tx.motorista.update({
+        where: { id: motoristaId },
+        data: { status: "OCUPADO" },
+      });
       execucao = await tx.execucaoViagem.create({
         data: { solicitacaoId: id, ...dados, dataHoraInicio: new Date() },
       });
@@ -92,9 +154,19 @@ export async function executarViagem(
       });
       await tx.veiculo.update({
         where: { id: veiculoId },
-        data: { odometroAtual: dados.kmFinal, status: "DISPONIVEL" },
+        data: {
+          odometroAtual: dados.kmFinal,
+          ...(veiculo.status === "EM_VIAGEM" ? { status: "DISPONIVEL" } : {}),
+        },
       });
     }
+    if (!iniciar && motorista.status === "OCUPADO") {
+      await tx.motorista.update({
+        where: { id: motoristaId },
+        data: { status: "DISPONIVEL" },
+      });
+    }
+
     const status = iniciar ? "EM_TRANSITO" : "CONCLUIDA";
     await tx.solicitacaoViagem.update({
       where: { id },
@@ -106,7 +178,10 @@ export async function executarViagem(
         acao: iniciar ? "INICIAR" : "CONCLUIR",
         tabelaAfetada: "solicitacoes_viagem",
         registroId: id,
-        dadosNovos: { status, ...dados },
+        dadosNovos: {
+          status,
+          ...(iniciar ? { kmInicial: dados.kmInicial } : { kmFinal: dados.kmFinal }),
+        },
       },
     });
     return { ...execucao, status };

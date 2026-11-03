@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 const mocks = vi.hoisted(() => ({
   usuarioFindUnique: vi.fn(),
   findMany: vi.fn(),
+  findFirst: vi.fn(),
   count: vi.fn(),
   groupBy: vi.fn(),
   create: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("../../../src/lib/prisma", () => ({
     usuario: { findUnique: mocks.usuarioFindUnique },
     solicitacaoViagem: {
       findMany: mocks.findMany,
+      findFirst: mocks.findFirst,
       count: mocks.count,
       groupBy: mocks.groupBy,
       create: mocks.create,
@@ -123,6 +125,42 @@ beforeEach(() => {
   mocks.transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) =>
     callback(prisma),
   );
+});
+
+describe("GET /api/v1/solicitacoes/minhas", () => {
+  it("restringe a rota ao perfil MOTORISTA", async () => {
+    expect((await chamar("/minhas")).status).toBe(401);
+    expect((await chamar("/minhas", { perfis: ["SOLICITANTE"] })).status).toBe(403);
+    expect(mocks.findMany).not.toHaveBeenCalled();
+  });
+
+  it("filtra pelo motorista autenticado e devolve a viagem ativa fora do filtro", async () => {
+    const acesso = { motoristaAlocado: { usuarioId, ativo: true } };
+    const execucao = { kmInicial: "100", dataHoraInicio: new Date() };
+    mocks.findFirst.mockResolvedValue({ ...registro, status: "EM_TRANSITO", execucao });
+
+    const resposta = await chamar("/minhas?status=CONCLUIDA&page=2&pageSize=5", {
+      perfis: ["MOTORISTA"],
+    });
+
+    expect(resposta.status).toBe(200);
+    expect(mocks.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ...acesso, NOT: { status: "EM_TRANSITO" }, status: { in: ["CONCLUIDA"] } },
+        skip: 5,
+        take: 5,
+      }),
+    );
+    expect(mocks.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ...acesso, status: "EM_TRANSITO" },
+      }),
+    );
+    expect(resposta.json.viagemEmAndamento).toMatchObject({
+      status: "EM_TRANSITO",
+      execucao: { kmInicial: "100" },
+    });
+  });
 });
 
 describe("GET /api/v1/solicitacoes", () => {

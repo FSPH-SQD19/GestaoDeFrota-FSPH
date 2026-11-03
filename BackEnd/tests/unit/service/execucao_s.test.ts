@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 const tx = vi.hoisted(() => ({
   $queryRaw: vi.fn(),
   solicitacaoViagem: { findUnique: vi.fn(), update: vi.fn() },
+  motorista: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   veiculo: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   execucaoViagem: { create: vi.fn(), update: vi.fn() },
   auditoriaSistema: { create: vi.fn() },
@@ -18,16 +19,42 @@ import {
 } from "../../../src/service/execucao_s";
 
 const id = "00000000-0000-4000-8000-000000000001";
-const saida = { kmInicial: 100, checklistSaida: { pneus: true } };
-const retorno = { kmFinal: 120, checklistRetorno: { pneus: true } };
+const fotoOdometro = "data:image/jpeg;base64,AAAA";
+const saida = {
+  kmInicial: 100,
+  checklistSaida: {
+    pneus: true,
+    documentos: true,
+    combustivel: true,
+    freiosLuzes: true,
+    limpeza: true,
+    fotoOdometro,
+  },
+};
+const retorno = {
+  kmFinal: 120,
+  checklistRetorno: {
+    pneusLataria: true,
+    estacionadoLocalCorreto: true,
+    documentosChaveDevolvidos: true,
+    limpezaInterna: true,
+    semOcorrencias: true,
+    fotoOdometro,
+  },
+};
 const viagem = {
   status: "APROVADA",
   veiculoAlocadoId: id,
-  motoristaAlocado: { ativo: true, usuarioId: id },
+  motoristaAlocado: { id, ativo: true, usuarioId: id },
   execucao: null,
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  tx.motorista.findUniqueOrThrow.mockResolvedValue({
+    ativo: true,
+    usuarioId: id,
+    status: "DISPONIVEL",
+  });
   tx.solicitacaoViagem.findUnique.mockResolvedValue(viagem);
   tx.veiculo.findUniqueOrThrow.mockResolvedValue({
     ativo: true,
@@ -38,6 +65,16 @@ beforeEach(() => {
   tx.execucaoViagem.update.mockResolvedValue(retorno);
 });
 function emTransito() {
+  tx.motorista.findUniqueOrThrow.mockResolvedValue({
+    ativo: true,
+    usuarioId: id,
+    status: "OCUPADO",
+  });
+  tx.veiculo.findUniqueOrThrow.mockResolvedValue({
+    ativo: true,
+    status: "EM_VIAGEM",
+    odometroAtual: new Prisma.Decimal(100),
+  });
   tx.solicitacaoViagem.findUnique.mockResolvedValue({
     ...viagem,
     status: "EM_TRANSITO",
@@ -71,6 +108,24 @@ describe("execução de viagens", () => {
       data: { ...retorno, kmFinal, dataHoraFim: expect.any(Date) },
     });
   });
+  it("mantém o veículo em manutenção ao concluir", async () => {
+    emTransito();
+    tx.veiculo.findUniqueOrThrow.mockResolvedValue({
+      ativo: true,
+      status: "MANUTENCAO",
+      odometroAtual: new Prisma.Decimal(100),
+    });
+    await executarViagem(id, id, retorno);
+    expect(tx.veiculo.update).toHaveBeenCalledWith({ where: { id }, data: { odometroAtual: 120 } });
+    expect(tx.motorista.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: "DISPONIVEL" },
+    });
+    expect(tx.auditoriaSistema.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ dadosNovos: { status: "CONCLUIDA", kmFinal: 120 } }),
+    });
+  });
+
   it("rejeita km final menor sem alterar registros", async () => {
     emTransito();
     await expect(executarViagem(id, id, { ...retorno, kmFinal: 99 })).rejects.toMatchObject({
@@ -93,6 +148,13 @@ describe("execução de viagens", () => {
   });
   it("valida odômetro numérico e checklist obrigatório", () => {
     expect(iniciarViagemSchema.safeParse(saida).success).toBe(true);
+    expect(iniciarViagemSchema.safeParse({ ...saida, checklistSaida: {} }).success).toBe(false);
+    expect(
+      concluirViagemSchema.safeParse({
+        ...retorno,
+        checklistRetorno: { ...retorno.checklistRetorno, fotoOdometro: "" },
+      }).success,
+    ).toBe(false);
     for (const kmInicial of [-1, Infinity, "100", 0.001]) {
       expect(iniciarViagemSchema.safeParse({ ...saida, kmInicial }).success).toBe(false);
     }
