@@ -143,6 +143,10 @@ export interface ListaSolicitacoesResposta {
     porStatus: ContagemPorStatus;
   };
 }
+export interface ListaMinhasViagensResposta extends ListaSolicitacoesResposta {
+  viagemEmAndamento: SolicitacaoViagem | null;
+}
+
 export interface ListarSolicitacoesParams {
   page?: number;
   pageSize?: number;

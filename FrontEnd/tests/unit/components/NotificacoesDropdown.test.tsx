@@ -113,7 +113,9 @@ describe("NotificacoesDropdown no Header", () => {
     expect(badge).toHaveTextContent("2");
 
     await user.click(screen.getByRole("button", { name: "Notificações" }));
-    expect(screen.getByRole("dialog", { name: "Central de notificações" })).toBeInTheDocument();
+    const dropdown = screen.getByRole("dialog", { name: "Central de notificações" });
+    expect(dropdown).toBeInTheDocument();
+    expect(dropdown).toHaveClass("fixed", "right-4", "w-[calc(100vw-2rem)]", "sm:absolute");
     expect(screen.getByText("Solicitação urgente SV-2026-0099")).toBeInTheDocument();
     expect(screen.getByText("Viagem SV-2026-0050 aprovada")).toBeInTheDocument();
 
