@@ -38,9 +38,6 @@ function obterContextoCanvas(
   ctx: CanvasRenderingContext2D;
 } | null {
   if (typeof document === "undefined") return null;
-  if (typeof navigator !== "undefined" && /jsdom/i.test(navigator.userAgent)) {
-    return null;
-  }
   const canvas = document.createElement("canvas");
   canvas.width = largura;
   canvas.height = altura;
@@ -74,7 +71,7 @@ export async function comprimirFotoChecklist(arquivo: File): Promise<string> {
 
   const dataUrlOriginal = await lerComoDataUrl(arquivo);
 
-  // Fallback para ambientes de teste (jsdom) onde Canvas 2D não está implementado.
+  // Navegadores sem Canvas só podem enviar imagens que já cabem no limite.
   const sondaCanvas = obterContextoCanvas(1, 1);
   if (!sondaCanvas) {
     if (dataUrlOriginal.length > LIMITE_CARACTERES_DATA_URL) {

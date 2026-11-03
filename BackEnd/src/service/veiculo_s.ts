@@ -29,47 +29,46 @@ const placaSchema = z
 
 const anoMaximo = () => new Date().getFullYear() + 1;
 
+const camposVeiculo = {
+  placa: placaSchema,
+  modelo: z
+    .string({ error: "Modelo é obrigatório." })
+    .trim()
+    .min(2, "Modelo deve ter ao menos 2 caracteres.")
+    .max(100, "Modelo deve ter no máximo 100 caracteres."),
+  tipoFrota: z.enum(TIPOS_FROTA, {
+    error: "Selecione a frota administrativa ou a frota do SVO.",
+  }),
+  propriedade: z.enum(PROPRIEDADES, { error: "Informe se o veículo é próprio ou locado." }),
+  fornecedorId: z.uuid({ error: "Selecione um fornecedor válido." }),
+  ano: z
+    .number({ error: "Informe um ano válido para o veículo." })
+    .int("Ano deve ser inteiro.")
+    .min(1950, "Ano inválido.")
+    .refine((ano) => ano <= anoMaximo(), "Ano inválido."),
+  combustivel: z.string().trim().min(1).max(30, "Combustível deve ter no máximo 30 caracteres."),
+  capacidadeMaxima: z
+    .number({ error: "Informe a quantidade de passageiros que o veículo comporta." })
+    .int("Capacidade deve ser inteira.")
+    .min(1, "Capacidade deve ser maior que zero.")
+    .max(50, "Capacidade máxima excedida."),
+  odometroAtual: z
+    .number({ error: "Informe a quilometragem exibida no odômetro." })
+    .min(0, "Odômetro não pode ser negativo.")
+    .max(99999999.99, "Odômetro inválido."),
+  status: z.enum(STATUS_VEICULO, { error: "Selecione uma situação válida para o veículo." }),
+};
+
 export const criarVeiculoSchema = z
   .object({
-    placa: placaSchema,
-    modelo: z
-      .string({ error: "Modelo é obrigatório." })
-      .trim()
-      .min(2, "Modelo deve ter ao menos 2 caracteres.")
-      .max(100, "Modelo deve ter no máximo 100 caracteres."),
-    tipoFrota: z.enum(TIPOS_FROTA, {
-      error: "Selecione a frota administrativa ou a frota do SVO.",
-    }),
-    propriedade: z
-      .enum(PROPRIEDADES, { error: "Informe se o veículo é próprio ou locado." })
-      .default("PROPRIO"),
-    fornecedorId: z.uuid({ error: "Selecione um fornecedor válido." }).optional(),
-    ano: z
-      .number({ error: "Informe um ano válido para o veículo." })
-      .int("Ano deve ser inteiro.")
-      .min(1950, "Ano inválido.")
-      .refine((ano) => ano <= anoMaximo(), "Ano inválido.")
-      .optional(),
-    combustivel: z
-      .string()
-      .trim()
-      .min(1)
-      .max(30, "Combustível deve ter no máximo 30 caracteres.")
-      .optional(),
-    capacidadeMaxima: z
-      .number({ error: "Informe a quantidade de passageiros que o veículo comporta." })
-      .int("Capacidade deve ser inteira.")
-      .min(1, "Capacidade deve ser maior que zero.")
-      .max(50, "Capacidade máxima excedida.")
-      .default(4),
-    odometroAtual: z
-      .number({ error: "Informe a quilometragem exibida no odômetro." })
-      .min(0, "Odômetro não pode ser negativo.")
-      .max(99999999.99, "Odômetro inválido.")
-      .default(0),
-    status: z
-      .enum(STATUS_VEICULO, { error: "Selecione uma situação válida para o veículo." })
-      .default("DISPONIVEL"),
+    ...camposVeiculo,
+    propriedade: camposVeiculo.propriedade.default("PROPRIO"),
+    fornecedorId: camposVeiculo.fornecedorId.optional(),
+    ano: camposVeiculo.ano.optional(),
+    combustivel: camposVeiculo.combustivel.optional(),
+    capacidadeMaxima: camposVeiculo.capacidadeMaxima.default(4),
+    odometroAtual: camposVeiculo.odometroAtual.default(0),
+    status: camposVeiculo.status.default("DISPONIVEL"),
   })
   .superRefine((veiculo, ctx) => {
     if (veiculo.propriedade === "LOCADO" && !veiculo.fornecedorId) {
@@ -203,28 +202,13 @@ function erroPlacaDuplicada() {
 
 export const atualizarVeiculoSchema = z
   .object({
-    placa: placaSchema.optional(),
-
-    modelo: z.string().trim().min(1).optional(),
-
-    tipoFrota: z.enum(TIPOS_FROTA).optional(),
-
-    propriedade: z.enum(PROPRIEDADES).optional(),
-
-    fornecedorId: z.string().uuid().nullable().optional(),
-
-    ano: z.number().int().optional().nullable(),
-
-    combustivel: z.string().trim().min(1).optional().nullable(),
-
-    capacidadeMaxima: z.number().int().positive().optional(),
-
-    odometroAtual: z.number().nonnegative().optional(),
-
-    status: z.enum(STATUS_VEICULO).optional(),
-
-    ativo: z.boolean().optional(),
+    ...camposVeiculo,
+    fornecedorId: camposVeiculo.fornecedorId.nullable(),
+    ano: camposVeiculo.ano.nullable(),
+    combustivel: camposVeiculo.combustivel.nullable(),
+    ativo: z.boolean(),
   })
+  .partial()
   .strict()
   .superRefine((dados, ctx) => {
     if (dados.status === "DESINFECCAO" && dados.tipoFrota === "ADMINISTRATIVA") {
