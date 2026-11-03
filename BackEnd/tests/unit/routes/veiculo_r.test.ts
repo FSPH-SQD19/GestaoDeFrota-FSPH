@@ -1,8 +1,9 @@
 import { signTestToken } from "../../helpers/auth";
 vi.mock("../../../src/service/session_s", async () => {
   const { resolveTestSession } = await import("../../helpers/auth");
-  return { resolveSession: resolveTestSession };
+  return { resolveSession: vi.fn(resolveTestSession) };
 });
+import { resolveSession } from "../../../src/service/session_s";
 import { getAuthConfig } from "../../../src/config/auth";
 vi.mock("../../../src/config/auth", () => ({ getAuthConfig: vi.fn() }));
 import type { AddressInfo } from "node:net";
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   findUnique: vi.fn(),
   create: vi.fn(),
+  update: vi.fn(),
   fornecedorFindUnique: vi.fn(),
   auditoriaCreate: vi.fn(),
 }));
@@ -26,6 +28,7 @@ vi.mock("../../../src/lib/prisma", () => ({
       count: mocks.count,
       findUnique: mocks.findUnique,
       create: mocks.create,
+      update: mocks.update,
     },
     fornecedor: { findUnique: mocks.fornecedorFindUnique },
     auditoriaSistema: { create: mocks.auditoriaCreate },
@@ -106,8 +109,38 @@ beforeEach(() => {
   mocks.count.mockResolvedValue(1);
   mocks.findUnique.mockResolvedValue(null);
   mocks.create.mockResolvedValue(registro);
+  mocks.update.mockResolvedValue({ ...registro, modelo: "Modelo atualizado" });
   mocks.auditoriaCreate.mockResolvedValue({});
   mocks.fornecedorFindUnique.mockResolvedValue({ ativo: true });
+});
+
+describe("PATCH /api/v1/veiculos/:id", () => {
+  it("atualiza o veículo e resolve a sessão apenas uma vez", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+    const resposta = await fetch(`${baseUrl}/api/v1/veiculos/${veiculoId}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${token(["GESTOR"])}`, "content-type": "application/json" },
+      body: JSON.stringify({ modelo: "Modelo atualizado" }),
+    });
+    expect(resposta.status).toBe(200);
+    expect(await resposta.json()).toMatchObject({ modelo: "Modelo atualizado" });
+    expect(resolveSession).toHaveBeenCalledTimes(1);
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { id: veiculoId },
+      data: { modelo: "Modelo atualizado" },
+    });
+  });
+
+  it("rejeita valores acima dos limites antes de consultar o veículo", async () => {
+    const resposta = await fetch(`${baseUrl}/api/v1/veiculos/${veiculoId}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${token(["GESTOR"])}`, "content-type": "application/json" },
+      body: JSON.stringify({ ano: 9999, capacidadeMaxima: 500 }),
+    });
+    expect(resposta.status).toBe(400);
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /api/v1/veiculos", () => {

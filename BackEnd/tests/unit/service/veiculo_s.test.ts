@@ -29,6 +29,7 @@ import { HttpError } from "../../../src/lib/http_error";
 import {
   criarVeiculo,
   criarVeiculoSchema,
+  atualizarVeiculoSchema,
   listarVeiculos,
   listarVeiculosSchema,
   normalizarPlaca,
@@ -60,6 +61,47 @@ const registro = {
   criadoEm: new Date("2026-10-17T12:00:00.000Z"),
   atualizadoEm: new Date("2026-10-17T12:00:00.000Z"),
 };
+
+describe("validações compartilhadas de veículos", () => {
+  it.each([
+    { modelo: "x".repeat(101) },
+    { ano: 9999 },
+    { ano: 1949 },
+    { capacidadeMaxima: 51 },
+    { capacidadeMaxima: 0 },
+    { capacidadeMaxima: 1.5 },
+    { combustivel: "x".repeat(31) },
+    { odometroAtual: 100000000 },
+    { odometroAtual: -1 },
+  ])("rejeita o mesmo valor inválido no cadastro e no PATCH: %j", (campo) => {
+    expect(criarVeiculoSchema.safeParse({ ...entrada, ...campo }).success).toBe(false);
+    expect(atualizarVeiculoSchema.safeParse(campo).success).toBe(false);
+  });
+
+  it("mantém os limites válidos e normaliza os mesmos campos", () => {
+    const campos = {
+      placa: "abc-1d23",
+      modelo: "  " + "x".repeat(100) + "  ",
+      ano: new Date().getFullYear() + 1,
+      capacidadeMaxima: 50,
+      odometroAtual: 99999999.99,
+      combustivel: "  Diesel  ",
+    };
+    const cadastro = criarVeiculoSchema.parse({ ...entrada, ...campos });
+    const atualizacao = atualizarVeiculoSchema.parse(campos);
+    expect(cadastro).toMatchObject(atualizacao);
+    expect(atualizacao).toMatchObject({ placa: "ABC1D23", combustivel: "Diesel" });
+  });
+
+  it("preserva campos omitidos no PATCH e permite limpar campos opcionais", () => {
+    expect(atualizarVeiculoSchema.parse({ modelo: "Novo modelo" })).toEqual({
+      modelo: "Novo modelo",
+    });
+    const limpeza = { fornecedorId: null, ano: null, combustivel: null };
+    expect(atualizarVeiculoSchema.parse(limpeza)).toEqual(limpeza);
+    expect(atualizarVeiculoSchema.safeParse({ campoInexistente: true }).success).toBe(false);
+  });
+});
 
 async function erroDe(promessa: Promise<unknown>) {
   try {
