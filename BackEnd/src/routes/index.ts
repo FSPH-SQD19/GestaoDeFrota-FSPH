@@ -21,11 +21,17 @@ import {
   criarDocumentoVeiculoController,
   listarDocumentosVeiculoController,
 } from "../controller/documento_veiculo_c";
+import {
+  criarEscalaSvoController,
+  encerrarEscalaSvoController,
+  listarEscalasSvoController,
+} from "../controller/escala_svo_c";
 
 const router = Router();
 const veiculos = Router();
 const abastecimento = Router();
 const manutencoes = Router();
+const escalasSvo = Router();
 
 // Consultar carrinhos (VrumVrum)
 veiculos.use(authenticate, requireRole("ADMIN", "GESTOR"));
@@ -62,6 +68,15 @@ manutencoes.post("/", criarManutencaoController);
 manutencoes.patch("/:id/concluir", concluirManutencaoController);
 
 router.use("/api/v1/manutencoes", manutencoes);
+
+// Escalas e plantoes do SVO
+escalasSvo.use(authenticate, requireRole("ADMIN", "GESTOR", "SVO"));
+escalasSvo.get("/", listarEscalasSvoController);
+escalasSvo.post("/", criarEscalaSvoController);
+escalasSvo.patch("/:id/encerrar", encerrarEscalaSvoController);
+
+router.use("/api/v1/svo/escalas", escalasSvo);
+
 router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
 
