@@ -29,11 +29,13 @@ import {
   criarOrdemColetaSvo,
   extrairErroSvo,
   obterChamadosSvo,
+  obterEscalasEmAndamentoSvo,
   obterIndicadoresSvo,
   obterMotoristasSvo,
   obterViaturasSvo,
   triarChamadoSvo,
   type ChamadoSvo,
+  type EscalaSvo,
   type EtapaFiltroSvo,
   type IndicadoresSvo,
   type MotoristaSvo,
@@ -108,11 +110,33 @@ function nomeMotorista(motorista: MotoristaSvo): string {
   return nome ? `${nome} (CNH ${motorista.numeroCnh})` : `CNH ${motorista.numeroCnh}`;
 }
 
+function motoristaElegivelParaViatura(
+  motorista: MotoristaSvo,
+  viatura: ViaturaSvo | undefined,
+): boolean {
+  if (motorista.status === "DISPONIVEL") return true;
+  return (
+    motorista.status === "OCUPADO" &&
+    viatura?.status === "EM_VIAGEM" &&
+    viatura.motoristaAtual?.id === motorista.id
+  );
+}
+
+function formatarHorarioTurno(inicio: string, fim: string): string {
+  const formato = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${formato.format(new Date(inicio))} – ${formato.format(new Date(fim))}`;
+}
+
 export const SvoPage: React.FC = () => {
   const { user } = useAuth();
 
   const [indicadores, setIndicadores] = useState<IndicadoresSvo>(INDICADORES_VAZIOS);
   const [chamados, setChamados] = useState<ChamadoSvo[]>([]);
+  const [escalasAtuais, setEscalasAtuais] = useState<EscalaSvo[]>([]);
   const [viaturas, setViaturas] = useState<ViaturaSvo[]>([]);
   const [motoristas, setMotoristas] = useState<MotoristaSvo[]>([]);
 
@@ -124,12 +148,14 @@ export const SvoPage: React.FC = () => {
   const [reloadTick, setReloadTick] = useState(0);
 
   const [carregando, setCarregando] = useState(true);
+  const [carregandoEscalas, setCarregandoEscalas] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [processandoAcaoId, setProcessandoAcaoId] = useState<string | null>(null);
 
   const [aviso, setAviso] = useState("");
   const [erroPagina, setErroPagina] = useState("");
   const [erroRecursos, setErroRecursos] = useState("");
+  const [erroEscalas, setErroEscalas] = useState("");
   const [erroModal, setErroModal] = useState("");
 
   const [selecionado, setSelecionado] = useState<ChamadoSvo | null>(null);
@@ -205,12 +231,35 @@ export const SvoPage: React.FC = () => {
       });
 
     return () => {
-      cancelado = true;
+        cancelado = true;
+    };
+  }, [reloadTick]);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    obterEscalasEmAndamentoSvo()
+      .then((lista) => {
+        if (cancelado) return;
+        setEscalasAtuais(lista);
+        setErroEscalas("");
+      })
+      .catch((erro: unknown) => {
+        if (cancelado) return;
+        setErroEscalas(extrairErroSvo(erro, "Não foi possível carregar as escalas do plantão."));
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoEscalas(false);
+      });
+
+    return () => {
+    cancelado = true;
     };
   }, [reloadTick]);
 
   const dispararRecarregamento = (novaPagina?: number) => {
     setCarregando(true);
+    setCarregandoEscalas(true);
     if (novaPagina !== undefined) {
       setPage(novaPagina);
     }
@@ -329,19 +378,39 @@ export const SvoPage: React.FC = () => {
   ) => {
     const viatura = viaturas.find((v) => v.id === idViatura);
     if (viatura?.motoristaAtual?.id) {
-      return viatura.motoristaAtual.id;
+      const motoristaAtual = listaMotoristas.find(
+        (motorista) =>
+          motorista.id === viatura.motoristaAtual?.id &&
+          motoristaElegivelParaViatura(motorista, viatura),
+      );
+      if (motoristaAtual) return motoristaAtual.id;
     }
-    const disponivel = listaMotoristas.find((m) => !m.status || m.status === "DISPONIVEL");
+    const disponivel = listaMotoristas.find(
+      (motorista) => motorista.status === "DISPONIVEL",
+    );
     return disponivel?.id ?? "";
   };
 
   const abrirEmissaoOrdem = (chamado: ChamadoSvo) => {
     if (enviando) return;
-    const primeiraElegivel = viaturasElegiveis[0];
+    const escalaElegivel = escalasAtuais.find((escala) => {
+      const viatura = viaturasElegiveis.find((item) => item.id === escala.veiculo.id);
+      if (!viatura) return false;
+      const motorista = motoristas.find((item) => item.id === escala.motorista.id);
+      if (!motorista) return false;
+      return motoristaElegivelParaViatura(motorista, viatura);
+    });
+    const primeiraElegivel =
+      viaturasElegiveis.find((viatura) => viatura.id === escalaElegivel?.veiculo.id) ??
+      viaturasElegiveis[0];
     const idViaturaInicial = primeiraElegivel?.id ?? "";
     setSelecionado(chamado);
     setViaturaId(idViaturaInicial);
-    setMotoristaId(selecionarMotoristaPadraoParaViatura(idViaturaInicial, motoristas));
+    setMotoristaId(
+      escalaElegivel && escalaElegivel.veiculo.id === idViaturaInicial
+        ? escalaElegivel.motorista.id
+        : selecionarMotoristaPadraoParaViatura(idViaturaInicial, motoristas),
+    );
     setNumeroDeclaracaoObito("");
     setErroModal("");
     setModal("ORDEM");
@@ -424,9 +493,9 @@ export const SvoPage: React.FC = () => {
   };
 
   const viaturaDaOrdem = viaturas.find((v) => v.id === viaturaId);
-  const motoristasParaOrdem = viaturaDaOrdem?.motoristaAtual
-    ? motoristas.filter((m) => m.id === viaturaDaOrdem.motoristaAtual?.id)
-    : motoristas.filter((m) => !m.status || m.status === "DISPONIVEL");
+  const motoristasParaOrdem = motoristas.filter((motorista) =>
+    motoristaElegivelParaViatura(motorista, viaturaDaOrdem),
+  );
 
   const registroValido =
     novoChamado.nomeFalecido.trim().length >= 2 &&
@@ -617,6 +686,101 @@ export const SvoPage: React.FC = () => {
           tone="green"
         />
       </section>
+
+      <Card
+        className="overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 to-white p-0 shadow-sm"
+        aria-label="Escala do plantão atual"
+      >
+        <div className="flex flex-col gap-3 border-b border-emerald-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <Clock3 className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">Plantão atual</h2>
+                <Badge
+                  size="sm"
+                  variant={erroEscalas ? "danger" : carregandoEscalas ? "info" : "success"}
+                  dot={!erroEscalas}
+                >
+                  {erroEscalas
+                    ? "Escala indisponível"
+                    : carregandoEscalas
+                      ? "Atualizando"
+                      : `${escalasAtuais.length} ${
+                          escalasAtuais.length === 1 ? "escala ativa" : "escalas ativas"
+                        }`}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Motoristas e viaturas escalados agora. A elegibilidade operacional é validada no
+                despacho.
+              </p>
+            </div>
+          </div>
+          {carregandoEscalas && (
+            <span className="text-xs font-medium text-slate-500" role="status">
+              Atualizando escalas...
+            </span>
+          )}
+        </div>
+
+        {erroEscalas ? (
+          <div className="flex items-center gap-2 p-5 text-sm text-rose-700" role="alert">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {erroEscalas}
+          </div>
+        ) : escalasAtuais.length === 0 ? (
+          <p className="p-5 text-sm text-slate-500">
+            {carregandoEscalas
+              ? "Carregando quem está de plantão..."
+              : "Nenhuma escala em andamento neste momento."}
+          </p>
+        ) : (
+          <ul className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {escalasAtuais.map((escala) => {
+              const viatura = viaturas.find((item) => item.id === escala.veiculo.id);
+              const motorista = motoristas.find((item) => item.id === escala.motorista.id);
+              const elegivel =
+                viaturasElegiveis.some((item) => item.id === escala.veiculo.id) &&
+                !!motorista &&
+                motoristaElegivelParaViatura(motorista, viatura);
+
+              return (
+                <li
+                  key={escala.id}
+                  className={cn(
+                    "rounded-xl border bg-white p-4",
+                    elegivel ? "border-emerald-200" : "border-slate-200",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-900">
+                        {escala.motorista.nome || "Motorista sem nome"}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-600">
+                        <Ambulance className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        <span className="truncate">
+                          {escala.veiculo.modelo} · {escala.veiculo.placa}
+                        </span>
+                      </p>
+                    </div>
+                    <Badge size="sm" dot variant={elegivel ? "success" : "neutral"}>
+                      {elegivel ? "Pronto para despacho" : "Em turno"}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500">
+                    <Users className="h-3.5 w-3.5" />
+                    Turno {formatarHorarioTurno(escala.inicioTurno, escala.fimTurno)}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
 
       <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
         <Card className="overflow-hidden rounded-2xl border border-slate-200/80 p-0 shadow-sm">

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { z } from "zod";
 import { api } from "./api";
 import { dispararAtualizacaoNotificacoes } from "./notificacoesService";
 
@@ -65,6 +66,28 @@ export interface MotoristaSvo {
   usuario: { nome: string } | null;
 }
 
+export interface EscalaSvo {
+  id: string;
+  motorista: {
+    id: string;
+    nome: string | null;
+    telefone: string | null;
+    ativo: boolean;
+  };
+  veiculo: {
+    id: string;
+    placa: string;
+    modelo: string;
+    status: string;
+    ativo: boolean;
+  };
+  inicioTurno: string;
+  fimTurno: string;
+  observacoes: string | null;
+  encerradaEm: string | null;
+  situacao: "AGENDADA" | "EM_ANDAMENTO" | "SUSPENSA" | "ENCERRADA";
+}
+
 export interface IndicadoresSvo {
   total: number;
   emAnalise: number;
@@ -84,6 +107,160 @@ export interface PaginaChamadosSvo {
     total: number;
     totalPages: number;
   };
+}
+
+const respostaIndicadoresSvoSchema = z
+  .object({
+    total: z.number().int().nonnegative(),
+    emAnalise: z.number().int().nonnegative(),
+    aguardandoOrdem: z.number().int().nonnegative(),
+    aprovados: z.number().int().nonnegative(),
+    recusados: z.number().int().nonnegative(),
+    coletasEmAndamento: z.number().int().nonnegative(),
+    viaturasDisponiveis: z.number().int().nonnegative(),
+    totalViaturas: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+const motoristaOrdemSvoSchema = z
+  .object({
+    id: z.string(),
+    numeroCnh: z.string(),
+    categoriaCnh: z.string().nullable(),
+    usuario: z.object({ nome: z.string() }).nullable(),
+  })
+  .passthrough();
+
+const viaturaOrdemSvoSchema = z
+  .object({
+    id: z.string(),
+    placa: z.string(),
+    modelo: z.string(),
+    status: z.string(),
+    capacidadeMaxima: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+const ordemColetaSvoSchema = z
+  .object({
+    id: z.string(),
+    chamadoId: z.string(),
+    veiculoId: z.string().nullable(),
+    motoristaId: z.string().nullable(),
+    status: z.string(),
+    numeroDeclaracaoObito: z.string().nullable(),
+    dataHoraSaida: z.iso.datetime({ offset: true }).nullable(),
+    veiculo: viaturaOrdemSvoSchema.nullable().optional(),
+    motorista: motoristaOrdemSvoSchema.nullable().optional(),
+  })
+  .passthrough();
+
+const chamadoSvoSchema = z
+  .object({
+    id: z.string(),
+    numeroProtocolo: z.string().nullable(),
+    atendenteId: z.string().nullable(),
+    nomeFalecido: z.string().nullable(),
+    enderecoOcorrencia: z.string().nullable(),
+    relatoOcorrencia: z.string().nullable(),
+    statusTriagem: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]),
+    justificativaTriagem: z.string().nullable().optional(),
+    atendente: z.object({ id: z.string(), nome: z.string() }).nullable().optional(),
+    ordemColeta: ordemColetaSvoSchema.nullable().optional(),
+  })
+  .passthrough();
+
+const metadadosPaginacaoSvoSchema = z
+  .object({
+    page: z.number().int().positive(),
+    pageSize: z.number().int().positive(),
+    total: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+function paginaSvoSchema<T extends z.ZodType>(itemSchema: T) {
+  return z
+    .object({
+      data: z.array(itemSchema),
+      meta: metadadosPaginacaoSvoSchema,
+    })
+    .passthrough();
+}
+
+const paginaChamadosSvoSchema = paginaSvoSchema(chamadoSvoSchema);
+
+const motoristaSvoSchema = z
+  .object({
+    id: z.string(),
+    status: z.string().optional(),
+    numeroCnh: z.string(),
+    categoriaCnh: z.string().nullable(),
+    usuario: z.object({ nome: z.string() }).nullable(),
+  })
+  .passthrough();
+
+const viaturaSvoSchema = z
+  .object({
+    id: z.string(),
+    placa: z.string(),
+    modelo: z.string(),
+    status: z.string(),
+    capacidadeMaxima: z.number().int().nonnegative(),
+    ativo: z.boolean(),
+    ocupacaoAtual: z.number().int().nonnegative(),
+    motoristaAtual: z
+      .object({ id: z.string(), nome: z.string().nullable() })
+      .nullable(),
+  })
+  .passthrough();
+
+const escalaSvoSchema = z
+  .object({
+    id: z.string(),
+    motorista: z
+      .object({
+        id: z.string(),
+        nome: z.string().nullable(),
+        telefone: z.string().nullable(),
+        ativo: z.boolean(),
+      })
+      .passthrough(),
+    veiculo: z
+      .object({
+        id: z.string(),
+        placa: z.string(),
+        modelo: z.string(),
+        status: z.string(),
+        ativo: z.boolean(),
+      })
+      .passthrough(),
+    inicioTurno: z.iso.datetime({ offset: true }),
+    fimTurno: z.iso.datetime({ offset: true }),
+    observacoes: z.string().nullable(),
+    encerradaEm: z.iso.datetime({ offset: true }).nullable(),
+    situacao: z.enum(["AGENDADA", "EM_ANDAMENTO", "SUSPENSA", "ENCERRADA"]),
+  })
+  .passthrough();
+
+const paginaEscalasSvoSchema = paginaSvoSchema(escalaSvoSchema);
+
+function validarRespostaSvo<T extends z.ZodType>(
+  schema: T,
+  resposta: unknown,
+  recurso: string,
+): z.output<T> {
+  const resultado = schema.safeParse(resposta);
+  if (!resultado.success) {
+    const camposInvalidos = resultado.error.issues
+      .map((issue) => issue.path.map(String).join(".") || "resposta")
+      .filter((campo, indice, campos) => campos.indexOf(campo) === indice)
+      .slice(0, 5)
+      .join(", ");
+    const complemento = camposInvalidos ? `: ${camposInvalidos}` : "";
+    throw new Error(`Resposta inesperada da API do SVO (${recurso})${complemento}.`);
+  }
+  return resultado.data;
 }
 
 interface ErroApiCorpo {
@@ -122,8 +299,8 @@ export function extrairErroSvo(
 }
 
 export async function obterIndicadoresSvo(): Promise<IndicadoresSvo> {
-  const { data } = await api.get<IndicadoresSvo>(`${BASE}/indicadores`);
-  return data;
+  const { data } = await api.get<unknown>(`${BASE}/indicadores`);
+  return validarRespostaSvo(respostaIndicadoresSvoSchema, data, "indicadores");
 }
 
 export async function obterChamadosSvo(params?: {
@@ -133,8 +310,8 @@ export async function obterChamadosSvo(params?: {
   page?: number;
   pageSize?: number;
 }): Promise<PaginaChamadosSvo> {
-  const { data } = await api.get<PaginaChamadosSvo>(`${BASE}/chamados`, { params });
-  return data;
+  const { data } = await api.get<unknown>(`${BASE}/chamados`, { params });
+  return validarRespostaSvo(paginaChamadosSvoSchema, data, "chamados");
 }
 
 export async function criarChamadoSvo(input: {
@@ -191,11 +368,37 @@ export async function concluirDesinfeccaoSvo(veiculoId: string): Promise<Viatura
 }
 
 export async function obterViaturasSvo(): Promise<ViaturaSvo[]> {
-  const { data } = await api.get<ViaturaSvo[]>(`${BASE}/viaturas`);
-  return data;
+  const { data } = await api.get<unknown>(`${BASE}/viaturas`);
+  return validarRespostaSvo(z.array(viaturaSvoSchema), data, "viaturas");
 }
 
 export async function obterMotoristasSvo(): Promise<MotoristaSvo[]> {
-  const { data } = await api.get<MotoristaSvo[]>(`${BASE}/motoristas`);
-  return data;
+  const { data } = await api.get<unknown>(`${BASE}/motoristas`);
+  return validarRespostaSvo(z.array(motoristaSvoSchema), data, "motoristas");
+}
+
+export async function obterEscalasEmAndamentoSvo(): Promise<EscalaSvo[]> {
+  const pageSize = 100;
+  const consultarPagina = async (page: number) => {
+    const { data } = await api.get<unknown>(`${BASE}/escalas`, {
+      params: { situacao: "EM_ANDAMENTO", page, pageSize },
+    });
+    const resultado = validarRespostaSvo(paginaEscalasSvoSchema, data, "escalas");
+    if (resultado.meta.page !== page || resultado.meta.pageSize !== pageSize) {
+      throw new Error(`Resposta inesperada da API do SVO (escalas): paginação da página ${page}.`);
+    }
+    return resultado;
+  };
+
+  const primeiraPagina = await consultarPagina(1);
+  const escalasPorId = new Map(primeiraPagina.data.map((escala) => [escala.id, escala]));
+
+  for (let page = 2; page <= primeiraPagina.meta.totalPages; page += 1) {
+    const pagina = await consultarPagina(page);
+    for (const escala of pagina.data) {
+      escalasPorId.set(escala.id, escala);
+    }
+  }
+
+  return [...escalasPorId.values()];
 }
