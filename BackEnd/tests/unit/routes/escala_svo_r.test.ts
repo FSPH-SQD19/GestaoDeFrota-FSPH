@@ -92,8 +92,13 @@ function escalaDoBanco(dados: Partial<Record<string, unknown>> = {}) {
     observacoes: null,
     encerradaEm: null,
     criadoEm: daqui(-2),
-    motorista: { id: motoristaId, telefone: "79999990000", usuario: { nome: "Plantonista" } },
-    veiculo: { id: veiculoId, placa: "SVO1A23", modelo: "S10", status: "DISPONIVEL" },
+    motorista: {
+      id: motoristaId,
+      telefone: "79999990000",
+      ativo: true,
+      usuario: { nome: "Plantonista" },
+    },
+    veiculo: { id: veiculoId, placa: "SVO1A23", modelo: "S10", status: "DISPONIVEL", ativo: true },
     ...dados,
   };
 }
@@ -172,8 +177,8 @@ describe("GET /api/v1/svo/escalas", () => {
       expect.objectContaining({
         id: escalaId,
         situacao: "EM_ANDAMENTO",
-        motorista: { id: motoristaId, nome: "Plantonista", telefone: "79999990000" },
-        veiculo: expect.objectContaining({ placa: "SVO1A23", modelo: "S10" }),
+        motorista: { id: motoristaId, nome: "Plantonista", telefone: "79999990000", ativo: true },
+        veiculo: expect.objectContaining({ placa: "SVO1A23", modelo: "S10", ativo: true }),
         encerradaEm: null,
       }),
     ]);
@@ -194,6 +199,8 @@ describe("GET /api/v1/svo/escalas", () => {
           encerradaEm: null,
           inicioTurno: { lte: expect.any(Date) },
           fimTurno: { gt: expect.any(Date) },
+          motorista: { ativo: true },
+          veiculo: { ativo: true },
         },
         { veiculoId },
       ],
@@ -203,17 +210,61 @@ describe("GET /api/v1/svo/escalas", () => {
   });
 
   it.each([
-    ["AGENDADA", { encerradaEm: null, inicioTurno: { gt: expect.any(Date) } }],
+    [
+      "AGENDADA",
+      {
+        encerradaEm: null,
+        inicioTurno: { gt: expect.any(Date) },
+        motorista: { ativo: true },
+        veiculo: { ativo: true },
+      },
+    ],
+    [
+      "SUSPENSA",
+      {
+        encerradaEm: null,
+        fimTurno: { gt: expect.any(Date) },
+        OR: [{ motorista: { ativo: false } }, { veiculo: { ativo: false } }],
+      },
+    ],
     [
       "ENCERRADA",
       { OR: [{ encerradaEm: { not: null } }, { fimTurno: { lte: expect.any(Date) } }] },
     ],
   ])("filtra a situação %s", async (situacao, where) => {
     await chamar("GET", `${caminho}?situacao=${situacao}`, { perfis: ["ADMIN"] });
-    expect(mocks.escalaFindMany.mock.calls[0]![0].where).toEqual({ AND: [where] });
+    const args = mocks.escalaFindMany.mock.calls[0]![0];
+    expect(args.where).toEqual({ AND: [where] });
+    expect(args.orderBy[0]).toEqual({ inicioTurno: situacao === "ENCERRADA" ? "desc" : "asc" });
   });
 
-  it.each(["situacao=ATIVA", "motoristaId=abc", "pageSize=101", "page=0"])(
+  it.each([
+    ["motorista inativado", { ativo: false }, {}, "SUSPENSA"],
+    ["viatura inativada", {}, { ativo: false }, "SUSPENSA"],
+    ["recursos ativos", {}, {}, "EM_ANDAMENTO"],
+  ])("escala em andamento com %s", async (_caso, motorista, veiculo, situacao) => {
+    const base = escalaDoBanco();
+    mocks.escalaFindMany.mockResolvedValue([
+      {
+        ...base,
+        motorista: { ...base.motorista, ...motorista },
+        veiculo: { ...base.veiculo, ...veiculo },
+      },
+    ]);
+    const resposta = await chamar("GET", caminho, { perfis: ["SVO"] });
+    expect(resposta.json.data?.[0]?.situacao).toBe(situacao);
+  });
+
+  it("escala já encerrada continua ENCERRADA mesmo com recurso inativo", async () => {
+    const base = escalaDoBanco({ encerradaEm: daqui(-0.5) });
+    mocks.escalaFindMany.mockResolvedValue([
+      { ...base, motorista: { ...base.motorista, ativo: false } },
+    ]);
+    const resposta = await chamar("GET", caminho, { perfis: ["SVO"] });
+    expect(resposta.json.data?.[0]?.situacao).toBe("ENCERRADA");
+  });
+
+  it.each(["situacao=ATIVA", "situacao=suspensa", "motoristaId=abc", "pageSize=101", "page=0"])(
     "rejeita filtro inválido %s",
     async (query) => {
       expect((await chamar("GET", `${caminho}?${query}`, { perfis: ["SVO"] })).status).toBe(400);
@@ -423,6 +474,15 @@ describe("regras de turno", () => {
     [turno(2, 14, -1), "ENCERRADA"],
   ])("calcula a situação %#", (dados, situacao) => {
     expect(calcularSituacaoEscala(dados, agora)).toBe(situacao);
+  });
+
+  it.each([
+    [turno(1, 13), "SUSPENSA"],
+    [turno(0, 12), "SUSPENSA"],
+    [turno(-12, 0), "ENCERRADA"],
+    [turno(2, 14, -1), "ENCERRADA"],
+  ])("com recurso inativo calcula a situação %#", (dados, situacao) => {
+    expect(calcularSituacaoEscala(dados, agora, false)).toBe(situacao);
   });
 
   it.each([

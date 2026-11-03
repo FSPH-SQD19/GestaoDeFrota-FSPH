@@ -5,7 +5,7 @@ import { HttpError } from "../middleware/http_m";
 import { dataDoBanco, dataLocal } from "./documento_veiculo_s";
 
 // S19FROTA-249 (RF014-SVO / RN-SVO-002): escalas e plantões do SVO.
-export const SITUACOES_ESCALA = ["AGENDADA", "EM_ANDAMENTO", "ENCERRADA"] as const;
+export const SITUACOES_ESCALA = ["AGENDADA", "EM_ANDAMENTO", "SUSPENSA", "ENCERRADA"] as const;
 export type SituacaoEscala = (typeof SITUACOES_ESCALA)[number];
 
 export const DURACAO_MAXIMA_TURNO_HORAS = 24;
@@ -60,7 +60,9 @@ export type CriarEscalaSvoInput = z.infer<typeof criarEscalaSvoSchema>;
 
 export const listarEscalasSvoSchema = z.object({
   situacao: z
-    .enum(SITUACOES_ESCALA, { error: "Situação deve ser AGENDADA, EM_ANDAMENTO ou ENCERRADA." })
+    .enum(SITUACOES_ESCALA, {
+      error: "Situação deve ser AGENDADA, EM_ANDAMENTO, SUSPENSA ou ENCERRADA.",
+    })
     .optional(),
   motoristaId: z.uuid("Motorista inválido.").optional(),
   veiculoId: z.uuid("Viatura inválida.").optional(),
@@ -79,8 +81,13 @@ function fimEfetivo(turno: Turno): Date {
     : turno.fimTurno;
 }
 
-export function calcularSituacaoEscala(turno: Turno, agora: Date): SituacaoEscala {
+export function calcularSituacaoEscala(
+  turno: Turno,
+  agora: Date,
+  recursosAtivos = true,
+): SituacaoEscala {
   if (turno.encerradaEm || turno.fimTurno <= agora) return "ENCERRADA";
+  if (!recursosAtivos) return "SUSPENSA";
   if (turno.inicioTurno > agora) return "AGENDADA";
   return "EM_ANDAMENTO";
 }
@@ -91,10 +98,29 @@ export function turnosSeSobrepoem(existente: Turno, inicio: Date, fim: Date): bo
   return existente.inicioTurno < fim && fimExistente > inicio;
 }
 
+const RECURSOS_ATIVOS = {
+  motorista: { ativo: true },
+  veiculo: { ativo: true },
+} satisfies Prisma.EscalaSvoWhereInput;
+
 function whereSituacao(situacao: SituacaoEscala, agora: Date): Prisma.EscalaSvoWhereInput {
-  if (situacao === "AGENDADA") return { encerradaEm: null, inicioTurno: { gt: agora } };
+  if (situacao === "AGENDADA") {
+    return { encerradaEm: null, inicioTurno: { gt: agora }, ...RECURSOS_ATIVOS };
+  }
   if (situacao === "EM_ANDAMENTO") {
-    return { encerradaEm: null, inicioTurno: { lte: agora }, fimTurno: { gt: agora } };
+    return {
+      encerradaEm: null,
+      inicioTurno: { lte: agora },
+      fimTurno: { gt: agora },
+      ...RECURSOS_ATIVOS,
+    };
+  }
+  if (situacao === "SUSPENSA") {
+    return {
+      encerradaEm: null,
+      fimTurno: { gt: agora },
+      OR: [{ motorista: { ativo: false } }, { veiculo: { ativo: false } }],
+    };
   }
   return { OR: [{ encerradaEm: { not: null } }, { fimTurno: { lte: agora } }] };
 }
@@ -102,9 +128,9 @@ function whereSituacao(situacao: SituacaoEscala, agora: Date): Prisma.EscalaSvoW
 // Serializacao
 const incluirRelacoes = {
   motorista: {
-    select: { id: true, telefone: true, usuario: { select: { nome: true } } },
+    select: { id: true, telefone: true, ativo: true, usuario: { select: { nome: true } } },
   },
-  veiculo: { select: { id: true, placa: true, modelo: true, status: true } },
+  veiculo: { select: { id: true, placa: true, modelo: true, status: true, ativo: true } },
 } satisfies Prisma.EscalaSvoInclude;
 
 type EscalaComRelacoes = Prisma.EscalaSvoGetPayload<{ include: typeof incluirRelacoes }>;
@@ -116,13 +142,14 @@ function serializarEscala(escala: EscalaComRelacoes, agora: Date) {
       id: escala.motorista.id,
       nome: escala.motorista.usuario?.nome ?? null,
       telefone: escala.motorista.telefone,
+      ativo: escala.motorista.ativo,
     },
     veiculo: escala.veiculo,
     inicioTurno: escala.inicioTurno,
     fimTurno: escala.fimTurno,
     observacoes: escala.observacoes,
     encerradaEm: escala.encerradaEm,
-    situacao: calcularSituacaoEscala(escala, agora),
+    situacao: calcularSituacaoEscala(escala, agora, escala.motorista.ativo && escala.veiculo.ativo),
   };
 }
 
@@ -147,8 +174,7 @@ export async function listarEscalasSvo(filtros: ListarEscalasSvoFiltros, agora =
   if (filtros.motoristaId) condicoes.push({ motoristaId: filtros.motoristaId });
   if (filtros.veiculoId) condicoes.push({ veiculoId: filtros.veiculoId });
   const where: Prisma.EscalaSvoWhereInput = condicoes.length ? { AND: condicoes } : {};
-  const direcao =
-    filtros.situacao === "AGENDADA" || filtros.situacao === "EM_ANDAMENTO" ? "asc" : "desc";
+  const direcao = filtros.situacao && filtros.situacao !== "ENCERRADA" ? "asc" : "desc";
 
   const [total, escalas] = await Promise.all([
     prisma.escalaSvo.count({ where }),
