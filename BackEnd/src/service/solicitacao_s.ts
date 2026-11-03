@@ -193,10 +193,66 @@ export async function listarSolicitacoes(
   filtros: ListarSolicitacoesFiltros,
   usuario: UsuarioAutenticado,
 ) {
+  const acesso = podeVerTodas(usuario) ? {} : { solicitanteId: usuario.id };
+  return consultarSolicitacoes(filtros, acesso, async (consulta) => {
+    const registros = await prisma.solicitacaoViagem.findMany({
+      ...consulta,
+      include: incluirRelacoes,
+    });
+    return registros.map(serializarSolicitacao);
+  });
+}
+
+const incluirRelacoesMotorista = {
+  ...incluirRelacoes,
+  veiculoAlocado: { select: { placa: true, modelo: true, odometroAtual: true } },
+  execucao: {
+    select: { id: true, kmInicial: true, kmFinal: true, dataHoraInicio: true, dataHoraFim: true },
+  },
+} satisfies Prisma.SolicitacaoViagemInclude;
+
+function serializarViagem(
+  registro: Prisma.SolicitacaoViagemGetPayload<{ include: typeof incluirRelacoesMotorista }>,
+) {
+  return { ...serializarSolicitacao(registro), veiculoAlocado: registro.veiculoAlocado };
+}
+
+export async function listarMinhasViagens(filtros: ListarSolicitacoesFiltros, usuarioId: string) {
+  const acesso = { motoristaAlocado: { usuarioId, ativo: true } };
+  const [resultado, emAndamento] = await Promise.all([
+    consultarSolicitacoes(
+      filtros,
+      { ...acesso, NOT: { status: "EM_TRANSITO" } },
+      async (consulta) => {
+        const registros = await prisma.solicitacaoViagem.findMany({
+          ...consulta,
+          include: incluirRelacoesMotorista,
+          orderBy: [{ status: "asc" }, { dataHoraPretendida: "asc" }, { id: "asc" }],
+        });
+        return registros.map(serializarViagem);
+      },
+    ),
+    prisma.solicitacaoViagem.findFirst({
+      where: { ...acesso, status: "EM_TRANSITO" },
+      include: incluirRelacoesMotorista,
+      orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
+    }),
+  ]);
+
+  return { ...resultado, viagemEmAndamento: emAndamento ? serializarViagem(emAndamento) : null };
+}
+
+async function consultarSolicitacoes<T>(
+  filtros: ListarSolicitacoesFiltros,
+  acesso: Prisma.SolicitacaoViagemWhereInput,
+  listar: (
+    consulta: Pick<Prisma.SolicitacaoViagemFindManyArgs, "where" | "orderBy" | "skip" | "take">,
+  ) => Promise<T[]>,
+) {
   const { page, pageSize, status, urgencia, tipoTransporte, setorOrigem, busca } = filtros;
 
   const whereBase: Prisma.SolicitacaoViagemWhereInput = {
-    ...(podeVerTodas(usuario) ? {} : { solicitanteId: usuario.id }),
+    ...acesso,
     ...(urgencia ? { urgencia } : {}),
     ...(tipoTransporte ? { tipoTransporte } : {}),
     ...(setorOrigem ? { setorOrigem } : {}),
@@ -215,10 +271,9 @@ export async function listarSolicitacoes(
     ...(status ? { status: { in: status } } : {}),
   };
 
-  const [registros, total, grupos] = await Promise.all([
-    prisma.solicitacaoViagem.findMany({
+  const [data, total, grupos] = await Promise.all([
+    listar({
       where,
-      include: incluirRelacoes,
       orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -242,7 +297,7 @@ export async function listarSolicitacoes(
   }
 
   return {
-    data: registros.map(serializarSolicitacao),
+    data,
     meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize), porStatus },
   };
 }

@@ -2,9 +2,16 @@ import type { Request, Response } from "express";
 import { validar } from "./veiculo_c";
 import { usuarioAutenticado } from "../middleware/http_m";
 import {
+  iniciarViagem,
+  concluirViagem,
+  iniciarViagemSchema,
+  concluirViagemSchema,
+} from "../service/execucao_s";
+import {
   criarSolicitacao,
   criarSolicitacaoSchema,
   listarSolicitacoes,
+  listarMinhasViagens,
   listarSolicitacoesSchema,
 } from "../service/solicitacao_s";
 import {
@@ -13,6 +20,27 @@ import {
   aprovarSolicitacaoSchema,
   recusarSolicitacaoSchema,
 } from "../service/aprovacao_s";
+
+export async function iniciarViagemController(req: Request, res: Response) {
+  const dados = validar(iniciarViagemSchema, req.body ?? {});
+  const execucao = await iniciarViagem(String(req.params.id), dados, usuarioAutenticado(res).id);
+
+  return res.status(201).json(execucao);
+}
+
+export async function concluirViagemController(req: Request, res: Response) {
+  const dados = validar(concluirViagemSchema, req.body ?? {});
+  const execucao = await concluirViagem(String(req.params.id), dados, usuarioAutenticado(res).id);
+
+  return res.status(200).json(execucao);
+}
+
+export async function listarMinhasViagensController(req: Request, res: Response) {
+  const filtros = validar(listarSolicitacoesSchema, req.query);
+  const resultado = await listarMinhasViagens(filtros, usuarioAutenticado(res).id);
+
+  return res.status(200).json(resultado);
+}
 
 export async function listarSolicitacoesController(req: Request, res: Response) {
   const filtros = validar(listarSolicitacoesSchema, req.query);

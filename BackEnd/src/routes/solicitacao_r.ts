@@ -5,6 +5,9 @@ import {
   criarSolicitacaoController,
   aprovarSolicitacaoController,
   recusarSolicitacaoController,
+  listarMinhasViagensController,
+  iniciarViagemController,
+  concluirViagemController,
 } from "../controller/solicitacao_c";
 
 const router = Router();
@@ -36,5 +39,9 @@ router.patch(
   requireRole("ADMIN", "GESTOR"),
   recusarSolicitacaoController,
 );
+
+router.get("/minhas", authenticate, requireRole("MOTORISTA"), listarMinhasViagensController);
+router.post("/:id/iniciar", authenticate, requireRole("MOTORISTA"), iniciarViagemController);
+router.post("/:id/concluir", authenticate, requireRole("MOTORISTA"), concluirViagemController);
 
 export default router;
