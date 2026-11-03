@@ -83,7 +83,7 @@ describe("serviço SVO - validação das respostas da API", () => {
     mocks.get.mockResolvedValue({ data: resposta });
 
     await expect(obterChamadosSvo()).rejects.toThrow(
-      "Resposta inesperada da API do SVO (chamados)",
+      "Não foi possível carregar os dados do SVO. Atualize a página e tente novamente.",
     );
   });
 
@@ -152,7 +152,7 @@ describe("serviço SVO - validação das respostas da API", () => {
     });
 
     await expect(obterEscalasEmAndamentoSvo()).rejects.toThrow(
-      "Resposta inesperada da API do SVO (escalas): paginação da página 1.",
+      "Não foi possível carregar as escalas do SVO. Atualize a página e tente novamente.",
     );
   });
 
@@ -170,7 +170,7 @@ describe("serviço SVO - validação das respostas da API", () => {
     mocks.get.mockResolvedValue({ data: resposta });
 
     await expect(obterEscalasEmAndamentoSvo()).rejects.toThrow(
-      "Resposta inesperada da API do SVO (escalas)",
+      "Não foi possível carregar os dados do SVO. Atualize a página e tente novamente.",
     );
   });
 

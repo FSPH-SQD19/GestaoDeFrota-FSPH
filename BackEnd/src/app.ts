@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { allowedOrigins, protectRequests } from "./middleware/session_http";
 import routes from "./routes";
-import { errorHandler } from "./middleware/http_m";
+import { errorHandler } from "./middleware/error_m";
 import motoristaRoutes from "./routes/motorista_r";
 import veiculoRoutes from "./routes/veiculo_r";
 import fornecedorRoutes from "./routes/fornecedor_r";

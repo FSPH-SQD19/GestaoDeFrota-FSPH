@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import {
   clearPasswordChangeFailures,
   recordPasswordChangeFailure,
@@ -31,8 +31,8 @@ export function validarNovaSenha(novaSenha: unknown, campo = "novaSenha"): strin
     );
   }
   if (Buffer.byteLength(novaSenha, "utf8") > BYTES_MAXIMOS_BCRYPT) {
-    throw new HttpError(400, "A nova senha deve ter no máximo 72 bytes.", [
-      { campo, mensagem: "A nova senha deve ter no máximo 72 bytes." },
+    throw new HttpError(400, "A senha é muito longa. Use uma senha mais curta.", [
+      { campo, mensagem: "A senha é muito longa. Use uma senha mais curta." },
     ]);
   }
   return novaSenha;
@@ -65,7 +65,7 @@ export async function alterarMinhaSenha({
   });
 
   if (!usuario || !usuario.ativo) {
-    throw new HttpError(401, "Autenticação necessária.");
+    throw new HttpError(401, "Entre no sistema para continuar.");
   }
 
   const senhaAtualCorreta = await passwordService.comparePassword(senhaAtual, usuario.senhaHash);
@@ -136,9 +136,16 @@ export async function redefinirSenhaPorAdmin({
   novaSenha,
 }: RedefinirSenhaAdminInput): Promise<void> {
   if (!z.uuid().safeParse(usuarioAlvoId).success) {
-    throw new HttpError(400, "Identificador de usuário inválido.", [
-      { campo: "id", mensagem: "Identificador de usuário inválido." },
-    ]);
+    throw new HttpError(
+      400,
+      "Não foi possível identificar o usuário. Atualize a lista e tente novamente.",
+      [
+        {
+          campo: "id",
+          mensagem: "Não foi possível identificar o usuário. Atualize a lista e tente novamente.",
+        },
+      ],
+    );
   }
 
   const novaSenhaValidada = validarNovaSenha(novaSenha, "novaSenha");

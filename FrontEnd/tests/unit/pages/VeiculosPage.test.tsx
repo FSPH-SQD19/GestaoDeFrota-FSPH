@@ -93,12 +93,12 @@ describe("VeiculosPage", () => {
       "/veiculos",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({
+        data: {
           placa: "ABC1234",
           modelo: "Modelo válido",
           tipoFrota: "ADMINISTRATIVA",
           capacidadeMaxima: 4,
-        }),
+        },
       }),
     );
     await user.click(screen.getByRole("button", { name: "Salvar veículo" }));

@@ -115,7 +115,7 @@ describe("MotoristasPage", () => {
     const envio = vi
       .mocked(apiRequest)
       .mock.calls.find(([, options]) => options?.method === "POST")!;
-    expect(JSON.parse(envio[1]!.body!)).toMatchObject({
+    expect(envio[1]!.data).toMatchObject({
       nome: "Novo Condutor",
       email: "novo@example.test",
       cpf: "12345678909",

@@ -96,7 +96,7 @@ describe("MinhasViagensPage", () => {
     render(<MinhasViagensPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Resposta inesperada ao carregar suas viagens.",
+      "Não foi possível carregar suas viagens. Atualize a página e tente novamente.",
     );
   });
 

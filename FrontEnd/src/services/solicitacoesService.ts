@@ -42,7 +42,7 @@ export async function criarSolicitacaoApi(
 ): Promise<SolicitacaoViagem> {
   const criada = await apiRequest<SolicitacaoViagem>("/solicitacoes", {
     method: "POST",
-    body: JSON.stringify(dados),
+    data: dados,
   });
   dispararAtualizacaoNotificacoes();
   return criada;
@@ -54,7 +54,7 @@ export function iniciarViagemApi(
 ): Promise<ExecucaoViagemResposta> {
   return apiRequest<ExecucaoViagemResposta>(`/solicitacoes/${encodeURIComponent(id)}/iniciar`, {
     method: "POST",
-    body: JSON.stringify(dados),
+    data: dados,
   });
 }
 
@@ -64,6 +64,6 @@ export function concluirViagemApi(
 ): Promise<ExecucaoViagemResposta> {
   return apiRequest<ExecucaoViagemResposta>(`/solicitacoes/${encodeURIComponent(id)}/concluir`, {
     method: "POST",
-    body: JSON.stringify(dados),
+    data: dados,
   });
 }

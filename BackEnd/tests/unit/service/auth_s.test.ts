@@ -45,21 +45,27 @@ describe("login service", () => {
   it("recusa usuario inexistente sem comparar senhas", async () => {
     mocks.findUnique.mockResolvedValue(null);
 
-    await expect(login(credentials)).rejects.toThrow("Credenciais inválidas");
+    await expect(login(credentials)).rejects.toThrow(
+      "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+    );
     expect(mocks.comparePassword).not.toHaveBeenCalled();
   });
 
   it("recusa usuario inativo sem comparar senhas", async () => {
     mocks.findUnique.mockResolvedValue({ ...usuario, ativo: false });
 
-    await expect(login(credentials)).rejects.toThrow("Credenciais inválidas");
+    await expect(login(credentials)).rejects.toThrow(
+      "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+    );
     expect(mocks.comparePassword).not.toHaveBeenCalled();
   });
 
   it("recusa senha incorreta", async () => {
     mocks.comparePassword.mockResolvedValue(false);
 
-    await expect(login(credentials)).rejects.toThrow("Credenciais inválidas");
+    await expect(login(credentials)).rejects.toThrow(
+      "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+    );
     expect(mocks.comparePassword).toHaveBeenCalledWith(credentials.senha, usuario.senhaHash);
   });
 

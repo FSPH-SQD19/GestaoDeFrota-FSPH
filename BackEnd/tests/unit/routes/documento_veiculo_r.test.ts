@@ -122,7 +122,9 @@ describe("GET /api/v1/veiculos/:id/documentos", () => {
     const resposta = await chamar("/api/v1/veiculos/abc/documentos", { perfis: ["GESTOR"] });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json.errors).toEqual([{ campo: "id", mensagem: "Informe um UUID válido." }]);
+    expect(resposta.json.errors).toEqual([
+      { campo: "id", mensagem: "Atualize a página e selecione o registro novamente." },
+    ]);
   });
 
   it("retorna 404 para veículo inexistente", async () => {
@@ -197,7 +199,9 @@ describe("POST /api/v1/veiculos/:id/documentos", () => {
     const resposta = await chamar(caminho, { perfis: ["GESTOR"], body: "{" });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json.message).toBe("JSON inválido.");
+    expect(resposta.json.message).toBe(
+      "Não foi possível ler os dados enviados. Revise os dados e tente novamente.",
+    );
   });
 
   it("retorna 409 para documento duplicado", async () => {

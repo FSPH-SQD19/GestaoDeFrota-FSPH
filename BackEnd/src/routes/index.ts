@@ -1,5 +1,5 @@
 import { gerarRelatorio, periodoRelatorioSchema } from "../service/relatorio_s";
-import { validar } from "../controller/veiculo_c";
+import { validar } from "../lib/validar";
 import { Router } from "express";
 import { criarVeiculoController, listarVeiculosController } from "../controller/veiculo_c";
 import {

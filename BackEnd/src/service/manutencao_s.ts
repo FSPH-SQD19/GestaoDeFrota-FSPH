@@ -2,7 +2,7 @@ import { Prisma, type Manutencao } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { temNoMaximoDuasCasas, decimalParaNumero } from "./abastecimento_s";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 
 export const TIPOS_MANUTENCAO = ["PREVENTIVA", "CORRETIVA"] as const;
 
@@ -20,15 +20,15 @@ export const listarManutencoesSchema = z
   .object({
     page: z.coerce.number().int().min(1).max(1000000).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(10),
-    veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }).optional(),
+    veiculoId: z.uuid({ error: "Selecione um veículo válido." }).optional(),
     tipo: z
-      .enum(TIPOS_MANUTENCAO, { error: "Tipo de manutenção deve ser PREVENTIVA ou CORRETIVA." })
+      .enum(TIPOS_MANUTENCAO, { error: "Selecione manutenção preventiva ou corretiva." })
       .optional(),
     dataInicio: dataSchema.optional(),
     dataFim: dataSchema.optional(),
     status: z
       .enum([MANUTENCAO_ABERTA, MANUTENCAO_CONCLUIDA], {
-        error: "Status deve ser ABERTA ou CONCLUIDA.",
+        error: "Selecione manutenções abertas ou concluídas.",
       })
       .optional(),
   })
@@ -43,17 +43,17 @@ export const listarManutencoesSchema = z
   });
 
 export const criarManutencaoSchema = z.object({
-  veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }),
-  fornecedorId: z.uuid({ error: "fornecedorId deve ser um UUID válido." }).optional(),
-  tipo: z.enum(TIPOS_MANUTENCAO, { error: "Tipo de manutenção deve ser PREVENTIVA ou CORRETIVA." }),
+  veiculoId: z.uuid({ error: "Selecione um veículo válido." }),
+  fornecedorId: z.uuid({ error: "Selecione um fornecedor válido." }).optional(),
+  tipo: z.enum(TIPOS_MANUTENCAO, { error: "Selecione manutenção preventiva ou corretiva." }),
   descricao: z.string().trim().min(3, "Descrição deve ter ao menos 3 caracteres.").optional(),
   odometroRegistro: z
-    .number({ error: "Odômetro deve ser numérico." })
+    .number({ error: "Informe a quilometragem exibida no odômetro." })
     .min(0, "Odômetro não pode ser negativo.")
     .max(99999999.99, "Valor inválido.")
     .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
   custoTotal: z
-    .number({ error: "Custo Total deve ser numérico." })
+    .number({ error: "Informe o custo total da manutenção." })
     .positive("Custo Total deve ser maior que 0.")
     .max(9999999999.99, "Valor inválido.")
     .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
@@ -61,7 +61,9 @@ export const criarManutencaoSchema = z.object({
 });
 
 export const manutencaoIdSchema = z.object({
-  id: z.uuid({ error: "id deve ser um UUID válido." }),
+  id: z.uuid({
+    error: "Não foi possível identificar a manutenção. Atualize a página e tente novamente.",
+  }),
 });
 
 export type ListarManutencoesFiltros = z.infer<typeof listarManutencoesSchema>;
@@ -143,7 +145,7 @@ export async function criarManutencao(input: CriarManutencaoInput, usuarioId: st
       throw new HttpError(422, "Veículo indisponível para manutenção corretiva.", [
         {
           campo: "veiculoId",
-          mensagem: `Veículo com status ${veiculo.status} não pode entrar em manutenção corretiva.`,
+          mensagem: `O veículo está ocupado ou em desinfecção. Escolha outro veículo ou aguarde sua liberação.`,
         },
       ]);
     }

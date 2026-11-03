@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HttpError } from "../../../src/middleware/http_m";
+import { HttpError } from "../../../src/lib/http_error";
 
 const mocks = vi.hoisted(() => ({
   usuarioFindMany: vi.fn(),
@@ -96,19 +96,12 @@ describe("notificacao_s — central de notificações e alertas operacionais", (
     ]);
 
     mocks.documentoVeiculoFindMany.mockResolvedValue([
-      // CRLV já renovado para 2027 (e mesmo que mock retorne histórico antigo, mantém apenas o atual)
+      // A consulta com distinct e ordenação já retorna somente o CRLV atual.
       {
         id: "00000000-0000-4000-8000-0000000000d2",
         veiculoId: "00000000-0000-4000-8000-0000000000c1",
         tipoDocumento: "CRLV",
         dataVencimento: new Date("2027-10-10T00:00:00.000Z"),
-        veiculo: { placa: "QWE1D23", modelo: "Fiat Toro" },
-      },
-      {
-        id: "00000000-0000-4000-8000-0000000000d1",
-        veiculoId: "00000000-0000-4000-8000-0000000000c1",
-        tipoDocumento: "CRLV",
-        dataVencimento: new Date("2026-10-10T00:00:00.000Z"),
         veiculo: { placa: "QWE1D23", modelo: "Fiat Toro" },
       },
       // SEGURO atual vencendo em 10 dias -> DEVE alertar

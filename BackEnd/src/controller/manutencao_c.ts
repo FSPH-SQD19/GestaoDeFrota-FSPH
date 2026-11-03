@@ -8,7 +8,7 @@ import {
   listarManutencoesSchema,
   manutencaoIdSchema,
 } from "../service/manutencao_s";
-import { validar } from "./veiculo_c";
+import { validar } from "../lib/validar";
 
 export async function listarManutencoesController(req: Request, res: Response) {
   const filtros = validar(listarManutencoesSchema, req.query);

@@ -80,7 +80,7 @@ describe("ChecklistViagemModal", () => {
     const [url, options] = vi.mocked(apiRequest).mock.calls[0]!;
     expect(url).toBe(`/solicitacoes/${viagemBase.id}/iniciar`);
     expect(options?.method).toBe("POST");
-    const enviado = JSON.parse(String(options?.body));
+    const enviado = options?.data;
     expect(enviado).toMatchObject({
       kmInicial: 38305.5,
       checklistSaida: {
@@ -149,7 +149,7 @@ describe("ChecklistViagemModal", () => {
     expect(apiRequest).toHaveBeenCalledTimes(1);
     const [url, options] = vi.mocked(apiRequest).mock.calls[0]!;
     expect(url).toBe(`/solicitacoes/${viagemBase.id}/concluir`);
-    const enviado = JSON.parse(String(options?.body));
+    const enviado = options?.data;
     expect(enviado).toMatchObject({
       kmFinal: 38342.5,
       checklistRetorno: {

@@ -62,8 +62,20 @@ export const cpfValido = (cpf: string) => {
 };
 
 export const motoristaCadastroSchema = z.object({
-  nome: z.string().trim().min(1, "Informe o nome completo.").max(150),
-  email: z.string().trim().toLowerCase().pipe(z.email("Informe um e-mail válido.").max(150)),
+  nome: z
+    .string()
+    .trim()
+    .min(1, "Informe o nome completo.")
+    .max(150, "O nome é muito longo. Use até 150 caracteres."),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(
+      z
+        .email("Informe um e-mail válido.")
+        .max(150, "O e-mail é muito longo. Confira o endereço informado."),
+    ),
   senha: z
     .string()
     .refine(
@@ -72,7 +84,7 @@ export const motoristaCadastroSchema = z.object({
     )
     .refine(
       (v) => new TextEncoder().encode(v).length <= 72,
-      "A senha deve ter no máximo 72 bytes.",
+      "A senha é muito longa. Use uma senha mais curta.",
     ),
   telefone: z
     .string()

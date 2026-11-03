@@ -18,8 +18,16 @@ const tiposTransporte = Object.keys(TIPO_TRANSPORTE_LABEL) as [TipoTransporte, .
 const solicitacaoSchema = z
   .object({
     setorOrigem: z.string().min(1, "Selecione o setor solicitante."),
-    origem: z.string().trim().min(3, "Informe o local de partida.").max(150),
-    destino: z.string().trim().min(3, "Informe o destino da viagem.").max(150),
+    origem: z
+      .string()
+      .trim()
+      .min(3, "Informe o local de partida.")
+      .max(150, "O local de partida é muito longo. Use até 150 caracteres."),
+    destino: z
+      .string()
+      .trim()
+      .min(3, "Informe o destino da viagem.")
+      .max(150, "O destino é muito longo. Use até 150 caracteres."),
     dataHoraPretendida: z.string().min(1, "Informe a data e hora de saída."),
     dataHoraRetornoPrevista: z.string().optional(),
     quantidadePassageiros: z
@@ -27,7 +35,7 @@ const solicitacaoSchema = z
       .regex(/^\d+$/, "Informe um número inteiro.")
       .refine((v) => Number(v) <= 15, "Máximo de 15 passageiros por viagem."),
     tipoTransporte: z.enum(tiposTransporte, { message: "Selecione o tipo de transporte." }),
-    urgencia: z.enum(["NORMAL", "URGENTE"]),
+    urgencia: z.enum(["NORMAL", "URGENTE"], { error: "Selecione a prioridade normal ou urgente." }),
     justificativa: z
       .string()
       .trim()

@@ -75,10 +75,10 @@ describe("Header e MinhaContaModal", () => {
 
     expect(apiRequest).toHaveBeenCalledWith("/auth/alterar-senha", {
       method: "PATCH",
-      body: JSON.stringify({
+      data: {
         senhaAtual: "Gestor@123",
         novaSenha: "NovaSenha@2026",
-      }),
+      },
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Senha alterada com sucesso.");
     expect(campoAtual).toHaveValue("");

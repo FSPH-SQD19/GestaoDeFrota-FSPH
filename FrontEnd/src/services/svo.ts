@@ -1,4 +1,4 @@
-import axios from "axios";
+import { respostaDeErro } from "../lib/api";
 import { z } from "zod";
 import { api } from "./api";
 import { dispararAtualizacaoNotificacoes } from "./notificacoesService";
@@ -250,50 +250,23 @@ function validarRespostaSvo<T extends z.ZodType>(
 ): z.output<T> {
   const resultado = schema.safeParse(resposta);
   if (!resultado.success) {
-    const camposInvalidos = resultado.error.issues
-      .map((issue) => issue.path.map(String).join(".") || "resposta")
-      .filter((campo, indice, campos) => campos.indexOf(campo) === indice)
-      .slice(0, 5)
-      .join(", ");
-    const complemento = camposInvalidos ? `: ${camposInvalidos}` : "";
-    throw new Error(`Resposta inesperada da API do SVO (${recurso})${complemento}.`);
+    throw new Error(
+      "Não foi possível carregar os dados do SVO. Atualize a página e tente novamente.",
+      {
+        cause: { recurso, erros: resultado.error.issues },
+      },
+    );
   }
   return resultado.data;
-}
-
-interface ErroApiCorpo {
-  message?: string;
-  mensagem?: string;
-  error?: string;
-  errors?: Array<{ campo?: string; mensagem?: string } | string>;
 }
 
 const BASE = "/api/v1/svo";
 
 export function extrairErroSvo(
   erro: unknown,
-  padrao = "Falha ao processar operação no SVO.",
+  padrao = "Não foi possível concluir esta ação no SVO. Tente novamente.",
 ): string {
-  if (axios.isAxiosError(erro)) {
-    const corpo = erro.response?.data as ErroApiCorpo | undefined;
-    if (Array.isArray(corpo?.errors) && corpo.errors.length > 0) {
-      const mensagens = corpo.errors
-        .map((item) => {
-          if (typeof item === "string") return item.trim();
-          if (item && typeof item.mensagem === "string") return item.mensagem.trim();
-          return "";
-        })
-        .filter(Boolean);
-      if (mensagens.length > 0) {
-        return mensagens.join(" ");
-      }
-    }
-    if (typeof corpo?.message === "string" && corpo.message.trim()) return corpo.message.trim();
-    if (typeof corpo?.mensagem === "string" && corpo.mensagem.trim()) return corpo.mensagem.trim();
-    if (typeof corpo?.error === "string" && corpo.error.trim()) return corpo.error.trim();
-  }
-  if (erro instanceof Error && erro.message.trim()) return erro.message.trim();
-  return padrao;
+  return respostaDeErro(erro, padrao);
 }
 
 export async function obterIndicadoresSvo(): Promise<IndicadoresSvo> {
@@ -383,7 +356,10 @@ export async function obterEscalasEmAndamentoSvo(): Promise<EscalaSvo[]> {
     });
     const resultado = validarRespostaSvo(paginaEscalasSvoSchema, data, "escalas");
     if (resultado.meta.page !== page || resultado.meta.pageSize !== pageSize) {
-      throw new Error(`Resposta inesperada da API do SVO (escalas): paginação da página ${page}.`);
+      throw new Error(
+        "Não foi possível carregar as escalas do SVO. Atualize a página e tente novamente.",
+        { cause: { paginaSolicitada: page, paginaRecebida: resultado.meta } },
+      );
     }
     return resultado;
   };

@@ -1,6 +1,8 @@
+import { validar } from "../lib/validar";
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { HttpError, usuarioAutenticado } from "../middleware/http_m";
+import { usuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import {
   criarChamadoSchema,
   emitirOrdemSchema,
@@ -17,24 +19,12 @@ import {
   listarMotoristasSvoDisponiveis,
 } from "../service/svo_s";
 
-function validar<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) {
-    throw new HttpError(
-      400,
-      "Dados inválidos.",
-      parsed.error.issues.map((issue) => ({
-        campo: issue.path.join("."),
-        mensagem: issue.message,
-      })),
-    );
-  }
-  return parsed.data;
-}
-
 function validarId(id: string | undefined): string {
   if (!id || !z.uuid().safeParse(id).success) {
-    throw new HttpError(400, "ID inválido.");
+    throw new HttpError(
+      400,
+      "Não foi possível identificar o registro. Atualize a página e tente novamente.",
+    );
   }
   return id;
 }

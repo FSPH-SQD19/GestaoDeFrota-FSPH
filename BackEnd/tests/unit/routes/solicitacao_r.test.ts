@@ -170,7 +170,7 @@ describe("GET /api/v1/solicitacoes", () => {
     expect(resposta.status).toBe(401);
     expect(resposta.json).toEqual({
       statusCode: 401,
-      message: "Autenticação necessária.",
+      message: "Entre no sistema para continuar.",
       errors: [],
     });
   });
@@ -230,7 +230,7 @@ describe("GET /api/v1/solicitacoes", () => {
       const resposta = await chamar(query, { perfis: ["GESTOR"] });
 
       expect(resposta.status).toBe(400);
-      expect(resposta.json.message).toBe("Dados inválidos.");
+      expect(resposta.json.message).toBe("Revise os campos indicados e tente novamente.");
       expect(mocks.findMany).not.toHaveBeenCalled();
     },
   );
@@ -305,7 +305,9 @@ describe("POST /api/v1/solicitacoes", () => {
     const resposta = await chamar("", { perfis: ["SOLICITANTE"], body: "{quebrado" });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json.message).toBe("JSON inválido.");
+    expect(resposta.json.message).toBe(
+      "Não foi possível ler os dados enviados. Revise os dados e tente novamente.",
+    );
   });
 
   it("retorna 403 para usuário inativo", async () => {
@@ -326,7 +328,7 @@ describe("POST /api/v1/solicitacoes", () => {
     expect(resposta.status).toBe(500);
     expect(resposta.json).toEqual({
       statusCode: 500,
-      message: "Erro interno do servidor.",
+      message: "O sistema não conseguiu concluir a operação. Tente novamente em alguns instantes.",
       errors: [],
     });
   });

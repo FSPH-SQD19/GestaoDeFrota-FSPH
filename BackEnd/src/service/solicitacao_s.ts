@@ -1,7 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError, type UsuarioAutenticado } from "../middleware/http_m";
+import { type UsuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { notificarSolicitacaoUrgente } from "./notificacao_s";
 
 export const STATUS_SOLICITACAO = [
@@ -41,7 +42,7 @@ function dataHora(campo: string) {
   return z.iso
     .datetime({
       offset: true,
-      error: `${campo} deve estar no formato ISO 8601 com fuso (ex.: 2026-10-24T08:30:00-03:00).`,
+      error: `Informe uma data e hora válidas para ${campo.toLocaleLowerCase("pt-BR")}.`,
     })
     .transform((valor) => new Date(valor));
 }
@@ -56,8 +57,8 @@ export const criarSolicitacaoSchema = z
       .nullish()
       .transform((valor) => valor ?? undefined),
     quantidadePassageiros: z
-      .number({ error: "Quantidade de passageiros deve ser numérica." })
-      .int("Quantidade de passageiros deve ser inteira.")
+      .number({ error: "Informe a quantidade de passageiros." })
+      .int("Informe a quantidade de passageiros sem casas decimais.")
       .min(0, "Quantidade de passageiros não pode ser negativa.")
       .max(MAX_PASSAGEIROS, `Máximo de ${MAX_PASSAGEIROS} passageiros por viagem.`)
       .default(1),
@@ -65,11 +66,11 @@ export const criarSolicitacaoSchema = z
       .enum(TIPOS_TRANSPORTE, { error: "Tipo de transporte inválido." })
       .default("PASSAGEIROS"),
     urgencia: z
-      .enum(URGENCIAS, { error: "Urgência deve ser NORMAL ou URGENTE." })
+      .enum(URGENCIAS, { error: "Selecione a prioridade normal ou urgente." })
       .default("NORMAL"),
     justificativa: texto("Justificativa", 10, 500),
     observacoes: z
-      .string({ error: "Observações devem ser texto." })
+      .string({ error: "Confira as observações informadas." })
       .trim()
       .max(300, "Observações devem ter no máximo 300 caracteres.")
       .nullish()
@@ -119,7 +120,9 @@ export const listarSolicitacoesSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   status: z.preprocess(
     listaDaQuery,
-    z.array(z.enum(STATUS_SOLICITACAO, { error: "Status inválido." })).optional(),
+    z
+      .array(z.enum(STATUS_SOLICITACAO, { error: "Selecione uma situação válida na lista." }))
+      .optional(),
   ),
   urgencia: z.enum(URGENCIAS, { error: "Urgência inválida." }).optional(),
   tipoTransporte: z.enum(TIPOS_TRANSPORTE, { error: "Tipo de transporte inválido." }).optional(),
@@ -312,7 +315,10 @@ export async function criarSolicitacao(
     select: { ativo: true },
   });
   if (!solicitante?.ativo) {
-    throw new HttpError(403, "Usuário inativo ou inexistente.");
+    throw new HttpError(
+      403,
+      "Seu acesso não está disponível. Entre em contato com o administrador.",
+    );
   }
 
   const registro = await prisma.$transaction(
