@@ -71,7 +71,20 @@ Auth e veículos usam `authenticate` e `requireRole` de `http_m.ts`, com identid
 
 A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Os nomes de perfis enviados pela API e usados pela interface devem seguir um mapeamento consistente.
 
-O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas. O controller de login usa os formatos `{ "error": "..." }` ou `{ "mensagem": "..." }`.
+O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas.
+
+## Tratamento de erros
+
+As falhas da API Express usam um único formato: `{ statusCode, message, errors }`. O campo `errors` contém os detalhes de validação por campo e fica vazio quando não há detalhes adicionais. Login, motoristas, fornecedores, CSRF e limites de tentativas seguem esse contrato; respostas de sucesso mantêm seus formatos próprios.
+
+- `lib/http_error.ts` define `HttpError`, com status HTTP, mensagem pública e detalhes opcionais. Serviços traduzem erros de persistência quando conhecem o significado de negócio (por exemplo, CNPJ duplicado).
+- Controllers validam a entrada e retornam sucesso. Falhas síncronas ou rejeições de handlers assíncronos seguem automaticamente para o middleware pelo Express 5; não é necessário envolver cada controller em `try/catch`.
+- `middleware/error_m.ts`, registrado por último no `app.ts`, gera a resposta e registra falhas internas uma única vez. Erros inesperados retornam `500` com mensagem genérica, sem expor stack ou detalhes de infraestrutura. JSON malformado retorna `400` e corpo acima de 512 KB retorna `413`.
+- Proteções de acesso encaminham `HttpError` ao mesmo middleware. Limites de tentativas preservam o cabeçalho `Retry-After`.
+
+Mensagens públicas devem orientar a pessoa sobre o próximo passo, sem expor códigos internos ou termos de implementação. `lib/validar.ts` mantém os detalhes por campo e fornece mensagens em português quando o schema não define uma orientação própria. Identificadores e formatos técnicos continuam sendo validados internamente.
+
+Tratamentos locais permanecem quando recuperam uma operação ou isolam falhas secundárias, como notificações. O fallback `503` do Worker permanece fora do Express, pois também cobre falhas antes da inicialização da aplicação.
 
 ## Listagem de veículos
 

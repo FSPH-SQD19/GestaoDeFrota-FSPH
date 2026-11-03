@@ -1,8 +1,8 @@
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 
 export function validarDataValidadeCnh(valor: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
-    throw new HttpError(400, "Data de validade deve estar no formato AAAA-MM-DD.");
+    throw new HttpError(400, "Informe uma data válida para a validade da CNH.");
   }
 
   const validadeCnh = new Date(`${valor}T00:00:00.000Z`);

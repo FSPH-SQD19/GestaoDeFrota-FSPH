@@ -195,6 +195,11 @@ describe.each(["/auth", "/api/v1/auth"])("sessões HTTP %s", (prefix) => {
       body: "{}",
     });
     expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      statusCode: 403,
+      message: "Não foi possível confirmar esta ação. Atualize a página e tente novamente.",
+      errors: [],
+    });
     expect(mocks.user).not.toHaveBeenCalled();
     expect(
       (await fetch(`${base}${prefix}/csrf`, { headers: { origin: "https://atacante.example" } }))
@@ -214,6 +219,11 @@ describe.each(["/auth", "/api/v1/auth"])("sessões HTTP %s", (prefix) => {
       body: JSON.stringify({ email: usuario.email, senha: "senha" }),
     });
     expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({
+      statusCode: 429,
+      message: "Muitas tentativas. Tente novamente em 15 minutos.",
+      errors: [],
+    });
     expect(response.headers.get("Retry-After")).toBe("900");
     expect(mocks.compare).not.toHaveBeenCalled();
   });

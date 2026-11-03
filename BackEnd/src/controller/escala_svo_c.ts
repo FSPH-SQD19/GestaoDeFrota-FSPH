@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { validar } from "./veiculo_c";
-import { HttpError, usuarioAutenticado } from "../middleware/http_m";
+import { validar } from "../lib/validar";
+import { usuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import {
   criarEscalaSvo,
   criarEscalaSvoSchema,
@@ -12,9 +13,11 @@ import {
 
 function validarId(id: unknown): string {
   if (typeof id !== "string" || !z.uuid().safeParse(id).success) {
-    throw new HttpError(400, "ID da escala inválido.", [
-      { campo: "id", mensagem: "Informe um UUID válido." },
-    ]);
+    throw new HttpError(
+      400,
+      "Não foi possível identificar a escala. Atualize a lista e tente novamente.",
+      [{ campo: "id", mensagem: "Atualize a página e selecione o registro novamente." }],
+    );
   }
   return id;
 }

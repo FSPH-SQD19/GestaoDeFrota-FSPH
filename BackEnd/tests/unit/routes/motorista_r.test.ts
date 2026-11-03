@@ -111,7 +111,9 @@ describe("POST /motoristas", () => {
     expect(await cadastrar({ ...entrada, senha: undefined })).toEqual({
       status: 400,
       body: {
-        mensagem: "Informe nome, e-mail, senha, telefone, CPF, CNH, categoria e validade.",
+        statusCode: 400,
+        message: "Informe nome, e-mail, senha, telefone, CPF, CNH, categoria e validade.",
+        errors: [],
       },
     });
     expect(mocks.findFirst).not.toHaveBeenCalled();
@@ -122,7 +124,7 @@ describe("POST /motoristas", () => {
     const email = "email-inválido";
     expect(await cadastrar({ ...entrada, email })).toMatchObject({
       status: 400,
-      body: { mensagem: "E-mail inválido." },
+      body: { message: "E-mail inválido." },
     });
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
@@ -130,7 +132,11 @@ describe("POST /motoristas", () => {
   it("retorna 400 para senha curta sem consultar o banco", async () => {
     expect(await cadastrar({ ...entrada, senha: "12345" })).toEqual({
       status: 400,
-      body: { mensagem: "A senha deve possuir pelo menos 6 caracteres." },
+      body: {
+        statusCode: 400,
+        message: "A senha deve possuir pelo menos 6 caracteres.",
+        errors: [],
+      },
     });
     expect(mocks.findFirst).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
@@ -156,7 +162,7 @@ describe("POST /motoristas", () => {
     vi.setSystemTime(new Date("2026-10-21T03:00:00Z"));
     expect(await cadastrar(entrada)).toEqual({
       status: 400,
-      body: { mensagem: "A CNH está vencida." },
+      body: { statusCode: 400, message: "A CNH está vencida.", errors: [] },
     });
     expect(mocks.findFirst).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
@@ -171,14 +177,14 @@ describe("compatibilidade e correções do merge de motoristas", () => {
     mocks.findFirst.mockResolvedValue({ id: "existente" });
     expect(await cadastrar(entrada)).toMatchObject({
       status: 409,
-      body: { mensagem: "CPF ou CNH já cadastrado." },
+      body: { message: "CPF ou CNH já cadastrado." },
     });
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
   it("rejeita senhas acima do limite de bytes do bcrypt", async () => {
     expect(await cadastrar({ ...entrada, senha: "á".repeat(37) })).toMatchObject({
       status: 400,
-      body: { mensagem: "A senha deve ter no máximo 72 bytes." },
+      body: { message: "A senha é muito longa. Use uma senha mais curta." },
     });
     expect(mocks.hashPassword).not.toHaveBeenCalled();
   });

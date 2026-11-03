@@ -25,7 +25,7 @@ vi.mock("../../../src/service/auditoria_s", () => ({
   registrarAuditoria: mocks.registrarAuditoria,
 }));
 
-import { HttpError } from "../../../src/middleware/http_m";
+import { HttpError } from "../../../src/lib/http_error";
 import {
   criarVeiculo,
   criarVeiculoSchema,
@@ -34,7 +34,7 @@ import {
   normalizarPlaca,
   type CriarVeiculoInput,
 } from "../../../src/service/veiculo_s";
-import { validar } from "../../../src/controller/veiculo_c";
+import { validar } from "../../../src/lib/validar";
 
 const usuarioId = "00000000-0000-4000-8000-000000000001";
 const fornecedorId = "00000000-0000-4000-8000-0000000000f1";
@@ -349,7 +349,7 @@ describe("validar", () => {
       expect(error).toBeInstanceOf(HttpError);
       const httpError = error as HttpError;
       expect(httpError.statusCode).toBe(400);
-      expect(httpError.message).toBe("Dados inválidos.");
+      expect(httpError.message).toBe("Revise os campos indicados e tente novamente.");
       expect(httpError.errors.map((detalhe) => detalhe.campo).sort()).toEqual(["modelo", "placa"]);
     }
   });

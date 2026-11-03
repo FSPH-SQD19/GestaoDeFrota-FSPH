@@ -1,15 +1,21 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 
 const kmSchema = z.number().min(0).max(99999999.99).multipleOf(0.01);
 const fotoSchema = z
   .string()
   .trim()
   .max(160_000)
-  .regex(/^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/]+={0,2}$/i, "Informe uma imagem em Base64.")
-  .refine((foto) => (foto.length - foto.indexOf(",") - 1) % 4 === 0, "Imagem Base64 inválida.");
+  .regex(
+    /^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/]+={0,2}$/i,
+    "Não foi possível usar a foto. Selecione outra imagem e tente novamente.",
+  )
+  .refine(
+    (foto) => (foto.length - foto.indexOf(",") - 1) % 4 === 0,
+    "Não foi possível usar a foto. Selecione outra imagem e tente novamente.",
+  );
 
 const itensSaidaSchema = z.object({
   pneus: z.boolean(),
@@ -80,7 +86,10 @@ export async function executarViagem(
   dados: IniciarViagemInput | ConcluirViagemInput,
 ) {
   if (!z.uuid().safeParse(id).success) {
-    throw new HttpError(400, "ID da solicitação inválido.");
+    throw new HttpError(
+      400,
+      "Não foi possível identificar a solicitação. Atualize a lista e tente novamente.",
+    );
   }
   const iniciar = "kmInicial" in dados;
 
@@ -98,7 +107,10 @@ export async function executarViagem(
       throw new HttpError(403, "Somente o motorista alocado pode executar esta viagem.");
     }
     if (viagem.status !== (iniciar ? "APROVADA" : "EM_TRANSITO")) {
-      throw new HttpError(409, "Status da solicitação incompatível com a operação.");
+      throw new HttpError(
+        409,
+        "Esta ação não está disponível na situação atual da viagem. Atualize a lista e tente novamente.",
+      );
     }
     const veiculoId = viagem.veiculoAlocadoId;
     if (!veiculoId) {

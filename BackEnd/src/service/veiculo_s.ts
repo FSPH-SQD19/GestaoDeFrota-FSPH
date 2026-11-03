@@ -1,7 +1,7 @@
 import { Prisma, type Veiculo } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { registrarAuditoria } from "./auditoria_s";
 import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
@@ -37,13 +37,15 @@ export const criarVeiculoSchema = z
       .trim()
       .min(2, "Modelo deve ter ao menos 2 caracteres.")
       .max(100, "Modelo deve ter no máximo 100 caracteres."),
-    tipoFrota: z.enum(TIPOS_FROTA, { error: "Tipo de frota deve ser ADMINISTRATIVA ou SVO." }),
+    tipoFrota: z.enum(TIPOS_FROTA, {
+      error: "Selecione a frota administrativa ou a frota do SVO.",
+    }),
     propriedade: z
-      .enum(PROPRIEDADES, { error: "Propriedade deve ser PROPRIO ou LOCADO." })
+      .enum(PROPRIEDADES, { error: "Informe se o veículo é próprio ou locado." })
       .default("PROPRIO"),
-    fornecedorId: z.uuid({ error: "fornecedorId deve ser um UUID válido." }).optional(),
+    fornecedorId: z.uuid({ error: "Selecione um fornecedor válido." }).optional(),
     ano: z
-      .number({ error: "Ano deve ser numérico." })
+      .number({ error: "Informe um ano válido para o veículo." })
       .int("Ano deve ser inteiro.")
       .min(1950, "Ano inválido.")
       .refine((ano) => ano <= anoMaximo(), "Ano inválido.")
@@ -55,17 +57,19 @@ export const criarVeiculoSchema = z
       .max(30, "Combustível deve ter no máximo 30 caracteres.")
       .optional(),
     capacidadeMaxima: z
-      .number({ error: "Capacidade deve ser numérica." })
+      .number({ error: "Informe a quantidade de passageiros que o veículo comporta." })
       .int("Capacidade deve ser inteira.")
       .min(1, "Capacidade deve ser maior que zero.")
       .max(50, "Capacidade máxima excedida.")
       .default(4),
     odometroAtual: z
-      .number({ error: "Odômetro deve ser numérico." })
+      .number({ error: "Informe a quilometragem exibida no odômetro." })
       .min(0, "Odômetro não pode ser negativo.")
       .max(99999999.99, "Odômetro inválido.")
       .default(0),
-    status: z.enum(STATUS_VEICULO, { error: "Status operacional inválido." }).default("DISPONIVEL"),
+    status: z
+      .enum(STATUS_VEICULO, { error: "Selecione uma situação válida para o veículo." })
+      .default("DISPONIVEL"),
   })
   .superRefine((veiculo, ctx) => {
     if (veiculo.propriedade === "LOCADO" && !veiculo.fornecedorId) {
@@ -79,7 +83,7 @@ export const criarVeiculoSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["status"],
-        message: "Status DESINFECCAO é exclusivo da frota SVO.",
+        message: "A desinfecção é exclusiva das viaturas do SVO.",
       });
     }
   });
@@ -227,7 +231,7 @@ export const atualizarVeiculoSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["status"],
-        message: "O status DESINFECCAO só pode ser utilizado na frota SVO.",
+        message: "A desinfecção é exclusiva das viaturas do SVO.",
       });
     }
   });
@@ -258,7 +262,7 @@ export async function atualizarVeiculo(
   }
 
   if (status === "DESINFECCAO" && tipoFrota !== "SVO") {
-    throw new HttpError(422, "Status DESINFECCAO é exclusivo da frota SVO.");
+    throw new HttpError(422, "A desinfecção é exclusiva das viaturas do SVO.");
   }
 
   if (fornecedorId) {

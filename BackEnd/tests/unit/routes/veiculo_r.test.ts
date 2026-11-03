@@ -117,7 +117,7 @@ describe("GET /api/v1/veiculos", () => {
     expect(resposta.status).toBe(401);
     expect(resposta.json).toEqual({
       statusCode: 401,
-      message: "Autenticação necessária.",
+      message: "Entre no sistema para continuar.",
       errors: [],
     });
   });
@@ -155,7 +155,10 @@ describe("GET /api/v1/veiculos", () => {
     });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json).toMatchObject({ statusCode: 400, message: "Dados inválidos." });
+    expect(resposta.json).toMatchObject({
+      statusCode: 400,
+      message: "Revise os campos indicados e tente novamente.",
+    });
     expect((resposta.json.errors ?? []).map((erro) => erro.campo).sort()).toEqual([
       "pageSize",
       "tipoFrota",
@@ -223,7 +226,11 @@ describe("POST /api/v1/veiculos", () => {
     const resposta = await chamar("/api/v1/veiculos", { perfis: ["GESTOR"], body: "{invalido" });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json).toEqual({ statusCode: 400, message: "JSON inválido.", errors: [] });
+    expect(resposta.json).toEqual({
+      statusCode: 400,
+      message: "Não foi possível ler os dados enviados. Revise os dados e tente novamente.",
+      errors: [],
+    });
   });
 
   it("retorna 413 para um corpo acima do limite sem consultar o banco", async () => {
@@ -235,7 +242,8 @@ describe("POST /api/v1/veiculos", () => {
     expect(resposta.status).toBe(413);
     expect(resposta.json).toEqual({
       statusCode: 413,
-      message: "O corpo da requisição excede o limite permitido.",
+      message:
+        "Os dados enviados são muito grandes. Reduza o tamanho dos arquivos e tente novamente.",
       errors: [],
     });
     expect(mocks.create).not.toHaveBeenCalled();
@@ -259,7 +267,7 @@ describe("POST /api/v1/veiculos", () => {
     expect(resposta.status).toBe(500);
     expect(resposta.json).toEqual({
       statusCode: 500,
-      message: "Erro interno do servidor.",
+      message: "O sistema não conseguiu concluir a operação. Tente novamente em alguns instantes.",
       errors: [],
     });
   });

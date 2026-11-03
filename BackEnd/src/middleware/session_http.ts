@@ -1,3 +1,4 @@
+import { HttpError } from "../lib/http_error";
 import { getWorkerRuntime } from "../config/runtime";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Request, Response, RequestHandler } from "express";
@@ -88,8 +89,12 @@ export function issueCsrf(req: Request, res: Response) {
 export const protectRequests: RequestHandler = (req, res, next) => {
   const origin = req.headers.origin;
   if (origin && !allowedOrigins().includes(origin)) {
-    res.status(403).json({ message: "Origem não autorizada." });
-    return;
+    return next(
+      new HttpError(
+        403,
+        "Não foi possível acessar o sistema por este endereço. Abra o endereço habitual do sistema.",
+      ),
+    );
   }
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
   // Clientes de API com Bearer não usam credenciais anexadas automaticamente.
@@ -103,8 +108,12 @@ export const protectRequests: RequestHandler = (req, res, next) => {
     !cookie ||
     !equal(cookie, `${nonce}.${csrfSignature(nonce, req)}`)
   ) {
-    res.status(403).json({ message: "Proteção CSRF inválida. Recarregue a página." });
-    return;
+    return next(
+      new HttpError(
+        403,
+        "Não foi possível confirmar esta ação. Atualize a página e tente novamente.",
+      ),
+    );
   }
   next();
 };

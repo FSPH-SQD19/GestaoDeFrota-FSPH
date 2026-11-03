@@ -1,3 +1,4 @@
+import { HttpError } from "../lib/http_error";
 import { getWorkerRuntime } from "../config/runtime";
 import { createHash } from "node:crypto";
 import type { RequestHandler } from "express";
@@ -36,49 +37,41 @@ export async function clearPasswordChangeFailures(usuarioId: string): Promise<vo
 }
 
 export const limitLogin: RequestHandler = async (req, res, next) => {
-  try {
-    // Persistência compartilhada no Neon: reinícios e réplicas não zeram o limite.
-    const ipBlocked = await consume(
-      "ip",
-      getWorkerRuntime()?.clientIp || req.ip || req.socket.remoteAddress || "unknown",
-      30,
-    );
-    const email =
-      typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase().slice(0, 254) : "";
-    const accountBlocked = email ? await consume("account", email, 10) : false;
-    if (ipBlocked || accountBlocked) {
-      res.setHeader("Retry-After", String(WINDOW_MS / 1000));
-      res.status(429).json({ error: "Muitas tentativas. Tente novamente em 15 minutos." });
-      return;
-    }
-    next();
-  } catch (error) {
-    next(error);
+  // Persistência compartilhada no Neon: reinícios e réplicas não zeram o limite.
+  const ipBlocked = await consume(
+    "ip",
+    getWorkerRuntime()?.clientIp || req.ip || req.socket.remoteAddress || "unknown",
+    30,
+  );
+  const email =
+    typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase().slice(0, 254) : "";
+  const accountBlocked = email ? await consume("account", email, 10) : false;
+  if (ipBlocked || accountBlocked) {
+    res.setHeader("Retry-After", String(WINDOW_MS / 1000));
+    return next(new HttpError(429, "Muitas tentativas. Tente novamente em 15 minutos."));
   }
+  next();
 };
 
 export const limitPasswordChange: RequestHandler = async (_req, res, next) => {
-  try {
-    const usuario = res.locals.usuario as UsuarioAutenticado | undefined;
-    if (!usuario?.id) {
-      next();
-      return;
-    }
-    const key = scopeKey("pwd-user", usuario.id);
-    const rows = await prisma.$queryRaw<{ tentativas: number; expira_em: Date }[]>`
-      SELECT tentativas, expira_em
-      FROM auth_login_limites
-      WHERE chave = ${key} AND expira_em > CURRENT_TIMESTAMP`;
-    if ((rows[0]?.tentativas ?? 0) >= MAX_PASSWORD_FAILURES) {
-      res.setHeader("Retry-After", String(WINDOW_MS / 1000));
-      res.status(429).json({
-        message:
-          "Muitas tentativas inválidas de alteração de senha. Tente novamente em 15 minutos.",
-      });
-      return;
-    }
+  const usuario = res.locals.usuario as UsuarioAutenticado | undefined;
+  if (!usuario?.id) {
     next();
-  } catch (error) {
-    next(error);
+    return;
   }
+  const key = scopeKey("pwd-user", usuario.id);
+  const rows = await prisma.$queryRaw<{ tentativas: number; expira_em: Date }[]>`
+    SELECT tentativas, expira_em
+    FROM auth_login_limites
+    WHERE chave = ${key} AND expira_em > CURRENT_TIMESTAMP`;
+  if ((rows[0]?.tentativas ?? 0) >= MAX_PASSWORD_FAILURES) {
+    res.setHeader("Retry-After", String(WINDOW_MS / 1000));
+    return next(
+      new HttpError(
+        429,
+        "Muitas tentativas inválidas de alteração de senha. Tente novamente em 15 minutos.",
+      ),
+    );
+  }
+  next();
 };

@@ -103,7 +103,9 @@ function mapearMotorista(motorista: MotoristaApi): Motorista {
     typeof motorista.ativo !== "boolean" ||
     typeof motorista.validadeCnh !== "string"
   ) {
-    throw new Error("A API retornou dados incompletos de um motorista.");
+    throw new Error(
+      "Não foi possível carregar os dados do motorista. Atualize a página e tente novamente.",
+    );
   }
   const validadeCnh = motorista.validadeCnh.slice(0, 10);
   const data = new Date(`${validadeCnh}T00:00:00Z`);
@@ -112,7 +114,9 @@ function mapearMotorista(motorista: MotoristaApi): Motorista {
     Number.isNaN(data.getTime()) ||
     data.toISOString().slice(0, 10) !== validadeCnh
   ) {
-    throw new Error("A API retornou uma validade de CNH inválida.");
+    throw new Error(
+      "Não foi possível carregar a validade da CNH. Atualize a página e tente novamente.",
+    );
   }
   return {
     id: motorista.id,
@@ -163,7 +167,9 @@ export const MotoristasPage: React.FC = () => {
     void apiRequest<MotoristaApi[]>("/motoristas", {})
       .then((response) => {
         if (!Array.isArray(response))
-          throw new Error("A API retornou uma lista de motoristas inválida.");
+          throw new Error(
+            "Não foi possível carregar os motoristas. Atualize a página e tente novamente.",
+          );
         const dados = response.map(mapearMotorista);
         if (ativo) setResultado({ sessionKey, revisao, dados, erro: "" });
       })

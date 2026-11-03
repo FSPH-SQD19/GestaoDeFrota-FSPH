@@ -1,13 +1,13 @@
 import { Prisma, type Abastecimento } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 
 export const listarAbastecimentosSchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(10),
-    veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }).optional(),
+    veiculoId: z.uuid({ error: "Selecione um veículo válido." }).optional(),
     dataInicio: z.coerce.date().optional(),
     dataFim: z.coerce.date().optional(),
   })
@@ -22,22 +22,22 @@ export const listarAbastecimentosSchema = z
   });
 
 export const criarAbastecimentoSchema = z.object({
-  veiculoId: z.uuid({ error: "veiculoId deve ser um UUID válido." }),
-  motoristaId: z.uuid({ error: "motoristaId deve ser um UUID válido." }).optional(),
-  fornecedorId: z.uuid({ error: "fornecedorId deve ser um UUID válido." }).optional(),
+  veiculoId: z.uuid({ error: "Selecione um veículo válido." }),
+  motoristaId: z.uuid({ error: "Selecione um motorista válido." }).optional(),
+  fornecedorId: z.uuid({ error: "Selecione um fornecedor válido." }).optional(),
   dataHora: z.coerce.date().optional(),
   odometro: z
-    .number({ error: "Odômetro deve ser numérico." })
+    .number({ error: "Informe a quilometragem exibida no odômetro." })
     .min(0, "Odômetro não pode ser negativo.")
     .max(99999999.99, "Valor inválido.")
     .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
   litros: z
-    .number({ error: "Litros deve ser numérico." })
+    .number({ error: "Informe a quantidade abastecida em litros." })
     .positive("Litros deve ser maior que 0.")
     .max(999999.99, "Quantidade de litros inválida.")
     .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
   valorTotal: z
-    .number({ error: "Valor Total deve ser numérico." })
+    .number({ error: "Informe o valor total do abastecimento." })
     .positive("Valor Total deve ser maior que 0.")
     .max(99999999.99, "Valor inválido.")
     .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),

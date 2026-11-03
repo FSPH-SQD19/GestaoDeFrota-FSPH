@@ -22,7 +22,10 @@ function carregarElementoImagem(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Arquivo de imagem corrompido ou formato não suportado."));
+    img.onerror = () =>
+      reject(
+        new Error("Não foi possível abrir esta imagem. Tire outra foto ou selecione outra imagem."),
+      );
     img.src = src;
   });
 }
@@ -61,7 +64,9 @@ export async function comprimirFotoChecklist(arquivo: File): Promise<string> {
     throw new Error("Selecione um arquivo de imagem válido (foto da câmera ou galeria).");
   }
   if (arquivo.size <= 0) {
-    throw new Error("O arquivo de imagem está vazio.");
+    throw new Error(
+      "Não foi possível usar esta imagem. Tire outra foto ou selecione outra imagem.",
+    );
   }
   if (arquivo.size > TAMANHO_MAXIMO_ARQUIVO_ORIGINAL) {
     throw new Error("A imagem excede o limite de 15 MB. Tire uma nova foto.");
@@ -73,7 +78,9 @@ export async function comprimirFotoChecklist(arquivo: File): Promise<string> {
   const sondaCanvas = obterContextoCanvas(1, 1);
   if (!sondaCanvas) {
     if (dataUrlOriginal.length > LIMITE_CARACTERES_DATA_URL) {
-      throw new Error("A imagem é grande demais para envio sem compressão.");
+      throw new Error(
+        "A foto é muito grande para envio. Tire outra foto ou selecione uma imagem menor.",
+      );
     }
     return dataUrlOriginal;
   }
@@ -125,7 +132,7 @@ export async function comprimirFotoChecklist(arquivo: File): Promise<string> {
 
   if (resultado.length > LIMITE_CARACTERES_DATA_URL) {
     throw new Error(
-      "Não foi possível comprimir a foto dentro do limite de envio. Tente novamente.",
+      "A foto é muito grande para envio. Tire outra foto ou selecione uma imagem menor.",
     );
   }
   return resultado;

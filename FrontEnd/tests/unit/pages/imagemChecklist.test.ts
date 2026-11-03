@@ -19,7 +19,9 @@ describe("imagemChecklist", () => {
 
   it("rejeita arquivo vazio", async () => {
     const vazio = new File([], "vazio.jpg", { type: "image/jpeg" });
-    await expect(comprimirFotoChecklist(vazio)).rejects.toThrow(/está vazio/i);
+    await expect(comprimirFotoChecklist(vazio)).rejects.toThrow(
+      "Não foi possível usar esta imagem. Tire outra foto ou selecione outra imagem.",
+    );
   });
 
   it("rejeita arquivo acima de 15 MB", async () => {

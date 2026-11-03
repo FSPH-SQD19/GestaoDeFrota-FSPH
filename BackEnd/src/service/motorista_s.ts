@@ -1,7 +1,7 @@
 import { hashPassword } from "./password_s";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { prisma } from "../lib/prisma";
 import { validarDataValidadeCnh } from "./validarCNH_s";
 import { registrarAuditoria } from "./auditoria_s";
@@ -115,7 +115,7 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
   }
 
   if (Buffer.byteLength(dados.senha, "utf8") > 72) {
-    throw new HttpError(400, "A senha deve ter no máximo 72 bytes.");
+    throw new HttpError(400, "A senha é muito longa. Use uma senha mais curta.");
   }
 
   const telefone = dados.telefone.replace(/\D/g, "");
@@ -217,11 +217,14 @@ export async function atualizarMotorista(
   usuarioResponsavelId: string,
 ) {
   if (!z.uuid().safeParse(id).success) {
-    throw new HttpError(400, "ID do motorista inválido.");
+    throw new HttpError(400, "Não foi possível identificar o motorista. Selecione-o novamente.");
   }
 
   if (dados.validadeCnh === undefined && dados.ativo === undefined) {
-    throw new HttpError(400, "Informe a validade da CNH ou o status ativo.");
+    throw new HttpError(
+      400,
+      "Informe a validade da CNH ou escolha se o motorista está ativo ou inativo.",
+    );
   }
 
   const dadosAtualizados: { validadeCnh?: Date; ativo?: boolean } = {};
@@ -265,7 +268,7 @@ export async function atualizarMotorista(
 //Função "excluir" motorista apenas o inativa
 export async function excluirMotorista(id: string, usuarioResponsavelId: string) {
   if (!z.uuid().safeParse(id).success) {
-    throw new HttpError(400, "ID do motorista inválido.");
+    throw new HttpError(400, "Não foi possível identificar o motorista. Selecione-o novamente.");
   }
 
   try {

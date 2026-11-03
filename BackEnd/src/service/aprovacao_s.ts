@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { exigirDocumentosEmDia } from "./documento_veiculo_s";
 import { notificarSolicitacaoAprovada, notificarSolicitacaoRecusada } from "./notificacao_s";
 
@@ -19,7 +19,10 @@ type RecusarInput = z.infer<typeof recusarSolicitacaoSchema>;
 
 function validarId(id: string) {
   if (!z.uuid().safeParse(id).success) {
-    throw new HttpError(400, "ID da solicitação inválido.");
+    throw new HttpError(
+      400,
+      "Não foi possível identificar a solicitação. Atualize a lista e tente novamente.",
+    );
   }
 }
 
@@ -212,7 +215,10 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
       erro instanceof Prisma.PrismaClientKnownRequestError &&
       ["P2034", "P2028"].includes(erro.code)
     ) {
-      throw new HttpError(409, "Conflito de concorrência. Tente novamente.");
+      throw new HttpError(
+        409,
+        "Os dados foram alterados por outra pessoa. Atualize a página e tente novamente.",
+      );
     }
 
     throw erro;

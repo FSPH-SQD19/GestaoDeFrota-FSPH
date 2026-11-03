@@ -1,3 +1,4 @@
+import { HttpError } from "../../../src/lib/http_error";
 vi.mock("../../../src/config/auth", () => ({
   getAuthConfig: () => ({ secret: "test", expiresIn: 28800 }),
 }));
@@ -40,10 +41,10 @@ describe("login controller", () => {
     { case: "senha ausente", body: { email: "teste@example.test" } },
     { case: "senha vazia", body: { email: "teste@example.test", senha: "" } },
   ])("retorna 400 para $case", async ({ body }) => {
-    const response = await execute(body);
-
-    expect(response.status).toHaveBeenCalledWith(400);
-    expect(response.json).toHaveBeenCalledWith({ error: "email e senha são obrigatórios" });
+    await expect(execute(body)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Informe o e-mail e a senha.",
+    });
     expect(login).not.toHaveBeenCalled();
   });
 
@@ -55,21 +56,18 @@ describe("login controller", () => {
     expect(response.json).toHaveBeenCalledExactlyOnceWith({ usuario: result.usuario });
   });
 
-  it("retorna 401 quando o service rejeita as credenciais", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(login).mockRejectedValue(new Error("Credenciais inválidas"));
-    const response = await execute({ email: "teste@example.test", senha: "teste" });
-
-    expect(response.status).toHaveBeenCalledWith(401);
-    expect(response.json).toHaveBeenCalledWith({ error: "Credenciais inválidas" });
+  it("encaminha a rejeição de credenciais ao middleware", async () => {
+    const error = new HttpError(
+      401,
+      "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+    );
+    vi.mocked(login).mockRejectedValue(error);
+    await expect(execute({ email: "teste@example.test", senha: "teste" })).rejects.toBe(error);
   });
 
-  it("retorna erro generico sem expor detalhes internos", async () => {
-    vi.mocked(login).mockRejectedValue(new Error("Detalhe privado da infraestrutura"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const response = await execute({ email: "teste@example.test", senha: "teste" });
-
-    expect(response.status).toHaveBeenCalledWith(500);
-    expect(response.json).toHaveBeenCalledWith({ mensagem: "Erro interno ao realizar login." });
+  it("encaminha erros inesperados sem traduzi-los no controller", async () => {
+    const error = new Error("Detalhe privado da infraestrutura");
+    vi.mocked(login).mockRejectedValue(error);
+    await expect(execute({ email: "teste@example.test", senha: "teste" })).rejects.toBe(error);
   });
 });

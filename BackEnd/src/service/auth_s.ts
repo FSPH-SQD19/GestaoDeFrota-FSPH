@@ -1,3 +1,4 @@
+import { HttpError } from "../lib/http_error";
 import { createSession } from "./session_s";
 import { signToken } from "./token_s";
 import { prisma } from "../lib/prisma";
@@ -22,17 +23,18 @@ export async function login({ email, senha }: LoginInput) {
   });
 
   if (!usuario || !usuario.ativo) {
-    throw new Error("Credenciais inválidas");
+    throw new HttpError(401, "E-mail ou senha incorretos. Confira os dados e tente novamente.");
   }
 
   const senhaValida = await comparePassword(senha, usuario.senhaHash);
 
   if (!senhaValida) {
-    throw new Error("Credenciais inválidas");
+    throw new HttpError(401, "E-mail ou senha incorretos. Confira os dados e tente novamente.");
   }
 
   const perfis = usuario.perfis.map((usuarioPerfil) => usuarioPerfil.perfil.nome);
-  if (!perfis.length) throw new Error("Credenciais inválidas");
+  if (!perfis.length)
+    throw new HttpError(401, "E-mail ou senha incorretos. Confira os dados e tente novamente.");
   const { expiresIn } = getAuthConfig();
   const sessaoId = await createSession(usuario.id, usuario.senhaHash, expiresIn);
   const token = signToken(usuario.id, sessaoId);

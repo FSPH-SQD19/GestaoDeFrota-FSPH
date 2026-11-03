@@ -107,7 +107,9 @@ export const MinhasViagensPage: React.FC = () => {
       .then((resposta) => {
         if (!ativa) return;
         if (!resposta || !Array.isArray(resposta.data)) {
-          throw new Error("Resposta inesperada ao carregar suas viagens.");
+          throw new Error(
+            "Não foi possível carregar suas viagens. Atualize a página e tente novamente.",
+          );
         }
         const totalPaginasResposta = resposta.meta?.totalPages;
         if (

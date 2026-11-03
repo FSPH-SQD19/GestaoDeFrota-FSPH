@@ -23,8 +23,8 @@ vi.mock("../../../src/service/auditoria_s", () => ({
   registrarAuditoria: mocks.registrarAuditoria,
 }));
 
-import { HttpError } from "../../../src/middleware/http_m";
-import { validar } from "../../../src/controller/veiculo_c";
+import { HttpError } from "../../../src/lib/http_error";
+import { validar } from "../../../src/lib/validar";
 import {
   calcularSituacao,
   criarDocumentoVeiculo,

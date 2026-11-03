@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { dataDoBanco, dataLocal } from "./documento_veiculo_s";
 
 // S19FROTA-249 (RF014-SVO / RN-SVO-002): escalas e plantões do SVO.
@@ -15,7 +15,7 @@ const HORA_MS = 60 * 60 * 1000;
 function dataHora(campo: string) {
   return z.iso.datetime({
     offset: true,
-    error: `${campo} deve estar no formato ISO 8601 com fuso (ex.: 2026-11-10T07:00:00-03:00).`,
+    error: `Informe uma data e hora válidas para ${campo.toLocaleLowerCase("pt-BR")}.`,
   });
 }
 
@@ -28,7 +28,7 @@ export const criarEscalaSvoSchema = z
     observacoes: z.preprocess(
       (valor) => (typeof valor === "string" && valor.trim() === "" ? undefined : valor),
       z
-        .string({ error: "Observações devem ser texto." })
+        .string({ error: "Confira as observações informadas." })
         .trim()
         .max(300, "Observações devem ter no máximo 300 caracteres.")
         .nullish()
@@ -61,7 +61,7 @@ export type CriarEscalaSvoInput = z.infer<typeof criarEscalaSvoSchema>;
 export const listarEscalasSvoSchema = z.object({
   situacao: z
     .enum(SITUACOES_ESCALA, {
-      error: "Situação deve ser AGENDADA, EM_ANDAMENTO, SUSPENSA ou ENCERRADA.",
+      error: "Selecione a situação da escala na lista.",
     })
     .optional(),
   motoristaId: z.uuid("Motorista inválido.").optional(),
@@ -162,7 +162,10 @@ async function transacionar<T>(operacao: (tx: Prisma.TransactionClient) => Promi
       error instanceof Prisma.PrismaClientKnownRequestError &&
       ["P2034", "P2028"].includes(error.code)
     ) {
-      throw new HttpError(409, "Escala em conflito com outra atualização. Tente novamente.");
+      throw new HttpError(
+        409,
+        "A escala foi alterada por outra pessoa. Atualize a lista e tente novamente.",
+      );
     }
     throw error;
   }

@@ -1,7 +1,8 @@
 import type { Notificacao } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError, type UsuarioAutenticado } from "../middleware/http_m";
+import { type UsuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { TIPOS_DOCUMENTO, dataDoBanco, dataLocal } from "./documento_veiculo_s";
 import {
   type DocumentoAtualSincronizacao,
@@ -45,7 +46,7 @@ const booleanoQuerySchema = z.preprocess(
     if (valor === "false") return false;
     return valor;
   },
-  z.boolean({ error: "Parâmetro apenasNaoLidas deve ser true ou false." }),
+  z.boolean({ error: "Escolha se deseja ver todas as notificações ou apenas as não lidas." }),
 );
 
 export const listarNotificacoesQuerySchema = z.object({
@@ -551,9 +552,11 @@ export async function listarNotificacoes(
 
 export async function marcarNotificacaoComoLida(id: string, usuarioId: string) {
   if (!idNotificacaoSchema.safeParse(id).success) {
-    throw new HttpError(400, "ID da notificação inválido.", [
-      { campo: "id", mensagem: "Informe um UUID válido." },
-    ]);
+    throw new HttpError(
+      400,
+      "Não foi possível identificar a notificação. Atualize a lista e tente novamente.",
+      [{ campo: "id", mensagem: "Atualize a página e selecione o registro novamente." }],
+    );
   }
 
   const existente = await prisma.notificacao.findFirst({

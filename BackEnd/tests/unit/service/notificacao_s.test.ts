@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HttpError } from "../../../src/middleware/http_m";
+import { HttpError } from "../../../src/lib/http_error";
 
 const mocks = vi.hoisted(() => ({
   usuarioFindMany: vi.fn(),
