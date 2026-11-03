@@ -231,7 +231,7 @@ export const SvoPage: React.FC = () => {
       });
 
     return () => {
-        cancelado = true;
+      cancelado = true;
     };
   }, [reloadTick]);
 
@@ -253,7 +253,7 @@ export const SvoPage: React.FC = () => {
       });
 
     return () => {
-    cancelado = true;
+      cancelado = true;
     };
   }, [reloadTick]);
 
@@ -385,9 +385,7 @@ export const SvoPage: React.FC = () => {
       );
       if (motoristaAtual) return motoristaAtual.id;
     }
-    const disponivel = listaMotoristas.find(
-      (motorista) => motorista.status === "DISPONIVEL",
-    );
+    const disponivel = listaMotoristas.find((motorista) => motorista.status === "DISPONIVEL");
     return disponivel?.id ?? "";
   };
 

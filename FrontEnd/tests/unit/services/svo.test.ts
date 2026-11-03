@@ -73,18 +73,12 @@ describe("serviço SVO - validação das respostas da API", () => {
     ["sem a lista de dados", { meta: META_VALIDA }],
     ["com data que não é uma lista", { data: {}, meta: META_VALIDA }],
     ["sem metadados", { data: [CHAMADO_VALIDO] }],
-    [
-      "sem totalPages",
-      { data: [CHAMADO_VALIDO], meta: { page: 1, pageSize: 10, total: 1 } },
-    ],
+    ["sem totalPages", { data: [CHAMADO_VALIDO], meta: { page: 1, pageSize: 10, total: 1 } }],
     [
       "com totalPages inválido",
       { data: [CHAMADO_VALIDO], meta: { ...META_VALIDA, totalPages: "um" } },
     ],
-    [
-      "com um chamado incompleto",
-      { data: [{ id: "chamado-incompleto" }], meta: META_VALIDA },
-    ],
+    ["com um chamado incompleto", { data: [{ id: "chamado-incompleto" }], meta: META_VALIDA }],
   ])("rejeita resposta de chamados %s com erro explícito", async (_caso, resposta) => {
     mocks.get.mockResolvedValue({ data: resposta });
 
@@ -164,10 +158,7 @@ describe("serviço SVO - validação das respostas da API", () => {
 
   it.each([
     ["sem dados", { meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } }],
-    [
-      "sem paginação",
-      { data: [ESCALA_VALIDA] },
-    ],
+    ["sem paginação", { data: [ESCALA_VALIDA] }],
     [
       "com horário inválido",
       {

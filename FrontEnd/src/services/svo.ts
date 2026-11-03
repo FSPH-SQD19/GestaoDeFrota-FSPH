@@ -209,9 +209,7 @@ const viaturaSvoSchema = z
     capacidadeMaxima: z.number().int().nonnegative(),
     ativo: z.boolean(),
     ocupacaoAtual: z.number().int().nonnegative(),
-    motoristaAtual: z
-      .object({ id: z.string(), nome: z.string().nullable() })
-      .nullable(),
+    motoristaAtual: z.object({ id: z.string(), nome: z.string().nullable() }).nullable(),
   })
   .passthrough();
 
