@@ -89,6 +89,14 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, next) => {
     return res.status(400).json({ statusCode: 400, message: "JSON inválido.", errors: [] });
   }
 
+  if (error?.type === "entity.too.large") {
+    return res.status(413).json({
+      statusCode: 413,
+      message: "O corpo da requisição excede o limite permitido.",
+      errors: [],
+    });
+  }
+
   console.error(error);
   return res
     .status(500)

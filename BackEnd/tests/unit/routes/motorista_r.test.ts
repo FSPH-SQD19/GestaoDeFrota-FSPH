@@ -127,6 +127,15 @@ describe("POST /motoristas", () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
+  it("retorna 400 para senha curta sem consultar o banco", async () => {
+    expect(await cadastrar({ ...entrada, senha: "12345" })).toEqual({
+      status: 400,
+      body: { mensagem: "A senha deve possuir pelo menos 6 caracteres." },
+    });
+    expect(mocks.findFirst).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
   it("cria a conta e o motorista e retorna 201", async () => {
     const resultado = await cadastrar(entrada);
 

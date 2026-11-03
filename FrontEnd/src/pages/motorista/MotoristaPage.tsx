@@ -218,7 +218,7 @@ export const MotoristasPage: React.FC = () => {
     try {
       await apiRequest<MotoristaApi>("/motoristas", {
         method: "POST",
-        body: JSON.stringify(validacao.data),
+        data: validacao.data,
       });
       setModalCadastroAberto(false);
       setFormulario(formularioVazio);

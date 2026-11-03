@@ -113,7 +113,7 @@ describe("AnalisarSolicitacaoModal", () => {
     await user.click(screen.getByRole("button", { name: "Confirmar aprovação" }));
     expect(apiRequest).toHaveBeenLastCalledWith("/solicitacoes/s1/aprovar", {
       method: "PATCH",
-      body: JSON.stringify({ veiculoId: "v2", motoristaId: "m1" }),
+      data: { veiculoId: "v2", motoristaId: "m1" },
     });
     expect(concluir).toHaveBeenCalledWith("Solicitação SV-TESTE aprovada e alocada.");
   });
@@ -134,7 +134,7 @@ describe("AnalisarSolicitacaoModal", () => {
     await user.click(screen.getByRole("button", { name: "Confirmar recusa" }));
     expect(apiRequest).toHaveBeenCalledExactlyOnceWith("/solicitacoes/s1/recusar", {
       method: "PATCH",
-      body: JSON.stringify({ motivoRecusa: "Sem disponibilidade" }),
+      data: { motivoRecusa: "Sem disponibilidade" },
     });
   });
   it("bloqueia fechamento e novo envio durante a decisão", async () => {

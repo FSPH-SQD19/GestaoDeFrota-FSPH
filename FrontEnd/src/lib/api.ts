@@ -1,9 +1,9 @@
-import axios, { type AxiosRequestConfig, type Method } from "axios";
+import axios, { type Method } from "axios";
 import { api } from "../services/api";
 
 interface ApiRequestOptions {
   method?: Method;
-  body?: string;
+  data?: unknown;
 }
 
 function respostaDeErro(error: unknown): string {
@@ -38,23 +38,12 @@ function respostaDeErro(error: unknown): string {
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  let data: unknown;
-  if (options.body) {
-    try {
-      data = JSON.parse(options.body);
-    } catch {
-      throw new Error("O corpo da requisição não contém JSON válido.");
-    }
-  }
-
-  const config: AxiosRequestConfig = {
-    url: `/api/v1${path.startsWith("/") ? path : `/${path}`}`,
-    method: options.method ?? "GET",
-    data,
-  };
-
   try {
-    const response = await api.request<T>(config);
+    const response = await api.request<T>({
+      url: `/api/v1${path.startsWith("/") ? path : `/${path}`}`,
+      method: options.method ?? "GET",
+      data: options.data,
+    });
     return response.data;
   } catch (error) {
     throw new Error(respostaDeErro(error));

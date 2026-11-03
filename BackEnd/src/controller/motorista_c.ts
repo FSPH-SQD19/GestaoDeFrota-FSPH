@@ -5,7 +5,7 @@ import {
   atualizarMotorista,
   excluirMotorista,
 } from "../service/motorista_s";
-import { usuarioAutenticado } from "../middleware/http_m";
+import { HttpError, usuarioAutenticado } from "../middleware/http_m";
 
 export async function listarMotoristasController(req: Request, res: Response) {
   try {
@@ -59,30 +59,8 @@ export async function cadastrarMotoristaController(req: Request, res: Response) 
     );
     return res.status(201).json(motorista);
   } catch (error) {
-    if (error instanceof Error) {
-      const errosValidacao = [
-        "Nome inválido.",
-        "A senha deve ter no máximo 72 bytes.",
-        "E-mail inválido.",
-        "A senha deve possuir pelo menos 4 caracteres.",
-        "Telefone deve conter DDD e 8 ou 9 dígitos.",
-        "CPF inválido.",
-        "Número da CNH deve conter 11 dígitos.",
-        "Categoria da CNH inválida.",
-        "Data de validade deve estar no formato AAAA-MM-DD.",
-        "Data de validade da CNH inválida.",
-        "A CNH está vencida.",
-      ];
-
-      if (errosValidacao.includes(error.message)) {
-        return res.status(400).json({ mensagem: error.message });
-      }
-
-      if (
-        ["E-mail, CPF ou CNH já cadastrado.", "CPF ou CNH já cadastrado."].includes(error.message)
-      ) {
-        return res.status(409).json({ mensagem: error.message });
-      }
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ mensagem: error.message });
     }
 
     console.error("Erro ao cadastrar motorista:", error);
@@ -117,22 +95,8 @@ export async function atualizarMotoristaController(req: Request, res: Response) 
 
     return res.status(200).json(motorista);
   } catch (error) {
-    if (error instanceof Error) {
-      const errosValidacao = [
-        "ID do motorista inválido.",
-        "Informe a validade da CNH ou o status ativo.",
-        "Data de validade deve estar no formato AAAA-MM-DD.",
-        "Data de validade da CNH inválida.",
-        "A CNH está vencida.",
-      ];
-
-      if (errosValidacao.includes(error.message)) {
-        return res.status(400).json({ mensagem: error.message });
-      }
-
-      if (error.message === "Motorista não encontrado.") {
-        return res.status(404).json({ mensagem: error.message });
-      }
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ mensagem: error.message });
     }
 
     console.error("Erro ao atualizar motorista:", error);
@@ -151,21 +115,8 @@ export async function excluirMotoristaController(req: Request, res: Response) {
     const resultado = await excluirMotorista(id, usuarioAutenticado(res).id);
     return res.status(200).json(resultado);
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "ID do motorista inválido.") {
-        return res.status(400).json({ mensagem: error.message });
-      }
-
-      if (error.message === "Motorista não encontrado.") {
-        return res.status(404).json({ mensagem: error.message });
-      }
-
-      if (
-        error.message ===
-        "Não é possível excluir este motorista porque existem registros vinculados a ele."
-      ) {
-        return res.status(409).json({ mensagem: error.message });
-      }
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ mensagem: error.message });
     }
 
     console.error("Erro ao excluir motorista:", error);

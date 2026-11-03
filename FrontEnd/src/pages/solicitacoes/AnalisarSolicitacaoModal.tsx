@@ -138,9 +138,7 @@ export function AnalisarSolicitacaoModal({
         `/solicitacoes/${encodeURIComponent(solicitacao.id)}/${modo === "APROVAR" ? "aprovar" : "recusar"}`,
         {
           method: "PATCH",
-          body: JSON.stringify(
-            modo === "APROVAR" ? { veiculoId, motoristaId } : { motivoRecusa: motivo.trim() },
-          ),
+          data: modo === "APROVAR" ? { veiculoId, motoristaId } : { motivoRecusa: motivo.trim() },
         },
       );
       dispararAtualizacaoNotificacoes();

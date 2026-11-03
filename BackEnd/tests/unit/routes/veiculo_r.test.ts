@@ -226,6 +226,21 @@ describe("POST /api/v1/veiculos", () => {
     expect(resposta.json).toEqual({ statusCode: 400, message: "JSON inválido.", errors: [] });
   });
 
+  it("retorna 413 para um corpo acima do limite sem consultar o banco", async () => {
+    const resposta = await chamar("/api/v1/veiculos", {
+      perfis: ["GESTOR"],
+      body: { modelo: "a".repeat(512 * 1024) },
+    });
+
+    expect(resposta.status).toBe(413);
+    expect(resposta.json).toEqual({
+      statusCode: 413,
+      message: "O corpo da requisição excede o limite permitido.",
+      errors: [],
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   it("retorna 409 para placa duplicada", async () => {
     mocks.findUnique.mockResolvedValue({ id: "existente" });
 
