@@ -63,6 +63,7 @@ export const MinhasViagensPage: React.FC = () => {
   const [revisao, setRevisao] = useState(0);
   const [resultado, setResultado] = useState<{
     chave: string;
+    sessionKey: string | null;
     dados: ListaMinhasViagensResposta | null;
     erro: string;
   } | null>(null);
@@ -75,7 +76,8 @@ export const MinhasViagensPage: React.FC = () => {
   const dados = atual?.dados ?? null;
   const erro = atual?.erro ?? "";
   const carregando = !atual;
-  const viagemEmAndamento = dados?.viagemEmAndamento ?? null;
+  const viagemEmAndamento =
+    resultado?.sessionKey === sessionKey ? (resultado.dados?.viagemEmAndamento ?? null) : null;
   const viagens = useMemo(
     () =>
       [...(dados?.data ?? [])]
@@ -88,7 +90,14 @@ export const MinhasViagensPage: React.FC = () => {
         ),
     [dados?.data],
   );
-  const totalPaginas = Math.max(1, dados?.meta.totalPages ?? 1);
+  const totalPaginasInformadas = dados?.meta?.totalPages;
+  const totalPaginasInformadasValidas =
+    typeof totalPaginasInformadas === "number" &&
+    Number.isInteger(totalPaginasInformadas) &&
+    totalPaginasInformadas > 0;
+  const totalPaginas = totalPaginasInformadasValidas
+    ? totalPaginasInformadas
+    : Math.max(1, pagina);
 
   useEffect(() => {
     let ativa = true;
@@ -98,12 +107,27 @@ export const MinhasViagensPage: React.FC = () => {
       status: statusFiltro ? [statusFiltro] : undefined,
     })
       .then((resposta) => {
-        if (ativa) setResultado({ chave, dados: resposta, erro: "" });
+        if (!ativa) return;
+        if (!resposta || !Array.isArray(resposta.data)) {
+          throw new Error("Resposta inesperada ao carregar suas viagens.");
+        }
+        const totalPaginasResposta = resposta.meta?.totalPages;
+        if (
+          typeof totalPaginasResposta === "number" &&
+          Number.isInteger(totalPaginasResposta) &&
+          totalPaginasResposta > 0 &&
+          pagina > totalPaginasResposta
+        ) {
+          setPagina(totalPaginasResposta);
+          return;
+        }
+        setResultado({ chave, sessionKey, dados: resposta, erro: "" });
       })
       .catch((error: unknown) => {
         if (ativa) {
           setResultado({
             chave,
+            sessionKey,
             dados: null,
             erro:
               error instanceof Error && error.message
@@ -128,96 +152,6 @@ export const MinhasViagensPage: React.FC = () => {
     setRevisao((atual) => atual + 1);
   };
 
-  if (viagemEmAndamento) {
-    const status = STATUS_VIAGEM[viagemEmAndamento.status];
-    return (
-      <div className="mx-auto w-full max-w-3xl space-y-5 pb-8">
-        <header className="space-y-1">
-          <p className="text-sm font-medium text-slate-500">Área do motorista</p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-            Viagem em andamento
-          </h1>
-          <p className="text-sm text-slate-600">
-            Ao retornar, registre o checklist de chegada para concluir a viagem.
-          </p>
-        </header>
-
-        <Card className="space-y-4 p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Protocolo
-              </p>
-              <h2 className="mt-0.5 text-base font-bold text-slate-950">
-                {viagemEmAndamento.protocolo}
-              </h2>
-            </div>
-            <Badge variant={status.variant} dot>
-              {status.label}
-            </Badge>
-          </div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3.5">
-            <div className="flex items-start gap-2.5">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Destino
-                </p>
-                <p className="mt-0.5 break-words text-base font-bold leading-snug text-slate-950">
-                  {viagemEmAndamento.destino || "Destino não informado"}
-                </p>
-                <div className="mt-2 flex items-start gap-1.5 border-t border-blue-100 pt-2 text-xs text-slate-600">
-                  <ArrowDownRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  <p className="break-words">
-                    <span className="font-medium text-slate-500">Saída de: </span>
-                    {viagemEmAndamento.origem || "Origem não informada"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600 sm:grid-cols-2">
-            <span className="inline-flex items-center gap-2">
-              <CarFront className="h-4 w-4 shrink-0 text-slate-400" />
-              {viagemEmAndamento.veiculoAlocado
-                ? `${viagemEmAndamento.veiculoAlocado.placa} · ${viagemEmAndamento.veiculoAlocado.modelo}`
-                : "Veículo não informado"}
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <UsersRound className="h-4 w-4 shrink-0 text-slate-400" />
-              {viagemEmAndamento.quantidadePassageiros}{" "}
-              {viagemEmAndamento.quantidadePassageiros === 1 ? "passageiro" : "passageiros"}
-            </span>
-            {viagemEmAndamento.execucao?.dataHoraInicio && (
-              <span className="inline-flex items-center gap-2">
-                <Clock3 className="h-4 w-4 shrink-0 text-slate-400" />
-                Iniciada {formatarDataHora(viagemEmAndamento.execucao.dataHoraInicio)}
-              </span>
-            )}
-          </div>
-          <Button
-            type="button"
-            className="min-h-11 w-full"
-            leftIcon={<CheckCircle2 className="h-4 w-4" />}
-            onClick={() => setSelecionada(viagemEmAndamento)}
-          >
-            Concluir viagem
-          </Button>
-        </Card>
-
-        {selecionada && (
-          <ChecklistViagemModal
-            modo="RETORNO"
-            viagem={selecionada}
-            odometroAtualVeiculo={selecionada.veiculoAlocado?.odometroAtual}
-            onClose={() => setSelecionada(null)}
-            onConcluido={finalizarChecklist}
-          />
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5 pb-8">
       <header className="space-y-1">
@@ -229,6 +163,76 @@ export const MinhasViagensPage: React.FC = () => {
           Acompanhe seus deslocamentos e registre cada etapa da viagem.
         </p>
       </header>
+
+      {viagemEmAndamento && (
+        <section aria-labelledby="viagem-em-andamento">
+          <h2 id="viagem-em-andamento" className="mb-2 text-base font-semibold text-slate-950">
+            Viagem em andamento
+          </h2>
+          <Card className="space-y-4 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Protocolo
+                </p>
+                <h2 className="mt-0.5 text-base font-bold text-slate-950">
+                  {viagemEmAndamento.protocolo}
+                </h2>
+              </div>
+              <Badge variant={STATUS_VIAGEM[viagemEmAndamento.status].variant} dot>
+                {STATUS_VIAGEM[viagemEmAndamento.status].label}
+              </Badge>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3.5">
+              <div className="flex items-start gap-2.5">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Destino
+                  </p>
+                  <p className="mt-0.5 break-words text-base font-bold leading-snug text-slate-950">
+                    {viagemEmAndamento.destino || "Destino não informado"}
+                  </p>
+                  <div className="mt-2 flex items-start gap-1.5 border-t border-blue-100 pt-2 text-xs text-slate-600">
+                    <ArrowDownRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <p className="break-words">
+                      <span className="font-medium text-slate-500">Saída de: </span>
+                      {viagemEmAndamento.origem || "Origem não informada"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600 sm:grid-cols-2">
+              <span className="inline-flex items-center gap-2">
+                <CarFront className="h-4 w-4 shrink-0 text-slate-400" />
+                {viagemEmAndamento.veiculoAlocado
+                  ? `${viagemEmAndamento.veiculoAlocado.placa} · ${viagemEmAndamento.veiculoAlocado.modelo}`
+                  : "Veículo não informado"}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <UsersRound className="h-4 w-4 shrink-0 text-slate-400" />
+                {viagemEmAndamento.quantidadePassageiros}{" "}
+                {viagemEmAndamento.quantidadePassageiros === 1 ? "passageiro" : "passageiros"}
+              </span>
+              {viagemEmAndamento.execucao?.dataHoraInicio && (
+                <span className="inline-flex items-center gap-2">
+                  <Clock3 className="h-4 w-4 shrink-0 text-slate-400" />
+                  Iniciada {formatarDataHora(viagemEmAndamento.execucao.dataHoraInicio)}
+                </span>
+              )}
+            </div>
+            <Button
+              type="button"
+              className="min-h-11 w-full"
+              leftIcon={<CheckCircle2 className="h-4 w-4" />}
+              onClick={() => setSelecionada(viagemEmAndamento)}
+            >
+              Retomar checklist
+            </Button>
+          </Card>
+        </section>
+      )}
 
       <nav aria-label="Filtrar viagens" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div className="flex w-max gap-2">
@@ -349,41 +353,22 @@ export const MinhasViagensPage: React.FC = () => {
                     type="button"
                     className="min-h-11 w-full"
                     leftIcon={<ArrowRight className="h-4 w-4" />}
-                    onClick={() => setSelecionada(viagem)}
+                    disabled={Boolean(viagemEmAndamento)}
+                    onClick={() => {
+                      if (!viagemEmAndamento) setSelecionada(viagem);
+                    }}
                   >
                     Iniciar viagem
                   </Button>
                 )}
+                {podeIniciar && viagemEmAndamento && (
+                  <p className="text-center text-xs text-slate-500">
+                    Conclua a viagem em andamento antes de iniciar outra.
+                  </p>
+                )}
               </Card>
             );
           })}
-          {totalPaginas > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagina <= 1 || carregando}
-                leftIcon={<ChevronLeft className="h-4 w-4" />}
-                onClick={() => setPagina((atual) => Math.max(1, atual - 1))}
-              >
-                Anterior
-              </Button>
-              <span className="text-xs text-slate-500">
-                Página {pagina} de {totalPaginas}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagina >= totalPaginas || carregando}
-                rightIcon={<ChevronRight className="h-4 w-4" />}
-                onClick={() => setPagina((atual) => Math.min(totalPaginas, atual + 1))}
-              >
-                Próxima
-              </Button>
-            </div>
-          )}
         </section>
       ) : (
         <Card className="px-5 py-10 text-center">
@@ -391,25 +376,60 @@ export const MinhasViagensPage: React.FC = () => {
             <MapPin className="h-5 w-5" />
           </div>
           <h2 className="mt-3 text-sm font-semibold text-slate-900">
-            {filtro === "CONCLUIDAS" ? "Nenhuma viagem concluída" : "Nenhuma viagem disponível"}
+            {pagina > 1
+              ? "Nenhuma viagem nesta página"
+              : filtro === "CONCLUIDAS"
+                ? "Nenhuma viagem concluída"
+                : "Nenhuma viagem disponível"}
           </h2>
           <p className="mt-1 text-xs text-slate-500">
-            {filtro === "CONCLUIDAS"
+            {pagina > 1
+              ? "Pode ter havido uma atualização. Volte à página anterior para continuar consultando."
+              : filtro === "CONCLUIDAS"
               ? "As viagens concluídas aparecerão aqui."
               : "Não há viagens atribuídas a você no momento."}
           </p>
         </Card>
       )}
 
-      {selecionada && selecionada.status === "APROVADA" && (
-        <ChecklistViagemModal
-          modo="SAIDA"
-          viagem={selecionada}
-          odometroAtualVeiculo={selecionada.veiculoAlocado?.odometroAtual}
-          onClose={() => setSelecionada(null)}
-          onConcluido={finalizarChecklist}
-        />
+      {(totalPaginas > 1 || pagina > 1) && (
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pagina <= 1}
+            leftIcon={<ChevronLeft className="h-4 w-4" />}
+            onClick={() => setPagina((atual) => Math.max(1, atual - 1))}
+          >
+            Anterior
+          </Button>
+          <span className="text-xs text-slate-500">
+            Página {pagina} de {totalPaginas}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pagina >= totalPaginas || carregando}
+            rightIcon={<ChevronRight className="h-4 w-4" />}
+            onClick={() => setPagina((atual) => Math.min(totalPaginas, atual + 1))}
+          >
+            Próxima
+          </Button>
+        </div>
       )}
+
+      {selecionada &&
+        (selecionada.status === "APROVADA" || selecionada.status === "EM_TRANSITO") && (
+          <ChecklistViagemModal
+            modo={selecionada.status === "EM_TRANSITO" ? "RETORNO" : "SAIDA"}
+            viagem={selecionada}
+            odometroAtualVeiculo={selecionada.veiculoAlocado?.odometroAtual}
+            onClose={() => setSelecionada(null)}
+            onConcluido={finalizarChecklist}
+          />
+        )}
     </div>
   );
 };
