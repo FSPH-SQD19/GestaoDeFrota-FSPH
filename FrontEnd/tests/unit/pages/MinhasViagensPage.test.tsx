@@ -116,7 +116,9 @@ describe("MinhasViagensPage", () => {
     expect(await screen.findByText("SV-2026-0042")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Próxima" }));
 
-    expect(await screen.findByRole("heading", { name: "Nenhuma viagem nesta página" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", { name: "Nenhuma viagem nesta página" }),
+    ).toBeVisible();
     expect(screen.getByText("Página 2 de 2")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Anterior" }));
 

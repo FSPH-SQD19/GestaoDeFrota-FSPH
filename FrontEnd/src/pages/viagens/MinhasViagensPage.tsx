@@ -95,9 +95,7 @@ export const MinhasViagensPage: React.FC = () => {
     typeof totalPaginasInformadas === "number" &&
     Number.isInteger(totalPaginasInformadas) &&
     totalPaginasInformadas > 0;
-  const totalPaginas = totalPaginasInformadasValidas
-    ? totalPaginasInformadas
-    : Math.max(1, pagina);
+  const totalPaginas = totalPaginasInformadasValidas ? totalPaginasInformadas : Math.max(1, pagina);
 
   useEffect(() => {
     let ativa = true;
@@ -386,8 +384,8 @@ export const MinhasViagensPage: React.FC = () => {
             {pagina > 1
               ? "Pode ter havido uma atualização. Volte à página anterior para continuar consultando."
               : filtro === "CONCLUIDAS"
-              ? "As viagens concluídas aparecerão aqui."
-              : "Não há viagens atribuídas a você no momento."}
+                ? "As viagens concluídas aparecerão aqui."
+                : "Não há viagens atribuídas a você no momento."}
           </p>
         </Card>
       )}
