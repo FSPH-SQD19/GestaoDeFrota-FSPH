@@ -4,17 +4,20 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 
 ## Guias
 
-| Documento                                 | Conteúdo                                                            |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| [Início](INICIO.md)                       | Comandos npm e divisão das pastas.                                  |
-| [Projeto](PROJETO.md)                     | Contexto, escopo, regras de negócio, tecnologias, equipe e licença. |
-| [Ambiente](AMBIENTE.md)                   | Node.js, variáveis de ambiente, banco, migrations e Docker.         |
-| [Front-end](FRONTEND.md)                  | Organização das telas, componentes, perfis e padrões de interface.  |
-| [Back-end](BACKEND.md)                    | Organização da API, autenticação, endpoints e regras de veículos.   |
-| [Testes](TESTES.md)                       | Como criar e executar testes, lint e cobertura.                     |
-| [CI](CI.md)                               | Verificações nos PRs e comentário automático do bot.                |
-| [GitHub](GITHUB.md)                       | Fluxo da equipe: branch, commit, PR e merge na `master`.            |
-| [Identidade visual](IDENTIDADE_VISUAL.md) | Marca ROTA, cores, tipografia, arquivos e aplicações.               |
+| Documento                                                 | Conteúdo                                                                          |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Início](INICIO.md)                                       | Comandos npm e divisão das pastas.                                                |
+| [Projeto](PROJETO.md)                                     | Contexto, escopo, regras de negócio, tecnologias, equipe e licença.               |
+| [Ambiente](AMBIENTE.md)                                   | Node.js, variáveis de ambiente, banco, migrations e Docker.                       |
+| [Front-end](FRONTEND.md)                                  | Organização das telas, componentes, perfis e padrões de interface.                |
+| [Back-end](BACKEND.md)                                    | Organização da API, autenticação, endpoints e regras de veículos.                 |
+| [Testes](TESTES.md)                                       | Como criar e executar testes, lint e cobertura.                                   |
+| [CI](CI.md)                                               | Verificações nos PRs e comentário automático do bot.                              |
+| [GitHub](GITHUB.md)                                       | Fluxo da equipe: branch, commit, PR e merge na `master`.                          |
+| [Identidade visual](IDENTIDADE_VISUAL.md)                 | Marca ROTA, cores, tipografia, arquivos e aplicações.                             |
+| [Engenharia de Prompt e IA](IA_E_ENGENHARIA_DE_PROMPT.md) | Governança de IA, limites, viabilidade econômica e arquitetura híbrida (Takeoff). |
+| [Prompts que Falharam](PROMPTS_QUE_FALHARAM.md)           | Relatório de 1 página com análise de falhas, causas raiz e correções de prompts.  |
+| [Acervo de Prompts](../prompts/README.md)                 | Repositório versionado e rastreabilidade dos prompts utilizados pela equipe.      |
 
 ## Por onde começar
 

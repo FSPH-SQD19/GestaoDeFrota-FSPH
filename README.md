@@ -24,3 +24,9 @@ Consulte [início](docs/INICIO.md) para os comandos e [ambiente](docs/AMBIENTE.m
 O ROTA reúne a gestão da frota administrativa e das operações do SVO, com interface web, API e banco de dados.
 
 O contexto, o escopo, as regras de negócio, a equipe e a licença estão na [visão geral do projeto](docs/PROJETO.md).
+
+Para a avaliação da banca Takeoff sobre governança de IA e engenharia de prompt:
+
+- [Governança de IA e Engenharia de Prompt](docs/IA_E_ENGENHARIA_DE_PROMPT.md)
+- [Relatório de Prompts que Falharam (1 página)](docs/PROMPTS_QUE_FALHARAM.md)
+- [Acervo e Rastreabilidade de Prompts](prompts/README.md)
