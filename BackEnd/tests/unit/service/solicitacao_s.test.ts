@@ -26,7 +26,7 @@ vi.mock("../../../src/lib/prisma", () => ({
   },
 }));
 
-import { HttpError } from "../../../src/middleware/http_m";
+import { HttpError } from "../../../src/lib/http_error";
 import { prisma } from "../../../src/lib/prisma";
 import {
   anoDoProtocolo,

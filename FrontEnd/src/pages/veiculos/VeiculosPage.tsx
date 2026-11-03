@@ -201,7 +201,7 @@ export const VeiculosPage: React.FC = () => {
     try {
       const response = await apiRequest<VeiculoApi>("/veiculos", {
         method: "POST",
-        body: JSON.stringify(validacao.data),
+        data: validacao.data,
       });
       setFormulario(formularioVazio);
       setIsModalOpen(false);

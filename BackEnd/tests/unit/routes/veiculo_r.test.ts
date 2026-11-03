@@ -1,8 +1,9 @@
 import { signTestToken } from "../../helpers/auth";
 vi.mock("../../../src/service/session_s", async () => {
   const { resolveTestSession } = await import("../../helpers/auth");
-  return { resolveSession: resolveTestSession };
+  return { resolveSession: vi.fn(resolveTestSession) };
 });
+import { resolveSession } from "../../../src/service/session_s";
 import { getAuthConfig } from "../../../src/config/auth";
 vi.mock("../../../src/config/auth", () => ({ getAuthConfig: vi.fn() }));
 import type { AddressInfo } from "node:net";
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   findUnique: vi.fn(),
   create: vi.fn(),
+  update: vi.fn(),
   fornecedorFindUnique: vi.fn(),
   auditoriaCreate: vi.fn(),
 }));
@@ -26,6 +28,7 @@ vi.mock("../../../src/lib/prisma", () => ({
       count: mocks.count,
       findUnique: mocks.findUnique,
       create: mocks.create,
+      update: mocks.update,
     },
     fornecedor: { findUnique: mocks.fornecedorFindUnique },
     auditoriaSistema: { create: mocks.auditoriaCreate },
@@ -106,8 +109,38 @@ beforeEach(() => {
   mocks.count.mockResolvedValue(1);
   mocks.findUnique.mockResolvedValue(null);
   mocks.create.mockResolvedValue(registro);
+  mocks.update.mockResolvedValue({ ...registro, modelo: "Modelo atualizado" });
   mocks.auditoriaCreate.mockResolvedValue({});
   mocks.fornecedorFindUnique.mockResolvedValue({ ativo: true });
+});
+
+describe("PATCH /api/v1/veiculos/:id", () => {
+  it("atualiza o veículo e resolve a sessão apenas uma vez", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+    const resposta = await fetch(`${baseUrl}/api/v1/veiculos/${veiculoId}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${token(["GESTOR"])}`, "content-type": "application/json" },
+      body: JSON.stringify({ modelo: "Modelo atualizado" }),
+    });
+    expect(resposta.status).toBe(200);
+    expect(await resposta.json()).toMatchObject({ modelo: "Modelo atualizado" });
+    expect(resolveSession).toHaveBeenCalledTimes(1);
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { id: veiculoId },
+      data: { modelo: "Modelo atualizado" },
+    });
+  });
+
+  it("rejeita valores acima dos limites antes de consultar o veículo", async () => {
+    const resposta = await fetch(`${baseUrl}/api/v1/veiculos/${veiculoId}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${token(["GESTOR"])}`, "content-type": "application/json" },
+      body: JSON.stringify({ ano: 9999, capacidadeMaxima: 500 }),
+    });
+    expect(resposta.status).toBe(400);
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /api/v1/veiculos", () => {
@@ -117,7 +150,7 @@ describe("GET /api/v1/veiculos", () => {
     expect(resposta.status).toBe(401);
     expect(resposta.json).toEqual({
       statusCode: 401,
-      message: "Autenticação necessária.",
+      message: "Entre no sistema para continuar.",
       errors: [],
     });
   });
@@ -155,7 +188,10 @@ describe("GET /api/v1/veiculos", () => {
     });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json).toMatchObject({ statusCode: 400, message: "Dados inválidos." });
+    expect(resposta.json).toMatchObject({
+      statusCode: 400,
+      message: "Revise os campos indicados e tente novamente.",
+    });
     expect((resposta.json.errors ?? []).map((erro) => erro.campo).sort()).toEqual([
       "pageSize",
       "tipoFrota",
@@ -223,7 +259,27 @@ describe("POST /api/v1/veiculos", () => {
     const resposta = await chamar("/api/v1/veiculos", { perfis: ["GESTOR"], body: "{invalido" });
 
     expect(resposta.status).toBe(400);
-    expect(resposta.json).toEqual({ statusCode: 400, message: "JSON inválido.", errors: [] });
+    expect(resposta.json).toEqual({
+      statusCode: 400,
+      message: "Não foi possível ler os dados enviados. Revise os dados e tente novamente.",
+      errors: [],
+    });
+  });
+
+  it("retorna 413 para um corpo acima do limite sem consultar o banco", async () => {
+    const resposta = await chamar("/api/v1/veiculos", {
+      perfis: ["GESTOR"],
+      body: { modelo: "a".repeat(512 * 1024) },
+    });
+
+    expect(resposta.status).toBe(413);
+    expect(resposta.json).toEqual({
+      statusCode: 413,
+      message:
+        "Os dados enviados são muito grandes. Reduza o tamanho dos arquivos e tente novamente.",
+      errors: [],
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("retorna 409 para placa duplicada", async () => {
@@ -244,7 +300,7 @@ describe("POST /api/v1/veiculos", () => {
     expect(resposta.status).toBe(500);
     expect(resposta.json).toEqual({
       statusCode: 500,
-      message: "Erro interno do servidor.",
+      message: "O sistema não conseguiu concluir a operação. Tente novamente em alguns instantes.",
       errors: [],
     });
   });

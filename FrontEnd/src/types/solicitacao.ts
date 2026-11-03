@@ -8,6 +8,55 @@ export type UrgenciaSolicitacao = "NORMAL" | "URGENTE";
 
 export type TipoTransporte = "PASSAGEIROS" | "MATERIAL_BIOLOGICO" | "DOCUMENTOS_INSUMOS" | "MISTO";
 
+export type ModoChecklistViagem = "SAIDA" | "RETORNO";
+
+export interface ChecklistSaidaPayload {
+  pneus: boolean;
+  documentos: boolean;
+  combustivel: boolean;
+  freiosLuzes: boolean;
+  limpeza: boolean;
+  fotoOdometro: string;
+  observacoes?: string;
+  fotoAvaria?: string;
+}
+
+export interface ChecklistRetornoPayload {
+  pneusLataria: boolean;
+  estacionadoLocalCorreto: boolean;
+  documentosChaveDevolvidos: boolean;
+  limpezaInterna: boolean;
+  fotoOdometro: string;
+  semOcorrencias: boolean;
+  ocorrencias?: string;
+  fotoAvaria?: string;
+}
+
+export interface ExecucaoViagemResumo {
+  id?: string;
+  dataHoraInicio?: string | null;
+  dataHoraFim?: string | null;
+  kmInicial?: number | string | null;
+  kmFinal?: number | string | null;
+  checklistSaida?: Record<string, unknown> | null;
+  checklistRetorno?: Record<string, unknown> | null;
+}
+
+export interface IniciarViagemInput {
+  kmInicial: number;
+  checklistSaida: ChecklistSaidaPayload;
+}
+
+export interface ConcluirViagemInput {
+  kmFinal: number;
+  checklistRetorno: ChecklistRetornoPayload;
+}
+
+export interface ExecucaoViagemResposta extends ExecucaoViagemResumo {
+  solicitacaoId?: string;
+  status: StatusSolicitacao;
+}
+
 export interface SolicitacaoViagem {
   id: string;
   protocolo: string;
@@ -28,8 +77,9 @@ export interface SolicitacaoViagem {
   /** ISO 8601 */
   criadoEm: string;
   motivoRecusa?: string;
-  veiculoAlocado?: { placa: string; modelo: string } | null;
+  veiculoAlocado?: { placa: string; modelo: string; odometroAtual?: number | string | null } | null;
   motoristaAlocado?: { nome: string | null } | null;
+  execucao?: ExecucaoViagemResumo | null;
 }
 
 export interface NovaSolicitacaoViagem {
@@ -93,6 +143,10 @@ export interface ListaSolicitacoesResposta {
     porStatus: ContagemPorStatus;
   };
 }
+export interface ListaMinhasViagensResposta extends ListaSolicitacoesResposta {
+  viagemEmAndamento: SolicitacaoViagem | null;
+}
+
 export interface ListarSolicitacoesParams {
   page?: number;
   pageSize?: number;

@@ -3,12 +3,8 @@ import jwt from "jsonwebtoken";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getAuthConfig } from "../../../src/config/auth";
 import { resolveSession } from "../../../src/service/session_s";
-import {
-  authenticate,
-  HttpError,
-  requireRole,
-  usuarioAutenticado,
-} from "../../../src/middleware/http_m";
+import { authenticate, requireRole, usuarioAutenticado } from "../../../src/middleware/http_m";
+import { HttpError } from "../../../src/lib/http_error";
 import { AuthToken } from "../../../src/middleware/auth_m";
 import { autorizarPerfis } from "../../../src/middleware/RBAC_m";
 vi.mock("../../../src/config/auth", () => ({ getAuthConfig: vi.fn() }));
@@ -90,15 +86,13 @@ describe("autenticação estrita", () => {
   it("falha sem autorizar quando o banco está indisponível", async () => {
     const error = new Error("Banco indisponível");
     vi.mocked(resolveSession).mockRejectedValue(error);
-    expect((await autenticar(`Bearer ${token()}`)).next).toHaveBeenCalledWith(error);
+    await expect(autenticar(`Bearer ${token()}`)).rejects.toBe(error);
   });
   it("encaminha falha da chave", async () => {
     vi.mocked(getAuthConfig).mockImplementation(() => {
       throw new Error("Chave indisponível");
     });
-    expect((await autenticar(`Bearer ${token()}`)).next.mock.calls[0][0]).toMatchObject({
-      statusCode: 500,
-    });
+    await expect(autenticar(`Bearer ${token()}`)).rejects.toThrow("Chave indisponível");
   });
 });
 describe("autorização por perfis", () => {

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/auth/sessao", (route) =>
-    route.fulfill({ status: 401, json: { message: "Autenticação necessária." } }),
+    route.fulfill({ status: 401, json: { message: "Entre no sistema para continuar." } }),
   );
   await page.route("**/api/v1/auth/csrf", (route) =>
     route.fulfill({ json: { csrfToken: "a".repeat(64) } }),
@@ -42,9 +42,46 @@ test("valida a senha antes de enviar as credenciais", async ({ page }) => {
   expect(loginRequests).toEqual([]);
 });
 
+test("orienta o usuário quando não consegue conectar ao sistema", async ({ page }) => {
+  await page.route("**/api/v1/auth/login", (route) => route.abort("failed"));
+  await page.getByLabel("E-mail", { exact: true }).fill("teste@fsph.se.gov.br");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-valida");
+  await page.getByRole("button", { name: "Acessar", exact: true }).click();
+  await expect(
+    page.getByText(
+      "Não foi possível conectar ao sistema. Verifique sua conexão e tente novamente.",
+    ),
+  ).toBeVisible();
+});
+
+test("apresenta a mensagem padronizada do limite de tentativas", async ({ page }) => {
+  await page.route("**/api/v1/auth/login", (route) =>
+    route.fulfill({
+      status: 429,
+      headers: { "Retry-After": "900" },
+      json: {
+        statusCode: 429,
+        message: "Muitas tentativas. Tente novamente em 15 minutos.",
+        errors: [],
+      },
+    }),
+  );
+  await page.getByLabel("E-mail", { exact: true }).fill("teste@fsph.se.gov.br");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-valida");
+  await page.getByRole("button", { name: "Acessar", exact: true }).click();
+  await expect(page.getByText("Muitas tentativas. Tente novamente em 15 minutos.")).toBeVisible();
+});
+
 test("envia as credenciais e apresenta a rejeição da API", async ({ page }) => {
   await page.route("**/api/v1/auth/login", (route) =>
-    route.fulfill({ status: 401, json: { error: "Credenciais inválidas" } }),
+    route.fulfill({
+      status: 401,
+      json: {
+        statusCode: 401,
+        message: "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+        errors: [],
+      },
+    }),
   );
   await page.getByLabel("E-mail", { exact: true }).fill("teste@fsph.se.gov.br");
   await page.getByLabel("Senha", { exact: true }).fill("senha-incorreta");
@@ -57,7 +94,11 @@ test("envia as credenciais e apresenta a rejeição da API", async ({ page }) =>
     email: "teste@fsph.se.gov.br",
     senha: "senha-incorreta",
   });
-  await expect(page.getByText("Credenciais inválidas", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("E-mail ou senha incorretos. Confira os dados e tente novamente.", {
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Acessar o sistema" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Acessar", exact: true })).toBeEnabled();
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Activity, Car, ClipboardList, Clock3, RefreshCw } from "lucide-react";
 import { Badge, Button, Card } from "../../components/common";
 import { useAuth } from "../../contexts/auth";
@@ -12,9 +12,9 @@ import {
 
 type StatusVeiculo = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
 
-interface VeiculoResumo {
-  id: string;
-  status: StatusVeiculo;
+interface VeiculosResumo {
+  total: number;
+  porStatus: Record<StatusVeiculo, number>;
 }
 
 interface SolicitacoesResponse {
@@ -26,8 +26,7 @@ interface SolicitacoesResponse {
 }
 
 interface DashboardData {
-  veiculos: VeiculoResumo[];
-  totalVeiculos: number;
+  veiculos: VeiculosResumo;
   solicitacoes: SolicitacoesResponse;
 }
 
@@ -46,9 +45,12 @@ function formatarDataHora(valor?: string | null) {
 export const DashboardPage: React.FC = () => {
   const { user, sessionKey } = useAuth();
   const [today] = useState(() => new Date());
-  const [dados, setDados] = useState<DashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [resultado, setResultado] = useState<{
+    sessionKey: typeof sessionKey;
+    revisao: number;
+    dados: DashboardData | null;
+    erro: string;
+  } | null>(null);
 
   const todayFormatted = useMemo(
     () =>
@@ -61,83 +63,48 @@ export const DashboardPage: React.FC = () => {
     [today],
   );
 
-  const carregarDados = useCallback(async () => {
-    try {
-      const [veiculos, solicitacoes] = await Promise.all([
-        apiRequest<{ data: VeiculoResumo[]; meta: { total: number } }>(
-          "/veiculos?page=1&pageSize=100",
-          {},
-        ),
-        apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", {}),
-      ]);
-      setErrorMessage("");
-      setDados({
-        veiculos: veiculos.data,
-        totalVeiculos: veiculos.meta.total,
-        solicitacoes,
-      });
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Não foi possível carregar os indicadores.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const atualizarDados = () => {
-    setIsLoading(true);
-    setErrorMessage("");
-    void carregarDados();
-  };
+  const [revisao, setRevisao] = useState(0);
+  const atualizarDados = () => setRevisao((valor) => valor + 1);
+  const resultadoAtual =
+    resultado?.sessionKey === sessionKey && resultado.revisao === revisao ? resultado : null;
+  const dados = resultadoAtual?.dados ?? null;
+  const isLoading = resultadoAtual === null;
+  const errorMessage = resultadoAtual?.erro ?? "";
 
   useEffect(() => {
     let mounted = true;
 
-    void Promise.all([
-      apiRequest<{ data: VeiculoResumo[]; meta: { total: number } }>(
-        "/veiculos?page=1&pageSize=100",
-        {},
-      ),
-      apiRequest<SolicitacoesResponse>("/solicitacoes?page=1&pageSize=100", {}),
-    ])
-      .then(([veiculos, solicitacoes]) => {
-        if (!mounted) return;
-        setErrorMessage("");
-        setDados({
-          veiculos: veiculos.data,
-          totalVeiculos: veiculos.meta.total,
-          solicitacoes,
-        });
+    void apiRequest<DashboardData>("/dashboard/resumo")
+      .then((resposta) => {
+        if (mounted) setResultado({ sessionKey, revisao, dados: resposta, erro: "" });
       })
       .catch((error: unknown) => {
         if (!mounted) return;
-        setErrorMessage(
-          error instanceof Error ? error.message : "Não foi possível carregar os indicadores.",
-        );
-      })
-      .finally(() => {
-        if (mounted) setIsLoading(false);
+        setResultado({
+          sessionKey,
+          revisao,
+          dados: null,
+          erro:
+            error instanceof Error ? error.message : "Não foi possível carregar os indicadores.",
+        });
       });
 
     return () => {
       mounted = false;
     };
-  }, [sessionKey]);
+  }, [sessionKey, revisao]);
 
   const porStatus = dados?.solicitacoes.meta.porStatus;
-  const disponiveis =
-    dados?.veiculos.filter((veiculo) => veiculo.status === "DISPONIVEL").length ?? 0;
-  const emViagem = dados?.veiculos.filter((veiculo) => veiculo.status === "EM_VIAGEM").length ?? 0;
-  const manutencao =
-    dados?.veiculos.filter((veiculo) => veiculo.status === "MANUTENCAO").length ?? 0;
+  const disponiveis = dados?.veiculos.porStatus.DISPONIVEL ?? 0;
+  const emViagem = dados?.veiculos.porStatus.EM_VIAGEM ?? 0;
+  const manutencao = dados?.veiculos.porStatus.MANUTENCAO ?? 0;
   const aguardando = porStatus?.PENDENTE ?? 0;
   const recentes = dados?.solicitacoes.data.slice(0, 6) ?? [];
 
   const indicadores = [
     {
       label: "Veículos cadastrados",
-      value: dados?.totalVeiculos ?? 0,
+      value: dados?.veiculos.total ?? 0,
       description: `${disponiveis} disponíveis`,
       icon: Car,
       tone: "emerald",

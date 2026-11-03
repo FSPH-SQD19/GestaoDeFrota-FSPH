@@ -1,9 +1,11 @@
 import { hashPassword } from "./password_s";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { HttpError } from "../lib/http_error";
 import { prisma } from "../lib/prisma";
 import { validarDataValidadeCnh } from "./validarCNH_s";
 import { registrarAuditoria } from "./auditoria_s";
+import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
 interface MotoristaInput {
   nome: string;
@@ -103,22 +105,22 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
   const nome = dados.nome.trim();
   const email = dados.email.trim().toLowerCase();
   if (!nome || nome.length > 150) {
-    throw new Error("Nome inválido.");
+    throw new HttpError(400, "Nome inválido.");
   }
   if (!z.email().safeParse(email).success || email.length > 150) {
-    throw new Error("E-mail inválido.");
+    throw new HttpError(400, "E-mail inválido.");
   }
   if (Array.from(dados.senha).length < 6) {
-    throw new Error("A senha deve possuir pelo menos 6 caracteres.");
+    throw new HttpError(400, "A senha deve possuir pelo menos 6 caracteres.");
   }
 
   if (Buffer.byteLength(dados.senha, "utf8") > 72) {
-    throw new Error("A senha deve ter no máximo 72 bytes.");
+    throw new HttpError(400, "A senha é muito longa. Use uma senha mais curta.");
   }
 
   const telefone = dados.telefone.replace(/\D/g, "");
   if (!/^\d{10,11}$/.test(telefone)) {
-    throw new Error("Telefone deve conter DDD e 8 ou 9 dígitos.");
+    throw new HttpError(400, "Telefone deve conter DDD e 8 ou 9 dígitos.");
   }
   const telefoneFormatado =
     telefone.length === 11
@@ -130,15 +132,15 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
   const categoriaCnh = dados.categoriaCnh.trim().toUpperCase();
 
   if (!validarCpf(cpf)) {
-    throw new Error("CPF inválido.");
+    throw new HttpError(400, "CPF inválido.");
   }
 
   if (!/^\d{11}$/.test(numeroCnh)) {
-    throw new Error("Número da CNH deve conter 11 dígitos.");
+    throw new HttpError(400, "Número da CNH deve conter 11 dígitos.");
   }
 
   if (!(CATEGORIAS_CNH as readonly string[]).includes(categoriaCnh)) {
-    throw new Error("Categoria da CNH inválida.");
+    throw new HttpError(400, "Categoria da CNH inválida.");
   }
 
   const validadeCnh = validarDataValidadeCnh(dados.validadeCnh);
@@ -151,7 +153,7 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
   });
 
   if (existente) {
-    throw new Error("CPF ou CNH já cadastrado.");
+    throw new HttpError(409, "CPF ou CNH já cadastrado.");
   }
 
   const senhaHash = await hashPassword(dados.senha);
@@ -197,11 +199,12 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
         },
       });
     });
+    invalidarCacheSincronizacaoNotificacoes();
     await registrarAuditoriaMotorista(usuarioResponsavelId, "CRIAR", motorista.id, motorista);
     return motorista;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new Error("E-mail, CPF ou CNH já cadastrado.");
+      throw new HttpError(409, "E-mail, CPF ou CNH já cadastrado.");
     }
 
     throw error;
@@ -214,11 +217,14 @@ export async function atualizarMotorista(
   usuarioResponsavelId: string,
 ) {
   if (!z.uuid().safeParse(id).success) {
-    throw new Error("ID do motorista inválido.");
+    throw new HttpError(400, "Não foi possível identificar o motorista. Selecione-o novamente.");
   }
 
   if (dados.validadeCnh === undefined && dados.ativo === undefined) {
-    throw new Error("Informe a validade da CNH ou o status ativo.");
+    throw new HttpError(
+      400,
+      "Informe a validade da CNH ou escolha se o motorista está ativo ou inativo.",
+    );
   }
 
   const dadosAtualizados: { validadeCnh?: Date; ativo?: boolean } = {};
@@ -246,12 +252,13 @@ export async function atualizarMotorista(
       },
     });
 
+    invalidarCacheSincronizacaoNotificacoes();
     await registrarAuditoriaMotorista(usuarioResponsavelId, "ATUALIZAR", motorista.id, motorista);
 
     return motorista;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      throw new Error("Motorista não encontrado.");
+      throw new HttpError(404, "Motorista não encontrado.");
     }
 
     throw error;
@@ -261,7 +268,7 @@ export async function atualizarMotorista(
 //Função "excluir" motorista apenas o inativa
 export async function excluirMotorista(id: string, usuarioResponsavelId: string) {
   if (!z.uuid().safeParse(id).success) {
-    throw new Error("ID do motorista inválido.");
+    throw new HttpError(400, "Não foi possível identificar o motorista. Selecione-o novamente.");
   }
 
   try {
@@ -281,6 +288,7 @@ export async function excluirMotorista(id: string, usuarioResponsavelId: string)
       },
     });
 
+    invalidarCacheSincronizacaoNotificacoes();
     await registrarAuditoriaMotorista(usuarioResponsavelId, "ATUALIZAR", motorista.id, {
       operacao: "INATIVAR",
       motorista,
@@ -292,7 +300,7 @@ export async function excluirMotorista(id: string, usuarioResponsavelId: string)
     };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      throw new Error("Motorista não encontrado.");
+      throw new HttpError(404, "Motorista não encontrado.");
     }
 
     throw error;

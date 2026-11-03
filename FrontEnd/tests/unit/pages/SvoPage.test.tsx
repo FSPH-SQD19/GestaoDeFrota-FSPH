@@ -6,6 +6,7 @@ import { setTestRoles } from "../../helpers/authState";
 import { SvoPage } from "../../../src/pages/svo/SvoPage";
 import type {
   ChamadoSvo,
+  EscalaSvo,
   IndicadoresSvo,
   MotoristaSvo,
   PaginaChamadosSvo,
@@ -22,6 +23,7 @@ const svosMocks = vi.hoisted(() => ({
   concluirDesinfeccaoSvo: vi.fn(),
   obterViaturasSvo: vi.fn(),
   obterMotoristasSvo: vi.fn(),
+  obterEscalasEmAndamentoSvo: vi.fn(),
 }));
 
 vi.mock("../../../src/services/svo", async (importOriginal) => {
@@ -37,6 +39,7 @@ vi.mock("../../../src/services/svo", async (importOriginal) => {
     concluirDesinfeccaoSvo: svosMocks.concluirDesinfeccaoSvo,
     obterViaturasSvo: svosMocks.obterViaturasSvo,
     obterMotoristasSvo: svosMocks.obterMotoristasSvo,
+    obterEscalasEmAndamentoSvo: svosMocks.obterEscalasEmAndamentoSvo,
   };
 });
 
@@ -95,6 +98,25 @@ const MOTORISTAS_BASE: MotoristaSvo[] = [
     numeroCnh: "12345678901",
     categoriaCnh: "B",
     usuario: { nome: "Roberto Lima" },
+  },
+];
+
+const ESCALAS_BASE: EscalaSvo[] = [
+  {
+    id: "escala-01",
+    motorista: { id: "mot-01", nome: "Roberto Lima", telefone: null, ativo: true },
+    veiculo: {
+      id: "viat-01",
+      placa: "QMA4J28",
+      modelo: "Chevrolet S10 SVO 01",
+      status: "DISPONIVEL",
+      ativo: true,
+    },
+    inicioTurno: "2026-11-03T07:00:00-03:00",
+    fimTurno: "2026-11-03T19:00:00-03:00",
+    observacoes: null,
+    encerradaEm: null,
+    situacao: "EM_ANDAMENTO",
   },
 ];
 
@@ -180,6 +202,7 @@ describe("SvoPage (integrada à API real)", () => {
 
     svosMocks.obterViaturasSvo.mockImplementation(async () => structuredClone(dbViaturas));
     svosMocks.obterMotoristasSvo.mockImplementation(async () => structuredClone(MOTORISTAS_BASE));
+    svosMocks.obterEscalasEmAndamentoSvo.mockResolvedValue([]);
 
     svosMocks.criarChamadoSvo.mockImplementation(async (input) => {
       const novo: ChamadoSvo = {
@@ -295,6 +318,45 @@ describe("SvoPage (integrada à API real)", () => {
     expect(svosMocks.criarOrdemColetaSvo).not.toHaveBeenCalled();
   });
 
+  it("não oferece nem pré-seleciona motorista sem status de disponibilidade", async () => {
+    const motoristaSemStatus = { ...MOTORISTAS_BASE[0]! };
+    delete motoristaSemStatus.status;
+    svosMocks.obterMotoristasSvo.mockResolvedValueOnce([motoristaSemStatus]);
+    const user = userEvent.setup();
+    renderSvoPage();
+
+    await screen.findByText("SVO-2026-0002");
+    await user.click(screen.getByRole("button", { name: "Emitir ordem" }));
+
+    expect(await screen.findByLabelText(/Motorista habilitado/)).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Emitir ordem de coleta" })).toBeDisabled();
+    expect(svosMocks.criarOrdemColetaSvo).not.toHaveBeenCalled();
+  });
+
+  it("permite o motorista ocupado quando ele já está alocado à viatura em viagem", async () => {
+    const viaturaEmViagem: ViaturaSvo = {
+      ...VIATURAS_BASE[0]!,
+      status: "EM_VIAGEM",
+      ocupacaoAtual: 1,
+      motoristaAtual: { id: MOTORISTAS_BASE[0]!.id, nome: "Roberto Lima" },
+    };
+    svosMocks.obterViaturasSvo.mockResolvedValueOnce([viaturaEmViagem]);
+    svosMocks.obterMotoristasSvo.mockResolvedValueOnce([
+      { ...MOTORISTAS_BASE[0]!, status: "OCUPADO" },
+    ]);
+    const user = userEvent.setup();
+    renderSvoPage();
+
+    await screen.findByText("SVO-2026-0002");
+    await user.click(screen.getByRole("button", { name: "Emitir ordem" }));
+
+    expect(await screen.findByLabelText(/Viatura SVO/)).toHaveValue(viaturaEmViagem.id);
+    expect(await screen.findByLabelText(/Motorista habilitado/)).toHaveValue(
+      MOTORISTAS_BASE[0]!.id,
+    );
+    expect(screen.getByRole("button", { name: "Emitir ordem de coleta" })).toBeEnabled();
+  });
+
   it("carrega chamados, indicadores e viaturas reais da API e filtra por busca no servidor", async () => {
     const user = userEvent.setup();
     renderSvoPage();
@@ -307,6 +369,33 @@ describe("SvoPage (integrada à API real)", () => {
 
     expect(await screen.findByText("SVO-2026-0002")).toBeInTheDocument();
     expect(screen.queryByText("SVO-2026-0001")).not.toBeInTheDocument();
+  });
+
+  it("destaca as escalas ativas e pré-seleciona a dupla do plantão ao emitir uma ordem", async () => {
+    svosMocks.obterEscalasEmAndamentoSvo.mockResolvedValue(ESCALAS_BASE);
+    const user = userEvent.setup();
+    renderSvoPage();
+
+    expect(await screen.findByText("Plantão atual")).toBeInTheDocument();
+    expect(await screen.findByText("Pronto para despacho")).toBeInTheDocument();
+    expect(screen.getByText("Roberto Lima")).toBeInTheDocument();
+    expect(screen.getByText("Turno 07:00 – 19:00")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Emitir ordem" }));
+
+    expect(await screen.findByLabelText(/Viatura SVO/)).toHaveValue("viat-01");
+    expect(await screen.findByLabelText(/Motorista habilitado/)).toHaveValue("mot-01");
+  });
+
+  it("apresenta falha ao consultar escala sem bloquear a fila SVO", async () => {
+    svosMocks.obterEscalasEmAndamentoSvo.mockRejectedValueOnce(
+      new Error("Escalas temporariamente indisponíveis"),
+    );
+    renderSvoPage();
+
+    expect(await screen.findByText("Plantão atual")).toBeInTheDocument();
+    expect(await screen.findByText("Escalas temporariamente indisponíveis")).toBeInTheDocument();
+    expect(await screen.findByText("SVO-2026-0001")).toBeInTheDocument();
   });
 
   it("registra um novo chamado na API e atualiza a paginação quando passa de 10 itens", async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Modal, Select, Textarea } from "../../components/common";
 import { apiRequest } from "../../lib/api";
+import { dispararAtualizacaoNotificacoes } from "../../services/notificacoesService";
 import type { SolicitacaoViagem } from "../../types/solicitacao";
 
 type Veiculo = {
@@ -137,11 +138,10 @@ export function AnalisarSolicitacaoModal({
         `/solicitacoes/${encodeURIComponent(solicitacao.id)}/${modo === "APROVAR" ? "aprovar" : "recusar"}`,
         {
           method: "PATCH",
-          body: JSON.stringify(
-            modo === "APROVAR" ? { veiculoId, motoristaId } : { motivoRecusa: motivo.trim() },
-          ),
+          data: modo === "APROVAR" ? { veiculoId, motoristaId } : { motivoRecusa: motivo.trim() },
         },
       );
+      dispararAtualizacaoNotificacoes();
       onConcluido(
         `Solicitação ${solicitacao.protocolo} ${modo === "APROVAR" ? "aprovada e alocada" : "recusada"}.`,
       );

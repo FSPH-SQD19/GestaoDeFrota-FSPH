@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
+import { notificarViaturaSvoLiberada } from "./notificacao_s";
 
 export const STATUS_ORDEM_ATIVA = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] as const;
 const PREFIXO_PROTOCOLO_SVO = "SVO";
@@ -30,10 +31,10 @@ export const criarChamadoSchema = z
 export const triagemSchema = z
   .object({
     decisao: z.enum(["APROVAR", "RECUSAR"], {
-      error: "Decisão deve ser APROVAR ou RECUSAR.",
+      error: "Escolha se deseja aprovar ou recusar o chamado.",
     }),
     justificativa: z
-      .string({ error: "Justificativa deve ser texto." })
+      .string({ error: "Descreva a justificativa." })
       .trim()
       .min(3, "Justificativa deve ter ao menos 3 caracteres.")
       .max(500, "Justificativa deve ter no máximo 500 caracteres.")
@@ -55,7 +56,7 @@ export const emitirOrdemSchema = z
     veiculoId: z.uuid("Selecione uma viatura válida."),
     motoristaId: z.uuid("Selecione um motorista válido."),
     numeroDeclaracaoObito: z
-      .string({ error: "Declaração de óbito deve ser texto." })
+      .string({ error: "Confira o número da declaração de óbito." })
       .trim()
       .max(50, "Declaração de óbito deve ter no máximo 50 caracteres.")
       .optional(),
@@ -566,6 +567,26 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
 }
 
 export async function concluirDesinfeccaoSvo(veiculoId: string, usuarioId?: string) {
+  const referenciaDesinfeccao = new Date();
+  const atualizada = await executarConclusaoDesinfeccaoSvo(
+    veiculoId,
+    referenciaDesinfeccao,
+    usuarioId,
+  );
+  await notificarViaturaSvoLiberada({
+    veiculoId: atualizada.id,
+    placa: atualizada.placa,
+    modelo: atualizada.modelo,
+    referenciaDesinfeccao: referenciaDesinfeccao.toISOString(),
+  });
+  return atualizada;
+}
+
+async function executarConclusaoDesinfeccaoSvo(
+  veiculoId: string,
+  dataHoraConclusao: Date,
+  usuarioId?: string,
+) {
   return transacionarSvo(async (tx) => {
     await bloquearRecursosSvo(tx, veiculoId);
     const veiculo = await tx.veiculo.findUnique({ where: { id: veiculoId } });
@@ -585,7 +606,7 @@ export async function concluirDesinfeccaoSvo(veiculoId: string, usuarioId?: stri
       where: { veiculoId, status: "EM_ANDAMENTO" },
       data: {
         status: "CONCLUIDA",
-        dataHoraConclusao: new Date(),
+        dataHoraConclusao,
         responsavelId: usuarioId ?? null,
       },
     });

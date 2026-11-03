@@ -1,7 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError, type UsuarioAutenticado } from "../middleware/http_m";
+import { type UsuarioAutenticado } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
+import { notificarSolicitacaoUrgente } from "./notificacao_s";
 
 export const STATUS_SOLICITACAO = [
   "PENDENTE",
@@ -40,7 +42,7 @@ function dataHora(campo: string) {
   return z.iso
     .datetime({
       offset: true,
-      error: `${campo} deve estar no formato ISO 8601 com fuso (ex.: 2026-10-24T08:30:00-03:00).`,
+      error: `Informe uma data e hora válidas para ${campo.toLocaleLowerCase("pt-BR")}.`,
     })
     .transform((valor) => new Date(valor));
 }
@@ -55,8 +57,8 @@ export const criarSolicitacaoSchema = z
       .nullish()
       .transform((valor) => valor ?? undefined),
     quantidadePassageiros: z
-      .number({ error: "Quantidade de passageiros deve ser numérica." })
-      .int("Quantidade de passageiros deve ser inteira.")
+      .number({ error: "Informe a quantidade de passageiros." })
+      .int("Informe a quantidade de passageiros sem casas decimais.")
       .min(0, "Quantidade de passageiros não pode ser negativa.")
       .max(MAX_PASSAGEIROS, `Máximo de ${MAX_PASSAGEIROS} passageiros por viagem.`)
       .default(1),
@@ -64,11 +66,11 @@ export const criarSolicitacaoSchema = z
       .enum(TIPOS_TRANSPORTE, { error: "Tipo de transporte inválido." })
       .default("PASSAGEIROS"),
     urgencia: z
-      .enum(URGENCIAS, { error: "Urgência deve ser NORMAL ou URGENTE." })
+      .enum(URGENCIAS, { error: "Selecione a prioridade normal ou urgente." })
       .default("NORMAL"),
     justificativa: texto("Justificativa", 10, 500),
     observacoes: z
-      .string({ error: "Observações devem ser texto." })
+      .string({ error: "Confira as observações informadas." })
       .trim()
       .max(300, "Observações devem ter no máximo 300 caracteres.")
       .nullish()
@@ -118,7 +120,9 @@ export const listarSolicitacoesSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   status: z.preprocess(
     listaDaQuery,
-    z.array(z.enum(STATUS_SOLICITACAO, { error: "Status inválido." })).optional(),
+    z
+      .array(z.enum(STATUS_SOLICITACAO, { error: "Selecione uma situação válida na lista." }))
+      .optional(),
   ),
   urgencia: z.enum(URGENCIAS, { error: "Urgência inválida." }).optional(),
   tipoTransporte: z.enum(TIPOS_TRANSPORTE, { error: "Tipo de transporte inválido." }).optional(),
@@ -192,10 +196,66 @@ export async function listarSolicitacoes(
   filtros: ListarSolicitacoesFiltros,
   usuario: UsuarioAutenticado,
 ) {
+  const acesso = podeVerTodas(usuario) ? {} : { solicitanteId: usuario.id };
+  return consultarSolicitacoes(filtros, acesso, async (consulta) => {
+    const registros = await prisma.solicitacaoViagem.findMany({
+      ...consulta,
+      include: incluirRelacoes,
+    });
+    return registros.map(serializarSolicitacao);
+  });
+}
+
+const incluirRelacoesMotorista = {
+  ...incluirRelacoes,
+  veiculoAlocado: { select: { placa: true, modelo: true, odometroAtual: true } },
+  execucao: {
+    select: { id: true, kmInicial: true, kmFinal: true, dataHoraInicio: true, dataHoraFim: true },
+  },
+} satisfies Prisma.SolicitacaoViagemInclude;
+
+function serializarViagem(
+  registro: Prisma.SolicitacaoViagemGetPayload<{ include: typeof incluirRelacoesMotorista }>,
+) {
+  return { ...serializarSolicitacao(registro), veiculoAlocado: registro.veiculoAlocado };
+}
+
+export async function listarMinhasViagens(filtros: ListarSolicitacoesFiltros, usuarioId: string) {
+  const acesso = { motoristaAlocado: { usuarioId, ativo: true } };
+  const [resultado, emAndamento] = await Promise.all([
+    consultarSolicitacoes(
+      filtros,
+      { ...acesso, NOT: { status: "EM_TRANSITO" } },
+      async (consulta) => {
+        const registros = await prisma.solicitacaoViagem.findMany({
+          ...consulta,
+          include: incluirRelacoesMotorista,
+          orderBy: [{ status: "asc" }, { dataHoraPretendida: "asc" }, { id: "asc" }],
+        });
+        return registros.map(serializarViagem);
+      },
+    ),
+    prisma.solicitacaoViagem.findFirst({
+      where: { ...acesso, status: "EM_TRANSITO" },
+      include: incluirRelacoesMotorista,
+      orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
+    }),
+  ]);
+
+  return { ...resultado, viagemEmAndamento: emAndamento ? serializarViagem(emAndamento) : null };
+}
+
+async function consultarSolicitacoes<T>(
+  filtros: ListarSolicitacoesFiltros,
+  acesso: Prisma.SolicitacaoViagemWhereInput,
+  listar: (
+    consulta: Pick<Prisma.SolicitacaoViagemFindManyArgs, "where" | "orderBy" | "skip" | "take">,
+  ) => Promise<T[]>,
+) {
   const { page, pageSize, status, urgencia, tipoTransporte, setorOrigem, busca } = filtros;
 
   const whereBase: Prisma.SolicitacaoViagemWhereInput = {
-    ...(podeVerTodas(usuario) ? {} : { solicitanteId: usuario.id }),
+    ...acesso,
     ...(urgencia ? { urgencia } : {}),
     ...(tipoTransporte ? { tipoTransporte } : {}),
     ...(setorOrigem ? { setorOrigem } : {}),
@@ -214,10 +274,9 @@ export async function listarSolicitacoes(
     ...(status ? { status: { in: status } } : {}),
   };
 
-  const [registros, total, grupos] = await Promise.all([
-    prisma.solicitacaoViagem.findMany({
+  const [data, total, grupos] = await Promise.all([
+    listar({
       where,
-      include: incluirRelacoes,
       orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -241,7 +300,7 @@ export async function listarSolicitacoes(
   }
 
   return {
-    data: registros.map(serializarSolicitacao),
+    data,
     meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize), porStatus },
   };
 }
@@ -256,7 +315,10 @@ export async function criarSolicitacao(
     select: { ativo: true },
   });
   if (!solicitante?.ativo) {
-    throw new HttpError(403, "Usuário inativo ou inexistente.");
+    throw new HttpError(
+      403,
+      "Seu acesso não está disponível. Entre em contato com o administrador.",
+    );
   }
 
   const registro = await prisma.$transaction(
@@ -293,6 +355,15 @@ export async function criarSolicitacao(
     },
     { maxWait: 5000, timeout: 10000 },
   );
+
+  if (registro.urgencia === "URGENTE") {
+    await notificarSolicitacaoUrgente({
+      id: registro.id,
+      protocolo: registro.protocolo,
+      setorOrigem: registro.setorOrigem,
+      destino: registro.destino,
+    });
+  }
 
   return serializarSolicitacao(registro);
 }

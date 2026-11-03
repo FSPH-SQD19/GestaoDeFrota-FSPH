@@ -25,17 +25,20 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 
 ## Endpoints disponíveis
 
-| Método | Caminho                               | Autenticação                | Resultado                                                    |
-| ------ | ------------------------------------- | --------------------------- | ------------------------------------------------------------ |
-| GET    | `/health`                             | Pública                     | Status do processo da API; não consulta o banco.             |
-| POST   | `/auth/login`                         | Pública                     | Login com e-mail e senha.                                    |
-| POST   | `/api/v1/auth/login`                  | Pública                     | Alias do mesmo login.                                        |
-| GET    | `/auth/perfil`, `/api/v1/auth/perfil` | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
-| GET    | `/auth/admin`, `/api/v1/auth/admin`   | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
-| GET    | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
-| POST   | `/api/v1/veiculos`                    | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
-| GET    | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
-| POST   | `/api/v1/veiculos/:id/documentos`     | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
+| Método | Caminho                                                     | Autenticação                | Resultado                                                    |
+| ------ | ----------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ |
+| GET    | `/health`                                                   | Pública                     | Status do processo da API; não consulta o banco.             |
+| POST   | `/auth/login`                                               | Pública                     | Login com e-mail e senha.                                    |
+| POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                        |
+| GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
+| GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
+| GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
+| POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
+| GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
+| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
+| GET    | `/notificacoes`, `/api/v1/notificacoes`                     | JWT                         | Lista notificações e contador de não lidas do usuário.       |
+| PATCH  | `/notificacoes/:id/lida`, `/api/v1/notificacoes/:id/lida`   | JWT                         | Marca uma notificação do usuário autenticado como lida.      |
+| PATCH  | `/notificacoes/ler-todas`, `/api/v1/notificacoes/ler-todas` | JWT                         | Marca todas as notificações não lidas do usuário como lidas. |
 
 ## Autenticação
 
@@ -68,7 +71,20 @@ Auth e veículos usam `authenticate` e `requireRole` de `http_m.ts`, com identid
 
 A migration inicial cadastra os perfis `ADMIN`, `GESTOR`, `MOTORISTA` e `SVO`. Os nomes de perfis enviados pela API e usados pela interface devem seguir um mapeamento consistente.
 
-O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas. O controller de login usa os formatos `{ "error": "..." }` ou `{ "mensagem": "..." }`.
+O login responde `400` para campos obrigatórios inválidos, `401` para credenciais inválidas, `403` para falha de CSRF/origem, `429` para excesso de tentativas e `500` para falhas internas.
+
+## Tratamento de erros
+
+As falhas da API Express usam um único formato: `{ statusCode, message, errors }`. O campo `errors` contém os detalhes de validação por campo e fica vazio quando não há detalhes adicionais. Login, motoristas, fornecedores, CSRF e limites de tentativas seguem esse contrato; respostas de sucesso mantêm seus formatos próprios.
+
+- `lib/http_error.ts` define `HttpError`, com status HTTP, mensagem pública e detalhes opcionais. Serviços traduzem erros de persistência quando conhecem o significado de negócio (por exemplo, CNPJ duplicado).
+- Controllers validam a entrada e retornam sucesso. Falhas síncronas ou rejeições de handlers assíncronos seguem automaticamente para o middleware pelo Express 5; não é necessário envolver cada controller em `try/catch`.
+- `middleware/error_m.ts`, registrado por último no `app.ts`, gera a resposta e registra falhas internas uma única vez. Erros inesperados retornam `500` com mensagem genérica, sem expor stack ou detalhes de infraestrutura. JSON malformado retorna `400` e corpo acima de 512 KB retorna `413`.
+- Proteções de acesso encaminham `HttpError` ao mesmo middleware. Limites de tentativas preservam o cabeçalho `Retry-After`.
+
+Mensagens públicas devem orientar a pessoa sobre o próximo passo, sem expor códigos internos ou termos de implementação. `lib/validar.ts` mantém os detalhes por campo e fornece mensagens em português quando o schema não define uma orientação própria. Identificadores e formatos técnicos continuam sendo validados internamente.
+
+Tratamentos locais permanecem quando recuperam uma operação ou isolam falhas secundárias, como notificações. O fallback `503` do Worker permanece fora do Express, pois também cobre falhas antes da inicialização da aplicação.
 
 ## Listagem de veículos
 
@@ -228,8 +244,28 @@ Emissão e conclusão serializam os recursos na ordem motorista, veículo e cham
 
 A última coleta encaminha a viatura à desinfecção sem sobrescrever outros estados operacionais. A liberação do condutor é condicional ao cadastro ativo e ao status ocupado. A confirmação da desinfecção exige ausência de coletas ativas. Atualizações de status e auditoria permanecem na mesma transação; disputas transacionais ou emissão duplicada retornam `409`. Concorrência em PostgreSQL real não foi validada nesta revisão.
 
+### Escalas e plantões do SVO
+
+Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatura SVO em um turno (`inicioTurno` e `fimTurno`, ISO 8601 com fuso, até 24 horas). Pela ATA, não há vínculo fixo entre motorista e viatura: a mesma viatura pode ter mais de um motorista no turno.
+
+- `POST /api/v1/svo/escalas`: `{ motoristaId, veiculoId, inicioTurno, fimTurno, observacoes? }` (observações até 300 caracteres). Retorna `201`. Erros: `400` validação, `422` turno já terminado, motorista inativo, CNH vencendo antes do fim do turno ou viatura que não seja SVO ativa, `409` motorista com outra escala no mesmo horário.
+- `GET /api/v1/svo/escalas`: filtros `situacao` (`AGENDADA`, `EM_ANDAMENTO`, `SUSPENSA` ou `ENCERRADA`), `motoristaId`, `veiculoId`, `page` e `pageSize` (padrão 20, até 100). Resposta `{ data, meta }`; cada item traz `motorista { id, nome, telefone, ativo }`, `veiculo { id, placa, modelo, status, ativo }`, horários, `encerradaEm` e `situacao`. `AGENDADA`, `EM_ANDAMENTO` e `SUSPENSA` vêm em ordem cronológica; o restante, da mais recente para a mais antiga.
+- `PATCH /api/v1/svo/escalas/:id/encerrar`: grava `encerradaEm`. Encerrar antes do início cancela a escala e libera o horário do motorista. `404` inexistente, `409` já encerrada.
+
+A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
+
 ### Compatibilidade com Cloudflare
 
 `worker.ts` adapta o Express ao runtime Cloudflare. O cliente Prisma, a chave de assinatura, o IP e a origem da requisição ficam em um contexto isolado; cada chamada usa seu próprio pool, encerrado com `waitUntil`. No servidor Node, `server.ts` inicializa a conexão local. O schema usa `engineType = "client"` e o adaptador PostgreSQL em ambos os ambientes; `bcryptjs` mantém compatibilidade com os hashes bcrypt já existentes no Neon.
 
 O limite de login usa `CF-Connecting-IP` recebido pelo Worker; no Node, usa o IP da conexão ou o proxy explicitamente configurado. O CD mantém o cache Hyperdrive desativado para evitar reutilizar consultas de sessões, usuários ou permissões após alterações.
+
+### Central de notificações
+
+As rotas `/api/v1/notificacoes` (e o alias `/notificacoes`) exigem sessão autenticada e operam estritamente sobre os registros do próprio `usuarioId`:
+
+- `GET /api/v1/notificacoes`: aceita `apenasNaoLidas` (`true` ou `false`, padrão `false`) e `limit` (`1` a `50`, padrão `20`). Retorna `{ data, meta: { naoLidas, retornadas } }`.
+- `PATCH /api/v1/notificacoes/:id/lida`: marca um alerta do usuário como lido (`404` se inexistente ou pertencente a outra conta).
+- `PATCH /api/v1/notificacoes/ler-todas`: marca em lote todos os alertas pendentes do usuário e retorna `{ atualizadas, naoLidas: 0 }`.
+
+Os alertas operacionais cobrem quatro gatilhos deduplicados por `chave_unica`: solicitações urgentes destinadas a `ADMIN` e `GESTOR`, decisão de aprovação ou recusa enviada ao solicitante (e ao condutor alocado quando aplicável), conclusão da desinfecção de viatura SVO para `SVO`, `GESTOR` e `ADMIN`, e reconciliação sob demanda de CNH ou documento atual de veículo vencido ou a vencer em até 30 dias.

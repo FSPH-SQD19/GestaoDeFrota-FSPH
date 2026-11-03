@@ -14,9 +14,11 @@ export const veiculoSchema = z.object({
     .trim()
     .min(2, "Modelo deve ter ao menos 2 caracteres.")
     .max(100, "Modelo deve ter no máximo 100 caracteres."),
-  tipoFrota: z.enum(["ADMINISTRATIVA", "SVO"]),
+  tipoFrota: z.enum(["ADMINISTRATIVA", "SVO"], {
+    error: "Selecione a frota administrativa ou a frota do SVO.",
+  }),
   capacidadeMaxima: z.coerce
-    .number()
+    .number({ error: "Informe a quantidade de passageiros que o veículo comporta." })
     .int("Capacidade deve ser inteira.")
     .min(1, "Capacidade deve ser maior que zero.")
     .max(50, "Capacidade máxima excedida."),
@@ -26,7 +28,7 @@ export const veiculoSchema = z.object({
     .transform((v) => (v === "" ? undefined : Number(v)))
     .pipe(
       z
-        .number()
+        .number({ error: "Informe um ano válido para o veículo." })
         .int("Ano deve ser inteiro.")
         .min(1950, "Ano inválido.")
         .refine((v) => v <= new Date().getFullYear() + 1, "Ano inválido.")

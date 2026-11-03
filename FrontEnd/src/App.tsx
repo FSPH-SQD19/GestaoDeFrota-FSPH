@@ -6,8 +6,6 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
-import { Card, Badge } from "./components/common";
-import { Route } from "lucide-react";
 
 const SvoPage = lazy(() =>
   import("./pages/svo/SvoPage").then((module) => ({ default: module.SvoPage })),
@@ -22,6 +20,11 @@ const VeiculosPage = lazy(() =>
 const SolicitacoesPage = lazy(() =>
   import("./pages/solicitacoes/SolicitacoesPage").then((module) => ({
     default: module.SolicitacoesPage,
+  })),
+);
+const MinhasViagensPage = lazy(() =>
+  import("./pages/viagens/MinhasViagensPage").then((module) => ({
+    default: module.MinhasViagensPage,
   })),
 );
 const MotoristasPage = lazy(() =>
@@ -95,19 +98,7 @@ const AppContent: React.FC = () => {
             {currentTab === "dashboard" && <DashboardPage />}
             {currentTab === "veiculos" && <VeiculosPage />}
 
-            {currentTab === "viagens" && (
-              <Card className="p-10 text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                  <Route className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">Minhas Viagens</h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Viagens escaladas para você, checklist de saída e retorno, registro de odômetro e
-                  abastecimento (visão mobile / PWA).
-                </p>
-                <Badge variant="info">Módulo mobile / PWA em desenvolvimento</Badge>
-              </Card>
-            )}
+            {currentTab === "viagens" && <MinhasViagensPage />}
 
             {currentTab === "motoristas" && <MotoristasPage />}
 

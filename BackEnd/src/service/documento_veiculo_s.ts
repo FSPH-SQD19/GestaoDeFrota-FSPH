@@ -1,8 +1,9 @@
 import type { DocumentoVeiculo, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { HttpError } from "../middleware/http_m";
+import { HttpError } from "../lib/http_error";
 import { registrarAuditoria } from "./auditoria_s";
+import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
 export const TIPOS_DOCUMENTO = ["CRLV", "IPVA", "SEGURO"] as const;
 export const SITUACOES_DOCUMENTO = ["VIGENTE", "PROXIMO_VENCIMENTO", "VENCIDO"] as const;
@@ -61,18 +62,18 @@ const FORMATO_DATA = /^\d{4}-\d{2}-\d{2}$/;
 
 function validarIdVeiculo(id: string) {
   if (!idVeiculoSchema.safeParse(id).success) {
-    throw new HttpError(400, "ID do veículo inválido.", [
-      { campo: "id", mensagem: "Informe um UUID válido." },
+    throw new HttpError(400, "Não foi possível identificar o veículo. Selecione-o novamente.", [
+      { campo: "id", mensagem: "Atualize a página e selecione o registro novamente." },
     ]);
   }
 }
 
 export const criarDocumentoVeiculoSchema = z.object({
   tipoDocumento: z.enum(TIPOS_DOCUMENTO, {
-    error: "Tipo de documento deve ser CRLV, IPVA ou SEGURO.",
+    error: "Selecione o documento: CRLV, IPVA ou seguro.",
   }),
   dataVencimento: z.iso
-    .date({ error: "Data de vencimento deve ser uma data válida no formato AAAA-MM-DD." })
+    .date({ error: "Informe uma data de vencimento válida." })
     .refine(
       (data) => !FORMATO_DATA.test(data) || (data >= "2000-01-01" && data <= "2100-12-31"),
       "Data de vencimento fora do intervalo permitido.",
@@ -204,6 +205,7 @@ export async function criarDocumentoVeiculo(
   });
 
   const resposta = serializarDocumento(documento, hoje, !maisRecente);
+  invalidarCacheSincronizacaoNotificacoes();
 
   try {
     await registrarAuditoria({

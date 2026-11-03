@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { validar } from "./veiculo_c";
+import { validar } from "../lib/validar";
 import { usuarioAutenticado } from "../middleware/http_m";
 import {
   listarAbastecimentos,
