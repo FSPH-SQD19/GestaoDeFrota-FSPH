@@ -14,6 +14,7 @@ import {
   classificarChamado,
   STATUS_CHAMADO_LABEL,
   STATUS_CHAMADO_VARIANT,
+  proximaEtapaColeta,
 } from "./svoApresentacao";
 import type { ChamadoSvo } from "../../services/svo";
 import type { useSvoDados } from "./useSvoDados";
@@ -35,7 +36,7 @@ type Props = Pick<
   abrirTriagem: (chamado: ChamadoSvo) => void;
   abrirEmissaoOrdem: (chamado: ChamadoSvo) => void;
   abrirDetalhes: (chamado: ChamadoSvo) => void;
-  handleConcluirColeta: (chamado: ChamadoSvo) => void;
+  handleEtapaColeta: (chamado: ChamadoSvo, cancelar?: boolean) => void;
 };
 export function FilaChamadosSvo({
   chamados,
@@ -53,7 +54,7 @@ export function FilaChamadosSvo({
   abrirTriagem,
   abrirEmissaoOrdem,
   abrirDetalhes,
-  handleConcluirColeta,
+  handleEtapaColeta,
 }: Props) {
   return (
     <Card className="overflow-hidden rounded-2xl border border-slate-200/80 p-0 shadow-sm">
@@ -109,6 +110,7 @@ export function FilaChamadosSvo({
             const statusOp = classificarChamado(c);
             const protocolo = c.numeroProtocolo ?? c.id;
             const processandoEste = processandoAcaoId === c.id;
+            const proximaEtapa = c.ordemColeta ? proximaEtapaColeta(c.ordemColeta.status) : null;
 
             return (
               <article key={c.id} className="p-4 transition-colors hover:bg-slate-50/70 sm:px-5">
@@ -144,7 +146,7 @@ export function FilaChamadosSvo({
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
                     {statusOp === "EM_ANALISE" && (
                       <Button size="sm" onClick={() => abrirTriagem(c)}>
                         Iniciar triagem
@@ -155,15 +157,25 @@ export function FilaChamadosSvo({
                         Emitir ordem
                       </Button>
                     )}
-                    {statusOp === "EM_OPERACAO" && (
+                    {proximaEtapa && (
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleConcluirColeta(c)}
-                        disabled={processandoEste}
+                        leftIcon={<Check className="h-3.5 w-3.5 shrink-0" />}
+                        onClick={() => handleEtapaColeta(c)}
+                        disabled={!!processandoAcaoId}
                       >
-                        <Check className="mr-1 h-3.5 w-3.5" />
-                        {processandoEste ? "Concluindo..." : "Concluir coleta"}
+                        {processandoEste ? "Registrando..." : proximaEtapa.label}
+                      </Button>
+                    )}
+                    {statusOp === "AGUARDANDO_DESPACHO" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!!processandoAcaoId}
+                        onClick={() => handleEtapaColeta(c, true)}
+                      >
+                        Cancelar ordem
                       </Button>
                     )}
                     <button

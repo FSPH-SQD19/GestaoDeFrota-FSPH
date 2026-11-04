@@ -210,7 +210,7 @@ export function OrdemColetaModal({
               value={`${viaturaDaOrdem.placa} · ${viaturaDaOrdem.modelo}`}
             />
             <Detail
-              label="Ocupação após despacho"
+              label="Vagas reservadas após emissão"
               value={`${viaturaDaOrdem.ocupacaoAtual + 1}/${viaturaDaOrdem.capacidadeMaxima} vagas`}
             />
           </div>

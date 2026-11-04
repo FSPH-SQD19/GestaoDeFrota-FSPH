@@ -238,7 +238,22 @@ A migration de status já pertencente à branch foi preservada e não foi aplica
 
 ### Operação SVO
 
-As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas de indicadores, chamados, viaturas e motoristas; registro de chamado; triagem; emissão de ordem; conclusão da coleta e confirmação de desinfecção. Os nove caminhos são verificados por testes HTTP de autenticação, autorização e validação, usando o aplicativo Express real e serviços simulados nos testes.
+As rotas em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`. IDs são UUIDs. Consultas: `GET /indicadores`, `/chamados` (paginação, busca e filtro `etapa`), `/viaturas` e `/motoristas`. Atendimento: `POST /chamados` e `PATCH /chamados/:id/triagem`.
+
+| Método e caminho (prefixo `/api/v1/svo`) | Corpo                                                           | Resultado                                                                       |
+| ---------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `POST /ordens-coleta`                    | `{ chamadoId, veiculoId, motoristaId, numeroDeclaracaoObito? }` | `201`, ordem em `AGUARDANDO_DESPACHO`; chamado deve estar aprovado e sem ordem. |
+| `PATCH /ordens-coleta/:id/etapa`         | `{ status: "EM_DESLOCAMENTO" \| "NO_LOCAL" \| "ENTREGUE_SVO" }` | `200`, ordem atualizada; `:id` identifica a ordem, não o chamado.               |
+| `PATCH /ordens-coleta/:id/cancelar`      | Sem corpo                                                       | `200`, ordem em `CANCELADA`; permitido somente antes do despacho.               |
+| `PATCH /viaturas/:id/desinfeccao`        | Sem corpo                                                       | `200`, viatura liberada após confirmar desinfecção.                             |
+
+A sequência obrigatória é `AGUARDANDO_DESPACHO → EM_DESLOCAMENTO → NO_LOCAL → ENTREGUE_SVO`. O servidor registra respectivamente `dataHoraSaida`, `dataHoraChegadaLocal` e `dataHoraEntregaSvo`; todos começam nulos e são retornados na ordem e na listagem dos chamados. Datas são ISO 8601. Repetir ou pular etapa retorna `409`, sem alterar horários ou duplicar auditoria. Corpo ou UUID inválido retorna `400`; registro ausente, `404`; recursos indisponíveis ou CNH vencida, `422`; falta de sessão, `401`; perfil sem acesso, `403`.
+
+Na emissão, a ordem reserva uma vaga e ocupa o motorista, mas mantém a viatura disponível até registrar a saída. Reservas contam para capacidade, vínculo do condutor e filtro `EM_OPERACAO`, mas não para `coletasEmAndamento`. O painel distingue a reserva da coleta em trânsito. No despacho, a viatura e a habilitação do motorista são revalidadas. Cancelar mantém a ordem no histórico e no filtro `ENCERRADO`, libera sua vaga e libera o motorista se não houver outras ordens ativas. O chamado cancelado não admite nova emissão (uma ordem por chamado). Cancelamento antes de qualquer saída não gera desinfecção.
+
+Compatibilidade: `POST /chamados/:id/ordens` aceita a alocação sem `chamadoId` e também cria uma reserva, sem despacho automático. `PATCH /chamados/:id/concluir` executa a mesma entrega das novas rotas, exigindo `NO_LOCAL` e retornando `ENTREGUE_SVO`. Ordens legadas em `EM_ANDAMENTO` devem registrar `NO_LOCAL` antes da entrega. Ordens já `CONCLUIDA` permanecem encerradas. A interface usa `/ordens-coleta` e os botões de saída, chegada, entrega e cancelamento.
+
+Os testes HTTP verificam autenticação, autorização e validação. Uma suíte adicional exercita Express, controladores e serviços reais com persistência simulada ao longo do atendimento, reserva, despacho, chegada, entrega, desinfecção e cancelamento; o Playwright percorre a tela em desktop e celular com HTTP simulado.
 
 Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
 
