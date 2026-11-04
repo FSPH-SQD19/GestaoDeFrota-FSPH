@@ -32,6 +32,12 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 | POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                        |
 | GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
 | GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
+| GET    | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Lista paginada de usuários.                                  |
+| GET    | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Detalhe do usuário (sem hash de senha).                      |
+| POST   | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Cadastro de usuário com perfis e senha inicial.              |
+| PATCH  | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Atualização de dados, setor, telefone, ativo e perfis.       |
+| DELETE | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Inativação (soft delete) e revogação de sessões.             |
+| PATCH  | `/api/v1/auth/usuarios/:id/redefinir-senha`                 | JWT com `ADMIN`             | Redefinição administrativa de senha (já existente).          |
 | GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
 | POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
 | GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
@@ -192,6 +198,20 @@ npm run build --workspace=backend
 Centralize o acesso ao banco em `BackEnd/src/lib/prisma.ts` e mantenha alterações do schema acompanhadas de migrations. Veja [Ambiente](AMBIENTE.md) para configurar a API e [Testes](TESTES.md) para adicionar cenários.
 
 A API valida o ano do veículo até o ano atual mais um; a constraint da migration limita o banco ao intervalo de 1950 a 2100. Ao alterar validações, confira os dois níveis.
+
+## Gestão de usuários
+
+`GET|POST|PATCH|DELETE /api/v1/usuarios` exige JWT com perfil `ADMIN`. A migration `20261104120000_usuarios_telefone_setor` adiciona `telefone` e `setor` em `usuarios`.
+
+- `GET /api/v1/usuarios`: query `page`, `pageSize` (padrão 20, máx. 100), `busca`, `setor`, `perfil`, `ativo`. Resposta `{ data, meta }`; cada item traz `perfis` como nomes (`ADMIN`, `GESTOR`, `MOTORISTA`, `SVO`, `SOLICITANTE`). A ordenação é por nome, com desempate por ID para manter a paginação estável entre homônimos.
+- `GET /api/v1/usuarios/:id`: detalhe sem `senhaHash`.
+- `POST /api/v1/usuarios`: `{ nome, email, senha, perfis[], telefone?, setor? }` → `201` + `Location` + `{ mensagem, dados }`. Senha mínima de 8 caracteres (mesmo critério da redefinição administrativa).
+- `PATCH /api/v1/usuarios/:id`: campos opcionais `nome`, `email`, `telefone`, `setor`, `ativo`, `perfis` → `{ mensagem, dados }`.
+- `DELETE /api/v1/usuarios/:id`: inativa (`ativo=false`), revoga sessões e retorna `{ mensagem, dados }`.
+
+E-mail é normalizado para minúsculas e permanece único (`409` se duplicado). Telefone, quando informado, exige DDD e 8 ou 9 dígitos. O administrador não pode inativar a própria conta nem remover o próprio perfil `ADMIN`. Atribuição do perfil `MOTORISTA` não cria o cadastro operacional de motorista — use `POST /api/v1/motoristas`. Redefinição de senha permanece em `PATCH /api/v1/auth/usuarios/:id/redefinir-senha`.
+
+No PATCH, omitir `telefone` preserva o contato; `null` ou texto em branco limpa o campo. Valores preenchidos sem dígitos retornam `400` sem gravar alterações. Tanto `PATCH` com `ativo=false` quanto `DELETE` revogam as sessões na mesma transação da inativação, inclusive ao repetir a operação.
 
 ## Relatório operacional
 

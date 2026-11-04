@@ -50,10 +50,11 @@ describe("ChecklistViagemModal", () => {
     );
 
     const campoOdometro = screen.getByLabelText(/Odômetro inicial \(km\)/i);
+    const confirmar = screen.getByRole("button", { name: "Confirmar vistoria e iniciar" });
     expect(campoOdometro).toHaveValue("38300");
 
     // Sem foto do odômetro bloqueia o envio
-    await user.click(screen.getByRole("button", { name: "Confirmar vistoria e iniciar" }));
+    await user.click(confirmar);
     expect(screen.getByText(/Anexe uma foto legível do painel do odômetro/i)).toBeInTheDocument();
     expect(apiRequest).not.toHaveBeenCalled();
 
@@ -66,15 +67,15 @@ describe("ChecklistViagemModal", () => {
 
     // Tocar em um item marca como "Com problema" e exige descrição
     await user.click(screen.getByRole("button", { name: /Higiene e conservação interna/i }));
-    await user.click(screen.getByRole("button", { name: "Confirmar vistoria e iniciar" }));
+    await user.click(confirmar);
     expect(screen.getByRole("alert")).toHaveTextContent("Descreva o problema identificado");
     expect(apiRequest).not.toHaveBeenCalled();
 
     // Restaurar todos para OK permite enviar sem cliques adicionais nos itens
     await user.click(screen.getByRole("button", { name: "Restaurar todos OK" }));
     await user.clear(campoOdometro);
-    await user.type(campoOdometro, "38305,5");
-    await user.click(screen.getByRole("button", { name: "Confirmar vistoria e iniciar" }));
+    await user.paste("38305,5");
+    await user.click(confirmar);
 
     expect(apiRequest).toHaveBeenCalledTimes(1);
     const [url, options] = vi.mocked(apiRequest).mock.calls[0]!;
@@ -118,7 +119,9 @@ describe("ChecklistViagemModal", () => {
     );
 
     const campoOdometro = screen.getByLabelText(/Odômetro final \(km\)/i);
-    await user.type(campoOdometro, "38342,5");
+    const confirmar = screen.getByRole("button", { name: "Confirmar vistoria e concluir" });
+    await user.click(campoOdometro);
+    await user.paste("38342,5");
     expect(screen.getByRole("status")).toHaveTextContent("42,5 km");
 
     await user.upload(
@@ -129,22 +132,20 @@ describe("ChecklistViagemModal", () => {
 
     // Marca problema apenas no item que teve avaria
     await user.click(screen.getByRole("button", { name: /Integridade externa e pneus/i }));
-    await user.click(screen.getByRole("button", { name: "Confirmar vistoria e concluir" }));
+    await user.click(confirmar);
 
     expect(screen.getByRole("alert")).toHaveTextContent("Descreva a ocorrência");
     expect(apiRequest).not.toHaveBeenCalled();
 
-    await user.type(
-      screen.getByLabelText(/Descrição da ocorrência ou avaria/i),
-      "Arranhão identificado no para-choque traseiro",
-    );
+    await user.click(screen.getByLabelText(/Descrição da ocorrência ou avaria/i));
+    await user.paste("Arranhão identificado no para-choque traseiro");
     await user.upload(
       screen.getByLabelText(/Foto da avaria ou ocorrência/i),
       criarArquivoImagem("avaria.jpg"),
     );
     await screen.findAllByText(/Foto anexada/i);
 
-    await user.click(screen.getByRole("button", { name: "Confirmar vistoria e concluir" }));
+    await user.click(confirmar);
 
     expect(apiRequest).toHaveBeenCalledTimes(1);
     const [url, options] = vi.mocked(apiRequest).mock.calls[0]!;
