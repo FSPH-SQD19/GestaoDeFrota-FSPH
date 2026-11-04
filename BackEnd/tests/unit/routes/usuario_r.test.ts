@@ -263,6 +263,32 @@ describe("CRUD de usuários", () => {
     });
   });
 
+  it.each(["POST", "PATCH"])("rejeita telefone sem dígitos no %s sem gravar", async (method) => {
+    if (method === "PATCH") mocks.findUnique.mockResolvedValue(registro);
+    const resposta = await chamar(
+      method,
+      method === "PATCH" ? `/${usuarioId}` : "",
+      method === "PATCH" ? { telefone: "abc" } : { ...entrada, telefone: "abc" },
+    );
+    expect(resposta).toMatchObject({
+      status: 400,
+      body: {
+        errors: [{ campo: "telefone", mensagem: "Telefone deve conter DDD e 8 ou 9 dígitos." }],
+      },
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("revoga sessões mesmo quando o PATCH repete uma inativação", async () => {
+    mocks.findUnique.mockResolvedValue({ ...registro, ativo: false });
+    expect(await chamar("PATCH", `/${usuarioId}`, { ativo: false })).toMatchObject({
+      status: 200,
+      body: { dados: { ativo: false } },
+    });
+    expect(mocks.tx.authSessao.deleteMany).toHaveBeenCalledWith({ where: { usuarioId } });
+  });
+
   it("filtra listagem por setor, perfil e ativo", async () => {
     await chamar("GET", "?setor=LACEN&perfil=GESTOR&ativo=true&page=2&pageSize=10");
     expect(mocks.findMany).toHaveBeenCalledWith(

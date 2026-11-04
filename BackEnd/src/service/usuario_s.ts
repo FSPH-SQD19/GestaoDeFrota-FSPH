@@ -51,9 +51,8 @@ function serializarUsuario(usuario: UsuarioComPerfis): UsuarioResposta {
 
 function normalizarTelefone(telefone: string | null | undefined): string | null | undefined {
   if (telefone === undefined) return undefined;
-  if (telefone === null) return null;
+  if (telefone === null || !telefone.trim()) return null;
   const digitos = telefone.replace(/\D/g, "");
-  if (!digitos) return null;
   if (!/^\d{10,11}$/.test(digitos)) {
     throw new HttpError(400, "Telefone deve conter DDD e 8 ou 9 dígitos.", [
       { campo: "telefone", mensagem: "Telefone deve conter DDD e 8 ou 9 dígitos." },
@@ -207,7 +206,7 @@ export async function listarUsuarios(filtros: ListarUsuariosFiltros) {
     prisma.usuario.findMany({
       where,
       select: usuarioSelect,
-      orderBy: [{ nome: "asc" }],
+      orderBy: [{ nome: "asc" }, { id: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -351,7 +350,7 @@ export async function atualizarUsuario(
         : input.setor.trim();
 
   const perfilIds = input.perfis ? await resolverPerfilIds(input.perfis) : undefined;
-  const inativando = input.ativo === false && atual.ativo;
+  const inativando = input.ativo === false;
 
   let atualizado: UsuarioComPerfis;
   try {

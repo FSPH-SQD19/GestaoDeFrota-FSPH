@@ -106,6 +106,7 @@ describe("listarUsuarios", () => {
 
     expect(mocks.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        orderBy: [{ nome: "asc" }, { id: "asc" }],
         where: expect.objectContaining({
           OR: expect.any(Array),
         }),
@@ -233,6 +234,14 @@ describe("criarUsuario", () => {
     expect(criado.setor).toBeNull();
   });
 
+  it.each(["abc", "---"])("rejeita telefone preenchido sem dígitos: %s", async (telefone) => {
+    await expect(criarUsuario({ ...entrada, telefone }, adminId)).rejects.toMatchObject({
+      statusCode: 400,
+      errors: [{ campo: "telefone", mensagem: "Telefone deve conter DDD e 8 ou 9 dígitos." }],
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   it("normaliza e-mail com espaços e maiúsculas antes de validar", () => {
     expect(
       criarUsuarioSchema.parse({
@@ -246,6 +255,32 @@ describe("criarUsuario", () => {
 });
 
 describe("atualizarUsuario", () => {
+  it("rejeita telefone inválido sem apagar o contato existente", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+    await expect(atualizarUsuario(usuarioId, { telefone: "abc" }, adminId)).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "", "   "])(
+    "permite limpar explicitamente o telefone com %s",
+    async (telefone) => {
+      mocks.findUnique.mockResolvedValue(registro);
+      await atualizarUsuario(usuarioId, { telefone }, adminId);
+      expect(mocks.tx.usuario.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { telefone: null } }),
+      );
+      expect(mocks.tx.authSessao.deleteMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("revoga sessões ao repetir a inativação via PATCH, como no DELETE", async () => {
+    mocks.findUnique.mockResolvedValue({ ...registro, ativo: false });
+    await atualizarUsuario(usuarioId, { ativo: false }, adminId);
+    expect(mocks.tx.authSessao.deleteMany).toHaveBeenCalledWith({ where: { usuarioId } });
+  });
+
   it("impede autoinativação e remoção do próprio ADMIN", async () => {
     mocks.findUnique.mockResolvedValue({
       id: adminId,

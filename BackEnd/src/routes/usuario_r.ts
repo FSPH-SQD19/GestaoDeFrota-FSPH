@@ -6,11 +6,10 @@ import {
   listarUsuariosController,
   obterUsuarioController,
 } from "../controller/usuario_c";
-import { AuthToken } from "../middleware/auth_m";
-import { requireRole } from "../middleware/http_m";
+import { authenticate, requireRole } from "../middleware/http_m";
 
 const router = Router();
-router.use(AuthToken, requireRole("ADMIN"));
+router.use(authenticate, requireRole("ADMIN"));
 
 router.get("/", listarUsuariosController);
 router.get("/:id", obterUsuarioController);

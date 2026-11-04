@@ -201,13 +201,15 @@ A API valida o ano do veículo até o ano atual mais um; a constraint da migrati
 
 `GET|POST|PATCH|DELETE /api/v1/usuarios` exige JWT com perfil `ADMIN`. A migration `20261104120000_usuarios_telefone_setor` adiciona `telefone` e `setor` em `usuarios`.
 
-- `GET /api/v1/usuarios`: query `page`, `pageSize` (padrão 20, máx. 100), `busca`, `setor`, `perfil`, `ativo`. Resposta `{ data, meta }`; cada item traz `perfis` como nomes (`ADMIN`, `GESTOR`, `MOTORISTA`, `SVO`, `SOLICITANTE`).
+- `GET /api/v1/usuarios`: query `page`, `pageSize` (padrão 20, máx. 100), `busca`, `setor`, `perfil`, `ativo`. Resposta `{ data, meta }`; cada item traz `perfis` como nomes (`ADMIN`, `GESTOR`, `MOTORISTA`, `SVO`, `SOLICITANTE`). A ordenação é por nome, com desempate por ID para manter a paginação estável entre homônimos.
 - `GET /api/v1/usuarios/:id`: detalhe sem `senhaHash`.
 - `POST /api/v1/usuarios`: `{ nome, email, senha, perfis[], telefone?, setor? }` → `201` + `Location` + `{ mensagem, dados }`. Senha mínima de 8 caracteres (mesmo critério da redefinição administrativa).
 - `PATCH /api/v1/usuarios/:id`: campos opcionais `nome`, `email`, `telefone`, `setor`, `ativo`, `perfis` → `{ mensagem, dados }`.
 - `DELETE /api/v1/usuarios/:id`: inativa (`ativo=false`), revoga sessões e retorna `{ mensagem, dados }`.
 
 E-mail é normalizado para minúsculas e permanece único (`409` se duplicado). Telefone, quando informado, exige DDD e 8 ou 9 dígitos. O administrador não pode inativar a própria conta nem remover o próprio perfil `ADMIN`. Atribuição do perfil `MOTORISTA` não cria o cadastro operacional de motorista — use `POST /api/v1/motoristas`. Redefinição de senha permanece em `PATCH /api/v1/auth/usuarios/:id/redefinir-senha`.
+
+No PATCH, omitir `telefone` preserva o contato; `null` ou texto em branco limpa o campo. Valores preenchidos sem dígitos retornam `400` sem gravar alterações. Tanto `PATCH` com `ativo=false` quanto `DELETE` revogam as sessões na mesma transação da inativação, inclusive ao repetir a operação.
 
 ## Relatório operacional
 
