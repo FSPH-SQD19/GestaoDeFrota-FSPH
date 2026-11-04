@@ -38,6 +38,18 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
           total,
           porStatus: { DISPONIVEL: total - 25, EM_VIAGEM: 20, MANUTENCAO: 5, DESINFECCAO: 0 },
         },
+        alertas: [
+          {
+            id: "documento-teste",
+            veiculoId: "veiculo-teste",
+            placa: "ABC1234",
+            tipoDocumento: "CRLV",
+            dataVencimento: "2026-11-04",
+            atual: true,
+            situacao: "PROXIMO_VENCIMENTO",
+            diasParaVencer: 0,
+          },
+        ],
         solicitacoes: {
           data: [],
           meta: {
@@ -52,6 +64,8 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
   await expect(page.getByText("155", { exact: true })).toBeVisible();
   await expect(page.getByText("130 disponíveis")).toBeVisible();
   await expect(page.getByText("400", { exact: true })).toBeVisible();
+  await expect(page.getByText("Veículo ABC1234 — CRLV")).toBeVisible();
+  await expect(page.getByText("Vence hoje")).toBeVisible();
   total = 160;
   await page.getByRole("button", { name: "Atualizar", exact: true }).click();
   await expect(page.getByText("160", { exact: true })).toBeVisible();
@@ -59,6 +73,106 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
   expect(consultas).toBe(2);
   expect(erros).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("dashboard.png"), fullPage: true });
+});
+
+test("veículos abre alertas, repete consulta com falha e ignora documentos antigos", async ({
+  page,
+}, testInfo) => {
+  const erros: string[] = [];
+  page.on("pageerror", (erro) => erros.push(erro.message));
+  await sessao(page, "GESTOR");
+  await page.route("**/api/v1/dashboard/resumo", (route) =>
+    route.fulfill({
+      json: {
+        veiculos: {
+          total: 1,
+          porStatus: { DISPONIVEL: 1, EM_VIAGEM: 0, MANUTENCAO: 0, DESINFECCAO: 0 },
+        },
+        solicitacoes: {
+          data: [],
+          meta: {
+            total: 0,
+            porStatus: { PENDENTE: 0, APROVADA: 0, EM_TRANSITO: 0, CONCLUIDA: 0, RECUSADA: 0 },
+          },
+        },
+        alertas: [],
+      },
+    }),
+  );
+  await page.route("**/api/v1/veiculos?*", (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          {
+            id: "veiculo-teste",
+            placa: "ABC1234",
+            modelo: "Veículo de teste",
+            tipoFrota: "ADMINISTRATIVA",
+            capacidadeMaxima: 4,
+            combustivel: "Flex",
+            ano: 2026,
+            status: "DISPONIVEL",
+          },
+        ],
+        meta: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
+      },
+    }),
+  );
+  let consultas = 0;
+  await page.route("**/api/v1/veiculos/veiculo-teste/documentos", (route) => {
+    consultas++;
+    if (consultas === 1)
+      return route.fulfill({ status: 503, json: { message: "Falha ao consultar documentos." } });
+    return route.fulfill({
+      json: {
+        data: [
+          {
+            id: "atual",
+            tipoDocumento: "IPVA",
+            atual: true,
+            situacao: "PROXIMO_VENCIMENTO",
+            diasParaVencer: 0,
+          },
+          {
+            id: "antigo",
+            tipoDocumento: "CRLV",
+            atual: false,
+            situacao: "VENCIDO",
+            diasParaVencer: -10,
+          },
+          {
+            id: "renovado",
+            tipoDocumento: "CRLV",
+            atual: true,
+            situacao: "VIGENTE",
+            diasParaVencer: 365,
+          },
+        ],
+        resumo: {
+          situacaoGeral: "PROXIMO_VENCIMENTO",
+          bloqueiaAlocacao: false,
+          tiposSemRegistro: ["SEGURO"],
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  const menu = page.getByRole("button", { name: "Abrir menu" });
+  if (await menu.isVisible()) await menu.click();
+  await page.getByRole("button", { name: "Veículos", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Gestão da Frota de Veículos" })).toBeVisible();
+  await page.getByRole("button", { name: "Ver documentos do veículo ABC1234" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Falha ao consultar documentos.");
+  await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
+  await expect(page.getByText("Vence hoje")).toBeVisible();
+  await expect(page.getByText("Vencido há 10 dia(s)")).toHaveCount(0);
+  await expect(page.getByText("CRLV", { exact: true })).toHaveCount(0);
+  await expect(page.locator("vite-error-overlay")).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("documentos-veiculo.png"), fullPage: true });
+  await page.getByRole("button", { name: "Fechar", exact: true }).click();
+  await expect(page.getByText("Alertas de vencimento", { exact: true })).toHaveCount(0);
+  expect(consultas).toBe(2);
+  expect(erros).toEqual([]);
 });
 
 for (const cancelar of [false, true]) {

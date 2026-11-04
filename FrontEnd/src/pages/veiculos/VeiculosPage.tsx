@@ -75,19 +75,9 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
   };
 }
 
-export default function DetalhesVeiculoPage({ veiculoId }: { veiculoId: string }) {
-  return (
-    <div className="p-6 bg-white rounded shadow">
-      <h1 className="text-xl font-bold mb-4">Detalhes do Veículo</h1>
-
-      {/*Exibe o alerta de vencimento nos detalhes do veículo */}
-      <AlertaDocumentos veiculoId={veiculoId} />
-    </div>
-  );
-}
-
 export const VeiculosPage: React.FC = () => {
   const { sessionKey } = useAuth();
+  const [veiculoSelecionado, setVeiculoSelecionado] = useState<VeiculoItem | null>(null);
   const [anoMaximo] = useState(() => new Date().getFullYear() + 1);
   const [searchTerm, setSearchTerm] = useState("");
   const [consulta, setConsulta] = useState({ busca: "", tipoFrota: "", page: 1 });
@@ -301,6 +291,19 @@ export const VeiculosPage: React.FC = () => {
         );
       },
     },
+    {
+      header: "Documentos",
+      render: (veiculo) => (
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`Ver documentos do veículo ${veiculo.placa}`}
+          onClick={() => setVeiculoSelecionado(veiculo)}
+        >
+          Ver documentos
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -462,6 +465,19 @@ export const VeiculosPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={veiculoSelecionado !== null}
+        onClose={() => setVeiculoSelecionado(null)}
+        title="Documentos do veículo"
+        description={
+          veiculoSelecionado
+            ? `${veiculoSelecionado.placa} · ${veiculoSelecionado.modelo}`
+            : undefined
+        }
+      >
+        {veiculoSelecionado && <AlertaDocumentos veiculoId={veiculoSelecionado.id} />}
+      </Modal>
 
       <Modal
         isOpen={isModalOpen}

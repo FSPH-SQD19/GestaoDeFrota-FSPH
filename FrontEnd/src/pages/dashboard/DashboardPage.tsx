@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Activity, Car, ClipboardList, Clock3, RefreshCw } from "lucide-react";
+import { Activity, Car, ClipboardList, Clock3, RefreshCw, TriangleAlert } from "lucide-react";
 import { Badge, Button, Card } from "../../components/common";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
@@ -9,6 +9,9 @@ import {
   type SolicitacaoViagem,
   type StatusSolicitacao,
 } from "../../types/solicitacao";
+
+import type { AlertaDocumentoVeiculo } from "../../types/documentoVeiculo";
+import { ListaAlertasDocumentos } from "../veiculos/ListaAlertasDocumentos";
 
 type StatusVeiculo = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
 
@@ -28,6 +31,7 @@ interface SolicitacoesResponse {
 interface DashboardData {
   veiculos: VeiculosResumo;
   solicitacoes: SolicitacoesResponse;
+  alertas: AlertaDocumentoVeiculo[];
 }
 
 const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
@@ -101,8 +105,7 @@ export const DashboardPage: React.FC = () => {
   const aguardando = porStatus?.PENDENTE ?? 0;
   const recentes = dados?.solicitacoes.data.slice(0, 6) ?? [];
 
-  // Extraindo os alertas vindos do back-end
-  const alertasVencimento = (dados as any)?.alertas ?? [];
+  const alertasVencimento = dados?.alertas ?? [];
 
   const indicadores = [
     {
@@ -201,46 +204,24 @@ export const DashboardPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Seção de Alertas de Vencimento de Documentos da Frota */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm">
-        <h2 className="text-base font-bold text-red-600 mb-1">
-          🚨 Alertas de Vencimento de Documentos
+      <Card className="rounded-3xl border border-slate-200/80 p-5">
+        <h2 className="mb-1 flex items-center gap-2 text-base font-bold text-slate-900">
+          <TriangleAlert className="h-5 w-5 text-amber-700" aria-hidden="true" />
+          Alertas de vencimento de documentos
         </h2>
-        <p className="text-xs text-slate-500 mb-4">
-          Veículos com documentos vencidos ou próximos do vencimento (até 30 dias).
+        <p className="mb-4 text-xs text-slate-500">
+          Documentos atuais vencidos ou com vencimento nos próximos 90 dias.
         </p>
-
-        {alertasVencimento.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            {isLoading ? "Carregando alertas..." : "Nenhum documento com vencimento próximo. 🎉"}
-          </p>
+        {isLoading ? (
+          <p className="text-sm text-slate-500">Carregando alertas...</p>
+        ) : errorMessage ? (
+          <p className="text-sm text-slate-500">Não foi possível carregar os alertas.</p>
+        ) : alertasVencimento.length > 0 ? (
+          <ListaAlertasDocumentos documentos={alertasVencimento} />
         ) : (
-          <div className="space-y-2">
-            {alertasVencimento.map((item: any) => {
-              const isVencido = item.diasParaVencer < 0;
-              return (
-                <div
-                  key={item.id || item.placa}
-                  className={`flex flex-col gap-2 p-3 rounded-2xl border text-sm sm:flex-row sm:items-center sm:justify-between ${
-                    isVencido
-                      ? "bg-rose-50 border-rose-200 text-rose-800"
-                      : "bg-amber-50 border-amber-200 text-amber-800"
-                  }`}
-                >
-                  <span>
-                    Veículo <strong>{item.placa}</strong> — {item.documento || "Documento"}
-                  </span>
-                  <span className="font-semibold">
-                    {isVencido
-                      ? `Vencido há ${Math.abs(item.diasParaVencer)} dias`
-                      : `Vence em ${item.diasParaVencer} dias`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <p className="text-sm text-slate-500">Nenhum documento com vencimento próximo.</p>
         )}
-      </div>
+      </Card>
 
       <Card className="overflow-hidden rounded-3xl border border-slate-200/80">
         <div className="flex flex-col gap-2 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">

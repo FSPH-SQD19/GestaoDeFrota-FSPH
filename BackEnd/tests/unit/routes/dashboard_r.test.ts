@@ -13,10 +13,12 @@ const mocks = vi.hoisted(() => ({
   listarSolicitacoes: vi.fn(),
   contarSolicitacoes: vi.fn(),
   solicitacoesPorStatus: vi.fn(),
+  listarDocumentos: vi.fn(),
 }));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
     veiculo: { groupBy: mocks.veiculosPorStatus },
+    documentoVeiculo: { findMany: mocks.listarDocumentos },
     solicitacaoViagem: {
       findMany: mocks.listarSolicitacoes,
       count: mocks.contarSolicitacoes,
@@ -37,6 +39,7 @@ beforeAll(async () => {
 });
 afterAll(() => new Promise((resolve) => server.close(resolve)));
 beforeEach(() => {
+  mocks.listarDocumentos.mockResolvedValue([]);
   vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
   mocks.veiculosPorStatus.mockResolvedValue([
     { status: "DISPONIVEL", _count: { _all: 130 } },
@@ -77,6 +80,7 @@ describe("GET /api/v1/dashboard/resumo", () => {
           porStatus: { DISPONIVEL: 130, EM_VIAGEM: 20, MANUTENCAO: 5, DESINFECCAO: 0 },
         },
         solicitacoes: { data: [], meta: { total: 400, porStatus: { PENDENTE: 25 } } },
+        alertas: [],
       });
       expect(mocks.veiculosPorStatus).toHaveBeenCalledWith({
         by: ["status"],
