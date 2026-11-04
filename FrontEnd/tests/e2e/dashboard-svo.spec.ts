@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { ChamadoSvo, MotoristaSvo, ViaturaSvo } from "../../src/services/svo";
 
-async function sessao(page: Page, perfil: string) {
-  await page.route("**/api/v1/auth/sessao", (route) =>
-    route.fulfill({
+async function sessao(page: Page, perfil: string, aguardarSessao?: Promise<void>) {
+  await page.route("**/api/v1/auth/sessao", async (route) => {
+    await aguardarSessao;
+    return route.fulfill({
       json: {
         usuario: {
           id: "pessoa-teste",
@@ -12,8 +13,8 @@ async function sessao(page: Page, perfil: string) {
           perfis: [perfil],
         },
       },
-    }),
-  );
+    });
+  });
   await page.route("**/api/v1/auth/csrf", (route) =>
     route.fulfill({ json: { csrfToken: "a".repeat(64) } }),
   );
@@ -80,7 +81,11 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
 }, testInfo) => {
   const erros: string[] = [];
   page.on("pageerror", (erro) => erros.push(erro.message));
-  await sessao(page, "GESTOR");
+  let liberarSessao!: () => void;
+  const sessaoLiberada = new Promise<void>((resolve) => {
+    liberarSessao = resolve;
+  });
+  await sessao(page, "GESTOR", sessaoLiberada);
   await page.route("**/api/v1/dashboard/resumo", (route) =>
     route.fulfill({
       json: {
@@ -157,6 +162,10 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
     });
   });
   await page.goto("/");
+  await expect(page.getByText("Carregando sistema FSPH...")).toBeVisible();
+  liberarSessao();
+  // A consulta de visibilidade só é válida depois que o layout autenticado foi montado.
+  await expect(page.getByRole("button", { name: "Menu da conta" })).toBeVisible();
   const menu = page.getByRole("button", { name: "Abrir menu" });
   if (await menu.isVisible()) await menu.click();
   await page.getByRole("button", { name: "Veículos", exact: true }).click();
