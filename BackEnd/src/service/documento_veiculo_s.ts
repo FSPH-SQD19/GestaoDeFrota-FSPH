@@ -162,6 +162,28 @@ export async function listarDocumentosVeiculo(veiculoId: string) {
   };
 }
 
+export async function listarAlertasDocumentosVeiculos() {
+  const documentos = await prisma.documentoVeiculo.findMany({
+    where: { veiculo: { ativo: true }, tipoDocumento: { in: [...TIPOS_DOCUMENTO] } },
+    distinct: ["veiculoId", "tipoDocumento"],
+    orderBy: [
+      { veiculoId: "asc" },
+      { tipoDocumento: "asc" },
+      { dataVencimento: "desc" },
+      { id: "asc" },
+    ],
+    include: { veiculo: { select: { placa: true } } },
+  });
+  const hoje = dataLocal();
+  return documentos
+    .map((documento) => ({
+      ...serializarDocumento(documento, hoje, true),
+      placa: documento.veiculo.placa,
+    }))
+    .filter((documento) => documento.situacao !== "VIGENTE")
+    .sort((a, b) => a.diasParaVencer - b.diasParaVencer || a.id.localeCompare(b.id));
+}
+
 export async function criarDocumentoVeiculo(
   veiculoId: string,
   input: CriarDocumentoVeiculoInput,

@@ -11,6 +11,8 @@ Os caminhos `src/...` citados neste guia são relativos à pasta `FrontEnd` do p
 
 O front-end organiza as telas, a navegação, os formulários, a apresentação dos dados e os componentes compartilhados. O estado da sessão fica nos contextos, e a comunicação com a API deve respeitar os contratos descritos em [Back-end](BACKEND.md).
 
+O painel apresenta os alertas de documentos retornados por `/dashboard/resumo`. Na gestão de veículos, a ação **Ver documentos** abre a consulta `/veiculos/:id/documentos`. Ambas usam `apiRequest`, a situação e os dias calculados pela API: somente documentos atuais, vencidos ou com vencimento até 90 dias, conforme a regra de documentos. Falhas de consulta são exibidas com opção de tentar novamente.
+
 ## Tecnologias
 
 - **Framework:** React 19 (com hooks modernos e contextos)
