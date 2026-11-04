@@ -5,6 +5,7 @@ import { authenticate, requireRole, usuarioAutenticado } from "../middleware/htt
 import { HttpError } from "../lib/http_error";
 import { validar } from "../lib/validar";
 import { diarioConfig } from "../config/diario";
+import { STATUS_ORDEM_ATIVA } from "../service/svo_status";
 import {
   coordenadasSchema,
   inicioSchema,
@@ -146,7 +147,7 @@ router.get("/geografia/tarefas", async (_req, res) => {
       : Promise.resolve([]),
     roles.some((r) => ["ADMIN", "SVO"].includes(r))
       ? prisma.ordemColetaSvo.findMany({
-          where: { status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] } },
+          where: { status: { in: [...STATUS_ORDEM_ATIVA] } },
           include: { chamado: true },
           orderBy: { sequencia: "asc" },
           take: 100,
@@ -208,7 +209,7 @@ router.patch("/geografia/:id", async (req, res) => {
       if (await tx.saidaOrdem.findUnique({ where: { ordemId: id } }))
         throw new HttpError(409, "Saída iniciada; sequência e pontos estão bloqueados.");
       const atual = await tx.ordemColetaSvo.findUniqueOrThrow({ where: { id } });
-      if (!["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"].includes(atual.status))
+      if (!STATUS_ORDEM_ATIVA.some((status) => status === atual.status))
         throw new HttpError(409, "Ordem encerrada.");
       const [lng, lat] = input.ocorrencia;
       await tx.$executeRaw`UPDATE chamados_svo SET localizacao_geo=ST_SetSRID(ST_MakePoint(${lng},${lat}),4326) WHERE id=${ordem.chamadoId}::uuid`;

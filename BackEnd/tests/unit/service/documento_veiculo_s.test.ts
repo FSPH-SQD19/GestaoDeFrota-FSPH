@@ -33,6 +33,7 @@ import {
   documentosAtuais,
   exigirDocumentosEmDia,
   listarDocumentosVeiculo,
+  listarAlertasDocumentosVeiculos,
 } from "../../../src/service/documento_veiculo_s";
 
 const usuarioId = "00000000-0000-4000-8000-000000000001";
@@ -76,6 +77,36 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("alertas de documentos da frota", () => {
+  it("seleciona o documento atual de cada tipo nos veículos ativos antes de filtrar vencimentos", async () => {
+    mocks.documentoFindMany.mockResolvedValue([
+      { ...documento("vigente", "CRLV", "2027-01-30"), veiculo: { placa: "ABC1234" } },
+      { ...documento("limite", "SEGURO", "2027-01-29"), veiculo: { placa: "ABC1234" } },
+      { ...documento("hoje", "IPVA", HOJE), veiculo: { placa: "DEF5678" } },
+      { ...documento("vencido", "CRLV", "2026-10-30"), veiculo: { placa: "DEF5678" } },
+    ]);
+    const alertas = await listarAlertasDocumentosVeiculos();
+    expect(alertas).toMatchObject([
+      { id: "vencido", placa: "DEF5678", diasParaVencer: -1, situacao: "VENCIDO", atual: true },
+      { id: "hoje", diasParaVencer: 0, situacao: "PROXIMO_VENCIMENTO", atual: true },
+      { id: "limite", diasParaVencer: 90, situacao: "PROXIMO_VENCIMENTO", atual: true },
+    ]);
+    expect(alertas).toHaveLength(3);
+    // Não filtrar a data no banco: um documento antigo vencido pode já ter sido renovado.
+    expect(mocks.documentoFindMany).toHaveBeenCalledWith({
+      where: { veiculo: { ativo: true }, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO"] } },
+      distinct: ["veiculoId", "tipoDocumento"],
+      orderBy: [
+        { veiculoId: "asc" },
+        { tipoDocumento: "asc" },
+        { dataVencimento: "desc" },
+        { id: "asc" },
+      ],
+      include: { veiculo: { select: { placa: true } } },
+    });
+  });
 });
 
 describe("datas e situação", () => {

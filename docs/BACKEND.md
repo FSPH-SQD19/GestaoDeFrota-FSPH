@@ -32,6 +32,12 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 | POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                        |
 | GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
 | GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
+| GET    | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Lista paginada de usuários.                                  |
+| GET    | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Detalhe do usuário (sem hash de senha).                      |
+| POST   | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Cadastro de usuário com perfis e senha inicial.              |
+| PATCH  | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Atualização de dados, setor, telefone, ativo e perfis.       |
+| DELETE | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Inativação (soft delete) e revogação de sessões.             |
+| PATCH  | `/api/v1/auth/usuarios/:id/redefinir-senha`                 | JWT com `ADMIN`             | Redefinição administrativa de senha (já existente).          |
 | GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
 | POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
 | GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
@@ -155,6 +161,8 @@ A situação é calculada a cada consulta no dia de America/Sao_Paulo: `VENCIDO`
 
 A listagem retorna `{ data, resumo }`. Cada item traz `tipoDocumento`, `dataVencimento`, `situacao`, `diasParaVencer` (negativo quando vencido) e `atual` (se é o documento que vale para o tipo). O `resumo` traz `situacaoGeral` (a pior entre os documentos atuais, ou `null` sem documentos), `bloqueiaAlocacao` e `tiposSemRegistro`.
 
+O resumo do painel (`GET /api/v1/dashboard/resumo`, perfis `ADMIN` e `GESTOR`) inclui `alertas`: documentos atuais dos veículos ativos com situação `VENCIDO` ou `PROXIMO_VENCIMENTO`, com os mesmos campos da listagem e a `placa` do veículo. A ordenação prioriza o menor `diasParaVencer`. Documentos substituídos por renovação não geram alertas.
+
 A aprovação de solicitação (`PATCH .../aprovar`) recusa com `422` o veículo cujo documento atual de algum tipo vence antes do dia do retorno previsto (ou antes de hoje). Cada documento pendente vem em `errors`, com `campo: "veiculoId"`. Veículo sem documento cadastrado não é bloqueado.
 
 ## Erros das rotas de veículos
@@ -190,6 +198,20 @@ npm run build --workspace=backend
 Centralize o acesso ao banco em `BackEnd/src/lib/prisma.ts` e mantenha alterações do schema acompanhadas de migrations. Veja [Ambiente](AMBIENTE.md) para configurar a API e [Testes](TESTES.md) para adicionar cenários.
 
 A API valida o ano do veículo até o ano atual mais um; a constraint da migration limita o banco ao intervalo de 1950 a 2100. Ao alterar validações, confira os dois níveis.
+
+## Gestão de usuários
+
+`GET|POST|PATCH|DELETE /api/v1/usuarios` exige JWT com perfil `ADMIN`. A migration `20261104120000_usuarios_telefone_setor` adiciona `telefone` e `setor` em `usuarios`.
+
+- `GET /api/v1/usuarios`: query `page`, `pageSize` (padrão 20, máx. 100), `busca`, `setor`, `perfil`, `ativo`. Resposta `{ data, meta }`; cada item traz `perfis` como nomes (`ADMIN`, `GESTOR`, `MOTORISTA`, `SVO`, `SOLICITANTE`). A ordenação é por nome, com desempate por ID para manter a paginação estável entre homônimos.
+- `GET /api/v1/usuarios/:id`: detalhe sem `senhaHash`.
+- `POST /api/v1/usuarios`: `{ nome, email, senha, perfis[], telefone?, setor? }` → `201` + `Location` + `{ mensagem, dados }`. Senha mínima de 8 caracteres (mesmo critério da redefinição administrativa).
+- `PATCH /api/v1/usuarios/:id`: campos opcionais `nome`, `email`, `telefone`, `setor`, `ativo`, `perfis` → `{ mensagem, dados }`.
+- `DELETE /api/v1/usuarios/:id`: inativa (`ativo=false`), revoga sessões e retorna `{ mensagem, dados }`.
+
+E-mail é normalizado para minúsculas e permanece único (`409` se duplicado). Telefone, quando informado, exige DDD e 8 ou 9 dígitos. O administrador não pode inativar a própria conta nem remover o próprio perfil `ADMIN`. Atribuição do perfil `MOTORISTA` não cria o cadastro operacional de motorista — use `POST /api/v1/motoristas`. Redefinição de senha permanece em `PATCH /api/v1/auth/usuarios/:id/redefinir-senha`.
+
+No PATCH, omitir `telefone` preserva o contato; `null` ou texto em branco limpa o campo. Valores preenchidos sem dígitos retornam `400` sem gravar alterações. Tanto `PATCH` com `ativo=false` quanto `DELETE` revogam as sessões na mesma transação da inativação, inclusive ao repetir a operação.
 
 ## Relatório operacional
 
@@ -238,7 +260,22 @@ A migration de status já pertencente à branch foi preservada e não foi aplica
 
 ### Operação SVO
 
-As rotas existentes em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`: consultas de indicadores, chamados, viaturas e motoristas; registro de chamado; triagem; emissão de ordem; conclusão da coleta e confirmação de desinfecção. Os nove caminhos são verificados por testes HTTP de autenticação, autorização e validação, usando o aplicativo Express real e serviços simulados nos testes.
+As rotas em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`. IDs são UUIDs. Consultas: `GET /indicadores`, `/chamados` (paginação, busca e filtro `etapa`), `/viaturas` e `/motoristas`. Atendimento: `POST /chamados` e `PATCH /chamados/:id/triagem`.
+
+| Método e caminho (prefixo `/api/v1/svo`) | Corpo                                                           | Resultado                                                                       |
+| ---------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `POST /ordens-coleta`                    | `{ chamadoId, veiculoId, motoristaId, numeroDeclaracaoObito? }` | `201`, ordem em `AGUARDANDO_DESPACHO`; chamado deve estar aprovado e sem ordem. |
+| `PATCH /ordens-coleta/:id/etapa`         | `{ status: "EM_DESLOCAMENTO" \| "NO_LOCAL" \| "ENTREGUE_SVO" }` | `200`, ordem atualizada; `:id` identifica a ordem, não o chamado.               |
+| `PATCH /ordens-coleta/:id/cancelar`      | Sem corpo                                                       | `200`, ordem em `CANCELADA`; permitido somente antes do despacho.               |
+| `PATCH /viaturas/:id/desinfeccao`        | Sem corpo                                                       | `200`, viatura liberada após confirmar desinfecção.                             |
+
+A sequência obrigatória é `AGUARDANDO_DESPACHO → EM_DESLOCAMENTO → NO_LOCAL → ENTREGUE_SVO`. O servidor registra respectivamente `dataHoraSaida`, `dataHoraChegadaLocal` e `dataHoraEntregaSvo`; todos começam nulos e são retornados na ordem e na listagem dos chamados. Datas são ISO 8601. Repetir ou pular etapa retorna `409`, sem alterar horários ou duplicar auditoria. Corpo ou UUID inválido retorna `400`; registro ausente, `404`; recursos indisponíveis ou CNH vencida, `422`; falta de sessão, `401`; perfil sem acesso, `403`.
+
+Na emissão, a ordem reserva uma vaga e ocupa o motorista, mas mantém a viatura disponível até registrar a saída. Reservas contam para capacidade, vínculo do condutor e filtro `EM_OPERACAO`, mas não para `coletasEmAndamento`. O painel distingue a reserva da coleta em trânsito. No despacho, a viatura e a habilitação do motorista são revalidadas. Cancelar mantém a ordem no histórico e no filtro `ENCERRADO`, libera sua vaga e libera o motorista se não houver outras ordens ativas. O chamado cancelado não admite nova emissão (uma ordem por chamado). Cancelamento antes de qualquer saída não gera desinfecção.
+
+Compatibilidade: `POST /chamados/:id/ordens` aceita a alocação sem `chamadoId` e também cria uma reserva, sem despacho automático. `PATCH /chamados/:id/concluir` executa a mesma entrega das novas rotas, exigindo `NO_LOCAL` e retornando `ENTREGUE_SVO`. Ordens legadas em `EM_ANDAMENTO` devem registrar `NO_LOCAL` antes da entrega. Ordens já `CONCLUIDA` permanecem encerradas. A interface usa `/ordens-coleta` e os botões de saída, chegada, entrega e cancelamento.
+
+Os testes HTTP verificam autenticação, autorização e validação. Uma suíte adicional exercita Express, controladores e serviços reais com persistência simulada ao longo do atendimento, reserva, despacho, chegada, entrega, desinfecção e cancelamento; o Playwright percorre a tela em desktop e celular com HTTP simulado.
 
 Emissão e conclusão serializam os recursos na ordem motorista, veículo e chamado, compartilhando as chaves de trava com aprovação de solicitações e manutenção. A conclusão relê a ordem depois das travas para rejeitar repetição sem duplicar auditoria ou desinfecção. O motorista não pode operar duas viaturas ao mesmo tempo, e coletas simultâneas na mesma viatura mantêm o condutor existente. A capacidade, a CNH e os estados operacionais são conferidos antes do despacho.
 

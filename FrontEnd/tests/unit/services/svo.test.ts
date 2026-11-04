@@ -18,7 +18,13 @@ vi.mock("../../../src/services/notificacoesService", () => ({
   dispararAtualizacaoNotificacoes: vi.fn(),
 }));
 
-import { obterChamadosSvo, obterEscalasEmAndamentoSvo } from "../../../src/services/svo";
+import {
+  obterChamadosSvo,
+  obterEscalasEmAndamentoSvo,
+  criarOrdemColetaSvo,
+  avancarEtapaColetaSvo,
+  cancelarOrdemColetaSvo,
+} from "../../../src/services/svo";
 
 const CHAMADO_VALIDO = {
   id: "chamado-1",
@@ -60,6 +66,26 @@ const ESCALA_VALIDA = {
 describe("serviço SVO - validação das respostas da API", () => {
   beforeEach(() => {
     mocks.get.mockReset();
+    mocks.post.mockReset();
+    mocks.patch.mockReset();
+  });
+
+  it("cria reserva pela rota de ordens e usa o ID da ordem nas etapas e no cancelamento", async () => {
+    const ordem = { id: "ordem-1", status: "AGUARDANDO_DESPACHO" };
+    mocks.post.mockResolvedValue({ data: ordem });
+    mocks.patch.mockResolvedValue({ data: ordem });
+    const alocacao = { veiculoId: "viatura-1", motoristaId: "motorista-1" };
+    await criarOrdemColetaSvo("chamado-1", alocacao);
+    expect(mocks.post).toHaveBeenCalledWith("/api/v1/svo/ordens-coleta", {
+      chamadoId: "chamado-1",
+      ...alocacao,
+    });
+    await avancarEtapaColetaSvo(ordem.id, "EM_DESLOCAMENTO");
+    expect(mocks.patch).toHaveBeenCalledWith("/api/v1/svo/ordens-coleta/ordem-1/etapa", {
+      status: "EM_DESLOCAMENTO",
+    });
+    await cancelarOrdemColetaSvo(ordem.id);
+    expect(mocks.patch).toHaveBeenCalledWith("/api/v1/svo/ordens-coleta/ordem-1/cancelar");
   });
 
   it("retorna chamados e metadados quando a resposta está no formato esperado", async () => {

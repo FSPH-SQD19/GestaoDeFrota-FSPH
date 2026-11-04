@@ -1,4 +1,5 @@
 import { diarioConfig } from "../config/diario";
+import { STATUS_ORDEM_ATIVA } from "./svo_status";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -146,7 +147,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
         if (
           diarioConfig().enabled &&
           ((await tx.ordemColetaSvo.findFirst({
-            where: { motoristaId, status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] } },
+            where: { motoristaId, status: { in: [...STATUS_ORDEM_ATIVA] } },
           })) ||
             (await tx.saidaOperacional.findFirst({
               where: { status: "EM_ANDAMENTO", OR: [{ motoristaId }, { veiculoId }] },

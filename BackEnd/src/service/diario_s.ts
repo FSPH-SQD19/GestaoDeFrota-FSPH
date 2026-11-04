@@ -15,6 +15,7 @@ import {
 import { criarAbastecimento, criarAbastecimentoSchema } from "./abastecimento_s";
 import { exigirDocumentosEmDia } from "./documento_veiculo_s";
 import { diarioConfig } from "../config/diario";
+import { STATUS_ORDEM_ATIVA } from "./svo_status";
 type Tx = Prisma.TransactionClient;
 const relations = { ordens: true } as const;
 async function transacionar<T>(operation: (tx: Tx) => Promise<T>, options: { timeout: number }) {
@@ -65,7 +66,7 @@ export async function tarefas(usuario: UsuarioAutenticado) {
     prisma.ordemColetaSvo.findMany({
       where: {
         motoristaId: motorista.id,
-        status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] },
+        status: { in: [...STATUS_ORDEM_ATIVA] },
       } as Prisma.OrdemColetaSvoWhereInput,
       include: { chamado: true, veiculo: true },
       orderBy: [{ sequencia: "asc" }, { id: "asc" }],
@@ -158,6 +159,7 @@ export async function iniciarSaida(
       );
       let solicitacaoId: string | undefined;
       let ordensIds: string[] = [];
+      const visitasAnteriores = new Map<string, Date>();
       let pontos: Ponto[] = [];
       if (input.tipo === "ADMINISTRATIVA") {
         const tarefa = await tx.solicitacaoViagem.findUnique({ where: { id: input.tarefaId } });
@@ -171,7 +173,7 @@ export async function iniciarSaida(
         const conflito = await tx.ordemColetaSvo.count({
           where: {
             motoristaId: motorista.id,
-            status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] },
+            status: { in: [...STATUS_ORDEM_ATIVA] },
           },
         });
         if (conflito) throw new HttpError(409, "Motorista alocado em operação SVO.");
@@ -211,7 +213,7 @@ export async function iniciarSaida(
           where: {
             motoristaId: motorista.id,
             veiculoId: veiculo.id,
-            status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] },
+            status: { in: [...STATUS_ORDEM_ATIVA] },
           },
           include: { chamado: true },
           orderBy: [{ sequencia: "asc" }, { id: "asc" }],
@@ -232,6 +234,10 @@ export async function iniciarSaida(
           Array<{ id: string; coordenadas: number[] | null }>
         >`SELECT id, CASE WHEN localizacao_geo IS NULL THEN NULL ELSE ARRAY[ST_X(localizacao_geo),ST_Y(localizacao_geo)] END AS coordenadas FROM chamados_svo WHERE id IN (SELECT chamado_id FROM ordens_coleta_svo WHERE motorista_id=${motorista.id}::uuid AND veiculo_id=${veiculo.id}::uuid)`;
         ordensIds = ordens.map((o) => o.id);
+        for (const ordem of ordens) {
+          if (ordem.status === "NO_LOCAL")
+            visitasAnteriores.set(ordem.id, ordem.dataHoraChegadaLocal ?? new Date());
+        }
         pontos = ordens.map((o) => ({
           id: o.id,
           nome: o.chamado.enderecoOcorrencia ?? "Coleta",
@@ -243,8 +249,12 @@ export async function iniciarSaida(
           coordenadas: coords(ordens[0].baseCoordenadas),
         });
         await tx.ordemColetaSvo.updateMany({
-          where: { id: { in: ordensIds } },
-          data: { status: "EM_ANDAMENTO", dataHoraSaida: new Date() },
+          where: { id: { in: ordensIds }, status: "AGUARDANDO_DESPACHO" },
+          data: { status: "EM_DESLOCAMENTO", dataHoraSaida: new Date() },
+        });
+        await tx.ordemColetaSvo.updateMany({
+          where: { id: { in: ordensIds }, status: "EM_ANDAMENTO" },
+          data: { status: "EM_DESLOCAMENTO" },
         });
       }
       const saida = await tx.saidaOperacional.create({
@@ -257,7 +267,12 @@ export async function iniciarSaida(
           kmInicial: input.kmInicial,
           checklistSaida: input.checklist,
           pontos,
-          ordens: { create: ordensIds.map((ordemId) => ({ ordemId })) },
+          ordens: {
+            create: ordensIds.map((ordemId) => ({
+              ordemId,
+              visitadaEm: visitasAnteriores.get(ordemId),
+            })),
+          },
         },
         include: relations,
       });
@@ -306,11 +321,17 @@ export async function executarComando(
         );
         if (!ordem.visitadaEm && proxima?.id !== comando.ordemId)
           throw new HttpError(409, "Siga a sequência de coletas definida pela central.");
-        if (!ordem.visitadaEm)
+        if (!ordem.visitadaEm) {
+          const chegada = new Date();
           await tx.saidaOrdem.update({
             where: { ordemId: comando.ordemId },
-            data: { visitadaEm: new Date() },
+            data: { visitadaEm: chegada },
           });
+          await tx.ordemColetaSvo.updateMany({
+            where: { id: comando.ordemId, status: { in: [...STATUS_ORDEM_ATIVA] } },
+            data: { status: "NO_LOCAL", dataHoraChegadaLocal: chegada },
+          });
+        }
       } else if (comando.tipo === "ABASTECIMENTO") {
         validarHorario(comando.dataHora, saida.inicio);
         if (comando.odometro < Number(saida.kmInicial))
@@ -365,7 +386,7 @@ export async function executarComando(
         } else {
           await tx.ordemColetaSvo.updateMany({
             where: { id: { in: saida.ordens.map((o) => o.ordemId) } },
-            data: { status: "CONCLUIDA" },
+            data: { status: "ENTREGUE_SVO", dataHoraEntregaSvo: new Date(comando.dataHora) },
           });
           await tx.desinfeccaoSvo.create({
             data: { veiculoId: saida.veiculoId, status: "EM_ANDAMENTO", responsavelId: usuario.id },

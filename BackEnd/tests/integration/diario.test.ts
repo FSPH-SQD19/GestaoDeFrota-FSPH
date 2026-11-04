@@ -181,6 +181,9 @@ describe("PostGIS e transações reais em banco descartável", () => {
       await prisma.ordemColetaSvo.findUnique({ where: { id: f.input.tarefaId } }),
     ).toMatchObject({ status: "AGUARDANDO_DESPACHO", dataHoraSaida: null });
     const s = await iniciarSaida(f.input, f.usuario);
+    expect(
+      await prisma.ordemColetaSvo.findUnique({ where: { id: f.input.tarefaId } }),
+    ).toMatchObject({ status: "EM_DESLOCAMENTO", dataHoraSaida: expect.any(Date) });
     const fim = {
       id: randomUUID(),
       tipo: "ENCERRAR" as const,
@@ -195,7 +198,13 @@ describe("PostGIS e transações reais em banco descartável", () => {
       { id: randomUUID(), tipo: "VISITA", ordemId: f.input.tarefaId },
       f.usuario,
     );
+    expect(
+      await prisma.ordemColetaSvo.findUnique({ where: { id: f.input.tarefaId } }),
+    ).toMatchObject({ status: "NO_LOCAL", dataHoraChegadaLocal: expect.any(Date) });
     await executarComando(s.id, fim, f.usuario);
+    expect(
+      await prisma.ordemColetaSvo.findUnique({ where: { id: f.input.tarefaId } }),
+    ).toMatchObject({ status: "ENTREGUE_SVO", dataHoraEntregaSvo: new Date(fim.dataHora) });
     expect(await prisma.veiculo.findUnique({ where: { id: f.veiculo.id } })).toMatchObject({
       status: "DESINFECCAO",
     });

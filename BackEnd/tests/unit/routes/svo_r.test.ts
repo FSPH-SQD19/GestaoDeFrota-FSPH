@@ -20,6 +20,8 @@ vi.mock("../../../src/service/svo_s", async (importOriginal) => ({
   registrarChamadoSvo: vi.fn(async () => ({ id: "chamado" })),
   realizarTriagemSvo: vi.fn(async () => ({ statusTriagem: "APROVADO" })),
   emitirOrdemColetaSvo: vi.fn(async () => ({ status: "EM_ANDAMENTO" })),
+  avancarEtapaColetaSvo: vi.fn(async () => ({ status: "EM_DESLOCAMENTO" })),
+  cancelarOrdemColetaSvo: vi.fn(async () => ({ status: "CANCELADA" })),
   concluirColetaSvo: vi.fn(async () => ({ status: "CONCLUIDA" })),
   concluirDesinfeccaoSvo: vi.fn(async () => ({ status: "DISPONIVEL" })),
 }));
@@ -63,6 +65,9 @@ describe("rotas canônicas SVO", () => {
       201,
     ],
     ["POST", `/chamados/${id}/ordens`, { veiculoId: id, motoristaId: id }, 201],
+    ["POST", "/ordens-coleta", { chamadoId: id, veiculoId: id, motoristaId: id }, 201],
+    ["PATCH", `/ordens-coleta/${id}/etapa`, { status: "EM_DESLOCAMENTO" }, 200],
+    ["PATCH", `/ordens-coleta/${id}/cancelar`, undefined, 200],
     ["PATCH", `/chamados/${id}/triagem`, { decisao: "APROVAR" }, 200],
     ["PATCH", `/chamados/${id}/concluir`, undefined, 200],
     ["PATCH", `/viaturas/${id}/desinfeccao`, undefined, 200],
@@ -73,6 +78,10 @@ describe("rotas canônicas SVO", () => {
     expect((await request(method, path, "ADMIN", body)).status).toBe(status);
   });
   it("rejeita ID e dados inválidos antes de executar a operação", async () => {
+    expect((await request("PATCH", "/ordens-coleta/invalido/cancelar", "SVO")).status).toBe(400);
+    expect(
+      (await request("PATCH", `/ordens-coleta/${id}/etapa`, "SVO", { status: "CONCLUIDA" })).status,
+    ).toBe(400);
     expect((await request("PATCH", "/chamados/invalido/concluir", "SVO")).status).toBe(400);
     expect((await request("POST", `/chamados/${id}/ordens`, "SVO", {})).status).toBe(400);
     expect(

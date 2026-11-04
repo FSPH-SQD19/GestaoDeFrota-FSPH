@@ -6,6 +6,9 @@ import {
   registrarChamadoSvoController,
   triagemSvoController,
   emitirOrdemSvoController,
+  criarOrdemSvoController,
+  avancarEtapaColetaSvoController,
+  cancelarOrdemSvoController,
   concluirColetaSvoController,
   concluirDesinfeccaoSvoController,
   listarViaturasSvoController,
@@ -21,6 +24,9 @@ router.get("/viaturas", listarViaturasSvoController);
 router.get("/motoristas", listarMotoristasSvoController);
 
 router.post("/chamados", registrarChamadoSvoController);
+router.post("/ordens-coleta", criarOrdemSvoController);
+router.patch("/ordens-coleta/:id/etapa", avancarEtapaColetaSvoController);
+router.patch("/ordens-coleta/:id/cancelar", cancelarOrdemSvoController);
 router.post("/chamados/:id/ordens", emitirOrdemSvoController);
 
 router.patch("/chamados/:id/triagem", triagemSvoController);

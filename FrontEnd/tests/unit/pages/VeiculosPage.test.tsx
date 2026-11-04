@@ -48,6 +48,48 @@ beforeEach(() => {
     });
 });
 describe("VeiculosPage", () => {
+  it("abre documentos pelo veículo e permite repetir a consulta após erro", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("ABC1234");
+    vi.mocked(apiRequest).mockRejectedValueOnce(new Error("Falha ao consultar documentos."));
+    await user.click(screen.getByRole("button", { name: "Ver documentos do veículo ABC1234" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Falha ao consultar documentos.");
+    expect(apiRequest).toHaveBeenLastCalledWith("/veiculos/v1/documentos");
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      data: [
+        {
+          id: "atual",
+          tipoDocumento: "IPVA",
+          atual: true,
+          situacao: "PROXIMO_VENCIMENTO",
+          diasParaVencer: 0,
+        },
+        {
+          id: "antigo",
+          tipoDocumento: "CRLV",
+          atual: false,
+          situacao: "VENCIDO",
+          diasParaVencer: -10,
+        },
+        {
+          id: "renovado",
+          tipoDocumento: "CRLV",
+          atual: true,
+          situacao: "VIGENTE",
+          diasParaVencer: 365,
+        },
+      ],
+      resumo: {},
+    });
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(await screen.findByText("Vence hoje")).toBeInTheDocument();
+    expect(screen.queryByText("Vencido há 10 dia(s)")).not.toBeInTheDocument();
+    expect(screen.queryByText("CRLV")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByText("Alertas de vencimento")).not.toBeInTheDocument();
+  });
+
   it("usa os totais da API e pagina além da primeira centena de veículos", async () => {
     const user = userEvent.setup();
     renderPage();

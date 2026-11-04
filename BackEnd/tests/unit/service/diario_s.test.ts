@@ -13,7 +13,9 @@ const db = vi.hoisted(() => ({
   comandoSaida: { findUnique: vi.fn(), create: vi.fn() },
   veiculo: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
   saidaOrdem: { update: vi.fn() },
-  ordemColetaSvo: { updateMany: vi.fn() },
+  ordemColetaSvo: { findMany: vi.fn(), updateMany: vi.fn() },
+  solicitacaoViagem: { count: vi.fn() },
+  documentoVeiculo: { findMany: vi.fn() },
   desinfeccaoSvo: { create: vi.fn() },
   abastecimento: { findFirst: vi.fn() },
   auditoriaSistema: { create: vi.fn() },
@@ -69,6 +71,80 @@ beforeEach(() => {
   db.$transaction.mockImplementation((fn) => fn(db));
 });
 describe("diário de bordo", () => {
+  it.each(["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"])(
+    "incorpora ordem SVO em %s sem regredir etapas ou horários existentes",
+    async (status) => {
+      const ordemId = randomUUID();
+      const chegada = new Date(Date.now() - 30000);
+      db.saidaOperacional.findUnique.mockResolvedValue(null);
+      db.saidaOperacional.findFirst.mockResolvedValue(null);
+      db.saidaOperacional.create.mockResolvedValue({ ...saida(), tipo: "SVO" });
+      db.motorista.findUnique.mockResolvedValue({
+        id: motoristaId,
+        ativo: true,
+        status: "OCUPADO",
+        validadeCnh: new Date("2030-12-31"),
+      });
+      db.veiculo.findUnique.mockResolvedValue({
+        id: veiculoId,
+        ativo: true,
+        tipoFrota: "SVO",
+        status: "DISPONIVEL",
+        capacidadeMaxima: 2,
+        odometroAtual: 100,
+      });
+      db.documentoVeiculo.findMany.mockResolvedValue([]);
+      db.solicitacaoViagem.count.mockResolvedValue(0);
+      db.$queryRaw.mockResolvedValue([]);
+      db.ordemColetaSvo.findMany.mockResolvedValue([
+        {
+          id: ordemId,
+          status,
+          chamadoId: randomUUID(),
+          chamado: { enderecoOcorrencia: "Coleta" },
+          baseCoordenadas: [],
+          dataHoraChegadaLocal: chegada,
+        },
+      ]);
+      await iniciarSaida(
+        {
+          id,
+          tipo: "SVO",
+          tarefaId: ordemId,
+          veiculoId,
+          kmInicial: 100,
+          checklist: checklist(),
+        },
+        usuario,
+      );
+      expect(db.ordemColetaSvo.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            motoristaId,
+            veiculoId,
+            status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"] },
+          },
+        }),
+      );
+      expect(db.saidaOperacional.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            ordens: {
+              create: [{ ordemId, visitadaEm: status === "NO_LOCAL" ? chegada : undefined }],
+            },
+          }),
+        }),
+      );
+      expect(db.ordemColetaSvo.updateMany).toHaveBeenNthCalledWith(1, {
+        where: { id: { in: [ordemId] }, status: "AGUARDANDO_DESPACHO" },
+        data: { status: "EM_DESLOCAMENTO", dataHoraSaida: expect.any(Date) },
+      });
+      expect(db.ordemColetaSvo.updateMany).toHaveBeenNthCalledWith(2, {
+        where: { id: { in: [ordemId] }, status: "EM_ANDAMENTO" },
+        data: { status: "EM_DESLOCAMENTO" },
+      });
+    },
+  );
   it("SVO respeita a sequência e só inicia desinfecção depois de todas as visitas no retorno", async () => {
     const ordem1 = randomUUID(),
       ordem2 = randomUUID();
@@ -96,6 +172,13 @@ describe("diário de bordo", () => {
       executarComando(id, { id: randomUUID(), tipo: "VISITA", ordemId: ordem2 }, usuario),
     ).rejects.toMatchObject({ statusCode: 409 });
     await executarComando(id, { id: randomUUID(), tipo: "VISITA", ordemId: ordem1 }, usuario);
+    expect(db.ordemColetaSvo.updateMany).toHaveBeenLastCalledWith({
+      where: {
+        id: ordem1,
+        status: { in: expect.arrayContaining(["EM_DESLOCAMENTO", "NO_LOCAL"]) },
+      },
+      data: { status: "NO_LOCAL", dataHoraChegadaLocal: expect.any(Date) },
+    });
     const fim = {
       id: randomUUID(),
       tipo: "ENCERRAR" as const,
@@ -108,6 +191,10 @@ describe("diário de bordo", () => {
     expect(db.desinfeccaoSvo.create).not.toHaveBeenCalled();
     await executarComando(id, { id: randomUUID(), tipo: "VISITA", ordemId: ordem2 }, usuario);
     await executarComando(id, fim, usuario);
+    expect(db.ordemColetaSvo.updateMany).toHaveBeenLastCalledWith({
+      where: { id: { in: [ordem1, ordem2] } },
+      data: { status: "ENTREGUE_SVO", dataHoraEntregaSvo: new Date(fim.dataHora) },
+    });
     expect(db.desinfeccaoSvo.create).toHaveBeenCalledOnce();
     expect(db.veiculo.update).toHaveBeenCalledWith({
       where: { id: veiculoId },

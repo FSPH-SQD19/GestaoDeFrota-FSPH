@@ -7,6 +7,7 @@ export type StatusTriagem = "EM_ANALISE" | "APROVADO" | "RECUSADO";
 export type EtapaFiltroSvo =
   "TODOS" | "EM_ANALISE" | "AGUARDANDO_ORDEM" | "EM_OPERACAO" | "ENCERRADO";
 export type StatusVeiculoSvo = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
+export type EtapaColetaSvo = "EM_DESLOCAMENTO" | "NO_LOCAL" | "ENTREGUE_SVO";
 
 export interface OrdemColetaSvo {
   id: string;
@@ -16,6 +17,8 @@ export interface OrdemColetaSvo {
   status: string;
   numeroDeclaracaoObito: string | null;
   dataHoraSaida: string | null;
+  dataHoraChegadaLocal?: string | null;
+  dataHoraEntregaSvo?: string | null;
   veiculo?: {
     id: string;
     placa: string;
@@ -150,6 +153,8 @@ const ordemColetaSvoSchema = z
     status: z.string(),
     numeroDeclaracaoObito: z.string().nullable(),
     dataHoraSaida: z.iso.datetime({ offset: true }).nullable(),
+    dataHoraChegadaLocal: z.iso.datetime({ offset: true }).nullable().optional(),
+    dataHoraEntregaSvo: z.iso.datetime({ offset: true }).nullable().optional(),
     veiculo: viaturaOrdemSvoSchema.nullable().optional(),
     motorista: motoristaOrdemSvoSchema.nullable().optional(),
   })
@@ -316,16 +321,34 @@ export async function criarOrdemColetaSvo(
     numeroDeclaracaoObito?: string;
   },
 ): Promise<OrdemColetaSvo> {
-  const { data } = await api.post<OrdemColetaSvo>(
-    `${BASE}/chamados/${encodeURIComponent(id)}/ordens`,
-    input,
-  );
+  const { data } = await api.post<OrdemColetaSvo>(`${BASE}/ordens-coleta`, {
+    chamadoId: id,
+    ...input,
+  });
   return data;
 }
 
 export async function concluirColetaSvo(id: string): Promise<OrdemColetaSvo> {
   const { data } = await api.patch<OrdemColetaSvo>(
     `${BASE}/chamados/${encodeURIComponent(id)}/concluir`,
+  );
+  return data;
+}
+
+export async function avancarEtapaColetaSvo(
+  id: string,
+  status: EtapaColetaSvo,
+): Promise<OrdemColetaSvo> {
+  const { data } = await api.patch<OrdemColetaSvo>(
+    `${BASE}/ordens-coleta/${encodeURIComponent(id)}/etapa`,
+    { status },
+  );
+  return data;
+}
+
+export async function cancelarOrdemColetaSvo(id: string): Promise<OrdemColetaSvo> {
+  const { data } = await api.patch<OrdemColetaSvo>(
+    `${BASE}/ordens-coleta/${encodeURIComponent(id)}/cancelar`,
   );
   return data;
 }

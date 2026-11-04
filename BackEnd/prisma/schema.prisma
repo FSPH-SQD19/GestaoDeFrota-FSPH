@@ -13,6 +13,8 @@ model Usuario {
   nome      String   @db.VarChar(150)
   email     String   @unique @db.VarChar(150)
   senhaHash String   @map("senha_hash") @db.VarChar(255)
+  telefone  String?  @db.VarChar(20)
+  setor     String?  @db.VarChar(100)
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now()) @map("criado_em")
 
@@ -25,6 +27,8 @@ model Usuario {
   auditorias   AuditoriaSistema[]
   notificacoes Notificacao[]
 
+  @@index([ativo])
+  @@index([setor])
   @@map("usuarios")
 }
 
@@ -254,6 +258,8 @@ model OrdemColetaSvo {
   sequencia             Int         @default(0)
   baseCoordenadas       Float[]     @default([]) @map("base_coordenadas")
   dataHoraSaida         DateTime?   @map("data_hora_saida")
+  dataHoraChegadaLocal  DateTime?   @map("data_hora_chegada_local")
+  dataHoraEntregaSvo    DateTime?   @map("data_hora_entrega_svo")
 
   chamado   ChamadoSvo @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
   veiculo   Veiculo?   @relation(fields: [veiculoId], references: [id])
