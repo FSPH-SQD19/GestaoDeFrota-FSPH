@@ -20,6 +20,7 @@ vi.mock("../../../src/service/svo_s", async (importOriginal) => ({
   registrarChamadoSvo: vi.fn(async () => ({ id: "chamado" })),
   realizarTriagemSvo: vi.fn(async () => ({ statusTriagem: "APROVADO" })),
   emitirOrdemColetaSvo: vi.fn(async () => ({ status: "EM_ANDAMENTO" })),
+  avancarEtapaColetaSvo: vi.fn(async () => ({ status: "EM_DESLOCAMENTO" })),
   concluirColetaSvo: vi.fn(async () => ({ status: "CONCLUIDA" })),
   concluirDesinfeccaoSvo: vi.fn(async () => ({ status: "DISPONIVEL" })),
 }));
@@ -63,6 +64,8 @@ describe("rotas canônicas SVO", () => {
       201,
     ],
     ["POST", `/chamados/${id}/ordens`, { veiculoId: id, motoristaId: id }, 201],
+    ["POST", "/ordens-coleta", { chamadoId: id, veiculoId: id, motoristaId: id }, 201],
+    ["PATCH", `/ordens-coleta/${id}/etapa`, { status: "EM_DESLOCAMENTO" }, 200],
     ["PATCH", `/chamados/${id}/triagem`, { decisao: "APROVAR" }, 200],
     ["PATCH", `/chamados/${id}/concluir`, undefined, 200],
     ["PATCH", `/viaturas/${id}/desinfeccao`, undefined, 200],

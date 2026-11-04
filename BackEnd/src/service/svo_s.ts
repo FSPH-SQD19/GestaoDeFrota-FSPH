@@ -4,7 +4,12 @@ import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 import { notificarViaturaSvoLiberada } from "./notificacao_s";
 
-export const STATUS_ORDEM_ATIVA = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO"] as const;
+export const STATUS_ORDEM_ATIVA = [
+  "AGUARDANDO_DESPACHO",
+  "EM_ANDAMENTO",
+  "EM_DESLOCAMENTO",
+  "NO_LOCAL",
+] as const;
 const PREFIXO_PROTOCOLO_SVO = "SVO";
 const FUSO_PROTOCOLO = "America/Maceio";
 
@@ -62,6 +67,22 @@ export const emitirOrdemSchema = z
       .optional(),
   })
   .strict();
+
+export const criarOrdemSchema = emitirOrdemSchema.extend({
+  chamadoId: z.uuid("Selecione um chamado válido."),
+});
+
+export const avancarEtapaSchema = z
+  .object({
+    status: z.enum(["EM_DESLOCAMENTO", "NO_LOCAL", "ENTREGUE_SVO"]),
+  })
+  .strict();
+
+const etapaAnterior = {
+  EM_DESLOCAMENTO: "AGUARDANDO_DESPACHO",
+  NO_LOCAL: "EM_DESLOCAMENTO",
+  ENTREGUE_SVO: "NO_LOCAL",
+} as const;
 
 const buscaQuerySchema = z.preprocess((valor) => {
   if (typeof valor === "string" && valor.trim() === "") return undefined;
@@ -142,7 +163,10 @@ function construirWhereChamados(
       });
     } else if (filtros.etapa === "ENCERRADO") {
       condicoes.push({
-        OR: [{ statusTriagem: "RECUSADO" }, { ordemColeta: { is: { status: "CONCLUIDA" } } }],
+        OR: [
+          { statusTriagem: "RECUSADO" },
+          { ordemColeta: { is: { status: { in: ["CONCLUIDA", "ENTREGUE_SVO"] } } } },
+        ],
       });
     }
   }
@@ -374,6 +398,7 @@ export async function emitirOrdemColetaSvo(
   chamadoId: string,
   input: z.infer<typeof emitirOrdemSchema>,
   usuarioId?: string,
+  despacharNaEmissao = true,
 ) {
   return transacionarSvo(async (tx) => {
     await bloquearRecursosSvo(tx, input.veiculoId, input.motoristaId, chamadoId);
@@ -448,8 +473,8 @@ export async function emitirOrdemColetaSvo(
         veiculoId: veiculo.id,
         motoristaId: motorista.id,
         numeroDeclaracaoObito: input.numeroDeclaracaoObito || undefined,
-        status: "EM_ANDAMENTO",
-        dataHoraSaida: new Date(),
+        status: despacharNaEmissao ? "EM_ANDAMENTO" : "AGUARDANDO_DESPACHO",
+        dataHoraSaida: despacharNaEmissao ? new Date() : null,
       },
     });
 
@@ -476,7 +501,30 @@ export async function emitirOrdemColetaSvo(
   });
 }
 
+export async function avancarEtapaColetaSvo(
+  ordemId: string,
+  status: z.infer<typeof avancarEtapaSchema>["status"],
+  usuarioId: string,
+) {
+  const ordem = await prisma.ordemColetaSvo.findUnique({
+    where: { id: ordemId },
+    select: { chamadoId: true },
+  });
+  if (!ordem) throw new HttpError(404, "Ordem de coleta não encontrada.");
+
+  return atualizarEtapaColetaSvo(ordem.chamadoId, usuarioId, status, ordemId);
+}
+
 export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
+  return atualizarEtapaColetaSvo(chamadoId, usuarioId, "CONCLUIDA");
+}
+
+async function atualizarEtapaColetaSvo(
+  chamadoId: string,
+  usuarioId: string | undefined,
+  status: z.infer<typeof avancarEtapaSchema>["status"] | "CONCLUIDA",
+  ordemId?: string,
+) {
   return transacionarSvo(async (tx) => {
     const referencia = await tx.chamadoSvo.findUnique({
       where: { id: chamadoId },
@@ -500,16 +548,30 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
     if (!chamado.ordemColeta) {
       throw new HttpError(409, "Chamado não possui ordem de coleta emitida.");
     }
-    if (chamado.ordemColeta.status === "CONCLUIDA") {
-      throw new HttpError(409, "Ordem de coleta já foi concluída.");
+    if (ordemId && chamado.ordemColeta.id !== ordemId) {
+      throw new HttpError(404, "Ordem de coleta não encontrada.");
     }
 
+    const anterior = chamado.ordemColeta.status;
+    const esperado = status === "CONCLUIDA" ? "EM_ANDAMENTO" : etapaAnterior[status];
+    // Ordens legadas em andamento já têm saída registrada.
+    if (anterior !== esperado && !(anterior === "EM_ANDAMENTO" && status === "NO_LOCAL")) {
+      throw new HttpError(409, "Transição inválida para a etapa atual da coleta.");
+    }
+
+    const agora = new Date();
+    const entrega = status === "CONCLUIDA" || status === "ENTREGUE_SVO";
     const ordem = await tx.ordemColetaSvo.update({
       where: { id: chamado.ordemColeta.id },
-      data: { status: "CONCLUIDA" },
+      data: {
+        status,
+        ...(status === "EM_DESLOCAMENTO" && { dataHoraSaida: agora }),
+        ...(status === "NO_LOCAL" && { dataHoraChegadaLocal: agora }),
+        ...(entrega && { dataHoraEntregaSvo: agora }),
+      },
     });
 
-    if (ordem.veiculoId) {
+    if (entrega && ordem.veiculoId) {
       const ordensRestantesVeiculo = await tx.ordemColetaSvo.count({
         where: {
           veiculoId: ordem.veiculoId,
@@ -532,7 +594,7 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
       }
     }
 
-    if (ordem.motoristaId) {
+    if (entrega && ordem.motoristaId) {
       const ordensRestantesMotorista = await tx.ordemColetaSvo.count({
         where: {
           motoristaId: ordem.motoristaId,
@@ -551,13 +613,15 @@ export async function concluirColetaSvo(chamadoId: string, usuarioId?: string) {
     await tx.auditoriaSistema.create({
       data: {
         usuarioId: usuarioId ?? null,
-        acao: "CONCLUIR_COLETA",
+        acao: entrega ? "CONCLUIR_COLETA" : "AVANCAR_ETAPA",
         tabelaAfetada: "ordens_coleta_svo",
         registroId: ordem.id,
         dadosNovos: {
           chamadoId,
           veiculoId: ordem.veiculoId,
-          status: "CONCLUIDA",
+          status,
+          statusAnterior: anterior,
+          dataHoraEtapa: agora.toISOString(),
         },
       },
     });

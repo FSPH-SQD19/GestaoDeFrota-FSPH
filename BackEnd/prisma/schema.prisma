@@ -246,6 +246,8 @@ model OrdemColetaSvo {
   status                String    @default("AGUARDANDO_DESPACHO") @db.VarChar(30)
   numeroDeclaracaoObito String?   @map("numero_declaracao_obito") @db.VarChar(50)
   dataHoraSaida         DateTime? @map("data_hora_saida")
+  dataHoraChegadaLocal  DateTime? @map("data_hora_chegada_local")
+  dataHoraEntregaSvo    DateTime? @map("data_hora_entrega_svo")
 
   chamado   ChamadoSvo @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
   veiculo   Veiculo?   @relation(fields: [veiculoId], references: [id])

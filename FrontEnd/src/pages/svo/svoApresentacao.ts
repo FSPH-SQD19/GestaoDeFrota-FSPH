@@ -34,7 +34,7 @@ export function classificarChamado(chamado: ChamadoSvo): StatusOperacionalChamad
   if (chamado.statusTriagem === "EM_ANALISE") return "EM_ANALISE";
   if (chamado.statusTriagem === "RECUSADO") return "RECUSADO";
   if (!chamado.ordemColeta) return "AGUARDANDO_ORDEM";
-  if (chamado.ordemColeta.status === "CONCLUIDA") return "CONCLUIDO";
+  if (["CONCLUIDA", "ENTREGUE_SVO"].includes(chamado.ordemColeta.status)) return "CONCLUIDO";
   return "EM_OPERACAO";
 }
 
