@@ -78,6 +78,7 @@ vi.mock("../../../src/lib/prisma", () => ({
 
 import {
   avancarEtapaColetaSvo,
+  cancelarOrdemColetaSvo,
   concluirColetaSvo,
   concluirDesinfeccaoSvo,
   criarChamadoSchema,
@@ -99,6 +100,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.ordemFindFirst.mockResolvedValue(null);
+    mocks.veiculoUpdateMany.mockResolvedValue({ count: 1 });
     mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         $queryRaw: mocks.queryRaw,
@@ -298,6 +300,19 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     mocks.ordemUpdate.mockResolvedValue({ ...ordem, status });
     mocks.ordemCount.mockResolvedValue(0);
 
+    mocks.veiculoFindUnique.mockResolvedValue({
+      id: veiculoId,
+      tipoFrota: "SVO",
+      ativo: true,
+      status: "DISPONIVEL",
+    });
+    mocks.motoristaFindUnique.mockResolvedValue({
+      id: motoristaId,
+      ativo: true,
+      status: "OCUPADO",
+      validadeCnh: new Date("2030-12-31"),
+    });
+
     await avancarEtapaColetaSvo(ordem.id, status, usuarioId);
 
     expect(mocks.ordemUpdate).toHaveBeenCalledWith({
@@ -315,20 +330,58 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     }
   });
 
-  it("rejeita etapas puladas e impede concluir pela rota legada antes da entrega", async () => {
-    mocks.ordemFindUnique.mockResolvedValue({ chamadoId });
-    mocks.chamadoFindUnique.mockResolvedValue({
-      ordemColeta: { id: "ordem", veiculoId, motoristaId, status: "AGUARDANDO_DESPACHO" },
-    });
+  it.each(["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO"])(
+    "rejeita etapas puladas e conclusão legada em %s",
+    async (status) => {
+      mocks.ordemFindUnique.mockResolvedValue({ chamadoId });
+      mocks.chamadoFindUnique.mockResolvedValue({
+        ordemColeta: { id: "ordem", veiculoId, motoristaId, status },
+      });
 
-    await expect(avancarEtapaColetaSvo("ordem", "ENTREGUE_SVO", usuarioId)).rejects.toMatchObject({
-      statusCode: 409,
-    });
-    await expect(concluirColetaSvo(chamadoId, usuarioId)).rejects.toMatchObject({
-      statusCode: 409,
-    });
-    expect(mocks.ordemUpdate).not.toHaveBeenCalled();
-  });
+      await expect(avancarEtapaColetaSvo("ordem", "ENTREGUE_SVO", usuarioId)).rejects.toMatchObject(
+        {
+          statusCode: 409,
+        },
+      );
+      await expect(concluirColetaSvo(chamadoId, usuarioId)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([0, 1])(
+    "cancela reserva sem desinfecção e só libera condutor sem outras ordens (%s)",
+    async (restantes) => {
+      const ordem = { id: "ordem", veiculoId, motoristaId, status: "AGUARDANDO_DESPACHO" };
+      mocks.ordemFindUnique.mockResolvedValue({ chamadoId });
+      mocks.chamadoFindUnique.mockResolvedValue({ ordemColeta: ordem });
+      mocks.ordemUpdate.mockResolvedValue({ ...ordem, status: "CANCELADA" });
+      mocks.ordemCount.mockResolvedValue(restantes);
+      mocks.veiculoUpdateMany.mockResolvedValue({ count: 0 });
+      await cancelarOrdemColetaSvo(ordem.id, usuarioId);
+      expect(mocks.desinfeccaoCreate).not.toHaveBeenCalled();
+      expect(mocks.motoristaUpdateMany).toHaveBeenCalledTimes(restantes ? 0 : 1);
+      expect(mocks.auditoriaCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({ acao: "CANCELAR_ORDEM" }),
+      });
+    },
+  );
+
+  it.each(["EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL", "ENTREGUE_SVO", "CANCELADA"])(
+    "impede cancelar ordem em %s",
+    async (status) => {
+      mocks.ordemFindUnique.mockResolvedValue({ chamadoId });
+      mocks.chamadoFindUnique.mockResolvedValue({
+        ordemColeta: { id: "ordem", veiculoId, motoristaId, status },
+      });
+      await expect(cancelarOrdemColetaSvo("ordem", usuarioId)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+      expect(mocks.auditoriaCreate).not.toHaveBeenCalled();
+    },
+  );
 
   it("coloca viatura em DESINFECCAO ao concluir a última coleta ativa e libera após confirmar desinfecção", async () => {
     mocks.chamadoFindUnique.mockResolvedValue({
@@ -337,14 +390,14 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
         id: "ord-1",
         veiculoId,
         motoristaId,
-        status: "EM_ANDAMENTO",
+        status: "NO_LOCAL",
       },
     });
     mocks.ordemUpdate.mockResolvedValue({
       id: "ord-1",
       veiculoId,
       motoristaId,
-      status: "CONCLUIDA",
+      status: "ENTREGUE_SVO",
     });
     mocks.ordemCount.mockResolvedValue(0);
 
@@ -403,6 +456,9 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
       viaturasDisponiveis: 2,
       totalViaturas: 3,
     });
+    expect(mocks.ordemCount).toHaveBeenCalledWith({
+      where: { status: { in: ["EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"] } },
+    });
   });
 
   function prepararEmissao() {
@@ -426,7 +482,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
       validadeCnh: new Date("2030-12-31"),
     });
     mocks.ordemFindMany.mockResolvedValue([]);
-    mocks.ordemCreate.mockResolvedValue({ id: "ordem", status: "EM_ANDAMENTO" });
+    mocks.ordemCreate.mockResolvedValue({ id: "ordem", status: "AGUARDANDO_DESPACHO" });
   }
 
   it("compartilha travas por motorista e veículo e audita a emissão", async () => {
@@ -441,7 +497,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
 
   it("reserva a viatura sem registrar saída ao criar uma ordem por etapas", async () => {
     prepararEmissao();
-    await emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId }, usuarioId, false);
+    await emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId }, usuarioId);
 
     expect(mocks.ordemCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -452,9 +508,10 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
         dataHoraSaida: null,
       }),
     });
-    expect(mocks.veiculoUpdate).toHaveBeenCalledWith({
-      where: { id: veiculoId },
-      data: { status: "EM_VIAGEM" },
+    expect(mocks.veiculoUpdate).not.toHaveBeenCalled();
+    expect(mocks.motoristaUpdate).toHaveBeenCalledWith({
+      where: { id: motoristaId },
+      data: { status: "OCUPADO" },
     });
   });
 
@@ -491,9 +548,9 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
   });
 
   it("mantém a viatura e o motorista ocupados enquanto houver outras coletas", async () => {
-    const ordemColeta = { id: "ordem", veiculoId, motoristaId, status: "EM_ANDAMENTO" };
+    const ordemColeta = { id: "ordem", veiculoId, motoristaId, status: "NO_LOCAL" };
     mocks.chamadoFindUnique.mockResolvedValue({ id: chamadoId, ordemColeta });
-    mocks.ordemUpdate.mockResolvedValue({ ...ordemColeta, status: "CONCLUIDA" });
+    mocks.ordemUpdate.mockResolvedValue({ ...ordemColeta, status: "ENTREGUE_SVO" });
     mocks.ordemCount.mockResolvedValue(1);
     await concluirColetaSvo(chamadoId);
     expect(mocks.veiculoUpdateMany).not.toHaveBeenCalled();

@@ -240,7 +240,11 @@ CNHs válidas até hoje não são consideradas vencidas. Os indicadores excluem 
 
 ## Central SVO
 
-A central usa o cliente HTTP compartilhado e os endpoints existentes em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, despacho, conclusão e desinfecção recarregam os dados da API após o sucesso.
+A central usa o cliente HTTP compartilhado e os endpoints em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, emissão, avanço de etapa, cancelamento e desinfecção recarregam os dados da API após o sucesso.
+
+A emissão usa `POST /ordens-coleta` com o ID do chamado e reserva viatura, capacidade e motorista em `AGUARDANDO_DESPACHO`. A fila oferece apenas a próxima ação: **Registrar saída**, **Registrar chegada ao local** e **Registrar entrega ao SVO**, usando o ID da ordem em `PATCH /ordens-coleta/:id/etapa`. Ordens antigas em `EM_ANDAMENTO` começam pela chegada. Antes da saída, **Cancelar ordem** chama `PATCH /ordens-coleta/:id/cancelar` e mantém a ordem cancelada no histórico. Os detalhes exibem os horários de saída, chegada e entrega no fuso de São Paulo.
+
+Uma viatura com vagas reservadas antes da saída aparece como **Aguardando despacho**. O indicador **Coletas em andamento** considera apenas ordens que já saíram. A conclusão da última ordem ativa encaminha a viatura à desinfecção; o cancelamento de uma reserva sem saída libera os recursos sem criar desinfecção.
 
 Falhas na consulta de indicadores, viaturas ou motoristas permanecem visíveis mesmo que a listagem carregue depois. Repetir o filtro atual não deixa a tela presa em carregamento, e a página é ajustada quando o resultado filtrado diminui. A emissão não pré-seleciona motoristas ocupados em outras viaturas e exige uma seleção elegível.
 

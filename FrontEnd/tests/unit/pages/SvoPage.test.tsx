@@ -19,6 +19,8 @@ const svosMocks = vi.hoisted(() => ({
   criarChamadoSvo: vi.fn(),
   triarChamadoSvo: vi.fn(),
   criarOrdemColetaSvo: vi.fn(),
+  avancarEtapaColetaSvo: vi.fn(),
+  cancelarOrdemColetaSvo: vi.fn(),
   concluirColetaSvo: vi.fn(),
   concluirDesinfeccaoSvo: vi.fn(),
   obterViaturasSvo: vi.fn(),
@@ -35,6 +37,8 @@ vi.mock("../../../src/services/svo", async (importOriginal) => {
     criarChamadoSvo: svosMocks.criarChamadoSvo,
     triarChamadoSvo: svosMocks.triarChamadoSvo,
     criarOrdemColetaSvo: svosMocks.criarOrdemColetaSvo,
+    avancarEtapaColetaSvo: svosMocks.avancarEtapaColetaSvo,
+    cancelarOrdemColetaSvo: svosMocks.cancelarOrdemColetaSvo,
     concluirColetaSvo: svosMocks.concluirColetaSvo,
     concluirDesinfeccaoSvo: svosMocks.concluirDesinfeccaoSvo,
     obterViaturasSvo: svosMocks.obterViaturasSvo,
@@ -144,8 +148,8 @@ describe("SvoPage (integrada à API real)", () => {
         .length,
       aprovados: dbChamados.filter((c) => c.statusTriagem === "APROVADO").length,
       recusados: dbChamados.filter((c) => c.statusTriagem === "RECUSADO").length,
-      coletasEmAndamento: dbChamados.filter(
-        (c) => c.ordemColeta && c.ordemColeta.status !== "CONCLUIDA",
+      coletasEmAndamento: dbChamados.filter((c) =>
+        ["EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"].includes(c.ordemColeta?.status ?? ""),
       ).length,
       viaturasDisponiveis: dbViaturas.filter((v) => v.status === "DISPONIVEL").length,
       totalViaturas: dbViaturas.length,
@@ -168,11 +172,17 @@ describe("SvoPage (integrada à API real)", () => {
           lista = lista.filter((c) => c.statusTriagem === "APROVADO" && !c.ordemColeta);
         } else if (params?.etapa === "EM_OPERACAO") {
           lista = lista.filter(
-            (c) => c.statusTriagem === "APROVADO" && c.ordemColeta?.status === "EM_ANDAMENTO",
+            (c) =>
+              c.statusTriagem === "APROVADO" &&
+              ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"].includes(
+                c.ordemColeta?.status ?? "",
+              ),
           );
         } else if (params?.etapa === "ENCERRADO") {
           lista = lista.filter(
-            (c) => c.statusTriagem === "RECUSADO" || c.ordemColeta?.status === "CONCLUIDA",
+            (c) =>
+              c.statusTriagem === "RECUSADO" ||
+              ["CONCLUIDA", "ENTREGUE_SVO", "CANCELADA"].includes(c.ordemColeta?.status ?? ""),
           );
         }
 
@@ -241,14 +251,14 @@ describe("SvoPage (integrada à API real)", () => {
         chamadoId: id,
         veiculoId: viat.id,
         motoristaId: mot.id,
-        status: "EM_ANDAMENTO",
+        status: "AGUARDANDO_DESPACHO",
         numeroDeclaracaoObito: input.numeroDeclaracaoObito ?? null,
-        dataHoraSaida: new Date().toISOString(),
+        dataHoraSaida: null,
         veiculo: {
           id: viat.id,
           placa: viat.placa,
           modelo: viat.modelo,
-          status: "EM_VIAGEM",
+          status: "DISPONIVEL",
           capacidadeMaxima: viat.capacidadeMaxima,
         },
         motorista: mot,
@@ -258,7 +268,7 @@ describe("SvoPage (integrada à API real)", () => {
         v.id === viat.id
           ? {
               ...v,
-              status: "EM_VIAGEM",
+              status: "DISPONIVEL",
               ocupacaoAtual: v.ocupacaoAtual + 1,
               motoristaAtual: { id: mot.id, nome: mot.usuario?.nome ?? null },
             }

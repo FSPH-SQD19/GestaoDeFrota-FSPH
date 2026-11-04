@@ -8,6 +8,7 @@ import {
   criarOrdemSchema,
   avancarEtapaSchema,
   avancarEtapaColetaSvo,
+  cancelarOrdemColetaSvo,
   emitirOrdemSchema,
   listarChamadosSchema,
   triagemSchema,
@@ -69,7 +70,7 @@ export async function emitirOrdemSvoController(req: Request, res: Response) {
 
 export async function criarOrdemSvoController(req: Request, res: Response) {
   const { chamadoId, ...alocacao } = validar(criarOrdemSchema, req.body ?? {});
-  const ordem = await emitirOrdemColetaSvo(chamadoId, alocacao, usuarioAutenticado(res).id, false);
+  const ordem = await emitirOrdemColetaSvo(chamadoId, alocacao, usuarioAutenticado(res).id);
   return res.status(201).json(ordem);
 }
 
@@ -77,6 +78,15 @@ export async function avancarEtapaColetaSvoController(req: Request, res: Respons
   const id = validarId(req.params.id as string | undefined);
   const { status } = validar(avancarEtapaSchema, req.body ?? {});
   return res.json(await avancarEtapaColetaSvo(id, status, usuarioAutenticado(res).id));
+}
+
+export async function cancelarOrdemSvoController(req: Request, res: Response) {
+  return res.json(
+    await cancelarOrdemColetaSvo(
+      validarId(req.params.id as string | undefined),
+      usuarioAutenticado(res).id,
+    ),
+  );
 }
 
 export async function concluirColetaSvoController(req: Request, res: Response) {

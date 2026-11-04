@@ -1,7 +1,20 @@
-import type { ChamadoSvo, EtapaFiltroSvo, MotoristaSvo, ViaturaSvo } from "../../services/svo";
+import type {
+  ChamadoSvo,
+  EtapaColetaSvo,
+  EtapaFiltroSvo,
+  MotoristaSvo,
+  ViaturaSvo,
+} from "../../services/svo";
 
 type StatusOperacionalChamado =
-  "EM_ANALISE" | "AGUARDANDO_ORDEM" | "EM_OPERACAO" | "CONCLUIDO" | "RECUSADO";
+  | "EM_ANALISE"
+  | "AGUARDANDO_ORDEM"
+  | "AGUARDANDO_DESPACHO"
+  | "EM_OPERACAO"
+  | "NO_LOCAL"
+  | "CONCLUIDO"
+  | "RECUSADO"
+  | "CANCELADO";
 
 export const FILTROS: { id: EtapaFiltroSvo; label: string }[] = [
   { id: "TODOS", label: "Todos" },
@@ -14,9 +27,12 @@ export const FILTROS: { id: EtapaFiltroSvo; label: string }[] = [
 export const STATUS_CHAMADO_LABEL: Record<StatusOperacionalChamado, string> = {
   EM_ANALISE: "Aguardando triagem",
   AGUARDANDO_ORDEM: "Triagem aprovada",
+  AGUARDANDO_DESPACHO: "Aguardando despacho",
   EM_OPERACAO: "Em coleta",
+  NO_LOCAL: "No local da ocorrência",
   CONCLUIDO: "Coleta concluída",
   RECUSADO: "Recusado na triagem",
+  CANCELADO: "Ordem cancelada",
 };
 
 export const STATUS_CHAMADO_VARIANT: Record<
@@ -25,17 +41,44 @@ export const STATUS_CHAMADO_VARIANT: Record<
 > = {
   EM_ANALISE: "warning",
   AGUARDANDO_ORDEM: "info",
+  AGUARDANDO_DESPACHO: "warning",
   EM_OPERACAO: "success",
+  NO_LOCAL: "info",
   CONCLUIDO: "neutral",
   RECUSADO: "danger",
+  CANCELADO: "neutral",
 };
 
 export function classificarChamado(chamado: ChamadoSvo): StatusOperacionalChamado {
   if (chamado.statusTriagem === "EM_ANALISE") return "EM_ANALISE";
   if (chamado.statusTriagem === "RECUSADO") return "RECUSADO";
   if (!chamado.ordemColeta) return "AGUARDANDO_ORDEM";
+  if (chamado.ordemColeta.status === "AGUARDANDO_DESPACHO") return "AGUARDANDO_DESPACHO";
+  if (chamado.ordemColeta.status === "NO_LOCAL") return "NO_LOCAL";
+  if (chamado.ordemColeta.status === "CANCELADA") return "CANCELADO";
   if (["CONCLUIDA", "ENTREGUE_SVO"].includes(chamado.ordemColeta.status)) return "CONCLUIDO";
   return "EM_OPERACAO";
+}
+
+export function proximaEtapaColeta(
+  status: string,
+): { status: EtapaColetaSvo; label: string } | null {
+  if (status === "AGUARDANDO_DESPACHO")
+    return { status: "EM_DESLOCAMENTO", label: "Registrar saída" };
+  if (status === "EM_DESLOCAMENTO" || status === "EM_ANDAMENTO")
+    return { status: "NO_LOCAL", label: "Registrar chegada ao local" };
+  if (status === "NO_LOCAL") return { status: "ENTREGUE_SVO", label: "Registrar entrega ao SVO" };
+  return null;
+}
+
+export function formatarDataHoraColeta(valor: string | null | undefined): string {
+  return valor
+    ? new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date(valor))
+    : "Não registrada";
 }
 
 export function rotuloStatusViatura(status: string): {
@@ -61,7 +104,7 @@ export function motoristaElegivelParaViatura(
   if (motorista.status === "DISPONIVEL") return true;
   return (
     motorista.status === "OCUPADO" &&
-    viatura?.status === "EM_VIAGEM" &&
+    (viatura?.status === "EM_VIAGEM" || viatura?.status === "DISPONIVEL") &&
     viatura.motoristaAtual?.id === motorista.id
   );
 }
