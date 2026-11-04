@@ -208,9 +208,9 @@ A exportação CSV utiliza exclusivamente o resultado do período consultado, co
 
 ## Usuários
 
-A aba Usuários é restrita a administradores. A consulta de acesso utiliza somente o endpoint existente `GET /api/v1/auth/perfil`, que retorna o identificador e os perfis da sessão autenticada. A tela trata carregamento, falha e nova tentativa, e não apresenta essa resposta como uma lista de usuários.
+A aba Usuários é restrita a administradores. Enquanto a integração da tela não for concluída, a consulta de acesso utiliza `GET /api/v1/auth/perfil` e a gestão permanece indisponível na interface (sem mocks).
 
-Não existem endpoints de listagem ou cadastro de usuários no backend atual. Por isso, a tela informa que a gestão está indisponível e desabilita o botão Novo usuário. Não há usuários fictícios, códigos gerados no navegador, cadastro em memória ou chamadas a endpoints inexistentes. Busca, filtro por setor e ações sem implementação foram removidos.
+O backend já expõe `GET|POST|PATCH|DELETE /api/v1/usuarios` (somente `ADMIN`) e a redefinição administrativa em `PATCH /api/v1/auth/usuarios/:id/redefinir-senha`. A conexão da listagem, do cadastro e do botão Redefinir Senha a esses contratos fica para a subtarefa de frontend.
 
 ## Veículos: validação e paginação
 
