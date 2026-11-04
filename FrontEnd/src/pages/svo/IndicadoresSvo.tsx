@@ -30,7 +30,7 @@ export function IndicadoresSvo({
         icon={Activity}
         label="Coletas em andamento"
         value={indicadores.coletasEmAndamento}
-        caption="Ordens ativas"
+        caption="Após registrar saída"
         tone="rose"
       />
       <Metric

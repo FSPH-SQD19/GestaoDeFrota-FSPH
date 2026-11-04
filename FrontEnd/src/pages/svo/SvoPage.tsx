@@ -4,7 +4,8 @@ import { Button } from "../../components/common";
 import { useAuth } from "../../contexts/auth";
 import { cn } from "../../lib/utils";
 import {
-  concluirColetaSvo,
+  avancarEtapaColetaSvo,
+  cancelarOrdemColetaSvo,
   concluirDesinfeccaoSvo,
   extrairErroSvo,
   type ChamadoSvo,
@@ -19,6 +20,7 @@ import { RegistrarChamadoModal } from "./RegistrarChamadoModal";
 import { TriagemChamadoModal } from "./TriagemChamadoModal";
 import { OrdemColetaModal } from "./OrdemColetaModal";
 import { DetalhesChamadoModal } from "./DetalhesChamadoModal";
+import { proximaEtapaColeta } from "./svoApresentacao";
 type ModalSvo = "REGISTRO" | "TRIAGEM" | "ORDEM" | "DETALHE" | null;
 
 export function SvoPage() {
@@ -61,20 +63,29 @@ export function SvoPage() {
     setAviso(mensagem);
     dispararRecarregamento();
   };
-  const handleConcluirColeta = async (chamado: ChamadoSvo) => {
+  const handleEtapaColeta = async (chamado: ChamadoSvo, cancelar = false) => {
     if (processandoAcaoId) return;
+    const ordem = chamado.ordemColeta;
+    if (!ordem) return;
+    const proxima = proximaEtapaColeta(ordem.status);
+    if (!cancelar && !proxima) return;
     setProcessandoAcaoId(chamado.id);
     setErroPagina("");
 
     try {
-      await concluirColetaSvo(chamado.id);
+      if (cancelar) await cancelarOrdemColetaSvo(ordem.id);
+      else if (proxima) await avancarEtapaColetaSvo(ordem.id, proxima.status);
       const protocolo = chamado.numeroProtocolo ?? chamado.id;
       setAviso(
-        `Coleta do chamado ${protocolo} concluída. Quando não houver outras ordens ativas na viatura, ela entra em desinfecção obrigatória.`,
+        cancelar
+          ? `Ordem do chamado ${protocolo} cancelada.`
+          : proxima?.status === "ENTREGUE_SVO"
+            ? `Coleta do chamado ${protocolo} concluída. Quando não houver outras ordens ativas na viatura, ela entra em desinfecção obrigatória.`
+            : `Etapa do chamado ${protocolo} registrada.`,
       );
       dispararRecarregamento();
     } catch (erro: unknown) {
-      setErroPagina(extrairErroSvo(erro, "Não foi possível concluir a ordem de coleta."));
+      setErroPagina(extrairErroSvo(erro, "Não foi possível atualizar a ordem de coleta."));
     } finally {
       setProcessandoAcaoId(null);
     }
@@ -184,7 +195,7 @@ export function SvoPage() {
           abrirTriagem={abrirTriagem}
           abrirEmissaoOrdem={abrirEmissaoOrdem}
           abrirDetalhes={abrirDetalhes}
-          handleConcluirColeta={handleConcluirColeta}
+          handleEtapaColeta={handleEtapaColeta}
         />
         <FrotaSvo
           viaturas={dados.viaturas}
