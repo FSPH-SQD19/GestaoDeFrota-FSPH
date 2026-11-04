@@ -100,7 +100,7 @@ export const DashboardPage: React.FC = () => {
   const manutencao = dados?.veiculos.porStatus.MANUTENCAO ?? 0;
   const aguardando = porStatus?.PENDENTE ?? 0;
   const recentes = dados?.solicitacoes.data.slice(0, 6) ?? [];
-  
+
   // Extraindo os alertas vindos do back-end
   const alertasVencimento = (dados as any)?.alertas ?? [];
 
@@ -203,9 +203,13 @@ export const DashboardPage: React.FC = () => {
 
       {/* Seção de Alertas de Vencimento de Documentos da Frota */}
       <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm">
-        <h2 className="text-base font-bold text-red-600 mb-1">🚨 Alertas de Vencimento de Documentos</h2>
-        <p className="text-xs text-slate-500 mb-4">Veículos com documentos vencidos ou próximos do vencimento (até 30 dias).</p>
-        
+        <h2 className="text-base font-bold text-red-600 mb-1">
+          🚨 Alertas de Vencimento de Documentos
+        </h2>
+        <p className="text-xs text-slate-500 mb-4">
+          Veículos com documentos vencidos ou próximos do vencimento (até 30 dias).
+        </p>
+
         {alertasVencimento.length === 0 ? (
           <p className="text-sm text-slate-500">
             {isLoading ? "Carregando alertas..." : "Nenhum documento com vencimento próximo. 🎉"}
@@ -215,15 +219,21 @@ export const DashboardPage: React.FC = () => {
             {alertasVencimento.map((item: any) => {
               const isVencido = item.diasParaVencer < 0;
               return (
-                <div 
-                  key={item.id || item.placa} 
+                <div
+                  key={item.id || item.placa}
                   className={`flex flex-col gap-2 p-3 rounded-2xl border text-sm sm:flex-row sm:items-center sm:justify-between ${
-                    isVencido ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+                    isVencido
+                      ? "bg-rose-50 border-rose-200 text-rose-800"
+                      : "bg-amber-50 border-amber-200 text-amber-800"
                   }`}
                 >
-                  <span>Veículo <strong>{item.placa}</strong> — {item.documento || 'Documento'}</span>
+                  <span>
+                    Veículo <strong>{item.placa}</strong> — {item.documento || "Documento"}
+                  </span>
                   <span className="font-semibold">
-                    {isVencido ? `Vencido há ${Math.abs(item.diasParaVencer)} dias` : `Vence em ${item.diasParaVencer} dias`}
+                    {isVencido
+                      ? `Vencido há ${Math.abs(item.diasParaVencer)} dias`
+                      : `Vence em ${item.diasParaVencer} dias`}
                   </span>
                 </div>
               );
@@ -288,5 +298,3 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
-
-

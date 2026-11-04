@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface DocumentoVeiculo {
   id?: string;
@@ -19,12 +19,12 @@ export default function AlertaDocumentos({ veiculoId }: Props) {
   useEffect(() => {
     async function carregarDocumentos() {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem("token");
         const response = await fetch(`http://localhost:3000/api/veiculos/${veiculoId}/documentos`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
 
         if (response.ok) {
@@ -60,12 +60,15 @@ export default function AlertaDocumentos({ veiculoId }: Props) {
 
         const isVencido = diffDays < 0;
         const estiloBadge = isVencido
-          ? 'bg-red-100 border-red-300 text-red-800'
-          : 'bg-yellow-100 border-yellow-300 text-yellow-800';
+          ? "bg-red-100 border-red-300 text-red-800"
+          : "bg-yellow-100 border-yellow-300 text-yellow-800";
 
         return (
-          <div key={doc.id || index} className={`p-3 rounded-md border ${estiloBadge} flex justify-between items-center text-sm font-medium`}>
-            <span>📄 {doc.nome || doc.tipo || 'Documento'}</span>
+          <div
+            key={doc.id || index}
+            className={`p-3 rounded-md border ${estiloBadge} flex justify-between items-center text-sm font-medium`}
+          >
+            <span>📄 {doc.nome || doc.tipo || "Documento"}</span>
             <span>
               {isVencido
                 ? `⚠️ Vencido há ${Math.abs(diffDays)} dias!`

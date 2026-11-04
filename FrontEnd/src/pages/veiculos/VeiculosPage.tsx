@@ -5,7 +5,7 @@ import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
 import { veiculoSchema } from "./veiculoRules";
-import AlertaDocumentos from './AlertaDocumentos';
+import AlertaDocumentos from "./AlertaDocumentos";
 
 type TipoFrotaApi = "ADMINISTRATIVA" | "SVO";
 type StatusVeiculoApi = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
