@@ -1,8 +1,7 @@
-import { gerarRelatorio, periodoRelatorioSchema } from "../service/relatorio_s";
-import { validar } from "../lib/validar";
 import { Router } from "express";
 import veiculos from "./veiculo_r";
 import dashboardRoutes from "./dashboard_r";
+import relatorioRoutes from "./relatorio_r";
 import {
   listarAbastecimentosController,
   criarAbastecimentoController,
@@ -47,10 +46,7 @@ router.use("/api/v1/abastecimentos", abastecimento);
 
 router.use("/api/v1/solicitacoes", solicitacaoRoutes);
 
-router.get("/api/v1/relatorios", authenticate, requireRole("ADMIN", "GESTOR"), async (req, res) => {
-  const periodo = validar(periodoRelatorioSchema, req.query);
-  return res.json(await gerarRelatorio(periodo));
-});
+router.use("/api/v1/relatorios", relatorioRoutes);
 //Registro de manutencoes
 manutencoes.use(authenticate, requireRole("ADMIN", "GESTOR"));
 manutencoes.get("/", listarManutencoesController);
