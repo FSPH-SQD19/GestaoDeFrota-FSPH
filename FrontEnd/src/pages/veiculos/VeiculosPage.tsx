@@ -5,6 +5,7 @@ import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
 import { veiculoSchema } from "./veiculoRules";
+import AlertaDocumentos from './AlertaDocumentos';
 
 type TipoFrotaApi = "ADMINISTRATIVA" | "SVO";
 type StatusVeiculoApi = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
@@ -72,6 +73,17 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
     ano: veiculo.ano,
     status: statusLabel[veiculo.status],
   };
+}
+
+export default function DetalhesVeiculoPage({ veiculoId }: { veiculoId: string }) {
+  return (
+    <div className="p-6 bg-white rounded shadow">
+      <h1 className="text-xl font-bold mb-4">Detalhes do Veículo</h1>
+
+      {/*Exibe o alerta de vencimento nos detalhes do veículo */}
+      <AlertaDocumentos veiculoId={veiculoId} />
+    </div>
+  );
 }
 
 export const VeiculosPage: React.FC = () => {
