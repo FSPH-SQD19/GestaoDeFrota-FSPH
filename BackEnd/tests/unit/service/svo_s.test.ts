@@ -321,10 +321,12 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
       ordemColeta: { id: "ordem", veiculoId, motoristaId, status: "AGUARDANDO_DESPACHO" },
     });
 
-    await expect(avancarEtapaColetaSvo("ordem", "ENTREGUE_SVO", usuarioId))
-      .rejects.toMatchObject({ statusCode: 409 });
-    await expect(concluirColetaSvo(chamadoId, usuarioId))
-      .rejects.toMatchObject({ statusCode: 409 });
+    await expect(avancarEtapaColetaSvo("ordem", "ENTREGUE_SVO", usuarioId)).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    await expect(concluirColetaSvo(chamadoId, usuarioId)).rejects.toMatchObject({
+      statusCode: 409,
+    });
     expect(mocks.ordemUpdate).not.toHaveBeenCalled();
   });
 
