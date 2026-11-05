@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Backdrop escuro com blur para telas mobile */}
+      {/* Backdrop escuro para telas mobile */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/75 backdrop-blur-xs transition-opacity lg:hidden"
@@ -67,17 +67,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         className={cn(
           "fixed lg:sticky top-4 left-4 z-50 h-[calc(100vh-2rem)] bg-[#090D16] text-white rounded-3xl flex flex-col justify-between shadow-2xl border border-slate-800/80 shrink-0 select-none overflow-hidden transition-[width,padding] duration-300 ease-in-out",
           // Larguras: w-72 expandido, w-20 colapsado
-          isExpanded ? "w-72 p-5" : "w-20 p-3",
+          isExpanded ? "w-72 p-5" : "w-20 p-3.5",
           isMobileOpen ? "translate-x-0" : "-translate-x-[120%] lg:translate-x-0",
         )}
       >
         <div className="flex flex-col flex-1 min-h-0 min-w-0">
-          {/* Header da Sidebar: Logo ROTA + Botão de Fixar / Desafixar */}
-          <div className="flex items-center justify-between gap-2 mb-3 h-11 shrink-0">
+          {/* Header da Sidebar: Logo ROTA + Botão de Fixar */}
+          <div className="flex items-center justify-between mb-3 h-11 shrink-0">
             <div
               className={cn(
-                "flex items-center gap-3 min-w-0 transition-all duration-300 ease-in-out",
-                !isExpanded && "justify-center w-full",
+                "flex items-center min-w-0 transition-all duration-300 ease-in-out",
+                isExpanded ? "w-auto" : "w-full justify-center",
               )}
             >
               {/* Emblema ROTA em Contêiner Branco de Alto Contraste */}
@@ -93,13 +93,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
               </div>
 
-              {/* Título ROTA FSPH com fade suave contínuo */}
+              {/* Título ROTA FSPH com expansão e fade perfeitamente contínuos */}
               <div
                 className={cn(
-                  "flex flex-col min-w-0 whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
+                  "flex flex-col whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
                   isExpanded
-                    ? "opacity-100 max-w-[180px] translate-x-0"
-                    : "opacity-0 max-w-0 -translate-x-3 pointer-events-none",
+                    ? "max-w-[180px] opacity-100 ml-3"
+                    : "max-w-0 opacity-0 ml-0 pointer-events-none",
                 )}
               >
                 <div className="flex items-center gap-1.5">
@@ -123,8 +123,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={cn(
                 "hidden lg:flex p-1.5 rounded-xl transition-all duration-300 cursor-pointer shrink-0",
                 isExpanded
-                  ? "opacity-100 scale-100"
-                  : "opacity-0 scale-75 pointer-events-none w-0 p-0 overflow-hidden",
+                  ? "opacity-100 scale-100 ml-2"
+                  : "opacity-0 scale-75 pointer-events-none w-0 p-0 ml-0 overflow-hidden",
                 isPinned
                   ? "text-blue-400 bg-blue-500/15 hover:bg-blue-500/25"
                   : "text-slate-400 hover:text-white hover:bg-white/10",
@@ -139,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="border-t border-slate-800/80 my-2 shrink-0" />
 
           {/* Navegação Estruturada por Seções */}
-          <nav className="flex-1 min-h-0 space-y-3.5 overflow-y-auto pr-0.5 custom-scrollbar">
+          <nav className="flex-1 min-h-0 space-y-3 overflow-y-auto custom-scrollbar">
             {NAV_SECTIONS.map((section, sIndex) => {
               const visibleSectionItems = itensVisiveis(section, roles);
               if (visibleSectionItems.length === 0) return null;
@@ -151,8 +151,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       className={cn(
                         "block px-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest select-none whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
                         isExpanded
-                          ? "opacity-100 max-h-5 mb-1"
-                          : "opacity-0 max-h-0 mb-0 pointer-events-none",
+                          ? "max-h-5 opacity-100 mb-1"
+                          : "max-h-0 opacity-0 mb-0 pointer-events-none",
                       )}
                     >
                       {section.title}
@@ -174,8 +174,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         title={label}
                         aria-label={label}
                         className={cn(
-                          "w-full h-11 flex items-center rounded-2xl text-sm font-semibold transition-all duration-200 relative cursor-pointer group",
-                          isExpanded ? "justify-between px-3.5" : "justify-center px-0",
+                          "h-11 flex items-center rounded-2xl text-sm font-semibold transition-all duration-200 relative cursor-pointer group",
+                          isExpanded
+                            ? "w-full justify-between px-3.5"
+                            : "w-11 mx-auto justify-center px-0",
                           isActive
                             ? "bg-white text-slate-950 shadow-md shadow-white/10 font-bold"
                             : "text-slate-400 hover:text-white hover:bg-white/8 active:bg-white/12",
@@ -186,15 +188,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <span className="absolute left-1 top-2.5 bottom-2.5 w-1 bg-blue-600 rounded-full" />
                         )}
 
-                        <div
-                          className={cn(
-                            "flex items-center min-w-0 transition-all duration-300 ease-in-out",
-                            isExpanded ? "gap-3" : "justify-center w-full",
-                          )}
-                        >
+                        <div className="flex items-center justify-center">
                           <Icon
                             className={cn(
-                              "w-4.5 h-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105",
+                              "w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-105",
                               isActive
                                 ? "text-slate-950 stroke-[2.2]"
                                 : "text-slate-400 stroke-[1.8] group-hover:text-white",
@@ -202,10 +199,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           />
                           <span
                             className={cn(
-                              "whitespace-nowrap overflow-hidden text-left transition-all duration-300 ease-in-out select-none",
+                              "inline-block whitespace-nowrap overflow-hidden text-left transition-all duration-300 ease-in-out select-none",
                               isExpanded
-                                ? "opacity-100 max-w-[200px] translate-x-0"
-                                : "opacity-0 max-w-0 -translate-x-3 pointer-events-none",
+                                ? "max-w-[180px] opacity-100 ml-3"
+                                : "max-w-0 opacity-0 ml-0 pointer-events-none",
                             )}
                           >
                             {label}
@@ -225,27 +222,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div
             className={cn(
               "flex items-center rounded-2xl bg-white/5 border border-white/5 transition-all duration-300",
-              !isExpanded ? "flex-col justify-center gap-2 p-2" : "justify-between p-2.5",
+              isExpanded
+                ? "justify-between p-2.5"
+                : "flex-col justify-center gap-2 p-1.5 w-11 mx-auto",
             )}
           >
-            <div
-              className={cn(
-                "flex items-center min-w-0 transition-all duration-300",
-                isExpanded ? "gap-2.5" : "justify-center w-full",
-              )}
-            >
-              <div className="relative shrink-0">
-                <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shadow-xs">
-                  {userInitial}
-                </div>
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shrink-0 shadow-xs">
+                {userInitial}
               </div>
 
               <div
                 className={cn(
-                  "flex flex-col min-w-0 whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
+                  "flex flex-col whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
                   isExpanded
-                    ? "opacity-100 max-w-[160px] translate-x-0"
-                    : "opacity-0 max-w-0 -translate-x-3 pointer-events-none",
+                    ? "max-w-[140px] opacity-100 ml-2.5"
+                    : "max-w-0 opacity-0 ml-0 pointer-events-none",
                 )}
               >
                 <span className="text-xs font-bold text-white leading-tight truncate">
