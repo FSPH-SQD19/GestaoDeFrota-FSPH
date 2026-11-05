@@ -5,6 +5,7 @@ import { HttpError } from "../../../src/lib/http_error";
 const mocks = vi.hoisted(() => {
   const tx = {
     usuario: { create: vi.fn(), update: vi.fn() },
+    motorista: { updateMany: vi.fn() },
     usuarioPerfil: { deleteMany: vi.fn(), createMany: vi.fn() },
     authSessao: { deleteMany: vi.fn() },
   };
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => {
     update: vi.fn(),
     perfilFindMany: vi.fn(),
     hashPassword: vi.fn(),
+    invalidarCacheSincronizacaoNotificacoes: vi.fn(),
     transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
   };
 });
@@ -41,6 +43,9 @@ vi.mock("../../../src/service/password_s", () => ({
 }));
 vi.mock("../../../src/service/auditoria_s", () => ({
   registrarAuditoria: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("../../../src/service/notificacao_sync_cache", () => ({
+  invalidarCacheSincronizacaoNotificacoes: mocks.invalidarCacheSincronizacaoNotificacoes,
 }));
 
 import { registrarAuditoria } from "../../../src/service/auditoria_s";
@@ -147,6 +152,18 @@ describe("obterUsuario", () => {
 });
 
 describe("criarUsuario", () => {
+  it("não permite criar conta com perfil MOTORISTA pela gestão genérica", async () => {
+    await expect(
+      criarUsuario({ ...entrada, perfis: ["MOTORISTA"] }, adminId),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "O perfil MOTORISTA deve ser atribuído pelo cadastro da Gestão de Motoristas.",
+    });
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+    expect(mocks.hashPassword).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   const entrada = {
     nome: "Ana Souza",
     email: "ana@example.test",
@@ -255,6 +272,40 @@ describe("criarUsuario", () => {
 });
 
 describe("atualizarUsuario", () => {
+  it.each([
+    { atuais: ["GESTOR"], solicitados: ["GESTOR", "MOTORISTA"] },
+    { atuais: ["GESTOR", "MOTORISTA"], solicitados: ["GESTOR"] },
+  ] as const)(
+    "não permite alterar o perfil MOTORISTA pela gestão genérica",
+    async ({ atuais, solicitados }) => {
+      mocks.findUnique.mockResolvedValue({
+        ...registro,
+        perfis: atuais.map((nome) => ({ perfil: { nome } })),
+      });
+      await expect(
+        atualizarUsuario(usuarioId, { perfis: [...solicitados] }, adminId),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "O perfil MOTORISTA só pode ser atribuído ou removido pela Gestão de Motoristas.",
+      });
+      expect(mocks.transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserva o perfil MOTORISTA quando a conta mantém esse perfil", async () => {
+    mocks.findUnique.mockResolvedValue({
+      ...registro,
+      perfis: [{ perfil: { nome: "MOTORISTA" } }],
+    });
+    mocks.perfilFindMany.mockResolvedValue([{ id: "perfil-motorista", nome: "MOTORISTA" }]);
+
+    await atualizarUsuario(usuarioId, { perfis: ["MOTORISTA"] }, adminId);
+
+    expect(mocks.tx.usuarioPerfil.createMany).toHaveBeenCalledWith({
+      data: [{ usuarioId, perfilId: "perfil-motorista" }],
+    });
+  });
+
   it("rejeita telefone inválido sem apagar o contato existente", async () => {
     mocks.findUnique.mockResolvedValue(registro);
     await expect(atualizarUsuario(usuarioId, { telefone: "abc" }, adminId)).rejects.toMatchObject({
@@ -271,9 +322,56 @@ describe("atualizarUsuario", () => {
       expect(mocks.tx.usuario.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { telefone: null } }),
       );
+      expect(mocks.tx.motorista.updateMany).toHaveBeenCalledWith({
+        where: { usuarioId },
+        data: { telefone: null },
+      });
       expect(mocks.tx.authSessao.deleteMany).not.toHaveBeenCalled();
     },
   );
+
+  it("mantém o telefone do motorista sincronizado ao atualizar o telefone da conta", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+
+    await atualizarUsuario(usuarioId, { telefone: "79988887777" }, adminId);
+
+    expect(mocks.tx.usuario.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { telefone: "(79) 98888-7777" } }),
+    );
+    expect(mocks.tx.motorista.updateMany).toHaveBeenCalledWith({
+      where: { usuarioId },
+      data: { telefone: "(79) 98888-7777" },
+    });
+  });
+
+  it("sincroniza o estado ativo da conta com o cadastro do motorista", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+
+    await atualizarUsuario(usuarioId, { ativo: false }, adminId);
+
+    expect(mocks.tx.motorista.updateMany).toHaveBeenCalledWith({
+      where: { usuarioId },
+      data: { ativo: false },
+    });
+    expect(mocks.tx.authSessao.deleteMany).toHaveBeenCalledWith({ where: { usuarioId } });
+    expect(mocks.invalidarCacheSincronizacaoNotificacoes).toHaveBeenCalledOnce();
+  });
+
+  it("invalida o cache de notificações quando o nome de um usuário muda", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+
+    await atualizarUsuario(usuarioId, { nome: "Ana Atualizada" }, adminId);
+
+    expect(mocks.invalidarCacheSincronizacaoNotificacoes).toHaveBeenCalledOnce();
+  });
+
+  it("não altera o telefone do motorista quando o telefone da conta não foi enviado", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+
+    await atualizarUsuario(usuarioId, { nome: "Ana Atualizada" }, adminId);
+
+    expect(mocks.tx.motorista.updateMany).not.toHaveBeenCalled();
+  });
 
   it("revoga sessões ao repetir a inativação via PATCH, como no DELETE", async () => {
     mocks.findUnique.mockResolvedValue({ ...registro, ativo: false });
@@ -337,6 +435,7 @@ describe("atualizarUsuario", () => {
 
     expect(atualizado.ativo).toBe(false);
     expect(mocks.tx.authSessao.deleteMany).toHaveBeenCalledWith({ where: { usuarioId } });
+    expect(mocks.invalidarCacheSincronizacaoNotificacoes).toHaveBeenCalledOnce();
     expect(registrarAuditoria).toHaveBeenCalledWith(
       expect.objectContaining({
         dadosNovos: expect.objectContaining({ operacao: "INATIVAR" }),
@@ -364,6 +463,10 @@ describe("inativarUsuario", () => {
     const inativado = await inativarUsuario(usuarioId, adminId);
 
     expect(inativado.ativo).toBe(false);
+    expect(mocks.tx.motorista.updateMany).toHaveBeenCalledWith({
+      where: { usuarioId },
+      data: { ativo: false },
+    });
     expect(mocks.tx.authSessao.deleteMany).toHaveBeenCalledWith({ where: { usuarioId } });
     expect(registrarAuditoria).toHaveBeenCalledWith(
       expect.objectContaining({

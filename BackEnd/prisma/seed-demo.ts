@@ -209,13 +209,26 @@ async function main() {
         });
       }
       const drivers = [
-        { key: "motorista", cpf: "11144477735", numeroCnh: "90000000001", status: "OCUPADO" },
-        { key: "motorista.svo", cpf: "52998224725", numeroCnh: "90000000002", status: "OCUPADO" },
+        {
+          key: "motorista",
+          cpf: "11144477735",
+          numeroCnh: "90000000001",
+          status: "OCUPADO",
+          telefone: "(79) 90000-0001",
+        },
+        {
+          key: "motorista.svo",
+          cpf: "52998224725",
+          numeroCnh: "90000000002",
+          status: "OCUPADO",
+          telefone: "(79) 90000-0002",
+        },
         {
           key: "motorista.reserva",
           cpf: "12345678909",
           numeroCnh: "90000000003",
           status: "DISPONIVEL",
+          telefone: "(79) 90000-0003",
         },
       ];
       for (const [i, data] of drivers.entries())
@@ -230,8 +243,18 @@ async function main() {
             status: data.status,
             categoriaCnh: "D",
             validadeCnh: day(730),
-            telefone: `(79) 90000-000${i + 1}`,
+            telefone: data.telefone,
           },
+        });
+      for (const [i, data] of drivers.entries())
+        await tx.motorista.updateMany({
+          where: { id: driver(i), telefone: null },
+          data: { telefone: data.telefone },
+        });
+      for (const data of drivers)
+        await tx.usuario.updateMany({
+          where: { id: user(data.key), telefone: null },
+          data: { telefone: data.telefone },
         });
 
       async function nextProtocol(prefixo: string) {
