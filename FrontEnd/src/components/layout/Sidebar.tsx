@@ -50,6 +50,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const handleFocus = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setIsHovered(true);
+    }
+  };
+
+  const handleBlur = (event: React.FocusEvent<HTMLElement>) => {
+    if (
+      typeof window !== "undefined" &&
+      window.innerWidth >= 1024 &&
+      !event.currentTarget.contains(event.relatedTarget as Node | null)
+    ) {
+      setIsHovered(false);
+    }
+  };
+
   return (
     <>
       {/* Backdrop escuro para telas mobile */}
@@ -64,6 +80,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onFocusCapture={handleFocus}
+        onBlurCapture={handleBlur}
         className={cn(
           "fixed lg:sticky top-4 left-4 z-50 h-[calc(100vh-2rem)] bg-[#090D16] text-white rounded-3xl flex flex-col justify-between shadow-2xl border border-slate-800/80 shrink-0 select-none overflow-hidden transition-[width,padding] duration-300 ease-in-out",
           // Larguras: w-72 expandido, w-20 colapsado
@@ -120,6 +138,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={() => setIsPinned((prev) => !prev)}
+              aria-pressed={isPinned}
+              tabIndex={isExpanded ? 0 : -1}
               className={cn(
                 "hidden lg:flex p-1.5 rounded-xl transition-all duration-300 cursor-pointer shrink-0",
                 isExpanded
