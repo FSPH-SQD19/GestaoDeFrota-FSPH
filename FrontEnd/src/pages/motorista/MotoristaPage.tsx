@@ -434,25 +434,27 @@ export const MotoristasPage: React.FC = () => {
             Consulte os cadastros e acompanhe a validade das CNHs.
           </p>
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => {
-            setErroCadastro("");
-            setModalCadastroAberto(true);
-          }}
-          className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:w-48"
-        >
-          Novo motorista
-        </Button>
-        <Button
-          variant="outline"
-          leftIcon={<ShieldAlert className="h-4 w-4 text-amber-600" />}
-          onClick={() => setModalMultaAberto(true)}
-          className="h-11 rounded-2xl border-slate-300 font-semibold text-slate-700 hover:bg-slate-100"
-        >
-          Registrar infração
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            leftIcon={<ShieldAlert className="h-4 w-4 text-amber-600" />}
+            onClick={() => setModalMultaAberto(true)}
+            className="h-11 rounded-2xl border-slate-300 font-semibold text-slate-700 hover:bg-slate-100"
+          >
+            Registrar infração
+          </Button>
+          <Button
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => {
+              setErroCadastro("");
+              setModalCadastroAberto(true);
+            }}
+            className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:w-48"
+          >
+            Novo motorista
+          </Button>
+        </div>
       </div>
 
       {errorMessage && (
