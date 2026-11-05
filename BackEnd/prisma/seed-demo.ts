@@ -408,6 +408,45 @@ async function main() {
             dataHoraConclusao: i === 0 ? null : day(-2, 11),
           },
         });
+      await tx.multaInfracao.upsert({
+        where: { id: id("multa:1") },
+        update: {},
+        create: {
+          id: id("multa:1"),
+          autoInfracao: "SE-2026-901",
+          veiculoId: vehicle(0),
+          motoristaId: driver(0),
+          dataHora: day(-5, 14),
+          gravidade: "MEDIA",
+          pontos: 4,
+          valor: new Prisma.Decimal("130.16"),
+          descricao: "Excesso de velocidade em até 20%",
+          local: "Av. Beira Mar, Aracaju/SE",
+          orgaoEmissor: "SMTT Aracaju",
+          status: "PENDENTE",
+          dataVencimento: day(20, 0),
+        },
+      });
+      await tx.multaInfracao.upsert({
+        where: { id: id("multa:2") },
+        update: {},
+        create: {
+          id: id("multa:2"),
+          autoInfracao: "BR-2026-442",
+          veiculoId: vehicle(1),
+          motoristaId: driver(1),
+          dataHora: day(-15, 9),
+          gravidade: "GRAVE",
+          pontos: 5,
+          valor: new Prisma.Decimal("195.23"),
+          descricao: "Ultrapassagem em linha contínua",
+          local: "BR-101, Km 82, Nossa Senhora do Socorro/SE",
+          orgaoEmissor: "PRF",
+          status: "PAGA",
+          dataVencimento: day(-1, 0),
+          dataPagamento: day(-2, 16),
+        },
+      });
       await tx.auditoriaSistema.upsert({
         where: { id: id("auditoria:seed") },
         update: {},
