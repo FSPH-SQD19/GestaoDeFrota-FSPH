@@ -222,12 +222,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div
             className={cn(
               "flex items-center rounded-2xl bg-white/5 border border-white/5 transition-all duration-300",
-              isExpanded
-                ? "justify-between p-2.5"
-                : "flex-col justify-center gap-2 p-1.5 w-11 mx-auto",
+              isExpanded ? "justify-between p-2.5" : "justify-center p-1.5 w-11 h-11 mx-auto",
             )}
+            title={!isExpanded ? user?.nome || "Usuário" : undefined}
           >
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0">
               <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shrink-0 shadow-xs">
                 {userInitial}
               </div>
@@ -252,7 +251,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={logout}
-              className="rounded-xl p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
+              className={cn(
+                "rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-300 cursor-pointer shrink-0",
+                isExpanded
+                  ? "opacity-100 scale-100 p-1.5 ml-2"
+                  : "opacity-0 scale-75 pointer-events-none w-0 p-0 ml-0 overflow-hidden",
+              )}
               title="Encerrar sessão"
               aria-label="Encerrar sessão"
             >
