@@ -607,6 +607,7 @@ export const MotoristasPage: React.FC = () => {
         isOpen={Boolean(motoristaSelecionado)}
         onClose={() => setMotoristaSelecionado(null)}
         title="Dados do motorista"
+        size="xl"
         description={motoristaSelecionado ? `Cadastro ${motoristaSelecionado.id}` : undefined}
         footer={
           motoristaSelecionado && (
@@ -629,7 +630,7 @@ export const MotoristasPage: React.FC = () => {
                 <p className="text-xs text-slate-500">{motoristaSelecionado.id}</p>
               </div>
             </div>
-            <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <dt className="text-xs font-medium text-slate-500">CPF</dt>
                 <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.cpf}</dd>

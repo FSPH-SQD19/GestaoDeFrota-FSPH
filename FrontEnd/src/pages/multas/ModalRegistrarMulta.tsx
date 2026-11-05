@@ -150,7 +150,7 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Registrar Multa / Infração"
-      size="lg"
+      size="xl"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={salvando}>
