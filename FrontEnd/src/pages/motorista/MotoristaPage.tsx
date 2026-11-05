@@ -168,7 +168,7 @@ export const MotoristasPage: React.FC = () => {
   useEffect(() => {
     if (modalMultaAberto && veiculosOpcoes.length === 0) {
       apiRequest<{ data: { id: string; placa: string; modelo: string }[] }>(
-        "/api/v1/veiculos?pageSize=100",
+        "/veiculos?pageSize=100",
       )
         .then((res) => {
           if (res?.data) {

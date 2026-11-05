@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button, Input, Modal, Select, Textarea } from "../../components/common";
+import { apiRequest } from "../../lib/api";
 import { criarMultaApi } from "../../services/multasService";
-import type { GravidadeMulta, Multa, StatusMulta } from "../../types/multa";
+import type { GravidadeMulta, Multa } from "../../types/multa";
 
 interface OpcaoRecurso {
   value: string;
@@ -13,8 +14,8 @@ interface ModalRegistrarMultaProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (multa: Multa) => void;
-  veiculos: OpcaoRecurso[];
-  motoristas: OpcaoRecurso[];
+  veiculos?: OpcaoRecurso[];
+  motoristas?: OpcaoRecurso[];
   veiculoIdPadrao?: string;
   motoristaIdPadrao?: string;
 }
@@ -30,8 +31,8 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  veiculos,
-  motoristas,
+  veiculos = [],
+  motoristas = [],
   veiculoIdPadrao,
   motoristaIdPadrao,
 }) => {
@@ -47,8 +48,53 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
   const [dataVencimento, setDataVencimento] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
+  const [veiculosCarregados, setVeiculosCarregados] = useState<OpcaoRecurso[]>([]);
+  const [motoristasCarregados, setMotoristasCarregados] = useState<OpcaoRecurso[]>([]);
+
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || veiculos.length > 0) return;
+    let ativo = true;
+    apiRequest<{ data: { id: string; placa: string; modelo: string }[] }>("/veiculos?pageSize=100")
+      .then((res) => {
+        if (ativo && res?.data) {
+          setVeiculosCarregados(
+            res.data.map((v) => ({ value: v.id, label: `${v.placa} - ${v.modelo}` })),
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [isOpen, veiculos.length]);
+
+  useEffect(() => {
+    if (!isOpen || motoristas.length > 0) return;
+    let ativo = true;
+    apiRequest<{ id: string; usuario?: { nome: string }; numeroCnh: string }[]>("/motoristas")
+      .then((res) => {
+        if (ativo && Array.isArray(res)) {
+          setMotoristasCarregados(
+            res.map((m) => ({
+              value: m.id,
+              label: `${m.usuario?.nome ?? "Sem nome"} (CNH: ${m.numeroCnh})`,
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [isOpen, motoristas.length]);
+
+  const opcoesVeiculos = veiculos.length > 0 ? veiculos : veiculosCarregados;
+  const opcoesMotoristas = motoristas.length > 0 ? motoristas : motoristasCarregados;
+  const veiculoIdEfetivo = veiculoId || veiculoIdPadrao || "";
+  const motoristaIdEfetivo = motoristaId || motoristaIdPadrao || "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +104,7 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
       setErro("Informe o número do auto de infração.");
       return;
     }
-    if (!veiculoId) {
+    if (!veiculoIdEfetivo) {
       setErro("Selecione o veículo envolvido na infração.");
       return;
     }
@@ -72,29 +118,28 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
       setSalvando(true);
       const novaMulta = await criarMultaApi({
         autoInfracao: autoInfracao.trim(),
-        veiculoId,
-        motoristaId: motoristaId || null,
+        veiculoId: veiculoIdEfetivo,
+        motoristaId: motoristaIdEfetivo || undefined,
         dataHora: new Date(dataHora).toISOString(),
         gravidade,
         valor: valorNumerico,
-        orgaoEmissor: orgaoEmissor.trim() || null,
-        local: local.trim() || null,
-        descricao: descricao.trim() || null,
-        dataVencimento: dataVencimento || null,
-        status: "PENDENTE" as StatusMulta,
-        observacoes: observacoes.trim() || null,
+        orgaoEmissor: orgaoEmissor.trim() || undefined,
+        local: local.trim() || undefined,
+        descricao: descricao.trim() || undefined,
+        dataVencimento: dataVencimento
+          ? new Date(`${dataVencimento}T23:59:59Z`).toISOString()
+          : undefined,
+        observacoes: observacoes.trim() || undefined,
       });
 
       onSuccess(novaMulta);
       onClose();
     } catch (err: unknown) {
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : null;
-      setErro(
-        msg || "Não foi possível cadastrar a infração. Verifique os dados e tente novamente.",
-      );
+      if (err instanceof Error) {
+        setErro(err.message);
+      } else {
+        setErro("Não foi possível registrar a multa.");
+      }
     } finally {
       setSalvando(false);
     }
@@ -105,25 +150,26 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Registrar Multa / Infração"
-      description="Cadastre autos de infração de trânsito vinculados a veículos e condutores da FSPH."
+      size="lg"
       footer={
-        <>
-          <Button variant="ghost" onClick={onClose} disabled={salvando}>
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={salvando}>
             Cancelar
           </Button>
-          <Button variant="primary" type="submit" form="form-multa" isLoading={salvando}>
-            Salvar Infração
+          <Button variant="primary" onClick={handleSubmit} disabled={salvando}>
+            {salvando ? "Salvando..." : "Salvar Infração"}
           </Button>
-        </>
+        </div>
       }
     >
-      <form id="form-multa" onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-sm text-neutral-500">
+          Cadastre autos de infração de trânsito vinculados a veículos e condutores da FSPH.
+        </p>
+
         {erro && (
-          <div
-            role="alert"
-            className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-700 border border-rose-200/60"
-          >
-            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+          <div className="flex items-center gap-2 rounded-lg bg-danger-50 p-3 text-sm text-danger-700 dark:bg-danger-900/20 dark:text-danger-400">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{erro}</span>
           </div>
         )}
@@ -131,7 +177,7 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Auto de infração"
-            placeholder="Ex: SE-12345678"
+            placeholder="Ex: R01928374"
             required
             value={autoInfracao}
             onChange={(e) => setAutoInfracao(e.target.value)}
@@ -155,18 +201,20 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
           <Select
             label="Veículo"
             required
-            value={veiculoId}
+            value={veiculoIdEfetivo}
             onChange={(e) => setVeiculoId(e.target.value)}
-            placeholder="Selecione o veículo"
-            options={veiculos}
+            placeholder={
+              opcoesVeiculos.length === 0 ? "Carregando veículos..." : "Selecione o veículo"
+            }
+            options={opcoesVeiculos}
           />
 
           <Select
             label="Condutor / Motorista (opcional)"
-            value={motoristaId}
+            value={motoristaIdEfetivo}
             onChange={(e) => setMotoristaId(e.target.value)}
             placeholder="Selecione o condutor (se identificado)"
-            options={motoristas}
+            options={opcoesMotoristas}
           />
         </div>
 
