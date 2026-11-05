@@ -163,6 +163,7 @@ export const MotoristasPage: React.FC = () => {
   const isLoading = !atual;
   const errorMessage = atual?.erro ?? "";
   const [modalMultaAberto, setModalMultaAberto] = useState(false);
+  const [versaoMultas, setVersaoMultas] = useState(0);
   const [veiculosOpcoes, setVeiculosOpcoes] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -686,6 +687,7 @@ export const MotoristasPage: React.FC = () => {
               <SecaoMultasMotorista
                 motoristaId={motoristaSelecionado.id}
                 onNovaMultaClick={() => setModalMultaAberto(true)}
+                versaoExterno={versaoMultas}
               />
             </div>
           </div>
@@ -803,6 +805,7 @@ export const MotoristasPage: React.FC = () => {
         onClose={() => setModalMultaAberto(false)}
         onSuccess={() => {
           setSuccessMessage("Infração/multa registrada com sucesso.");
+          setVersaoMultas((v) => v + 1);
           setModalMultaAberto(false);
         }}
         veiculos={veiculosOpcoes}

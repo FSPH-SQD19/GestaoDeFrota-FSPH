@@ -7,6 +7,7 @@ import type { Multa, ResumoMultasMotorista, StatusMulta } from "../../types/mult
 interface SecaoMultasMotoristaProps {
   motoristaId: string;
   onNovaMultaClick?: () => void;
+  versaoExterno?: number;
 }
 
 const dataAgoraIso = () => new Date().toISOString();
@@ -38,6 +39,7 @@ const statusBadge: Record<StatusMulta, { variant: "warning" | "success" | "info"
 export const SecaoMultasMotorista: React.FC<SecaoMultasMotoristaProps> = ({
   motoristaId,
   onNovaMultaClick,
+  versaoExterno = 0,
 }) => {
   const [resumo, setResumo] = useState<ResumoMultasMotorista | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -75,7 +77,7 @@ export const SecaoMultasMotorista: React.FC<SecaoMultasMotoristaProps> = ({
     return () => {
       ativo = false;
     };
-  }, [motoristaId, versao]);
+  }, [motoristaId, versao, versaoExterno]);
 
   const handleAlterarStatus = async (multaId: string, novoStatus: StatusMulta) => {
     try {
@@ -117,9 +119,9 @@ export const SecaoMultasMotorista: React.FC<SecaoMultasMotoristaProps> = ({
             variant="outline"
             size="sm"
             onClick={onNovaMultaClick}
-            className="self-start text-xs font-semibold sm:self-auto"
+            leftIcon={<Plus className="h-3.5 w-3.5" />}
+            className="whitespace-nowrap font-semibold"
           >
-            <Plus className="mr-1 h-3.5 w-3.5" />
             Registrar Infração
           </Button>
         )}
