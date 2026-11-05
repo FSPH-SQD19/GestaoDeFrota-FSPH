@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Filter, MoreHorizontal, Phone, Plus, Search, X } from "lucide-react";
+import {
+  CalendarDays,
+  Filter,
+  MoreHorizontal,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -33,6 +42,14 @@ interface FormularioMotorista {
   categoriaCnh: string;
   validadeCnh: string;
   telefone: string;
+}
+
+interface FormularioEdicaoMotorista {
+  nome: string;
+  email: string;
+  telefone: string;
+  validadeCnh: string;
+  ativo: boolean;
 }
 
 interface FiltrosMotoristas {
@@ -156,6 +173,15 @@ export const MotoristasPage: React.FC = () => {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroCnhAtencao, setFiltroCnhAtencao] = useState(false);
   const [motoristaSelecionado, setMotoristaSelecionado] = useState<Motorista | null>(null);
+  const [motoristaEmEdicao, setMotoristaEmEdicao] = useState<Motorista | null>(null);
+  const [formularioEdicao, setFormularioEdicao] = useState<FormularioEdicaoMotorista>({
+    nome: "",
+    email: "",
+    telefone: "",
+    validadeCnh: "",
+    ativo: true,
+  });
+  const [erroEdicao, setErroEdicao] = useState("");
   const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
   const [formulario, setFormulario] = useState(formularioVazio);
   const [cpfTocado, setCpfTocado] = useState(false);
@@ -237,6 +263,81 @@ export const MotoristasPage: React.FC = () => {
     } catch (error) {
       setErroCadastro(
         error instanceof Error ? error.message : "Não foi possível cadastrar o motorista.",
+      );
+    } finally {
+      salvando.current = false;
+      setIsSaving(false);
+    }
+  };
+
+  const abrirEdicao = (motorista: Motorista) => {
+    setFormularioEdicao({
+      nome: motorista.nome === "Usuário sem vínculo" ? "" : motorista.nome,
+      email: motorista.email ?? "",
+      telefone: motorista.telefone ?? "",
+      validadeCnh: motorista.validadeCnh,
+      ativo: motorista.ativo,
+    });
+    setErroEdicao("");
+    setMotoristaSelecionado(null);
+    setMotoristaEmEdicao(motorista);
+  };
+
+  const salvarEdicao = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!motoristaEmEdicao || salvando.current) return;
+    if (motoristaEmEdicao.email && (!formularioEdicao.nome.trim() || !formularioEdicao.email.trim())) {
+      setErroEdicao("Informe o nome e o e-mail da conta vinculada.");
+      return;
+    }
+
+    const dados: {
+      nome?: string;
+      email?: string;
+      telefone?: string | null;
+      validadeCnh?: string;
+      ativo?: boolean;
+    } = {};
+    if (
+      motoristaEmEdicao.email &&
+      formularioEdicao.nome.trim() !== motoristaEmEdicao.nome
+    ) {
+      dados.nome = formularioEdicao.nome.trim();
+    }
+    if (
+      motoristaEmEdicao.email &&
+      formularioEdicao.email.trim().toLowerCase() !== motoristaEmEdicao.email.toLowerCase()
+    ) {
+      dados.email = formularioEdicao.email.trim().toLowerCase();
+    }
+    const telefone = formularioEdicao.telefone.trim() || null;
+    if (telefone !== (motoristaEmEdicao.telefone ?? null)) dados.telefone = telefone;
+    if (formularioEdicao.validadeCnh !== motoristaEmEdicao.validadeCnh) {
+      dados.validadeCnh = formularioEdicao.validadeCnh;
+    }
+    if (formularioEdicao.ativo !== motoristaEmEdicao.ativo) {
+      dados.ativo = formularioEdicao.ativo;
+    }
+    if (Object.keys(dados).length === 0) {
+      setErroEdicao("Nenhuma alteração foi feita.");
+      return;
+    }
+
+    salvando.current = true;
+    setIsSaving(true);
+    setErroEdicao("");
+    setSuccessMessage("");
+    try {
+      await apiRequest<MotoristaApi>(`/motoristas/${encodeURIComponent(motoristaEmEdicao.id)}`, {
+        method: "PATCH",
+        data: dados,
+      });
+      setMotoristaEmEdicao(null);
+      setSuccessMessage("Motorista e conta de acesso atualizados.");
+      recarregarMotoristas();
+    } catch (error) {
+      setErroEdicao(
+        error instanceof Error ? error.message : "Não foi possível atualizar o motorista.",
       );
     } finally {
       salvando.current = false;
@@ -571,9 +672,18 @@ export const MotoristasPage: React.FC = () => {
         description={motoristaSelecionado ? `Cadastro ${motoristaSelecionado.id}` : undefined}
         footer={
           motoristaSelecionado && (
-            <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
-              Fechar
-            </Button>
+            <div className="flex w-full justify-between">
+              <Button
+                variant="outline"
+                leftIcon={<Pencil className="h-4 w-4" />}
+                onClick={() => abrirEdicao(motoristaSelecionado)}
+              >
+                Editar cadastro
+              </Button>
+              <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
+                Fechar
+              </Button>
+            </div>
           )
         }
       >
@@ -643,6 +753,113 @@ export const MotoristasPage: React.FC = () => {
               </div>
             </dl>
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(motoristaEmEdicao)}
+        onClose={() => {
+          if (!salvando.current) setMotoristaEmEdicao(null);
+        }}
+        title="Editar cadastro do motorista"
+        description="Os dados de contato e o status da conta vinculada são mantidos em sincronia com a gestão de usuários."
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => setMotoristaEmEdicao(null)}
+              disabled={isSaving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              form="formulario-edicao-motorista"
+              isLoading={isSaving}
+            >
+              Salvar alterações
+            </Button>
+          </>
+        }
+      >
+        {motoristaEmEdicao && (
+          <form
+            id="formulario-edicao-motorista"
+            onSubmit={salvarEdicao}
+            className="space-y-5"
+            noValidate
+          >
+            <fieldset disabled={isSaving} className="space-y-5">
+              {!motoristaEmEdicao.email && (
+                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                  Este cadastro não possui conta vinculada. Nome e e-mail não podem ser alterados
+                  por aqui.
+                </p>
+              )}
+              <Input
+                label="Nome completo"
+                autoComplete="name"
+                required={Boolean(motoristaEmEdicao.email)}
+                maxLength={150}
+                disabled={!motoristaEmEdicao.email}
+                value={formularioEdicao.nome}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, nome: event.target.value })
+                }
+              />
+              <Input
+                label="E-mail de acesso"
+                type="email"
+                autoComplete="email"
+                required={Boolean(motoristaEmEdicao.email)}
+                maxLength={150}
+                disabled={!motoristaEmEdicao.email}
+                value={formularioEdicao.email}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, email: event.target.value })
+                }
+              />
+              <Input
+                label="Telefone para contato"
+                type="tel"
+                autoComplete="tel"
+                maxLength={20}
+                value={formularioEdicao.telefone}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, telefone: event.target.value })
+                }
+              />
+              <Input
+                label="Validade da CNH"
+                type="date"
+                required
+                value={formularioEdicao.validadeCnh}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, validadeCnh: event.target.value })
+                }
+              />
+              <Select
+                label="Status do cadastro"
+                value={String(formularioEdicao.ativo)}
+                onChange={(event) =>
+                  setFormularioEdicao({
+                    ...formularioEdicao,
+                    ativo: event.target.value === "true",
+                  })
+                }
+                options={[
+                  { value: "true", label: "Ativo" },
+                  { value: "false", label: "Inativo" },
+                ]}
+              />
+            </fieldset>
+            {erroEdicao && (
+              <p role="alert" className="text-sm font-medium text-rose-600">
+                {erroEdicao}
+              </p>
+            )}
+          </form>
         )}
       </Modal>
 

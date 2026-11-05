@@ -6,6 +6,7 @@ import { prisma } from "../lib/prisma";
 import { validarDataValidadeCnh } from "./validarCNH_s";
 import { registrarAuditoria } from "./auditoria_s";
 import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
+import { normalizarTelefone } from "./telefone_s";
 
 interface MotoristaInput {
   nome: string;
@@ -19,6 +20,9 @@ interface MotoristaInput {
 }
 
 interface AtualizarMotoristaInput {
+  nome?: string;
+  email?: string;
+  telefone?: string | null;
   validadeCnh?: string;
   ativo?: boolean;
 }
@@ -173,6 +177,7 @@ export async function cadastrarMotorista(dados: MotoristaInput, usuarioResponsav
           nome,
           email,
           senhaHash,
+          telefone: telefoneFormatado,
           ativo: true,
           perfis: { create: { perfilId: perfilMotorista.id } },
         },
@@ -220,14 +225,46 @@ export async function atualizarMotorista(
     throw new HttpError(400, "Não foi possível identificar o motorista. Selecione-o novamente.");
   }
 
-  if (dados.validadeCnh === undefined && dados.ativo === undefined) {
+  if (
+    dados.nome === undefined &&
+    dados.email === undefined &&
+    dados.telefone === undefined &&
+    dados.validadeCnh === undefined &&
+    dados.ativo === undefined
+  ) {
     throw new HttpError(
       400,
-      "Informe a validade da CNH ou escolha se o motorista está ativo ou inativo.",
+      "Informe ao menos um dado para atualizar o motorista.",
     );
   }
 
-  const dadosAtualizados: { validadeCnh?: Date; ativo?: boolean } = {};
+  const dadosAtualizados: {
+    telefone?: string | null;
+    validadeCnh?: Date;
+    ativo?: boolean;
+  } = {};
+  const dadosUsuario: { nome?: string; email?: string; telefone?: string | null; ativo?: boolean } =
+    {};
+
+  if (dados.nome !== undefined) {
+    const nome = dados.nome.trim();
+    if (!nome || nome.length > 150) throw new HttpError(400, "Nome inválido.");
+    dadosUsuario.nome = nome;
+  }
+
+  if (dados.email !== undefined) {
+    const email = dados.email.trim().toLowerCase();
+    if (!z.email().safeParse(email).success || email.length > 150) {
+      throw new HttpError(400, "E-mail inválido.");
+    }
+    dadosUsuario.email = email;
+  }
+
+  if (dados.telefone !== undefined) {
+    const telefone = normalizarTelefone(dados.telefone);
+    dadosAtualizados.telefone = telefone ?? null;
+    dadosUsuario.telefone = telefone ?? null;
+  }
 
   if (dados.validadeCnh !== undefined) {
     dadosAtualizados.validadeCnh = validarDataValidadeCnh(dados.validadeCnh);
@@ -235,21 +272,46 @@ export async function atualizarMotorista(
 
   if (dados.ativo !== undefined) {
     dadosAtualizados.ativo = dados.ativo;
+    dadosUsuario.ativo = dados.ativo;
   }
 
   try {
-    const motorista = await prisma.motorista.update({
-      where: { id },
-      data: dadosAtualizados,
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nome: true,
-            email: true,
+    const motorista = await prisma.$transaction(async (tx) => {
+      const atual = await tx.motorista.findUnique({
+        where: { id },
+        select: { usuarioId: true },
+      });
+      if (!atual) throw new HttpError(404, "Motorista não encontrado.");
+      if (dados.ativo === false && atual.usuarioId === usuarioResponsavelId) {
+        throw new HttpError(400, "Você não pode inativar a própria conta.");
+      }
+      if ((dados.nome !== undefined || dados.email !== undefined) && !atual.usuarioId) {
+        throw new HttpError(409, "Motorista sem conta de usuário vinculada.");
+      }
+
+      if (atual.usuarioId && Object.keys(dadosUsuario).length > 0) {
+        await tx.usuario.update({
+          where: { id: atual.usuarioId },
+          data: dadosUsuario,
+        });
+        if (dados.ativo === false) {
+          await tx.authSessao.deleteMany({ where: { usuarioId: atual.usuarioId } });
+        }
+      }
+
+      return tx.motorista.update({
+        where: { id },
+        data: dadosAtualizados,
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+            },
           },
         },
-      },
+      });
     });
 
     invalidarCacheSincronizacaoNotificacoes();
@@ -259,6 +321,9 @@ export async function atualizarMotorista(
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       throw new HttpError(404, "Motorista não encontrado.");
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new HttpError(409, "Já existe um usuário com este e-mail.");
     }
 
     throw error;
@@ -272,20 +337,35 @@ export async function excluirMotorista(id: string, usuarioResponsavelId: string)
   }
 
   try {
-    const motorista = await prisma.motorista.update({
-      where: { id },
-      data: {
-        ativo: false,
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nome: true,
-            email: true,
+    const motorista = await prisma.$transaction(async (tx) => {
+      const atual = await tx.motorista.findUnique({
+        where: { id },
+        select: { usuarioId: true },
+      });
+      if (!atual) throw new HttpError(404, "Motorista não encontrado.");
+      if (atual.usuarioId === usuarioResponsavelId) {
+        throw new HttpError(400, "Você não pode inativar a própria conta.");
+      }
+      if (atual.usuarioId) {
+        await tx.usuario.update({
+          where: { id: atual.usuarioId },
+          data: { ativo: false },
+        });
+        await tx.authSessao.deleteMany({ where: { usuarioId: atual.usuarioId } });
+      }
+      return tx.motorista.update({
+        where: { id },
+        data: { ativo: false },
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+            },
           },
         },
-      },
+      });
     });
 
     invalidarCacheSincronizacaoNotificacoes();

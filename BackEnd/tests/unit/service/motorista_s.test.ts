@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const transactionClient = {
     perfil: { findUnique: vi.fn() },
-    usuario: { create: vi.fn() },
-    motorista: { create: vi.fn() },
+    usuario: { create: vi.fn(), update: vi.fn() },
+    motorista: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    authSessao: { deleteMany: vi.fn() },
   };
 
   return {
@@ -32,7 +33,11 @@ vi.mock("../../../src/service/auditoria_s", () => ({
 }));
 
 import { registrarAuditoria } from "../../../src/service/auditoria_s";
-import { cadastrarMotorista as cadastrar } from "../../../src/service/motorista_s";
+import {
+  atualizarMotorista,
+  cadastrarMotorista as cadastrar,
+  excluirMotorista,
+} from "../../../src/service/motorista_s";
 
 const cadastrarMotorista = (dados: Parameters<typeof cadastrar>[0]) =>
   cadastrar(dados, "administrador-teste");
@@ -56,6 +61,14 @@ beforeEach(() => {
   mocks.transactionClient.perfil.findUnique.mockResolvedValue({ id: "perfil-motorista" });
   mocks.transactionClient.usuario.create.mockResolvedValue({ id: "usuario-sintetico" });
   mocks.transactionClient.motorista.create.mockResolvedValue({ id: "motorista-sintetico" });
+  mocks.transactionClient.motorista.findUnique.mockResolvedValue({ usuarioId: "usuario-motorista" });
+  mocks.transactionClient.motorista.update.mockResolvedValue({
+    id: "motorista-sintetico",
+    usuarioId: "usuario-motorista",
+    usuario: { id: "usuario-motorista", nome: "Motorista", email: "motorista@example.com" },
+  });
+  mocks.transactionClient.usuario.update.mockResolvedValue({});
+  mocks.transactionClient.authSessao.deleteMany.mockResolvedValue({ count: 1 });
   mocks.transaction.mockImplementation(async (callback) => callback(mocks.transactionClient));
 });
 afterEach(() => vi.useRealTimers());
@@ -119,6 +132,77 @@ describe("cadastro conjunto do motorista e sua conta", () => {
     await cadastrarMotorista({ ...entrada, senha: "abc123" });
     expect(mocks.hashPassword).toHaveBeenCalledWith("abc123");
   });
+
+  describe("atualização conjunta da conta e do cadastro do motorista", () => {
+    const motoristaId = "00000000-0000-4000-8000-000000000001";
+
+    it("sincroniza nome, e-mail, telefone e status ativo na mesma transação", async () => {
+      await atualizarMotorista(
+        motoristaId,
+        {
+          nome: "  Ana Condutora ",
+          email: " ANA@example.com ",
+          telefone: "79988887777",
+          ativo: false,
+        },
+        "gestor-teste",
+      );
+
+      expect(mocks.transactionClient.usuario.update).toHaveBeenCalledWith({
+        where: { id: "usuario-motorista" },
+        data: {
+          nome: "Ana Condutora",
+          email: "ana@example.com",
+          telefone: "(79) 98888-7777",
+          ativo: false,
+        },
+      });
+      expect(mocks.transactionClient.motorista.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: motoristaId },
+          data: { telefone: "(79) 98888-7777", ativo: false },
+        }),
+      );
+      expect(mocks.transactionClient.authSessao.deleteMany).toHaveBeenCalledWith({
+        where: { usuarioId: "usuario-motorista" },
+      });
+    });
+
+    it("não altera a conta quando a atualização contém apenas validade da CNH", async () => {
+      await atualizarMotorista(motoristaId, { validadeCnh: "2027-10-20" }, "gestor-teste");
+
+      expect(mocks.transactionClient.usuario.update).not.toHaveBeenCalled();
+      expect(mocks.transactionClient.motorista.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { validadeCnh: new Date("2027-10-20T00:00:00.000Z") } }),
+      );
+    });
+
+    it("impede inativar a própria conta pela gestão de motoristas", async () => {
+      mocks.transactionClient.motorista.findUnique.mockResolvedValueOnce({
+        usuarioId: "gestor-teste",
+      });
+
+      await expect(
+        atualizarMotorista(motoristaId, { ativo: false }, "gestor-teste"),
+      ).rejects.toThrow("Você não pode inativar a própria conta.");
+      expect(mocks.transactionClient.usuario.update).not.toHaveBeenCalled();
+    });
+
+    it("inativa a conta vinculada e revoga suas sessões ao inativar o motorista", async () => {
+      await excluirMotorista(motoristaId, "gestor-teste");
+
+      expect(mocks.transactionClient.usuario.update).toHaveBeenCalledWith({
+        where: { id: "usuario-motorista" },
+        data: { ativo: false },
+      });
+      expect(mocks.transactionClient.motorista.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { ativo: false } }),
+      );
+      expect(mocks.transactionClient.authSessao.deleteMany).toHaveBeenCalledWith({
+        where: { usuarioId: "usuario-motorista" },
+      });
+    });
+  });
   it.each([
     [{ ...entrada, nome: "  " }, "Nome inválido."],
     [{ ...entrada, email: "email-inválido" }, "E-mail inválido."],
@@ -144,6 +228,7 @@ describe("cadastro conjunto do motorista e sua conta", () => {
         nome: "Motorista de Teste",
         email: "motorista@example.com",
         senhaHash: "hash-seguro",
+        telefone: "(79) 99999-1234",
         ativo: true,
         perfis: { create: { perfilId: "perfil-motorista" } },
       },

@@ -13,8 +13,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 const mocks = vi.hoisted(() => {
   const transactionClient = {
     perfil: { findUnique: vi.fn() },
-    usuario: { create: vi.fn() },
-    motorista: { create: vi.fn() },
+    usuario: { create: vi.fn(), update: vi.fn() },
+    motorista: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    authSessao: { deleteMany: vi.fn() },
   };
 
   return {
@@ -47,6 +48,7 @@ import { app } from "../../../src/app";
 let server: Server;
 let baseUrl: string;
 const usuarioId = "00000000-0000-4000-8000-000000000001";
+const motoristaUsuarioId = "00000000-0000-4000-8000-000000000002";
 const entrada = {
   nome: "Motorista",
   email: "motorista@example.com",
@@ -77,6 +79,14 @@ beforeEach(() => {
     id: "motorista-sintetico",
     ...entrada,
   });
+  mocks.transactionClient.motorista.findUnique.mockResolvedValue({ usuarioId: motoristaUsuarioId });
+  mocks.transactionClient.motorista.update.mockResolvedValue({
+    id: usuarioId,
+    usuarioId,
+    ativo: false,
+    usuario: { id: usuarioId, nome: "Motorista", email: "motorista@example.com" },
+  });
+  mocks.transactionClient.usuario.update.mockResolvedValue({ id: usuarioId, ativo: false });
   mocks.transaction.mockImplementation(async (callback) => callback(mocks.transactionClient));
 });
 afterEach(() => vi.useRealTimers());
@@ -198,7 +208,7 @@ describe("compatibilidade e correções do merge de motoristas", () => {
       ...(method === "PATCH" ? { body: JSON.stringify({ ativo: false }) } : {}),
     });
     expect(response.status).toBe(200);
-    expect(mocks.update).toHaveBeenCalledWith(
+    expect(mocks.transactionClient.motorista.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: usuarioId }, data: { ativo: false } }),
     );
   });

@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { registrarAuditoria } from "./auditoria_s";
 import { hashPassword } from "./password_s";
 import { validarNovaSenha } from "./senha_s";
+import { normalizarTelefone } from "./telefone_s";
 
 export const PERFIS_USUARIO = ["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"] as const;
 
@@ -47,20 +48,6 @@ function serializarUsuario(usuario: UsuarioComPerfis): UsuarioResposta {
     criadoEm: usuario.criadoEm,
     perfis: usuario.perfis.map((vinculo) => vinculo.perfil.nome),
   };
-}
-
-function normalizarTelefone(telefone: string | null | undefined): string | null | undefined {
-  if (telefone === undefined) return undefined;
-  if (telefone === null || !telefone.trim()) return null;
-  const digitos = telefone.replace(/\D/g, "");
-  if (!/^\d{10,11}$/.test(digitos)) {
-    throw new HttpError(400, "Telefone deve conter DDD e 8 ou 9 dígitos.", [
-      { campo: "telefone", mensagem: "Telefone deve conter DDD e 8 ou 9 dígitos." },
-    ]);
-  }
-  return digitos.length === 11
-    ? digitos.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3")
-    : digitos.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
 }
 
 async function registrarAuditoriaUsuario(
@@ -237,6 +224,13 @@ export async function obterUsuario(id: string) {
 }
 
 export async function criarUsuario(input: CriarUsuarioInput, usuarioResponsavelId: string) {
+  if (input.perfis.includes("MOTORISTA")) {
+    throw new HttpError(
+      400,
+      "O perfil MOTORISTA deve ser atribuído pelo cadastro da Gestão de Motoristas.",
+    );
+  }
+
   const senha = validarNovaSenha(input.senha, "senha");
   const telefone = normalizarTelefone(input.telefone);
   const setor =
@@ -315,6 +309,17 @@ export async function atualizarUsuario(
     throw new HttpError(404, "Usuário não encontrado. Atualize a lista e tente novamente.");
   }
 
+  if (input.perfis) {
+    const motoristaAtual = atual.perfis.some((vinculo) => vinculo.perfil.nome === "MOTORISTA");
+    const motoristaSolicitado = input.perfis.includes("MOTORISTA");
+    if (motoristaAtual !== motoristaSolicitado) {
+      throw new HttpError(
+        400,
+        "O perfil MOTORISTA só pode ser atribuído ou removido pela Gestão de Motoristas.",
+      );
+    }
+  }
+
   if (id === usuarioResponsavelId && input.ativo === false) {
     throw new HttpError(400, "Você não pode inativar a própria conta.");
   }
@@ -374,6 +379,16 @@ export async function atualizarUsuario(
         select: usuarioSelect,
       });
 
+      if (telefone !== undefined || input.ativo !== undefined) {
+        await tx.motorista.updateMany({
+          where: { usuarioId: id },
+          data: {
+            ...(telefone !== undefined ? { telefone } : {}),
+            ...(input.ativo !== undefined ? { ativo: input.ativo } : {}),
+          },
+        });
+      }
+
       if (inativando) {
         await tx.authSessao.deleteMany({ where: { usuarioId: id } });
       }
@@ -429,6 +444,10 @@ export async function inativarUsuario(id: string, usuarioResponsavelId: string) 
         where: { id },
         data: { ativo: false },
         select: usuarioSelect,
+      });
+      await tx.motorista.updateMany({
+        where: { usuarioId: id },
+        data: { ativo: false },
       });
       await tx.authSessao.deleteMany({ where: { usuarioId: id } });
       return usuario;
