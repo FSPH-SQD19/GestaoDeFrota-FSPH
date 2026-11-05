@@ -207,10 +207,7 @@ export const UsuariosPage: React.FC = () => {
         ...new Set(
           usuario.perfis
             .map(normalizarPerfil)
-            .filter(
-              (perfil): perfil is PerfilUsuario =>
-                perfil !== null && perfil !== "MOTORISTA",
-            ),
+            .filter((perfil): perfil is PerfilUsuario => perfil !== null && perfil !== "MOTORISTA"),
         ),
       ],
     });
@@ -223,10 +220,7 @@ export const UsuariosPage: React.FC = () => {
     if (salvando || !acaoModal || acaoModal.tipo !== "formulario") return;
     setErroAcao("");
     const perfilMotorista = acaoModal.usuario?.perfis.includes("MOTORISTA") ?? false;
-    const perfis = [
-      ...formulario.perfis,
-      ...(perfilMotorista ? (["MOTORISTA"] as const) : []),
-    ];
+    const perfis = [...formulario.perfis, ...(perfilMotorista ? (["MOTORISTA"] as const) : [])];
     if (perfis.length === 0) {
       setErroAcao("Selecione ao menos um perfil para o usuário.");
       return;
@@ -268,9 +262,7 @@ export const UsuariosPage: React.FC = () => {
     setErroAcao("");
     try {
       await inativarUsuarioApi(acaoModal.usuario.id, !acaoModal.usuario.ativo);
-      setMensagemSucesso(
-        acaoModal.usuario.ativo ? "Usuário inativado." : "Usuário reativado.",
-      );
+      setMensagemSucesso(acaoModal.usuario.ativo ? "Usuário inativado." : "Usuário reativado.");
       setAcaoModal(null);
       setRevisao((valor) => valor + 1);
     } catch (erro) {
@@ -408,11 +400,7 @@ export const UsuariosPage: React.FC = () => {
               setAcaoModal({ tipo: "status", usuario });
             }}
           >
-            {usuario.ativo ? (
-              <UserRoundX className="h-4 w-4" />
-            ) : (
-              <UserCheck className="h-4 w-4" />
-            )}
+            {usuario.ativo ? <UserRoundX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
           </button>
         </div>
       ),
@@ -421,7 +409,10 @@ export const UsuariosPage: React.FC = () => {
 
   if (!administrador) {
     return (
-      <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+      <p
+        role="alert"
+        className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"
+      >
         Acesso restrito a administradores.
       </p>
     );
@@ -429,7 +420,10 @@ export const UsuariosPage: React.FC = () => {
 
   if (!perfilAtual || perfilAtual.sessionKey !== sessionKey) {
     return (
-      <p role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+      <p
+        role="status"
+        className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500"
+      >
         Verificando seu acesso...
       </p>
     );
@@ -443,7 +437,11 @@ export const UsuariosPage: React.FC = () => {
       >
         <span>{perfilAtual.erro || "Acesso restrito a administradores."}</span>
         {perfilAtual.erro && (
-          <Button variant="outline" size="sm" onClick={() => setRevisaoPerfil((valor) => valor + 1)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRevisaoPerfil((valor) => valor + 1)}
+          >
             Verificar novamente
           </Button>
         )}
@@ -458,7 +456,9 @@ export const UsuariosPage: React.FC = () => {
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
             Usuários
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Gerencie contas, perfis e acessos ao sistema.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Gerencie contas, perfis e acessos ao sistema.
+          </p>
         </div>
         <Button leftIcon={<Plus className="h-4 w-4" />} onClick={abrirCadastro}>
           Novo usuário
@@ -477,7 +477,10 @@ export const UsuariosPage: React.FC = () => {
         </div>
       )}
       {mensagemSucesso && (
-        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+        <p
+          role="status"
+          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+        >
           {mensagemSucesso}
         </p>
       )}
@@ -581,7 +584,8 @@ export const UsuariosPage: React.FC = () => {
 
       <Card className="flex items-center gap-3 p-4 text-sm text-slate-600">
         <ShieldCheck className="h-5 w-5 shrink-0 text-slate-500" />
-        Alterações de perfil e status são aplicadas pela API; inativar uma conta encerra suas sessões.
+        Alterações de perfil e status são aplicadas pela API; inativar uma conta encerra suas
+        sessões.
       </Card>
 
       <Modal
@@ -604,22 +608,26 @@ export const UsuariosPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-slate-500">E-mail</dt>
-                <dd className="mt-1 break-all font-medium text-slate-900">{acaoModal.usuario.email}</dd>
+                <dd className="mt-1 break-all font-medium text-slate-900">
+                  {acaoModal.usuario.email}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-500">Telefone</dt>
-                <dd className="mt-1 font-medium text-slate-900">{acaoModal.usuario.telefone || "—"}</dd>
+                <dd className="mt-1 font-medium text-slate-900">
+                  {acaoModal.usuario.telefone || "—"}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-500">Setor</dt>
-                <dd className="mt-1 font-medium text-slate-900">{acaoModal.usuario.setor || "—"}</dd>
+                <dd className="mt-1 font-medium text-slate-900">
+                  {acaoModal.usuario.setor || "—"}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-500">Perfis</dt>
                 <dd className="mt-1 font-medium text-slate-900">
-                  {acaoModal.usuario.perfis
-                    .map(rotuloPerfil)
-                    .join(", ")}
+                  {acaoModal.usuario.perfis.map(rotuloPerfil).join(", ")}
                 </dd>
               </div>
               <div>
@@ -647,7 +655,9 @@ export const UsuariosPage: React.FC = () => {
       <Modal
         isOpen={acaoModal?.tipo === "formulario"}
         onClose={() => !salvando && setAcaoModal(null)}
-        title={acaoModal?.tipo === "formulario" && acaoModal.usuario ? "Editar usuário" : "Novo usuário"}
+        title={
+          acaoModal?.tipo === "formulario" && acaoModal.usuario ? "Editar usuário" : "Novo usuário"
+        }
         description="Preencha os dados e selecione ao menos um perfil de acesso."
         size="lg"
         footer={
@@ -719,7 +729,9 @@ export const UsuariosPage: React.FC = () => {
                         ...formulario,
                         perfis: event.target.checked
                           ? [...formulario.perfis, item]
-                          : formulario.perfis.filter((perfilSelecionado) => perfilSelecionado !== item),
+                          : formulario.perfis.filter(
+                              (perfilSelecionado) => perfilSelecionado !== item,
+                            ),
                       })
                     }
                     className="h-4 w-4 rounded border-slate-300 accent-slate-900"
@@ -736,14 +748,22 @@ export const UsuariosPage: React.FC = () => {
                 " O acesso de motorista desta conta será mantido."}
             </p>
           </fieldset>
-          {erroAcao && <p role="alert" className="text-sm text-rose-700">{erroAcao}</p>}
+          {erroAcao && (
+            <p role="alert" className="text-sm text-rose-700">
+              {erroAcao}
+            </p>
+          )}
         </form>
       </Modal>
 
       <Modal
         isOpen={acaoModal?.tipo === "status"}
         onClose={() => !salvando && setAcaoModal(null)}
-        title={acaoModal?.tipo === "status" && acaoModal.usuario.ativo ? "Inativar usuário" : "Reativar usuário"}
+        title={
+          acaoModal?.tipo === "status" && acaoModal.usuario.ativo
+            ? "Inativar usuário"
+            : "Reativar usuário"
+        }
         description={
           acaoModal?.tipo === "status" && acaoModal.usuario.ativo
             ? `A conta de ${acaoModal.usuario.nome} será inativada e as sessões atuais serão encerradas.`
@@ -755,7 +775,9 @@ export const UsuariosPage: React.FC = () => {
               Cancelar
             </Button>
             <Button
-              variant={acaoModal?.tipo === "status" && acaoModal.usuario.ativo ? "danger" : "primary"}
+              variant={
+                acaoModal?.tipo === "status" && acaoModal.usuario.ativo ? "danger" : "primary"
+              }
               onClick={() => void confirmarStatus()}
               isLoading={salvando}
             >
@@ -764,7 +786,11 @@ export const UsuariosPage: React.FC = () => {
           </>
         }
       >
-        {erroAcao && <p role="alert" className="text-sm text-rose-700">{erroAcao}</p>}
+        {erroAcao && (
+          <p role="alert" className="text-sm text-rose-700">
+            {erroAcao}
+          </p>
+        )}
       </Modal>
 
       <Modal
@@ -799,7 +825,11 @@ export const UsuariosPage: React.FC = () => {
             value={novaSenha}
             onChange={(event) => setNovaSenha(event.target.value)}
           />
-          {erroAcao && <p role="alert" className="text-sm text-rose-700">{erroAcao}</p>}
+          {erroAcao && (
+            <p role="alert" className="text-sm text-rose-700">
+              {erroAcao}
+            </p>
+          )}
         </form>
       </Modal>
     </div>

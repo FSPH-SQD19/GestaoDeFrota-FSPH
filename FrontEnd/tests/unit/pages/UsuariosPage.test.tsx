@@ -47,23 +47,29 @@ function renderPage(roles = ["ADMIN"]) {
 }
 
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset().mockResolvedValue({
-    usuario: { userId: "admin-test", perfis: ["ADMIN"] },
-  });
-  vi.mocked(listarUsuariosApi).mockReset().mockResolvedValue({
-    data: [usuario],
-    meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
-  });
+  vi.mocked(apiRequest)
+    .mockReset()
+    .mockResolvedValue({
+      usuario: { userId: "admin-test", perfis: ["ADMIN"] },
+    });
+  vi.mocked(listarUsuariosApi)
+    .mockReset()
+    .mockResolvedValue({
+      data: [usuario],
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
   vi.mocked(obterUsuarioApi).mockReset().mockResolvedValue(usuario);
   vi.mocked(criarUsuarioApi).mockReset().mockResolvedValue({ mensagem: "Criado", dados: usuario });
   vi.mocked(atualizarUsuarioApi).mockReset().mockResolvedValue({
     mensagem: "Atualizado",
     dados: usuario,
   });
-  vi.mocked(inativarUsuarioApi).mockReset().mockResolvedValue({
-    mensagem: "Atualizado",
-    dados: { ...usuario, ativo: false },
-  });
+  vi.mocked(inativarUsuarioApi)
+    .mockReset()
+    .mockResolvedValue({
+      mensagem: "Atualizado",
+      dados: { ...usuario, ativo: false },
+    });
   vi.mocked(redefinirSenhaUsuarioApi).mockReset().mockResolvedValue({ mensagem: "Redefinida" });
 });
 
@@ -232,7 +238,9 @@ describe("UsuariosPage", () => {
       usuario: { userId: "admin-test", perfis: ["GESTOR"] },
     });
     renderPage();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Acesso restrito a administradores.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Acesso restrito a administradores.",
+    );
     expect(listarUsuariosApi).not.toHaveBeenCalled();
   });
 

@@ -274,17 +274,17 @@ describe("atualizarUsuario", () => {
   ] as const)(
     "não permite alterar o perfil MOTORISTA pela gestão genérica",
     async ({ atuais, solicitados }) => {
-    mocks.findUnique.mockResolvedValue({
-      ...registro,
-      perfis: atuais.map((nome) => ({ perfil: { nome } })),
-    });
-    await expect(
-      atualizarUsuario(usuarioId, { perfis: [...solicitados] }, adminId),
-    ).rejects.toMatchObject({
-      statusCode: 400,
-      message: "O perfil MOTORISTA só pode ser atribuído ou removido pela Gestão de Motoristas.",
-    });
-    expect(mocks.transaction).not.toHaveBeenCalled();
+      mocks.findUnique.mockResolvedValue({
+        ...registro,
+        perfis: atuais.map((nome) => ({ perfil: { nome } })),
+      });
+      await expect(
+        atualizarUsuario(usuarioId, { perfis: [...solicitados] }, adminId),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "O perfil MOTORISTA só pode ser atribuído ou removido pela Gestão de Motoristas.",
+      });
+      expect(mocks.transaction).not.toHaveBeenCalled();
     },
   );
 

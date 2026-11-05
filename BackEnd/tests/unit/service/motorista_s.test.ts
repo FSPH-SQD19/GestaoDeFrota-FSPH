@@ -61,7 +61,9 @@ beforeEach(() => {
   mocks.transactionClient.perfil.findUnique.mockResolvedValue({ id: "perfil-motorista" });
   mocks.transactionClient.usuario.create.mockResolvedValue({ id: "usuario-sintetico" });
   mocks.transactionClient.motorista.create.mockResolvedValue({ id: "motorista-sintetico" });
-  mocks.transactionClient.motorista.findUnique.mockResolvedValue({ usuarioId: "usuario-motorista" });
+  mocks.transactionClient.motorista.findUnique.mockResolvedValue({
+    usuarioId: "usuario-motorista",
+  });
   mocks.transactionClient.motorista.update.mockResolvedValue({
     id: "motorista-sintetico",
     usuarioId: "usuario-motorista",

@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  CalendarDays,
-  Filter,
-  MoreHorizontal,
-  Pencil,
-  Phone,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { CalendarDays, Filter, MoreHorizontal, Pencil, Phone, Plus, Search, X } from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -286,7 +277,10 @@ export const MotoristasPage: React.FC = () => {
   const salvarEdicao = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!motoristaEmEdicao || salvando.current) return;
-    if (motoristaEmEdicao.email && (!formularioEdicao.nome.trim() || !formularioEdicao.email.trim())) {
+    if (
+      motoristaEmEdicao.email &&
+      (!formularioEdicao.nome.trim() || !formularioEdicao.email.trim())
+    ) {
       setErroEdicao("Informe o nome e o e-mail da conta vinculada.");
       return;
     }
@@ -298,10 +292,7 @@ export const MotoristasPage: React.FC = () => {
       validadeCnh?: string;
       ativo?: boolean;
     } = {};
-    if (
-      motoristaEmEdicao.email &&
-      formularioEdicao.nome.trim() !== motoristaEmEdicao.nome
-    ) {
+    if (motoristaEmEdicao.email && formularioEdicao.nome.trim() !== motoristaEmEdicao.nome) {
       dados.nome = formularioEdicao.nome.trim();
     }
     if (
@@ -765,11 +756,7 @@ export const MotoristasPage: React.FC = () => {
         description="Os dados de contato e o status da conta vinculada são mantidos em sincronia com a gestão de usuários."
         footer={
           <>
-            <Button
-              variant="ghost"
-              onClick={() => setMotoristaEmEdicao(null)}
-              disabled={isSaving}
-            >
+            <Button variant="ghost" onClick={() => setMotoristaEmEdicao(null)} disabled={isSaving}>
               Cancelar
             </Button>
             <Button

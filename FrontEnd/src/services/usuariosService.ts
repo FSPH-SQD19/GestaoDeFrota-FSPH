@@ -80,10 +80,7 @@ export function atualizarUsuarioApi(
   });
 }
 
-export function inativarUsuarioApi(
-  id: string,
-  ativo: boolean,
-): Promise<UsuarioMutacaoResposta> {
+export function inativarUsuarioApi(id: string, ativo: boolean): Promise<UsuarioMutacaoResposta> {
   if (!ativo) {
     return apiRequest<UsuarioMutacaoResposta>(`/usuarios/${encodeURIComponent(id)}`, {
       method: "DELETE",

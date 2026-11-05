@@ -232,10 +232,7 @@ export async function atualizarMotorista(
     dados.validadeCnh === undefined &&
     dados.ativo === undefined
   ) {
-    throw new HttpError(
-      400,
-      "Informe ao menos um dado para atualizar o motorista.",
-    );
+    throw new HttpError(400, "Informe ao menos um dado para atualizar o motorista.");
   }
 
   const dadosAtualizados: {
