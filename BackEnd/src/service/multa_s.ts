@@ -14,20 +14,13 @@ export const PONTOS_POR_GRAVIDADE: Record<(typeof GRAVIDADES_MULTA)[number], num
   GRAVISSIMA: 7,
 };
 
-const parseDataDate = (valor: string) => {
-  const dataIso = valor.includes("T") ? valor.slice(0, 10) : valor;
-  return new Date(`${dataIso}T00:00:00.000Z`);
-};
-
 const dataDateSchema = z
-  .string()
-  .min(10, "Data inválida.")
-  .transform((v) => parseDataDate(v));
+  .union([z.iso.date(), z.iso.datetime({ offset: true })])
+  .transform((valor) => new Date(`${valor.slice(0, 10)}T00:00:00.000Z`));
 
-const dataDateTimeSchema = z
-  .string()
-  .transform((v) => new Date(v))
-  .refine((d) => !Number.isNaN(d.getTime()), "Data e hora inválidas.");
+const dataDateTimeSchema = z.iso
+  .datetime({ offset: true, message: "Data e hora inválidas." })
+  .transform((valor) => new Date(valor));
 
 export const listarMultasSchema = z
   .object({

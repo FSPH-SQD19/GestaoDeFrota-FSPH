@@ -6,7 +6,6 @@ import { errorHandler } from "./middleware/error_m";
 import motoristaRoutes from "./routes/motorista_r";
 import fornecedorRoutes from "./routes/fornecedor_r";
 import usuarioRoutes from "./routes/usuario_r";
-import multaRoutes from "./routes/multa_r";
 import svoRoutes from "./routes/svo_r";
 import { securityHeaders } from "./middleware/security_headers";
 
@@ -39,7 +38,5 @@ app.use(routes);
 app.use("/api/v1/motoristas", motoristaRoutes);
 app.use("/api/v1/fornecedores", fornecedorRoutes);
 app.use("/api/v1/usuarios", usuarioRoutes);
-app.use("/api/v1/multas", multaRoutes);
-
 app.use("/api/v1/svo", svoRoutes);
 app.use(errorHandler);
