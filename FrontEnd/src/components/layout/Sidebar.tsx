@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LogOut, Pin, PinOff } from "lucide-react";
 import { useAuth } from "../../contexts/auth";
 import { NAV_SECTIONS, itensVisiveis, telaInicial, type TabId } from "../../config/navigation";
 import { cn } from "../../lib/utils";
@@ -19,7 +19,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const { logout, user } = useAuth();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const roles = user?.roles ?? [];
 
   const userInitial = user?.nome ? user.nome.charAt(0).toUpperCase() : "?";
@@ -31,6 +32,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
     MOTORISTA: "Motorista Oficial",
     SVO: "Atendente SVO",
     SOLICITANTE: "Solicitante Setorial",
+  };
+
+  // No mobile: expande se o drawer estiver aberto.
+  // No desktop: colapsado por padrão (rail mode), expande ao passar o mouse ou se fixado.
+  const isExpanded = isMobileOpen || isPinned || isHovered;
+
+  const handleMouseEnter = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setIsHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setIsHovered(false);
+    }
   };
 
   return (
@@ -45,19 +62,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Flutuante Dark Executiva */}
       <aside
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={cn(
           "fixed lg:sticky top-4 left-4 z-50 h-[calc(100vh-2rem)] bg-[#090D16] text-white rounded-3xl flex flex-col justify-between shadow-2xl border border-slate-800/80 shrink-0 select-none transition-all duration-300 ease-in-out",
-          isCollapsed ? "w-20 p-3" : "w-72 p-5",
+          // No mobile: sempre w-72 quando aberto
+          // No desktop: w-72 quando expandido (hover/pin), w-20 quando colapsado
+          isExpanded ? "w-72 p-5" : "w-20 p-3",
           isMobileOpen ? "translate-x-0" : "-translate-x-[120%] lg:translate-x-0",
         )}
       >
         <div className="flex flex-col flex-1 min-h-0 min-w-0">
-          {/* Header da Sidebar: Logo ROTA + Botão de Colapso (Rail Mode) */}
+          {/* Header da Sidebar: Logo ROTA + Botão de Fixar / Desafixar */}
           <div className="flex items-center justify-between gap-3 mb-3">
             <div
               className={cn(
                 "flex items-center gap-3 min-w-0",
-                isCollapsed && "justify-center w-full",
+                !isExpanded && "justify-center w-full",
               )}
             >
               {/* Emblema ROTA em Contêiner Branco de Alto Contraste */}
@@ -73,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
               </div>
 
-              {!isCollapsed && (
+              {isExpanded && (
                 <div className="flex flex-col min-w-0 animate-in fade-in duration-200">
                   <div className="flex items-center gap-1.5">
                     <span className="font-extrabold text-lg text-white tracking-tight leading-tight">
@@ -90,34 +111,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
 
-            {/* Botão de Toggle Expandir / Recolher (Oculto no Mobile) */}
-            {!isCollapsed && (
+            {/* Botão de Fixar/Desafixar no Desktop */}
+            {isExpanded && (
               <button
                 type="button"
-                onClick={() => setIsCollapsed(true)}
-                className="hidden lg:flex p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Recolher barra lateral"
-                aria-label="Recolher barra lateral"
+                onClick={() => setIsPinned((prev) => !prev)}
+                className={cn(
+                  "hidden lg:flex p-1.5 rounded-xl transition-colors cursor-pointer",
+                  isPinned
+                    ? "text-blue-400 bg-blue-500/15 hover:bg-blue-500/25"
+                    : "text-slate-400 hover:text-white hover:bg-white/10",
+                )}
+                title={
+                  isPinned ? "Desafixar menu (recolher ao tirar o mouse)" : "Fixar menu aberto"
+                }
+                aria-label={isPinned ? "Desafixar menu" : "Fixar menu"}
               >
-                <ChevronLeft className="w-4 h-4" />
+                {isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
               </button>
             )}
           </div>
-
-          {/* Botão Expandir quando colapsado */}
-          {isCollapsed && (
-            <div className="hidden lg:flex justify-center pb-2">
-              <button
-                type="button"
-                onClick={() => setIsCollapsed(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Expandir barra lateral"
-                aria-label="Expandir barra lateral"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
 
           <div className="border-t border-slate-800/80 my-2" />
 
@@ -129,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               return (
                 <div key={sIndex} className="space-y-1">
-                  {!isCollapsed && section.title && (
+                  {isExpanded && section.title && (
                     <span className="block px-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest select-none">
                       {section.title}
                     </span>
@@ -147,21 +160,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           onSelectTab(item.id);
                           if (onCloseMobile) onCloseMobile();
                         }}
-                        title={isCollapsed ? label : undefined}
+                        title={label}
+                        aria-label={label}
                         className={cn(
                           "w-full flex items-center rounded-2xl text-sm font-semibold transition-all duration-150 relative cursor-pointer",
-                          isCollapsed ? "justify-center p-3" : "justify-between px-3.5 py-2.5",
+                          !isExpanded ? "justify-center p-3" : "justify-between px-3.5 py-2.5",
                           isActive
                             ? "bg-white text-slate-950 shadow-md shadow-white/10 font-bold"
                             : "text-slate-400 hover:text-white hover:bg-white/5",
                         )}
                       >
-                        {/* Linha indicadora de item ativo (Senior UI Precision) */}
-                        {isActive && !isCollapsed && (
+                        {/* Linha indicadora de item ativo */}
+                        {isActive && isExpanded && (
                           <span className="absolute left-1.5 top-2.5 bottom-2.5 w-1 bg-blue-600 rounded-full" />
                         )}
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                           <Icon
                             className={cn(
                               "w-4.5 h-4.5 shrink-0",
@@ -170,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 : "text-slate-400 stroke-[1.8]",
                             )}
                           />
-                          {!isCollapsed && <span>{label}</span>}
+                          {isExpanded && <span className="truncate">{label}</span>}
                         </div>
                       </button>
                     );
@@ -183,11 +197,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Bloco Inferior: Perfil do Usuário com Logout */}
         <div className="pt-3 border-t border-slate-800/80">
-          {/* Cartão de Perfil do Usuário com Indicador de Presença Online */}
           <div
             className={cn(
               "flex items-center rounded-2xl bg-white/5 border border-white/5 transition-all",
-              isCollapsed ? "justify-center p-2" : "justify-between p-2.5",
+              !isExpanded ? "flex-col justify-center gap-2 p-2" : "justify-between p-2.5",
             )}
           >
             <div className="flex items-center gap-2.5 min-w-0">
@@ -197,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
 
-              {!isCollapsed && (
+              {isExpanded && (
                 <div className="flex flex-col min-w-0 animate-in fade-in duration-200">
                   <span className="text-xs font-bold text-white leading-tight truncate">
                     {user?.nome || "Usuário"}
@@ -214,7 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={logout}
               className={cn(
                 "rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer",
-                isCollapsed ? "mt-1 p-1" : "p-1.5",
+                !isExpanded ? "p-1.5" : "p-1.5",
               )}
               title="Encerrar sessão"
               aria-label="Encerrar sessão"
