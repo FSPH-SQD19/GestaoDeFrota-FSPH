@@ -18,6 +18,7 @@ import {
 } from "../controller/manutencao_c";
 import solicitacaoRoutes from "./solicitacao_r";
 import notificacaoRoutes from "./notificacao_r";
+import multaRoutes from "./multa_r";
 import {
   criarEscalaSvoController,
   encerrarEscalaSvoController,
@@ -69,5 +70,7 @@ router.use("/api/v1/svo/escalas", escalasSvo);
 
 router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
+router.use("/multas", multaRoutes);
+router.use("/api/v1/multas", multaRoutes);
 
 export default router;

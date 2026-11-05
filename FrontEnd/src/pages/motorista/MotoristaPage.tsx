@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Filter, MoreHorizontal, Phone, Plus, Search, X } from "lucide-react";
+import {
+  CalendarDays,
+  Filter,
+  MoreHorizontal,
+  Phone,
+  Plus,
+  Search,
+  ShieldAlert,
+  X,
+} from "lucide-react";
+import { ModalRegistrarMulta } from "../multas/ModalRegistrarMulta";
+import { SecaoMultasMotorista } from "./SecaoMultasMotorista";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -151,6 +162,24 @@ export const MotoristasPage: React.FC = () => {
   const hasLoadedMotoristas = Boolean(atual?.dados);
   const isLoading = !atual;
   const errorMessage = atual?.erro ?? "";
+  const [modalMultaAberto, setModalMultaAberto] = useState(false);
+  const [veiculosOpcoes, setVeiculosOpcoes] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (modalMultaAberto && veiculosOpcoes.length === 0) {
+      apiRequest<{ data: { id: string; placa: string; modelo: string }[] }>(
+        "/api/v1/veiculos?pageSize=100",
+      )
+        .then((res) => {
+          if (res?.data) {
+            setVeiculosOpcoes(
+              res.data.map((v) => ({ value: v.id, label: `${v.placa} - ${v.modelo}` })),
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }, [modalMultaAberto, veiculosOpcoes.length]);
   const [termoBusca, setTermoBusca] = useState("");
   const [filtros, setFiltros] = useState(filtrosVazios);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
@@ -416,6 +445,14 @@ export const MotoristasPage: React.FC = () => {
         >
           Novo motorista
         </Button>
+        <Button
+          variant="outline"
+          leftIcon={<ShieldAlert className="h-4 w-4 text-amber-600" />}
+          onClick={() => setModalMultaAberto(true)}
+          className="h-11 rounded-2xl border-slate-300 font-semibold text-slate-700 hover:bg-slate-100"
+        >
+          Registrar infração
+        </Button>
       </div>
 
       {errorMessage && (
@@ -642,6 +679,12 @@ export const MotoristasPage: React.FC = () => {
                 </dd>
               </div>
             </dl>
+            <div className="mt-6 border-t border-slate-200/80 pt-6">
+              <SecaoMultasMotorista
+                motoristaId={motoristaSelecionado.id}
+                onNovaMultaClick={() => setModalMultaAberto(true)}
+              />
+            </div>
           </div>
         )}
       </Modal>
@@ -751,6 +794,21 @@ export const MotoristasPage: React.FC = () => {
           )}
         </form>
       </Modal>
+
+      <ModalRegistrarMulta
+        isOpen={modalMultaAberto}
+        onClose={() => setModalMultaAberto(false)}
+        onSuccess={() => {
+          setSuccessMessage("Infração/multa registrada com sucesso.");
+          setModalMultaAberto(false);
+        }}
+        veiculos={veiculosOpcoes}
+        motoristas={motoristas.map((m) => ({
+          value: m.id,
+          label: `${m.nome} (CNH: ${m.numeroCnh})`,
+        }))}
+        motoristaIdPadrao={motoristaSelecionado?.id}
+      />
     </div>
   );
 };
