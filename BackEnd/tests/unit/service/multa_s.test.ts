@@ -251,20 +251,63 @@ describe("Serviço de Multas e Infrações (multa_s)", () => {
 
   describe("obterResumoMultasMotorista", () => {
     it("retorna histórico e somatório de multas do condutor", async () => {
+      const agora = new Date();
       mocks.multaFindMany.mockResolvedValue([
-        { id: "m1", valor: 100, pontos: 4, veiculo: { placa: "AAA1111", modelo: "Spin" } },
-        { id: "m2", valor: 200, pontos: 5, veiculo: { placa: "BBB2222", modelo: "S10" } },
+        {
+          id: "m1",
+          valor: 100,
+          pontos: 4,
+          dataHora: agora,
+          status: "PENDENTE",
+          veiculo: { placa: "AAA1111", modelo: "Spin" },
+        },
+        {
+          id: "m2",
+          valor: 200,
+          pontos: 5,
+          dataHora: agora,
+          status: "PAGA",
+          veiculo: { placa: "BBB2222", modelo: "S10" },
+        },
       ]);
-      mocks.multaAggregate.mockResolvedValue({
-        _count: { id: 2 },
-        _sum: { pontos: 9, valor: 300 },
-      });
 
       const resumo = await obterResumoMultasMotorista(motoristaId);
       expect(resumo.totalMultas).toBe(2);
       expect(resumo.totalPontos).toBe(9);
       expect(resumo.valorTotal).toBe(300);
       expect(resumo.multas).toHaveLength(2);
+    });
+
+    it("desconsidera pontos de multas ocorridas há mais de 12 meses (regra CTB)", async () => {
+      const agora = new Date();
+      const doisAnosAtras = new Date(agora);
+      doisAnosAtras.setFullYear(doisAnosAtras.getFullYear() - 2);
+
+      mocks.multaFindMany.mockResolvedValue([
+        {
+          id: "m1",
+          valor: 100,
+          pontos: 4,
+          dataHora: agora,
+          status: "PENDENTE",
+          veiculo: { placa: "AAA1111", modelo: "Spin" },
+        },
+        {
+          id: "m2",
+          valor: 200,
+          pontos: 7,
+          dataHora: doisAnosAtras,
+          status: "PAGA",
+          veiculo: { placa: "BBB2222", modelo: "S10" },
+        },
+      ]);
+
+      const resumo = await obterResumoMultasMotorista(motoristaId);
+      expect(resumo.totalMultas).toBe(2);
+      expect(resumo.totalPontos).toBe(4); // Multa antiga de 7 pontos expirou pelo CTB
+      expect(resumo.valorTotal).toBe(300);
+      expect(resumo.multas[1].expirada).toBe(true);
+      expect(resumo.multas[1].pontosAtivos).toBe(0);
     });
   });
 });

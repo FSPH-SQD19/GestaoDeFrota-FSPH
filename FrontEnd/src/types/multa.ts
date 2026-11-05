@@ -10,6 +10,8 @@ export interface Multa {
   dataHora: string;
   gravidade: GravidadeMulta;
   pontos: number;
+  pontosAtivos?: number;
+  expirada?: boolean;
   valor: number;
   descricao?: string | null;
   local?: string | null;

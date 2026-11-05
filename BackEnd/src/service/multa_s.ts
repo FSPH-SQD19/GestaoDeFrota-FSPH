@@ -356,28 +356,44 @@ export async function atualizarMulta(
 }
 
 export async function obterResumoMultasMotorista(motoristaId: string) {
-  const [multas, agregados] = await Promise.all([
-    prisma.multaInfracao.findMany({
-      where: { motoristaId },
-      include: {
-        veiculo: { select: { placa: true, modelo: true } },
-      },
-      orderBy: { dataHora: "desc" },
-    }),
-    prisma.multaInfracao.aggregate({
-      where: { motoristaId },
-      _sum: { pontos: true, valor: true },
-      _count: { id: true },
-    }),
-  ]);
+  const agora = new Date();
+  const umAnoAtras = new Date(agora);
+  umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+
+  const multas = await prisma.multaInfracao.findMany({
+    where: { motoristaId },
+    include: {
+      veiculo: { select: { placa: true, modelo: true } },
+    },
+    orderBy: { dataHora: "desc" },
+  });
+
+  let totalPontos = 0;
+  let valorTotal = 0;
+
+  const multasMapeadas = multas.map((m) => {
+    const dataInfracao = new Date(m.dataHora);
+    const expirada = dataInfracao < umAnoAtras;
+    const pontosValidos = !expirada && m.status !== "ANULADA";
+
+    if (pontosValidos) {
+      totalPontos += m.pontos;
+    }
+    const valorNum = Number(m.valor);
+    valorTotal += valorNum;
+
+    return {
+      ...m,
+      valor: valorNum,
+      pontosAtivos: pontosValidos ? m.pontos : 0,
+      expirada,
+    };
+  });
 
   return {
-    totalMultas: agregados._count.id,
-    totalPontos: agregados._sum.pontos ?? 0,
-    valorTotal: Number(agregados._sum.valor ?? 0),
-    multas: multas.map((m) => ({
-      ...m,
-      valor: Number(m.valor),
-    })),
+    totalMultas: multas.length,
+    totalPontos,
+    valorTotal,
+    multas: multasMapeadas,
   };
 }

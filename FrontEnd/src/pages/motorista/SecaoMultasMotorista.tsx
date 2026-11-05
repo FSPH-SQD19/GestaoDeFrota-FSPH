@@ -136,7 +136,10 @@ export const SecaoMultasMotorista: React.FC<SecaoMultasMotoristaProps> = ({
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200/60 bg-white p-3 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Pontos Acumulados</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">Pontos Ativos (CNH)</span>
+            <span className="text-[10px] text-slate-400">Últimos 12m (CTB)</span>
+          </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="text-xl font-bold text-slate-900">{pontos} pts</span>
             <Badge variant={situacaoPontos} size="sm">
@@ -191,9 +194,18 @@ export const SecaoMultasMotorista: React.FC<SecaoMultasMotoristaProps> = ({
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="font-medium text-slate-700">
-                        {multa.gravidade} ({multa.pontos} pts)
-                      </span>
+                      {multa.expirada ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-600">{multa.gravidade}</span>
+                          <span className="text-[11px] text-slate-400">
+                            <span className="line-through">{multa.pontos} pts</span> (expirado CTB)
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-medium text-slate-700">
+                          {multa.gravidade} ({multa.pontos} pts)
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 font-semibold text-slate-900">
                       {formatarMoeda(multa.valor)}
