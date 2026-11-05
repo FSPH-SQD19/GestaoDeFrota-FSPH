@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     update: vi.fn(),
     perfilFindMany: vi.fn(),
     hashPassword: vi.fn(),
+    invalidarCacheSincronizacaoNotificacoes: vi.fn(),
     transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
   };
 });
@@ -42,6 +43,9 @@ vi.mock("../../../src/service/password_s", () => ({
 }));
 vi.mock("../../../src/service/auditoria_s", () => ({
   registrarAuditoria: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("../../../src/service/notificacao_sync_cache", () => ({
+  invalidarCacheSincronizacaoNotificacoes: mocks.invalidarCacheSincronizacaoNotificacoes,
 }));
 
 import { registrarAuditoria } from "../../../src/service/auditoria_s";
@@ -350,6 +354,15 @@ describe("atualizarUsuario", () => {
       data: { ativo: false },
     });
     expect(mocks.tx.authSessao.deleteMany).toHaveBeenCalledWith({ where: { usuarioId } });
+    expect(mocks.invalidarCacheSincronizacaoNotificacoes).toHaveBeenCalledOnce();
+  });
+
+  it("invalida o cache de notificações quando o nome de um usuário muda", async () => {
+    mocks.findUnique.mockResolvedValue(registro);
+
+    await atualizarUsuario(usuarioId, { nome: "Ana Atualizada" }, adminId);
+
+    expect(mocks.invalidarCacheSincronizacaoNotificacoes).toHaveBeenCalledOnce();
   });
 
   it("não altera o telefone do motorista quando o telefone da conta não foi enviado", async () => {
@@ -422,6 +435,7 @@ describe("atualizarUsuario", () => {
 
     expect(atualizado.ativo).toBe(false);
     expect(mocks.tx.authSessao.deleteMany).toHaveBeenCalledWith({ where: { usuarioId } });
+    expect(mocks.invalidarCacheSincronizacaoNotificacoes).toHaveBeenCalledOnce();
     expect(registrarAuditoria).toHaveBeenCalledWith(
       expect.objectContaining({
         dadosNovos: expect.objectContaining({ operacao: "INATIVAR" }),

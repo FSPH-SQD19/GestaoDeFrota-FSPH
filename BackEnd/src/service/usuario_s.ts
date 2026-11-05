@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { registrarAuditoria } from "./auditoria_s";
 import { hashPassword } from "./password_s";
 import { validarNovaSenha } from "./senha_s";
+import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 import { normalizarTelefone } from "./telefone_s";
 
 export const PERFIS_USUARIO = ["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"] as const;
@@ -409,6 +410,10 @@ export async function atualizarUsuario(
     throw erro;
   }
 
+  if (input.nome !== undefined || input.ativo !== undefined) {
+    invalidarCacheSincronizacaoNotificacoes();
+  }
+
   const resposta = serializarUsuario(atualizado);
   await registrarAuditoriaUsuario(
     usuarioResponsavelId,
@@ -458,6 +463,8 @@ export async function inativarUsuario(id: string, usuarioResponsavelId: string) 
     }
     throw erro;
   }
+
+  invalidarCacheSincronizacaoNotificacoes();
 
   const resposta = serializarUsuario(atualizado);
   await registrarAuditoriaUsuario(usuarioResponsavelId, "ATUALIZAR", resposta, "INATIVAR");
