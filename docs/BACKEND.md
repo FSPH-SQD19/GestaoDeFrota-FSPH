@@ -25,26 +25,31 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 
 ## Endpoints disponíveis
 
-| Método | Caminho                                                     | Autenticação                | Resultado                                                    |
-| ------ | ----------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ |
-| GET    | `/health`                                                   | Pública                     | Status do processo da API; não consulta o banco.             |
-| POST   | `/auth/login`                                               | Pública                     | Login com e-mail e senha.                                    |
-| POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                        |
-| GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
-| GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
-| GET    | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Lista paginada de usuários.                                  |
-| GET    | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Detalhe do usuário (sem hash de senha).                      |
-| POST   | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Cadastro de usuário com perfis e senha inicial.              |
-| PATCH  | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Atualização de dados, setor, telefone, ativo e perfis.       |
-| DELETE | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Inativação (soft delete) e revogação de sessões.             |
-| PATCH  | `/api/v1/auth/usuarios/:id/redefinir-senha`                 | JWT com `ADMIN`             | Redefinição administrativa de senha (já existente).          |
-| GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
-| POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
-| GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
-| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
-| GET    | `/notificacoes`, `/api/v1/notificacoes`                     | JWT                         | Lista notificações e contador de não lidas do usuário.       |
-| PATCH  | `/notificacoes/:id/lida`, `/api/v1/notificacoes/:id/lida`   | JWT                         | Marca uma notificação do usuário autenticado como lida.      |
-| PATCH  | `/notificacoes/ler-todas`, `/api/v1/notificacoes/ler-todas` | JWT                         | Marca todas as notificações não lidas do usuário como lidas. |
+| Método | Caminho                                                     | Autenticação                | Resultado                                                      |
+| ------ | ----------------------------------------------------------- | --------------------------- | -------------------------------------------------------------- |
+| GET    | `/health`                                                   | Pública                     | Status do processo da API; não consulta o banco.               |
+| POST   | `/auth/login`                                               | Pública                     | Login com e-mail e senha.                                      |
+| POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                          |
+| GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`.   |
+| GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                              |
+| GET    | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Lista paginada de usuários.                                    |
+| GET    | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Detalhe do usuário (sem hash de senha).                        |
+| POST   | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Cadastro de usuário com perfis e senha inicial.                |
+| PATCH  | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Atualização de dados, setor, telefone, ativo e perfis.         |
+| DELETE | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Inativação (soft delete) e revogação de sessões.               |
+| PATCH  | `/api/v1/auth/usuarios/:id/redefinir-senha`                 | JWT com `ADMIN`             | Redefinição administrativa de senha (já existente).            |
+| GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                    |
+| POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                           |
+| GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                  |
+| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                  |
+| GET    | `/notificacoes`, `/api/v1/notificacoes`                     | JWT                         | Lista notificações e contador de não lidas do usuário.         |
+| PATCH  | `/notificacoes/:id/lida`, `/api/v1/notificacoes/:id/lida`   | JWT                         | Marca uma notificação do usuário autenticado como lida.        |
+| PATCH  | `/notificacoes/ler-todas`, `/api/v1/notificacoes/ler-todas` | JWT                         | Marca todas as notificações não lidas do usuário como lidas.   |
+| GET    | `/api/v1/multas`                                            | JWT com `ADMIN` ou `GESTOR` | Lista paginada de infrações, totais em R$ e pontos acumulados. |
+| GET    | `/api/v1/multas/:id`                                        | JWT com `ADMIN` ou `GESTOR` | Detalhes da infração, dados do auto, veículo e condutor.       |
+| POST   | `/api/v1/multas`                                            | JWT com `ADMIN` ou `GESTOR` | Registro de nova infração de trânsito (CTB / FSPH).            |
+| PATCH  | `/api/v1/multas/:id`                                        | JWT com `ADMIN` ou `GESTOR` | Atualização de status (PAGA, EM_RECURSO), data de quitação.    |
+| GET    | `/api/v1/multas/motorista/:motoristaId`                     | JWT com `ADMIN` ou `GESTOR` | Histórico e somatório de pontos na CNH do condutor.            |
 
 ## Autenticação
 
