@@ -131,6 +131,7 @@ test("restaura a sessão pelo servidor sem credenciais no localStorage e revoga 
   await expect(page.getByRole("heading", { name: "Minhas Viagens" })).toBeVisible();
   const menu = page.getByRole("button", { name: "Abrir menu" });
   if (await menu.isVisible()) await menu.click();
+  else await page.locator("aside").hover();
   await expect(page.getByRole("button", { name: "Encerrar sessão" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("@fsph_frota_token"))).toBeNull();
   await page.getByRole("button", { name: "Encerrar sessão" }).click();

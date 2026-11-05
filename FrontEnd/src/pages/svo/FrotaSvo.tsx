@@ -34,8 +34,11 @@ export function FrotaSvo({
         ) : (
           viaturas.map((v) => {
             const disponivel = v.status === "DISPONIVEL";
+            const reservada = disponivel && v.ocupacaoAtual > 0;
             const desinfec = v.status === "DESINFECCAO";
-            const infoStatus = rotuloStatusViatura(v.status);
+            const infoStatus = reservada
+              ? { label: "Aguardando despacho", variant: "warning" as const }
+              : rotuloStatusViatura(v.status);
             const cap = Math.max(1, v.capacidadeMaxima);
             const percentual = Math.min(100, Math.round((v.ocupacaoAtual / cap) * 100));
             const liberandoEsta = processandoAcaoId === v.id;
@@ -103,7 +106,7 @@ export function FrotaSvo({
                   </Button>
                 )}
 
-                {disponivel && (
+                {disponivel && !reservada && (
                   <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-emerald-700">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Liberada para nova coleta

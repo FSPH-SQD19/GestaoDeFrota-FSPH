@@ -31,8 +31,8 @@ beforeEach(() => {
   mocks.abastecimentos.mockResolvedValue([]);
   mocks.count.mockResolvedValue(0);
 });
-function consultar(query: string, perfis?: string[]) {
-  return fetch(`${baseUrl}/api/v1/relatorios?${query}`, {
+function consultar(query: string, perfis?: string[], caminho = "") {
+  return fetch(`${baseUrl}/api/v1/relatorios${caminho}?${query}`, {
     headers: perfis
       ? {
           authorization: `Bearer ${signTestToken({ perfis }, "relatorio-test", { subject: "usuario" })}`,
@@ -41,10 +41,15 @@ function consultar(query: string, perfis?: string[]) {
   });
 }
 const query = "inicio=2026-10-01&fim=2026-10-30";
-describe("GET /api/v1/relatorios", () => {
+describe.each(["", "/operacional"])("GET /api/v1/relatorios%s", (caminho) => {
+  const consultarRota = (periodo: string, perfis?: string[]) => consultar(periodo, perfis, caminho);
   it("exige autenticação e perfil de gestão", async () => {
-    expect((await consultar(query)).status).toBe(401);
-    expect((await consultar(query, ["SOLICITANTE"])).status).toBe(403);
+    expect((await consultarRota(query)).status).toBe(401);
+    expect((await consultarRota(query, ["SOLICITANTE"])).status).toBe(403);
+    expect(mocks.execucoes).not.toHaveBeenCalled();
+  });
+  it.each(["MOTORISTA", "SVO", "ATENDENTE_SVO"])("recusa o perfil %s", async (perfil) => {
+    expect((await consultarRota(query, [perfil])).status).toBe(403);
     expect(mocks.execucoes).not.toHaveBeenCalled();
   });
   it.each([
@@ -52,12 +57,53 @@ describe("GET /api/v1/relatorios", () => {
     "inicio=2026-02-30&fim=2026-03-01",
     "inicio=2026-10-30&fim=2026-10-01",
     "inicio=abc&fim=2026-10-30",
+    "inicio=2026-10-01",
+    "fim=2026-10-30",
+    "inicio=2026-10-01&inicio=2026-10-02&fim=2026-10-30",
   ])("rejeita período inválido: %s", async (valor) => {
-    expect((await consultar(valor, ["ADMIN"])).status).toBe(400);
+    expect((await consultarRota(valor, ["ADMIN"])).status).toBe(400);
     expect(mocks.execucoes).not.toHaveBeenCalled();
   });
+  it("aceita um único dia e aplica o período a todas as consultas", async () => {
+    const response = await consultarRota("inicio=2026-12-31&fim=2026-12-31", ["GESTOR"]);
+    expect(response.status).toBe(200);
+    const intervalo = {
+      gte: new Date("2026-12-31T03:00:00Z"),
+      lt: new Date("2027-01-01T03:00:00Z"),
+    };
+    expect(mocks.execucoes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { dataHoraFim: intervalo },
+      }),
+    );
+    expect(mocks.abastecimentos).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { dataHora: intervalo },
+      }),
+    );
+    expect(mocks.count).toHaveBeenCalledWith({
+      where: {
+        status: { in: ["PENDENTE", "APROVADA", "EM_TRANSITO"] },
+        dataHoraPretendida: intervalo,
+      },
+    });
+  });
+  it("retorna erro sem expor detalhes quando o banco falha", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.execucoes.mockRejectedValueOnce(new Error("detalhe privado do banco"));
+    try {
+      const response = await consultarRota(query, ["ADMIN"]);
+      expect(response.status).toBe(500);
+      expect(await response.json()).toMatchObject({
+        message:
+          "O sistema não conseguiu concluir a operação. Tente novamente em alguns instantes.",
+      });
+    } finally {
+      log.mockRestore();
+    }
+  });
   it("retorna vazio e desvio indisponível sem inventar registros", async () => {
-    const response = await consultar(query, ["GESTOR"]);
+    const response = await consultarRota(query, ["GESTOR"]);
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       kmRodados: 0,
@@ -82,7 +128,7 @@ describe("GET /api/v1/relatorios", () => {
       { veiculo: { ...veiculo, id: "v2", placa: "DEF5678" }, litros: "5" },
     ]);
     mocks.count.mockResolvedValue(2);
-    const response = await consultar(query, ["ADMIN"]);
+    const response = await consultarRota(query, ["ADMIN"]);
     const dados = await response.json();
     expect(dados).toMatchObject({
       kmRodados: 50,

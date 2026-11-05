@@ -209,13 +209,26 @@ async function main() {
         });
       }
       const drivers = [
-        { key: "motorista", cpf: "11144477735", numeroCnh: "90000000001", status: "OCUPADO" },
-        { key: "motorista.svo", cpf: "52998224725", numeroCnh: "90000000002", status: "OCUPADO" },
+        {
+          key: "motorista",
+          cpf: "11144477735",
+          numeroCnh: "90000000001",
+          status: "OCUPADO",
+          telefone: "(79) 90000-0001",
+        },
+        {
+          key: "motorista.svo",
+          cpf: "52998224725",
+          numeroCnh: "90000000002",
+          status: "OCUPADO",
+          telefone: "(79) 90000-0002",
+        },
         {
           key: "motorista.reserva",
           cpf: "12345678909",
           numeroCnh: "90000000003",
           status: "DISPONIVEL",
+          telefone: "(79) 90000-0003",
         },
       ];
       for (const [i, data] of drivers.entries())
@@ -230,8 +243,18 @@ async function main() {
             status: data.status,
             categoriaCnh: "D",
             validadeCnh: day(730),
-            telefone: `(79) 90000-000${i + 1}`,
+            telefone: data.telefone,
           },
+        });
+      for (const [i, data] of drivers.entries())
+        await tx.motorista.updateMany({
+          where: { id: driver(i), telefone: null },
+          data: { telefone: data.telefone },
+        });
+      for (const data of drivers)
+        await tx.usuario.updateMany({
+          where: { id: user(data.key), telefone: null },
+          data: { telefone: data.telefone },
         });
 
       async function nextProtocol(prefixo: string) {
@@ -385,6 +408,45 @@ async function main() {
             dataHoraConclusao: i === 0 ? null : day(-2, 11),
           },
         });
+      await tx.multaInfracao.upsert({
+        where: { id: id("multa:1") },
+        update: {},
+        create: {
+          id: id("multa:1"),
+          autoInfracao: "SE-2026-901",
+          veiculoId: vehicle(0),
+          motoristaId: driver(0),
+          dataHora: day(-5, 14),
+          gravidade: "MEDIA",
+          pontos: 4,
+          valor: new Prisma.Decimal("130.16"),
+          descricao: "Excesso de velocidade em até 20%",
+          local: "Av. Beira Mar, Aracaju/SE",
+          orgaoEmissor: "SMTT Aracaju",
+          status: "PENDENTE",
+          dataVencimento: day(20, 0),
+        },
+      });
+      await tx.multaInfracao.upsert({
+        where: { id: id("multa:2") },
+        update: {},
+        create: {
+          id: id("multa:2"),
+          autoInfracao: "BR-2026-442",
+          veiculoId: vehicle(1),
+          motoristaId: driver(1),
+          dataHora: day(-15, 9),
+          gravidade: "GRAVE",
+          pontos: 5,
+          valor: new Prisma.Decimal("195.23"),
+          descricao: "Ultrapassagem em linha contínua",
+          local: "BR-101, Km 82, Nossa Senhora do Socorro/SE",
+          orgaoEmissor: "PRF",
+          status: "PAGA",
+          dataVencimento: day(-1, 0),
+          dataPagamento: day(-2, 16),
+        },
+      });
       await tx.auditoriaSistema.upsert({
         where: { id: id("auditoria:seed") },
         update: {},

@@ -1,8 +1,7 @@
-import { gerarRelatorio, periodoRelatorioSchema } from "../service/relatorio_s";
-import { validar } from "../lib/validar";
 import { Router } from "express";
 import veiculos from "./veiculo_r";
 import dashboardRoutes from "./dashboard_r";
+import relatorioRoutes from "./relatorio_r";
 import {
   listarAbastecimentosController,
   criarAbastecimentoController,
@@ -18,6 +17,7 @@ import {
 } from "../controller/manutencao_c";
 import solicitacaoRoutes from "./solicitacao_r";
 import notificacaoRoutes from "./notificacao_r";
+import multaRoutes from "./multa_r";
 import {
   criarEscalaSvoController,
   encerrarEscalaSvoController,
@@ -47,10 +47,7 @@ router.use("/api/v1/abastecimentos", abastecimento);
 
 router.use("/api/v1/solicitacoes", solicitacaoRoutes);
 
-router.get("/api/v1/relatorios", authenticate, requireRole("ADMIN", "GESTOR"), async (req, res) => {
-  const periodo = validar(periodoRelatorioSchema, req.query);
-  return res.json(await gerarRelatorio(periodo));
-});
+router.use("/api/v1/relatorios", relatorioRoutes);
 //Registro de manutencoes
 manutencoes.use(authenticate, requireRole("ADMIN", "GESTOR"));
 manutencoes.get("/", listarManutencoesController);
@@ -69,5 +66,7 @@ router.use("/api/v1/svo/escalas", escalasSvo);
 
 router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
+router.use("/multas", multaRoutes);
+router.use("/api/v1/multas", multaRoutes);
 
 export default router;

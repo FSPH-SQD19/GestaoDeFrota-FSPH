@@ -13,6 +13,8 @@ model Usuario {
   nome      String   @db.VarChar(150)
   email     String   @unique @db.VarChar(150)
   senhaHash String   @map("senha_hash") @db.VarChar(255)
+  telefone  String?  @db.VarChar(20)
+  setor     String?  @db.VarChar(100)
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now()) @map("criado_em")
 
@@ -25,6 +27,8 @@ model Usuario {
   auditorias   AuditoriaSistema[]
   notificacoes Notificacao[]
 
+  @@index([ativo])
+  @@index([setor])
   @@map("usuarios")
 }
 
@@ -88,6 +92,7 @@ model Veiculo {
   ordensColeta   OrdemColetaSvo[]
   desinfeccoes   DesinfeccaoSvo[]
   escalasSvo     EscalaSvo[]
+  multas         MultaInfracao[]
 
   @@index([fornecedorId])
   @@index([tipoFrota, status])
@@ -111,6 +116,7 @@ model Motorista {
   solicitacoes   SolicitacaoViagem[]
   ordensColeta   OrdemColetaSvo[]
   escalasSvo     EscalaSvo[]
+  multas         MultaInfracao[]
 
   @@index([validadeCnh])
   @@index([status])
@@ -195,6 +201,7 @@ model SolicitacaoViagem {
   veiculoAlocado    Veiculo?         @relation(fields: [veiculoAlocadoId], references: [id])
   motoristaAlocado  Motorista?       @relation(fields: [motoristaAlocadoId], references: [id])
   execucao          ExecucaoViagem?
+  multas            MultaInfracao[]
 
   @@index([solicitanteId, criadoEm])
   @@index([criadoEm])
@@ -246,6 +253,8 @@ model OrdemColetaSvo {
   status                String    @default("AGUARDANDO_DESPACHO") @db.VarChar(30)
   numeroDeclaracaoObito String?   @map("numero_declaracao_obito") @db.VarChar(50)
   dataHoraSaida         DateTime? @map("data_hora_saida")
+  dataHoraChegadaLocal  DateTime? @map("data_hora_chegada_local")
+  dataHoraEntregaSvo    DateTime? @map("data_hora_entrega_svo")
 
   chamado   ChamadoSvo @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
   veiculo   Veiculo?   @relation(fields: [veiculoId], references: [id])
@@ -357,4 +366,35 @@ model Notificacao {
   @@index([usuarioId, lida, criadoEm])
   @@index([usuarioId, criadoEm])
   @@map("notificacoes")
+}
+
+model MultaInfracao {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  autoInfracao   String    @unique @map("auto_infracao") @db.VarChar(50)
+  veiculoId      String    @map("veiculo_id") @db.Uuid
+  motoristaId    String?   @map("motorista_id") @db.Uuid
+  solicitacaoId  String?   @map("solicitacao_id") @db.Uuid
+  dataHora       DateTime  @map("data_hora")
+  gravidade      String    @db.VarChar(20)
+  pontos         Int       @default(0)
+  valor          Decimal   @db.Decimal(10, 2)
+  descricao      String?   @db.VarChar(255)
+  local          String?   @db.VarChar(200)
+  orgaoEmissor   String?   @map("orgao_emissor") @db.VarChar(50)
+  status         String    @default("PENDENTE") @db.VarChar(20)
+  dataVencimento DateTime? @map("data_vencimento") @db.Date
+  dataPagamento  DateTime? @map("data_pagamento")
+  observacoes    String?
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @default(now()) @updatedAt @map("atualizado_em")
+
+  veiculo     Veiculo            @relation(fields: [veiculoId], references: [id])
+  motorista   Motorista?         @relation(fields: [motoristaId], references: [id])
+  solicitacao SolicitacaoViagem? @relation(fields: [solicitacaoId], references: [id])
+
+  @@index([veiculoId])
+  @@index([motoristaId])
+  @@index([status])
+  @@index([dataHora])
+  @@map("multas_infracoes")
 }

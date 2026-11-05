@@ -5,6 +5,7 @@ import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
 import { veiculoSchema } from "./veiculoRules";
+import AlertaDocumentos from "./AlertaDocumentos";
 
 type TipoFrotaApi = "ADMINISTRATIVA" | "SVO";
 type StatusVeiculoApi = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
@@ -76,6 +77,7 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
 
 export const VeiculosPage: React.FC = () => {
   const { sessionKey } = useAuth();
+  const [veiculoSelecionado, setVeiculoSelecionado] = useState<VeiculoItem | null>(null);
   const [anoMaximo] = useState(() => new Date().getFullYear() + 1);
   const [searchTerm, setSearchTerm] = useState("");
   const [consulta, setConsulta] = useState({ busca: "", tipoFrota: "", page: 1 });
@@ -289,6 +291,19 @@ export const VeiculosPage: React.FC = () => {
         );
       },
     },
+    {
+      header: "Documentos",
+      render: (veiculo) => (
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`Ver documentos do veículo ${veiculo.placa}`}
+          onClick={() => setVeiculoSelecionado(veiculo)}
+        >
+          Ver documentos
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -450,6 +465,19 @@ export const VeiculosPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={veiculoSelecionado !== null}
+        onClose={() => setVeiculoSelecionado(null)}
+        title="Documentos do veículo"
+        description={
+          veiculoSelecionado
+            ? `${veiculoSelecionado.placa} · ${veiculoSelecionado.modelo}`
+            : undefined
+        }
+      >
+        {veiculoSelecionado && <AlertaDocumentos veiculoId={veiculoSelecionado.id} />}
+      </Modal>
 
       <Modal
         isOpen={isModalOpen}

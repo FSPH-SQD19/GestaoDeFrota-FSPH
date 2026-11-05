@@ -3,6 +3,7 @@ import {
   classificarChamado,
   STATUS_CHAMADO_LABEL,
   STATUS_CHAMADO_VARIANT,
+  formatarDataHoraColeta,
 } from "./svoApresentacao";
 import { Button, Modal, Badge } from "../../components/common";
 import { Detail } from "./DetalheSvo";
@@ -91,6 +92,18 @@ export function DetalhesChamadoModal({
 
         {selecionado.ordemColeta && (
           <div className="grid gap-3 sm:grid-cols-2">
+            <Detail
+              label="Saída"
+              value={formatarDataHoraColeta(selecionado.ordemColeta.dataHoraSaida)}
+            />
+            <Detail
+              label="Chegada ao local"
+              value={formatarDataHoraColeta(selecionado.ordemColeta.dataHoraChegadaLocal)}
+            />
+            <Detail
+              label="Entrega ao SVO"
+              value={formatarDataHoraColeta(selecionado.ordemColeta.dataHoraEntregaSvo)}
+            />
             <Detail
               label="Viatura alocada"
               value={

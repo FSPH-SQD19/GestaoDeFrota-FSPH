@@ -1,5 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Filter, MoreHorizontal, Phone, Plus, Search, X } from "lucide-react";
+import {
+  CalendarDays,
+  Filter,
+  MoreHorizontal,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+  ShieldAlert,
+  X,
+} from "lucide-react";
+import { ModalRegistrarMulta } from "../multas/ModalRegistrarMulta";
+import { SecaoMultasMotorista } from "./SecaoMultasMotorista";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -33,6 +45,14 @@ interface FormularioMotorista {
   categoriaCnh: string;
   validadeCnh: string;
   telefone: string;
+}
+
+interface FormularioEdicaoMotorista {
+  nome: string;
+  email: string;
+  telefone: string;
+  validadeCnh: string;
+  ativo: boolean;
 }
 
 interface FiltrosMotoristas {
@@ -151,11 +171,39 @@ export const MotoristasPage: React.FC = () => {
   const hasLoadedMotoristas = Boolean(atual?.dados);
   const isLoading = !atual;
   const errorMessage = atual?.erro ?? "";
+  const [modalMultaAberto, setModalMultaAberto] = useState(false);
+  const [versaoMultas, setVersaoMultas] = useState(0);
+  const [veiculosOpcoes, setVeiculosOpcoes] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (modalMultaAberto && veiculosOpcoes.length === 0) {
+      apiRequest<{ data: { id: string; placa: string; modelo: string }[] }>(
+        "/veiculos?pageSize=100",
+      )
+        .then((res) => {
+          if (res?.data) {
+            setVeiculosOpcoes(
+              res.data.map((v) => ({ value: v.id, label: `${v.placa} - ${v.modelo}` })),
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }, [modalMultaAberto, veiculosOpcoes.length]);
   const [termoBusca, setTermoBusca] = useState("");
   const [filtros, setFiltros] = useState(filtrosVazios);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroCnhAtencao, setFiltroCnhAtencao] = useState(false);
   const [motoristaSelecionado, setMotoristaSelecionado] = useState<Motorista | null>(null);
+  const [motoristaEmEdicao, setMotoristaEmEdicao] = useState<Motorista | null>(null);
+  const [formularioEdicao, setFormularioEdicao] = useState<FormularioEdicaoMotorista>({
+    nome: "",
+    email: "",
+    telefone: "",
+    validadeCnh: "",
+    ativo: true,
+  });
+  const [erroEdicao, setErroEdicao] = useState("");
   const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
   const [formulario, setFormulario] = useState(formularioVazio);
   const [cpfTocado, setCpfTocado] = useState(false);
@@ -237,6 +285,81 @@ export const MotoristasPage: React.FC = () => {
     } catch (error) {
       setErroCadastro(
         error instanceof Error ? error.message : "Não foi possível cadastrar o motorista.",
+      );
+    } finally {
+      salvando.current = false;
+      setIsSaving(false);
+    }
+  };
+
+  const abrirEdicao = (motorista: Motorista) => {
+    setFormularioEdicao({
+      nome: motorista.nome === "Usuário sem vínculo" ? "" : motorista.nome,
+      email: motorista.email ?? "",
+      telefone: motorista.telefone ?? "",
+      validadeCnh: motorista.validadeCnh,
+      ativo: motorista.ativo,
+    });
+    setErroEdicao("");
+    setMotoristaSelecionado(null);
+    setMotoristaEmEdicao(motorista);
+  };
+
+  const salvarEdicao = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!motoristaEmEdicao || salvando.current) return;
+    if (
+      motoristaEmEdicao.email &&
+      (!formularioEdicao.nome.trim() || !formularioEdicao.email.trim())
+    ) {
+      setErroEdicao("Informe o nome e o e-mail da conta vinculada.");
+      return;
+    }
+
+    const dados: {
+      nome?: string;
+      email?: string;
+      telefone?: string | null;
+      validadeCnh?: string;
+      ativo?: boolean;
+    } = {};
+    if (motoristaEmEdicao.email && formularioEdicao.nome.trim() !== motoristaEmEdicao.nome) {
+      dados.nome = formularioEdicao.nome.trim();
+    }
+    if (
+      motoristaEmEdicao.email &&
+      formularioEdicao.email.trim().toLowerCase() !== motoristaEmEdicao.email.toLowerCase()
+    ) {
+      dados.email = formularioEdicao.email.trim().toLowerCase();
+    }
+    const telefone = formularioEdicao.telefone.trim() || null;
+    if (telefone !== (motoristaEmEdicao.telefone ?? null)) dados.telefone = telefone;
+    if (formularioEdicao.validadeCnh !== motoristaEmEdicao.validadeCnh) {
+      dados.validadeCnh = formularioEdicao.validadeCnh;
+    }
+    if (formularioEdicao.ativo !== motoristaEmEdicao.ativo) {
+      dados.ativo = formularioEdicao.ativo;
+    }
+    if (Object.keys(dados).length === 0) {
+      setErroEdicao("Nenhuma alteração foi feita.");
+      return;
+    }
+
+    salvando.current = true;
+    setIsSaving(true);
+    setErroEdicao("");
+    setSuccessMessage("");
+    try {
+      await apiRequest<MotoristaApi>(`/motoristas/${encodeURIComponent(motoristaEmEdicao.id)}`, {
+        method: "PATCH",
+        data: dados,
+      });
+      setMotoristaEmEdicao(null);
+      setSuccessMessage("Motorista e conta de acesso atualizados.");
+      recarregarMotoristas();
+    } catch (error) {
+      setErroEdicao(
+        error instanceof Error ? error.message : "Não foi possível atualizar o motorista.",
       );
     } finally {
       salvando.current = false;
@@ -405,17 +528,27 @@ export const MotoristasPage: React.FC = () => {
             Consulte os cadastros e acompanhe a validade das CNHs.
           </p>
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => {
-            setErroCadastro("");
-            setModalCadastroAberto(true);
-          }}
-          className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:w-48"
-        >
-          Novo motorista
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            leftIcon={<ShieldAlert className="h-4 w-4 text-amber-600" />}
+            onClick={() => setModalMultaAberto(true)}
+            className="h-11 rounded-2xl border-slate-300 font-semibold text-slate-700 hover:bg-slate-100"
+          >
+            Registrar infração
+          </Button>
+          <Button
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => {
+              setErroCadastro("");
+              setModalCadastroAberto(true);
+            }}
+            className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:w-48"
+          >
+            Novo motorista
+          </Button>
+        </div>
       </div>
 
       {errorMessage && (
@@ -568,12 +701,22 @@ export const MotoristasPage: React.FC = () => {
         isOpen={Boolean(motoristaSelecionado)}
         onClose={() => setMotoristaSelecionado(null)}
         title="Dados do motorista"
+        size="xl"
         description={motoristaSelecionado ? `Cadastro ${motoristaSelecionado.id}` : undefined}
         footer={
           motoristaSelecionado && (
-            <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
-              Fechar
-            </Button>
+            <div className="flex w-full justify-between">
+              <Button
+                variant="outline"
+                leftIcon={<Pencil className="h-4 w-4" />}
+                onClick={() => abrirEdicao(motoristaSelecionado)}
+              >
+                Editar cadastro
+              </Button>
+              <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
+                Fechar
+              </Button>
+            </div>
           )
         }
       >
@@ -590,7 +733,7 @@ export const MotoristasPage: React.FC = () => {
                 <p className="text-xs text-slate-500">{motoristaSelecionado.id}</p>
               </div>
             </div>
-            <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <dt className="text-xs font-medium text-slate-500">CPF</dt>
                 <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.cpf}</dd>
@@ -642,7 +785,117 @@ export const MotoristasPage: React.FC = () => {
                 </dd>
               </div>
             </dl>
+            <div className="mt-6 border-t border-slate-200/80 pt-6">
+              <SecaoMultasMotorista
+                motoristaId={motoristaSelecionado.id}
+                onNovaMultaClick={() => setModalMultaAberto(true)}
+                versaoExterno={versaoMultas}
+              />
+            </div>
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(motoristaEmEdicao)}
+        onClose={() => {
+          if (!salvando.current) setMotoristaEmEdicao(null);
+        }}
+        title="Editar cadastro do motorista"
+        description="Os dados de contato e o status da conta vinculada são mantidos em sincronia com a gestão de usuários."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setMotoristaEmEdicao(null)} disabled={isSaving}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              form="formulario-edicao-motorista"
+              isLoading={isSaving}
+            >
+              Salvar alterações
+            </Button>
+          </>
+        }
+      >
+        {motoristaEmEdicao && (
+          <form
+            id="formulario-edicao-motorista"
+            onSubmit={salvarEdicao}
+            className="space-y-5"
+            noValidate
+          >
+            <fieldset disabled={isSaving} className="space-y-5">
+              {!motoristaEmEdicao.email && (
+                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                  Este cadastro não possui conta vinculada. Nome e e-mail não podem ser alterados
+                  por aqui.
+                </p>
+              )}
+              <Input
+                label="Nome completo"
+                autoComplete="name"
+                required={Boolean(motoristaEmEdicao.email)}
+                maxLength={150}
+                disabled={!motoristaEmEdicao.email}
+                value={formularioEdicao.nome}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, nome: event.target.value })
+                }
+              />
+              <Input
+                label="E-mail de acesso"
+                type="email"
+                autoComplete="email"
+                required={Boolean(motoristaEmEdicao.email)}
+                maxLength={150}
+                disabled={!motoristaEmEdicao.email}
+                value={formularioEdicao.email}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, email: event.target.value })
+                }
+              />
+              <Input
+                label="Telefone para contato"
+                type="tel"
+                autoComplete="tel"
+                maxLength={20}
+                value={formularioEdicao.telefone}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, telefone: event.target.value })
+                }
+              />
+              <Input
+                label="Validade da CNH"
+                type="date"
+                required
+                value={formularioEdicao.validadeCnh}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, validadeCnh: event.target.value })
+                }
+              />
+              <Select
+                label="Status do cadastro"
+                value={String(formularioEdicao.ativo)}
+                onChange={(event) =>
+                  setFormularioEdicao({
+                    ...formularioEdicao,
+                    ativo: event.target.value === "true",
+                  })
+                }
+                options={[
+                  { value: "true", label: "Ativo" },
+                  { value: "false", label: "Inativo" },
+                ]}
+              />
+            </fieldset>
+            {erroEdicao && (
+              <p role="alert" className="text-sm font-medium text-rose-600">
+                {erroEdicao}
+              </p>
+            )}
+          </form>
         )}
       </Modal>
 
@@ -751,6 +1004,22 @@ export const MotoristasPage: React.FC = () => {
           )}
         </form>
       </Modal>
+
+      <ModalRegistrarMulta
+        isOpen={modalMultaAberto}
+        onClose={() => setModalMultaAberto(false)}
+        onSuccess={() => {
+          setSuccessMessage("Infração/multa registrada com sucesso.");
+          setVersaoMultas((v) => v + 1);
+          setModalMultaAberto(false);
+        }}
+        veiculos={veiculosOpcoes}
+        motoristas={motoristas.map((m) => ({
+          value: m.id,
+          label: `${m.nome} (CNH: ${m.numeroCnh})`,
+        }))}
+        motoristaIdPadrao={motoristaSelecionado?.id}
+      />
     </div>
   );
 };

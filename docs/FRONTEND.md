@@ -11,6 +11,8 @@ Os caminhos `src/...` citados neste guia são relativos à pasta `FrontEnd` do p
 
 O front-end organiza as telas, a navegação, os formulários, a apresentação dos dados e os componentes compartilhados. O estado da sessão fica nos contextos, e a comunicação com a API deve respeitar os contratos descritos em [Back-end](BACKEND.md).
 
+O painel apresenta os alertas de documentos retornados por `/dashboard/resumo`. Na gestão de veículos, a ação **Ver documentos** abre a consulta `/veiculos/:id/documentos`. Ambas usam `apiRequest`, a situação e os dias calculados pela API: somente documentos atuais, vencidos ou com vencimento até 90 dias, conforme a regra de documentos. Falhas de consulta são exibidas com opção de tentar novamente.
+
 ## Tecnologias
 
 - **Framework:** React 19 (com hooks modernos e contextos)
@@ -208,9 +210,9 @@ A exportação CSV utiliza exclusivamente o resultado do período consultado, co
 
 ## Usuários
 
-A aba Usuários é restrita a administradores. A consulta de acesso utiliza somente o endpoint existente `GET /api/v1/auth/perfil`, que retorna o identificador e os perfis da sessão autenticada. A tela trata carregamento, falha e nova tentativa, e não apresenta essa resposta como uma lista de usuários.
+A aba Usuários é restrita a administradores. Enquanto a integração da tela não for concluída, a consulta de acesso utiliza `GET /api/v1/auth/perfil` e a gestão permanece indisponível na interface (sem mocks).
 
-Não existem endpoints de listagem ou cadastro de usuários no backend atual. Por isso, a tela informa que a gestão está indisponível e desabilita o botão Novo usuário. Não há usuários fictícios, códigos gerados no navegador, cadastro em memória ou chamadas a endpoints inexistentes. Busca, filtro por setor e ações sem implementação foram removidos.
+O backend já expõe `GET|POST|PATCH|DELETE /api/v1/usuarios` (somente `ADMIN`) e a redefinição administrativa em `PATCH /api/v1/auth/usuarios/:id/redefinir-senha`. A conexão da listagem, do cadastro e do botão Redefinir Senha a esses contratos fica para a subtarefa de frontend.
 
 ## Veículos: validação e paginação
 
@@ -240,7 +242,11 @@ CNHs válidas até hoje não são consideradas vencidas. Os indicadores excluem 
 
 ## Central SVO
 
-A central usa o cliente HTTP compartilhado e os endpoints existentes em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, despacho, conclusão e desinfecção recarregam os dados da API após o sucesso.
+A central usa o cliente HTTP compartilhado e os endpoints em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, emissão, avanço de etapa, cancelamento e desinfecção recarregam os dados da API após o sucesso.
+
+A emissão usa `POST /ordens-coleta` com o ID do chamado e reserva viatura, capacidade e motorista em `AGUARDANDO_DESPACHO`. A fila oferece apenas a próxima ação: **Registrar saída**, **Registrar chegada ao local** e **Registrar entrega ao SVO**, usando o ID da ordem em `PATCH /ordens-coleta/:id/etapa`. Ordens antigas em `EM_ANDAMENTO` começam pela chegada. Antes da saída, **Cancelar ordem** chama `PATCH /ordens-coleta/:id/cancelar` e mantém a ordem cancelada no histórico. Os detalhes exibem os horários de saída, chegada e entrega no fuso de São Paulo.
+
+Uma viatura com vagas reservadas antes da saída aparece como **Aguardando despacho**. O indicador **Coletas em andamento** considera apenas ordens que já saíram. A conclusão da última ordem ativa encaminha a viatura à desinfecção; o cancelamento de uma reserva sem saída libera os recursos sem criar desinfecção.
 
 Falhas na consulta de indicadores, viaturas ou motoristas permanecem visíveis mesmo que a listagem carregue depois. Repetir o filtro atual não deixa a tela presa em carregamento, e a página é ajustada quando o resultado filtrado diminui. A emissão não pré-seleciona motoristas ocupados em outras viaturas e exige uma seleção elegível.
 
