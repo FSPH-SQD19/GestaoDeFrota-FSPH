@@ -14,11 +14,17 @@ const mocks = vi.hoisted(() => ({
   contarSolicitacoes: vi.fn(),
   solicitacoesPorStatus: vi.fn(),
   listarDocumentos: vi.fn(),
+  listarMotoristas: vi.fn(),
+  contarChamados: vi.fn(),
+  consultarSla: vi.fn(),
 }));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
     veiculo: { groupBy: mocks.veiculosPorStatus },
     documentoVeiculo: { findMany: mocks.listarDocumentos },
+    motorista: { findMany: mocks.listarMotoristas },
+    chamadoSvo: { count: mocks.contarChamados },
+    $queryRaw: mocks.consultarSla,
     solicitacaoViagem: {
       findMany: mocks.listarSolicitacoes,
       count: mocks.contarSolicitacoes,
@@ -40,11 +46,16 @@ beforeAll(async () => {
 afterAll(() => new Promise((resolve) => server.close(resolve)));
 beforeEach(() => {
   mocks.listarDocumentos.mockResolvedValue([]);
+  mocks.listarMotoristas.mockResolvedValue([]);
+  mocks.contarChamados.mockResolvedValue(0);
+  mocks.consultarSla.mockResolvedValue([{ slaMedioRespostaMinutos: null }]);
   vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
   mocks.veiculosPorStatus.mockResolvedValue([
-    { status: "DISPONIVEL", _count: { _all: 130 } },
-    { status: "EM_VIAGEM", _count: { _all: 20 } },
-    { status: "MANUTENCAO", _count: { _all: 5 } },
+    { tipoFrota: "ADMINISTRATIVA", ativo: true, status: "DISPONIVEL", _count: { _all: 120 } },
+    { tipoFrota: "SVO", ativo: true, status: "DISPONIVEL", _count: { _all: 10 } },
+    { tipoFrota: "SVO", ativo: true, status: "EM_VIAGEM", _count: { _all: 20 } },
+    { tipoFrota: "ADMINISTRATIVA", ativo: true, status: "MANUTENCAO", _count: { _all: 5 } },
+    { tipoFrota: "SVO", ativo: false, status: "DISPONIVEL", _count: { _all: 2 } },
   ]);
   mocks.listarSolicitacoes.mockResolvedValue([]);
   mocks.contarSolicitacoes.mockResolvedValue(400);
@@ -77,14 +88,20 @@ describe("GET /api/v1/dashboard/resumo", () => {
       expect(await resposta.json()).toMatchObject({
         veiculos: {
           total: 155,
-          porStatus: { DISPONIVEL: 130, EM_VIAGEM: 20, MANUTENCAO: 5, DESINFECCAO: 0 },
+          totalGeral: 157,
+          porStatus: { DISPONIVEL: 130, EM_VIAGEM: 20, MANUTENCAO: 5, DESINFECCAO: 0, INATIVO: 2 },
+          porTipoFrota: {
+            ADMINISTRATIVA: { total: 125, totalGeral: 125 },
+            SVO: { total: 30, totalGeral: 32, porStatus: { INATIVO: 2 } },
+          },
         },
         solicitacoes: { data: [], meta: { total: 400, porStatus: { PENDENTE: 25 } } },
         alertas: [],
+        solicitacoesPendentes: 25,
+        svo: { chamadosAtivos: 0, slaMedioRespostaMinutos: null },
       });
       expect(mocks.veiculosPorStatus).toHaveBeenCalledWith({
-        by: ["status"],
-        where: { ativo: true },
+        by: ["tipoFrota", "status", "ativo"],
         _count: { _all: true },
       });
       expect(mocks.listarSolicitacoes).toHaveBeenCalledWith(
@@ -96,6 +113,59 @@ describe("GET /api/v1/dashboard/resumo", () => {
       );
     },
   );
+  it("consulta o dia local e inclui CNH vencida e documentos até o 30º dia", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-07T02:59:59Z"));
+    const documento = (id: string, tipoDocumento: string, data: string) => ({
+      id,
+      tipoDocumento,
+      veiculoId: "v1",
+      dataVencimento: new Date(data),
+      veiculo: { placa: "ABC1234" },
+    });
+    mocks.listarDocumentos.mockResolvedValue([
+      documento("no-limite", "VISTORIA", "2026-12-06"),
+      documento("fora-do-limite", "IPVA", "2026-12-07"),
+      documento("vencido", "CRLV", "2026-11-05"),
+    ]);
+    mocks.listarMotoristas.mockResolvedValue([
+      { id: "m1", validadeCnh: new Date("2026-11-05"), usuario: { nome: "Condutor DEMO" } },
+    ]);
+    mocks.contarSolicitacoes.mockImplementation(async ({ where }) =>
+      where.dataHoraPretendida ? 3 : 400,
+    );
+    mocks.contarChamados.mockResolvedValue(4);
+    mocks.consultarSla.mockResolvedValue([{ slaMedioRespostaMinutos: 17.5 }]);
+    try {
+      const resposta = await chamar(["ADMIN"]);
+      expect(resposta.status).toBe(200);
+      expect(await resposta.json()).toMatchObject({
+        viagensDoDia: 3,
+        svo: { chamadosAtivos: 4, slaMedioRespostaMinutos: 17.5 },
+        alertasOperacionais: {
+          total: 2,
+          cnh: [{ motoristaId: "m1", situacao: "VENCIDO" }],
+          documentos: [{ id: "no-limite", diasParaVencer: 30 }],
+        },
+      });
+      expect(mocks.contarSolicitacoes).toHaveBeenCalledWith({
+        where: {
+          dataHoraPretendida: {
+            gte: new Date("2026-11-06T03:00:00Z"),
+            lt: new Date("2026-11-07T03:00:00Z"),
+          },
+          status: { in: ["APROVADA", "EM_TRANSITO", "CONCLUIDA"] },
+        },
+      });
+      expect(mocks.listarMotoristas).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ativo: true, validadeCnh: { lte: new Date("2026-12-06") } },
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("retorna todos os totais zerados quando não há veículos", async () => {
     mocks.veiculosPorStatus.mockResolvedValue([]);
     const resposta = await chamar(["GESTOR"]);

@@ -162,9 +162,9 @@ export async function listarDocumentosVeiculo(veiculoId: string) {
   };
 }
 
-export async function listarAlertasDocumentosVeiculos() {
+export async function listarAlertasDocumentosVeiculos(hoje = dataLocal()) {
   const documentos = await prisma.documentoVeiculo.findMany({
-    where: { veiculo: { ativo: true }, tipoDocumento: { in: [...TIPOS_DOCUMENTO] } },
+    where: { veiculo: { ativo: true }, tipoDocumento: { in: [...TIPOS_DOCUMENTO, "VISTORIA"] } },
     distinct: ["veiculoId", "tipoDocumento"],
     orderBy: [
       { veiculoId: "asc" },
@@ -174,7 +174,6 @@ export async function listarAlertasDocumentosVeiculos() {
     ],
     include: { veiculo: { select: { placa: true } } },
   });
-  const hoje = dataLocal();
   return documentos
     .map((documento) => ({
       ...serializarDocumento(documento, hoje, true),
