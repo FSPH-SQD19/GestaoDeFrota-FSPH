@@ -29,6 +29,12 @@ function mostrarBancoDestino() {
 }
 
 async function main() {
+  if (process.argv.includes("--demo")) {
+    const { popularDemonstracao } = await import("./seed-demo");
+    await popularDemonstracao(prisma);
+    return;
+  }
+
   console.log("Iniciando seed de perfis de acesso...");
   mostrarBancoDestino();
 
