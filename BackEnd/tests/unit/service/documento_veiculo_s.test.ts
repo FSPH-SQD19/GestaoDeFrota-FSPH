@@ -96,7 +96,10 @@ describe("alertas de documentos da frota", () => {
     expect(alertas).toHaveLength(3);
     // Não filtrar a data no banco: um documento antigo vencido pode já ter sido renovado.
     expect(mocks.documentoFindMany).toHaveBeenCalledWith({
-      where: { veiculo: { ativo: true }, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO"] } },
+      where: {
+        veiculo: { ativo: true },
+        tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] },
+      },
       distinct: ["veiculoId", "tipoDocumento"],
       orderBy: [
         { veiculoId: "asc" },
