@@ -148,11 +148,11 @@ Para popular o banco de desenvolvimento configurado em `BackEnd/.env` com todos 
 npm run seed:demo --workspace=backend
 ```
 
-O comando cria contas ADMIN, GESTOR, MOTORISTA, SVO e SOLICITANTE, com três motoristas, frota administrativa/SVO, fornecedores, documentos, viagens em diferentes estados, abastecimentos, manutenções, chamados, ordens e desinfecções. Nomes e dados operacionais são identificados como DEMO; não representam pessoas ou operações reais.
+O comando cria contas ADMIN, GESTOR, MOTORISTA, SVO e SOLICITANTE, com três motoristas, sete veículos administrativos/SVO próprios e locados, fornecedores, CNH e documentos próximos do vencimento, viagens em diferentes estados, abastecimentos, manutenções, multas, chamados, ordens e desinfecções. Nomes e dados operacionais são identificados como DEMO; não representam pessoas ou operações reais.
 
 As contas usam e-mails `@demo.frota.test`. A senha aleatória comum é salva em `BackEnd/.runtime/demo-access.json`, ignorado pelo Git. O comando pode ser reexecutado: usa identificadores estáveis, preserva registros existentes e não redefine senhas. Preserve o arquivo de acessos para reutilizar essas credenciais. O seed normal (`npm run seed --workspace=backend`) continua criando apenas os perfis.
 
-O seed usa a data corrente de America/Sao_Paulo como referência; `SEED_DEMO_DATE=AAAA-MM-DD` permite uma data fixa. O comando recusa execução com `NODE_ENV=production`. Ele não apaga os dados existentes e executa a inserção em uma transação.
+Em um banco novo, `SEED_DEMO_VEICULOS` permite ampliar a frota para até 99 veículos. O seed usa a data corrente de America/Sao_Paulo como referência; `SEED_DEMO_DATE=AAAA-MM-DD` permite uma data fixa. O comando recusa execução com `NODE_ENV=production`. Ele não apaga os dados existentes e executa a inserção em uma transação.
 
 ## CD de homologação na Cloudflare
 

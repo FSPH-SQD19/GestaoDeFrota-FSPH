@@ -17,7 +17,7 @@
     "test:coverage": "npm run test:types && vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "seed:demo": "tsx prisma/seed-demo.ts",
+    "seed:demo": "tsx prisma/seed.ts --demo",
     "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "keywords": [],
