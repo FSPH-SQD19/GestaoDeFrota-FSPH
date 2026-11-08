@@ -23,8 +23,9 @@ const TIPO_LABEL: Record<(typeof TIPOS_DOCUMENTO_VEICULO)[number], string> = {
   VISTORIA: "Vistoria",
 };
 
-function formatarData(iso: string) {
-  const [ano, mes, dia] = iso.split("-");
+function formatarData(iso: string | undefined) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return "—";
+  const [ano, mes, dia] = iso.slice(0, 10).split("-");
   return `${dia}/${mes}/${ano}`;
 }
 
