@@ -10,10 +10,18 @@ const veiculo = {
   placa: "ABC1234",
   modelo: "Modelo de teste",
   tipoFrota: "ADMINISTRATIVA",
+  propriedade: "PROPRIO",
+  fornecedorId: null,
   capacidadeMaxima: 4,
   combustivel: null,
   ano: null,
   status: "DISPONIVEL",
+};
+const locadora = {
+  id: "00000000-0000-4000-8000-0000000000f1",
+  razaoSocial: "Locadora DEMO",
+  tipoServico: "LOCADORA",
+  ativo: true,
 };
 const resposta = (page = 1) => ({
   data: [{ ...veiculo, id: `v${page}`, placa: page === 1 ? "ABC1234" : "DEF5678" }],
@@ -30,7 +38,23 @@ beforeEach(() => {
   vi.mocked(apiRequest)
     .mockReset()
     .mockImplementation(async (path, options) => {
-      if (options?.method === "POST") return veiculo;
+      if (options?.method === "POST") {
+        if (String(path).includes("/documentos")) {
+          return {
+            id: "doc-1",
+            tipoDocumento: "CRLV",
+            dataVencimento: "2027-03-31",
+            situacao: "VIGENTE",
+            atual: true,
+            diasParaVencer: 120,
+          };
+        }
+        return veiculo;
+      }
+      if (path === "/fornecedores") return { total: 1, dados: [locadora] };
+      if (String(path).includes("/documentos")) {
+        return { data: [], resumo: { tiposSemRegistro: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] } };
+      }
       const params = new URLSearchParams(path.split("?")[1]);
       if (params.get("pageSize") === "1")
         return {
@@ -61,6 +85,7 @@ describe("VeiculosPage", () => {
         {
           id: "atual",
           tipoDocumento: "IPVA",
+          dataVencimento: "2026-11-08",
           atual: true,
           situacao: "PROXIMO_VENCIMENTO",
           diasParaVencer: 0,
@@ -68,6 +93,7 @@ describe("VeiculosPage", () => {
         {
           id: "antigo",
           tipoDocumento: "CRLV",
+          dataVencimento: "2026-10-01",
           atual: false,
           situacao: "VENCIDO",
           diasParaVencer: -10,
@@ -75,19 +101,72 @@ describe("VeiculosPage", () => {
         {
           id: "renovado",
           tipoDocumento: "CRLV",
+          dataVencimento: "2027-11-08",
           atual: true,
           situacao: "VIGENTE",
           diasParaVencer: 365,
         },
       ],
-      resumo: {},
+      resumo: { tiposSemRegistro: ["SEGURO", "VISTORIA"] },
     });
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(await screen.findByText("Vence hoje")).toBeInTheDocument();
     expect(screen.queryByText("Vencido há 10 dia(s)")).not.toBeInTheDocument();
-    expect(screen.queryByText("CRLV")).not.toBeInTheDocument();
+    expect(screen.getByText("Documentos atuais")).toBeInTheDocument();
+    expect(screen.getByText("Cadastrar ou renovar")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Fechar" }));
     expect(screen.queryByText("Alertas de vencimento")).not.toBeInTheDocument();
+  });
+
+  it("cadastra documento pelo modal do veículo", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("ABC1234");
+    await user.click(screen.getByRole("button", { name: "Ver documentos do veículo ABC1234" }));
+    expect(await screen.findByText("Cadastrar ou renovar")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/^Tipo de documento/), "VISTORIA");
+    fireEvent.change(screen.getByLabelText(/^Data de vencimento/), {
+      target: { value: "2027-03-31" },
+    });
+    await user.click(screen.getByRole("button", { name: "Salvar documento" }));
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        "/veiculos/v1/documentos",
+        expect.objectContaining({
+          method: "POST",
+          data: { tipoDocumento: "VISTORIA", dataVencimento: "2027-03-31" },
+        }),
+      ),
+    );
+    expect(await screen.findByText("Documento registrado.")).toBeInTheDocument();
+  });
+
+  it("exige locadora ao cadastrar veículo locado", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("ABC1234");
+    expect(screen.getByText("Próprio")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Novo Veículo" }));
+    await user.type(screen.getByLabelText(/^Placa/), "ABC1234");
+    await user.type(screen.getByLabelText(/^Modelo e fabricante/), "Modelo válido");
+    await user.selectOptions(screen.getByLabelText("Propriedade"), "LOCADO");
+    expect(await screen.findByLabelText("Locadora")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Salvar veículo" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Selecione a locadora");
+    await user.selectOptions(screen.getByLabelText("Locadora"), locadora.id);
+    await user.click(screen.getByRole("button", { name: "Salvar veículo" }));
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        "/veiculos",
+        expect.objectContaining({
+          method: "POST",
+          data: expect.objectContaining({
+            propriedade: "LOCADO",
+            fornecedorId: locadora.id,
+          }),
+        }),
+      ),
+    );
   });
 
   it("usa os totais da API e pagina além da primeira centena de veículos", async () => {
@@ -139,6 +218,7 @@ describe("VeiculosPage", () => {
           placa: "ABC1234",
           modelo: "Modelo válido",
           tipoFrota: "ADMINISTRATIVA",
+          propriedade: "PROPRIO",
           capacidadeMaxima: 4,
         },
       }),

@@ -96,7 +96,10 @@ describe("alertas de documentos da frota", () => {
     expect(alertas).toHaveLength(3);
     // Não filtrar a data no banco: um documento antigo vencido pode já ter sido renovado.
     expect(mocks.documentoFindMany).toHaveBeenCalledWith({
-      where: { veiculo: { ativo: true }, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO"] } },
+      where: {
+        veiculo: { ativo: true },
+        tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] },
+      },
       distinct: ["veiculoId", "tipoDocumento"],
       orderBy: [
         { veiculoId: "asc" },
@@ -195,7 +198,7 @@ describe("listarDocumentosVeiculo", () => {
       resumo: {
         situacaoGeral: null,
         bloqueiaAlocacao: false,
-        tiposSemRegistro: ["CRLV", "IPVA", "SEGURO"],
+        tiposSemRegistro: ["CRLV", "IPVA", "SEGURO", "VISTORIA"],
       },
     });
   });
@@ -245,7 +248,7 @@ describe("listarDocumentosVeiculo", () => {
     expect(resultado.resumo).toEqual({
       situacaoGeral: "PROXIMO_VENCIMENTO",
       bloqueiaAlocacao: false,
-      tiposSemRegistro: ["IPVA"],
+      tiposSemRegistro: ["IPVA", "VISTORIA"],
     });
   });
 
@@ -354,7 +357,7 @@ describe("exigirDocumentosEmDia", () => {
 
     await expect(exigirDocumentosEmDia(tx, veiculoId, "2026-11-10")).resolves.toBeUndefined();
     expect(findMany).toHaveBeenCalledWith({
-      where: { veiculoId, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO"] } },
+      where: { veiculoId, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] } },
       select: { tipoDocumento: true, dataVencimento: true },
     });
   });

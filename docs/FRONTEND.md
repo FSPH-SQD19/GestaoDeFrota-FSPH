@@ -216,9 +216,11 @@ O backend já expõe `GET|POST|PATCH|DELETE /api/v1/usuarios` (somente `ADMIN`) 
 
 ## Veículos: validação e paginação
 
-A tela consulta `GET /api/v1/veiculos` com `page`, `pageSize=10`, `busca` e `tipoFrota`. A busca por placa ou modelo aguarda 300 ms após digitar; mudanças de busca ou frota retornam à primeira página. Respostas antigas são descartadas. Os indicadores de cada frota consultam os totais da API com `pageSize=1` e não contam apenas a página carregada. Falhas de listagem e de contagem são apresentadas separadamente, com nova tentativa.
+A tela consulta `GET /api/v1/veiculos` com `page`, `pageSize=10`, `busca` e `tipoFrota`. A busca por placa ou modelo aguarda 300 ms após digitar; mudanças de busca ou frota retornam à primeira página. Respostas antigas são descartadas. Os indicadores de cada frota consultam os totais da API com `pageSize=1` e não contam apenas a página carregada. Falhas de listagem e de contagem são apresentadas separadamente, com nova tentativa. A tabela exibe badge de propriedade (`Próprio`/`Locado`).
 
-O cadastro utiliza `POST /api/v1/veiculos` pelo cliente HTTP compartilhado, respeitando `VITE_API_URL` e o tratamento de sessão expirada. O Zod valida placa brasileira (antiga ou Mercosul), modelo entre 2 e 100 caracteres, capacidade inteira de 1 a 50, ano opcional entre 1950 e o ano atual mais um e combustível opcional de até 30 caracteres. Placa e espaços são normalizados antes do envio. Durante o envio, o modal permanece aberto e bloqueia alterações e submissões repetidas. Uma rejeição preserva os dados preenchidos; o sucesso recarrega a listagem e as contagens.
+O cadastro utiliza `POST /api/v1/veiculos` pelo cliente HTTP compartilhado, respeitando `VITE_API_URL` e o tratamento de sessão expirada. O Zod valida placa brasileira (antiga ou Mercosul), modelo entre 2 e 100 caracteres, propriedade `PROPRIO` ou `LOCADO` (com `fornecedorId` obrigatório quando locado), capacidade inteira de 1 a 50, ano opcional entre 1950 e o ano atual mais um e combustível opcional de até 30 caracteres. A lista de locadoras vem de `GET /api/v1/fornecedores`, filtrada por `LOCADORA`. Placa e espaços são normalizados antes do envio. Durante o envio, o modal permanece aberto e bloqueia alterações e submissões repetidas. Uma rejeição preserva os dados preenchidos; o sucesso recarrega a listagem e as contagens.
+
+O modal de documentos consulta `GET /api/v1/veiculos/:id/documentos`, lista os documentos atuais e alertas de vencimento, e registra/renova via `POST` com `tipoDocumento` (`CRLV`, `IPVA`, `SEGURO`, `VISTORIA`) e `dataVencimento`.
 
 ## Solicitações para gestores
 
