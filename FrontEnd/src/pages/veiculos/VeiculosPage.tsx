@@ -8,13 +8,23 @@ import { veiculoSchema } from "./veiculoRules";
 import AlertaDocumentos from "./AlertaDocumentos";
 
 type TipoFrotaApi = "ADMINISTRATIVA" | "SVO";
+type PropriedadeApi = "PROPRIO" | "LOCADO";
 type StatusVeiculoApi = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
+
+interface FornecedorApi {
+  id: string;
+  razaoSocial: string;
+  tipoServico: string | null;
+  ativo: boolean;
+}
 
 interface VeiculoApi {
   id: string;
   placa: string;
   modelo: string;
   tipoFrota: TipoFrotaApi;
+  propriedade: PropriedadeApi;
+  fornecedorId: string | null;
   capacidadeMaxima: number;
   combustivel: string | null;
   ano: number | null;
@@ -26,6 +36,7 @@ interface VeiculoItem {
   placa: string;
   modelo: string;
   tipoFrota: "Administrativa" | "SVO";
+  propriedade: PropriedadeApi;
   capacidade: number;
   combustivel: string;
   ano: number | null;
@@ -36,6 +47,8 @@ interface FormularioVeiculo {
   placa: string;
   modelo: string;
   tipoFrota: TipoFrotaApi;
+  propriedade: PropriedadeApi;
+  fornecedorId: string;
   capacidadeMaxima: string;
   ano: string;
   combustivel: string;
@@ -45,6 +58,8 @@ const formularioVazio: FormularioVeiculo = {
   placa: "",
   modelo: "",
   tipoFrota: "ADMINISTRATIVA",
+  propriedade: "PROPRIO",
+  fornecedorId: "",
   capacidadeMaxima: "4",
   ano: "",
   combustivel: "",
@@ -68,6 +83,7 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
     placa: veiculo.placa,
     modelo: veiculo.modelo,
     tipoFrota: tipoFrotaLabel[veiculo.tipoFrota],
+    propriedade: veiculo.propriedade ?? "PROPRIO",
     capacidade: veiculo.capacidadeMaxima,
     combustivel: veiculo.combustivel || "—",
     ano: veiculo.ano,
@@ -88,6 +104,8 @@ export const VeiculosPage: React.FC = () => {
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [formulario, setFormulario] = useState(formularioVazio);
+  const [locadoras, setLocadoras] = useState<FornecedorApi[]>([]);
+  const [erroLocadoras, setErroLocadoras] = useState("");
   type Resposta = {
     data: VeiculoApi[];
     meta: { total: number; totalPages: number; page: number; pageSize: number };
@@ -135,6 +153,31 @@ export const VeiculosPage: React.FC = () => {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    let ativo = true;
+    void apiRequest<{ dados: FornecedorApi[] }>("/fornecedores", {})
+      .then((resposta) => {
+        if (!ativo) return;
+        setLocadoras(
+          (resposta.dados ?? []).filter(
+            (fornecedor) => fornecedor.ativo && fornecedor.tipoServico === "LOCADORA",
+          ),
+        );
+        setErroLocadoras("");
+      })
+      .catch((error: unknown) => {
+        if (!ativo) return;
+        setLocadoras([]);
+        setErroLocadoras(
+          error instanceof Error ? error.message : "Não foi possível carregar as locadoras.",
+        );
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [isModalOpen, sessionKey]);
 
   useEffect(() => {
     let ativo = true;
@@ -264,6 +307,14 @@ export const VeiculosPage: React.FC = () => {
       render: (veiculo) => (
         <Badge variant={veiculo.tipoFrota === "SVO" ? "danger" : "info"} size="md">
           {veiculo.tipoFrota === "SVO" ? "Frota SVO" : "Frota Administrativa"}
+        </Badge>
+      ),
+    },
+    {
+      header: "Propriedade",
+      render: (veiculo) => (
+        <Badge variant={veiculo.propriedade === "LOCADO" ? "warning" : "neutral"} size="md">
+          {veiculo.propriedade === "LOCADO" ? "Locado" : "Próprio"}
         </Badge>
       ),
     },
@@ -534,6 +585,41 @@ export const VeiculosPage: React.FC = () => {
                 { value: "SVO", label: "Frota SVO" },
               ]}
             />
+            <Select
+              label="Propriedade"
+              value={formulario.propriedade}
+              onChange={(event) => {
+                const propriedade = event.target.value as PropriedadeApi;
+                setFormulario((atual) => ({
+                  ...atual,
+                  propriedade,
+                  fornecedorId: propriedade === "LOCADO" ? atual.fornecedorId : "",
+                }));
+              }}
+              options={[
+                { value: "PROPRIO", label: "Próprio" },
+                { value: "LOCADO", label: "Locado" },
+              ]}
+            />
+            {formulario.propriedade === "LOCADO" && (
+              <Select
+                label="Locadora"
+                value={formulario.fornecedorId}
+                onChange={(event) => atualizarFormulario("fornecedorId", event.target.value)}
+                options={[
+                  { value: "", label: "Selecione a locadora" },
+                  ...locadoras.map((locadora) => ({
+                    value: locadora.id,
+                    label: locadora.razaoSocial,
+                  })),
+                ]}
+              />
+            )}
+            {formulario.propriedade === "LOCADO" && erroLocadoras && (
+              <p role="alert" className="text-sm font-medium text-rose-600">
+                {erroLocadoras}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Capacidade máxima"

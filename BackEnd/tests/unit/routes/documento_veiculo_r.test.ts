@@ -114,7 +114,7 @@ describe("GET /api/v1/veiculos/:id/documentos", () => {
     expect(resposta.json.resumo).toEqual({
       situacaoGeral: "VIGENTE",
       bloqueiaAlocacao: false,
-      tiposSemRegistro: ["IPVA", "SEGURO"],
+      tiposSemRegistro: ["IPVA", "SEGURO", "VISTORIA"],
     });
   });
 

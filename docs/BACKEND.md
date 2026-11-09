@@ -41,7 +41,7 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 | GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                    |
 | POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                           |
 | GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                  |
-| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                  |
+| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA, seguro ou vistoria).        |
 | GET    | `/notificacoes`, `/api/v1/notificacoes`                     | JWT                         | Lista notificações e contador de não lidas do usuário.         |
 | PATCH  | `/notificacoes/:id/lida`, `/api/v1/notificacoes/:id/lida`   | JWT                         | Marca uma notificação do usuário autenticado como lida.        |
 | PATCH  | `/notificacoes/ler-todas`, `/api/v1/notificacoes/ler-todas` | JWT                         | Marca todas as notificações não lidas do usuário como lidas.   |
@@ -154,13 +154,13 @@ Após salvar, o serviço tenta registrar auditoria com usuário, ação, tabela,
 
 ## Documentos do veículo
 
-Controle de CRLV/licenciamento, IPVA e seguro (RF010-DOC, RB01). Corpo do cadastro:
+Controle de CRLV/licenciamento, IPVA, seguro e vistoria (RF010-DOC, RB01). Corpo do cadastro:
 
 ```json
 { "tipoDocumento": "CRLV", "dataVencimento": "2027-03-31" }
 ```
 
-`tipoDocumento` aceita `CRLV`, `IPVA` ou `SEGURO`; `dataVencimento` usa `AAAA-MM-DD`, entre 2000 e 2100. Documento já vencido pode ser cadastrado. Renovar é cadastrar um novo documento do mesmo tipo: por tipo, vale o de maior vencimento e o histórico é mantido. Mesmo tipo com o mesmo vencimento retorna `409`; veículo inexistente `404`; veículo inativo `422`.
+`tipoDocumento` aceita `CRLV`, `IPVA`, `SEGURO` ou `VISTORIA`; `dataVencimento` usa `AAAA-MM-DD`, entre 2000 e 2100. Documento já vencido pode ser cadastrado. Renovar é cadastrar um novo documento do mesmo tipo: por tipo, vale o de maior vencimento e o histórico é mantido. Mesmo tipo com o mesmo vencimento retorna `409`; veículo inexistente `404`; veículo inativo `422`. A migration `20261108180000_documentos_vistoria` inclui `VISTORIA` na constraint do banco.
 
 A situação é calculada a cada consulta no dia de America/Sao_Paulo: `VENCIDO` depois da data de vencimento, `PROXIMO_VENCIMENTO` a partir de 90 dias antes (inclusive o próprio dia) e `VIGENTE` antes disso. A coluna `status` guarda só a situação no momento do cadastro.
 
@@ -295,6 +295,15 @@ Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatur
 - `PATCH /api/v1/svo/escalas/:id/encerrar`: grava `encerradaEm`. Encerrar antes do início cancela a escala e libera o horário do motorista. `404` inexistente, `409` já encerrada.
 
 A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
+
+### Abastecimentos e Cartão Rede Prime
+
+Atende a S19FROTA-242. O Cartão Corporativo Rede Prime vale em vários postos credenciados, sem fornecedor fixo por CNPJ: o campo opcional `postoCredenciado` (texto até 150 caracteres; vazio ou só espaços vira `null`) registra o posto, e `fornecedorId` continua opcional.
+
+- `POST /api/v1/abastecimentos` (`ADMIN`, `GESTOR` ou `MOTORISTA`): `{ veiculoId, motoristaId?, fornecedorId?, dataHora?, odometro, litros, valorTotal, postoCredenciado? }`. Retorna `201`.
+- Para quem só tem `MOTORISTA`, o motorista é sempre o vinculado ao usuário logado (`motoristaId` e `dataHora` do corpo são ignorados; vale a hora do servidor) e o veículo precisa estar em execução com ele: viagem `EM_TRANSITO` em que está alocado ou ordem de coleta SVO em `EM_DESLOCAMENTO`, `NO_LOCAL` ou `EM_ANDAMENTO`. `veiculoId` é opcional quando há um único veículo em execução. Erros: `403` usuário sem motorista ativo vinculado, `422` sem viagem/coleta em andamento, veículo fora dela ou mais de um veículo sem `veiculoId` informado. As validações de odômetro e a auditoria são as mesmas do cadastro pela gestão.
+- `GET /api/v1/abastecimentos` (`ADMIN` ou `GESTOR`): aceita também o filtro `motoristaId`; cada item traz `postoCredenciado`.
+- `GET /api/v1/abastecimentos/meus` (`MOTORISTA`): mesmos filtros, formato e paginação, restrito aos lançamentos do motorista logado.
 
 ### Compatibilidade com Cloudflare
 
