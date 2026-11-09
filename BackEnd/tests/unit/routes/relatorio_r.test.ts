@@ -6,12 +6,19 @@ vi.mock("../../../src/service/session_s", async () => {
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ execucoes: vi.fn(), abastecimentos: vi.fn(), count: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  execucoes: vi.fn(),
+  abastecimentos: vi.fn(),
+  count: vi.fn(),
+  viagens: vi.fn(),
+  manutencoes: vi.fn(),
+}));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
     execucaoViagem: { findMany: mocks.execucoes },
     abastecimento: { findMany: mocks.abastecimentos },
-    solicitacaoViagem: { count: mocks.count },
+    solicitacaoViagem: { count: mocks.count, groupBy: mocks.viagens },
+    manutencao: { groupBy: mocks.manutencoes },
   },
 }));
 vi.mock("../../../src/config/auth", () => ({
@@ -30,6 +37,8 @@ beforeEach(() => {
   mocks.execucoes.mockResolvedValue([]);
   mocks.abastecimentos.mockResolvedValue([]);
   mocks.count.mockResolvedValue(0);
+  mocks.viagens.mockResolvedValue([]);
+  mocks.manutencoes.mockResolvedValue([]);
 });
 function consultar(query: string, perfis?: string[], caminho = "") {
   return fetch(`${baseUrl}/api/v1/relatorios${caminho}?${query}`, {
@@ -41,6 +50,82 @@ function consultar(query: string, perfis?: string[], caminho = "") {
   });
 }
 const query = "inicio=2026-10-01&fim=2026-10-30";
+describe("Relatórios agregados", () => {
+  it.each(["/consumo", "/manutencoes", "/viagens"])("protege e valida %s", async (rota) => {
+    expect((await consultar(query, undefined, rota)).status).toBe(401);
+    expect((await consultar(query, ["SOLICITANTE"], rota)).status).toBe(403);
+    expect((await consultar("inicio=invalido", ["ADMIN"], rota)).status).toBe(400);
+    expect((await consultar(`${query}&formato=x`, ["ADMIN"], rota)).status).toBe(400);
+  });
+  it("agrupa viagens pelo setor e status, com filtro exato", async () => {
+    mocks.viagens.mockResolvedValue([
+      { setorOrigem: "Laboratório", status: "CONCLUIDA", _count: { _all: 3 } },
+    ]);
+    const resposta = await consultar(`${query}&setor=Laborat%C3%B3rio`, ["GESTOR"], "/viagens");
+    expect(await resposta.json()).toMatchObject({
+      dados: [{ setor: "Laboratório", status: "CONCLUIDA", viagens: 3 }],
+    });
+    expect(mocks.viagens).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          setorOrigem: "Laboratório",
+          dataHoraPretendida: {
+            gte: new Date("2026-10-01T03:00:00Z"),
+            lt: new Date("2026-10-31T03:00:00Z"),
+          },
+        },
+      }),
+    );
+  });
+  it("agrega manutenção por data civil UTC, tipo e status", async () => {
+    mocks.manutencoes.mockResolvedValue([
+      {
+        tipo: "PREVENTIVA",
+        status: "CONCLUIDA",
+        _count: { _all: 2 },
+        _sum: { custoTotal: "250.50" },
+      },
+    ]);
+    const resposta = await consultar(query, ["ADMIN"], "/manutencoes");
+    expect(await resposta.json()).toMatchObject({ dados: [{ quantidade: 2, custoTotal: 250.5 }] });
+    expect(mocks.manutencoes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { dataManutencao: { gte: new Date("2026-10-01Z"), lt: new Date("2026-10-31Z") } },
+      }),
+    );
+    expect((await consultar(`${query}&setor=TI`, ["ADMIN"], "/manutencoes")).status).toBe(400);
+  });
+  it("calcula km/L e retorna null sem litros", async () => {
+    const veiculo = { id: "v1", placa: "ABC1234", modelo: "Modelo", tipoFrota: "ADMINISTRATIVA" };
+    mocks.execucoes.mockResolvedValue([
+      { kmInicial: 100, kmFinal: 200, solicitacao: { veiculoAlocado: veiculo } },
+    ]);
+    mocks.abastecimentos.mockResolvedValue([{ veiculo, litros: 10 }]);
+    expect(await (await consultar(query, ["ADMIN"], "/consumo")).json()).toMatchObject({
+      dados: [{ consumoMedioKmL: 10 }],
+    });
+    mocks.abastecimentos.mockResolvedValue([]);
+    expect(await (await consultar(query, ["ADMIN"], "/consumo")).json()).toMatchObject({
+      dados: [{ consumoMedioKmL: null }],
+    });
+  });
+  it("exporta CSV com escape e proteção contra fórmulas", async () => {
+    mocks.viagens.mockResolvedValue([
+      { setorOrigem: '=SUM(1;2)"', status: "CONCLUIDA", _count: { _all: 1 } },
+    ]);
+    const resposta = await consultar(`${query}&formato=csv`, ["ADMIN"], "/viagens");
+    expect(resposta.headers.get("content-type")).toContain("text/csv");
+    expect(resposta.headers.get("content-disposition")).toContain(".csv");
+    expect(await resposta.text()).toContain('"\'=SUM(1;2)"""');
+  });
+  it("exporta PDF mesmo sem registros", async () => {
+    const resposta = await consultar(`${query}&formato=pdf`, ["GESTOR"], "/manutencoes");
+    expect(resposta.headers.get("content-type")).toContain("application/pdf");
+    const pdf = Buffer.from(await resposta.arrayBuffer()).toString("latin1");
+    expect(pdf.startsWith("%PDF-")).toBe(true);
+    expect(pdf).toContain("%%EOF");
+  });
+});
 describe.each(["", "/operacional"])("GET /api/v1/relatorios%s", (caminho) => {
   const consultarRota = (periodo: string, perfis?: string[]) => consultar(periodo, perfis, caminho);
   it("exige autenticação e perfil de gestão", async () => {
