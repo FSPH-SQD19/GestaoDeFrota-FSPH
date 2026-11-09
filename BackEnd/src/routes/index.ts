@@ -5,6 +5,7 @@ import relatorioRoutes from "./relatorio_r";
 import {
   listarAbastecimentosController,
   criarAbastecimentoController,
+  listarMeusAbastecimentosController,
 } from "../controller/abastecimento_c";
 import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
@@ -39,9 +40,10 @@ router.use("/api/v1/dashboard", dashboardRoutes);
 router.use("/solicitacoes", solicitacaoRoutes);
 
 // Consultar abastecimento
-abastecimento.use(authenticate, requireRole("ADMIN", "GESTOR"));
-abastecimento.get("/", listarAbastecimentosController);
-abastecimento.post("/", criarAbastecimentoController);
+abastecimento.use(authenticate);
+abastecimento.get("/meus", requireRole("MOTORISTA"), listarMeusAbastecimentosController);
+abastecimento.get("/", requireRole("ADMIN", "GESTOR"), listarAbastecimentosController);
+abastecimento.post("/", requireRole("ADMIN", "GESTOR", "MOTORISTA"), criarAbastecimentoController);
 
 router.use("/api/v1/abastecimentos", abastecimento);
 

@@ -296,6 +296,15 @@ Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatur
 
 A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
 
+### Abastecimentos e Cartão Rede Prime
+
+Atende a S19FROTA-242. O Cartão Corporativo Rede Prime vale em vários postos credenciados, sem fornecedor fixo por CNPJ: o campo opcional `postoCredenciado` (texto até 150 caracteres; vazio ou só espaços vira `null`) registra o posto, e `fornecedorId` continua opcional.
+
+- `POST /api/v1/abastecimentos` (`ADMIN`, `GESTOR` ou `MOTORISTA`): `{ veiculoId, motoristaId?, fornecedorId?, dataHora?, odometro, litros, valorTotal, postoCredenciado? }`. Retorna `201`.
+- Para quem só tem `MOTORISTA`, o motorista é sempre o vinculado ao usuário logado (`motoristaId` e `dataHora` do corpo são ignorados; vale a hora do servidor) e o veículo precisa estar em execução com ele: viagem `EM_TRANSITO` em que está alocado ou ordem de coleta SVO em `EM_DESLOCAMENTO`, `NO_LOCAL` ou `EM_ANDAMENTO`. `veiculoId` é opcional quando há um único veículo em execução. Erros: `403` usuário sem motorista ativo vinculado, `422` sem viagem/coleta em andamento, veículo fora dela ou mais de um veículo sem `veiculoId` informado. As validações de odômetro e a auditoria são as mesmas do cadastro pela gestão.
+- `GET /api/v1/abastecimentos` (`ADMIN` ou `GESTOR`): aceita também o filtro `motoristaId`; cada item traz `postoCredenciado`.
+- `GET /api/v1/abastecimentos/meus` (`MOTORISTA`): mesmos filtros, formato e paginação, restrito aos lançamentos do motorista logado.
+
 ### Compatibilidade com Cloudflare
 
 `worker.ts` adapta o Express ao runtime Cloudflare. O cliente Prisma, a chave de assinatura, o IP e a origem da requisição ficam em um contexto isolado; cada chamada usa seu próprio pool, encerrado com `waitUntil`. No servidor Node, `server.ts` inicializa a conexão local. O schema usa `engineType = "client"` e o adaptador PostgreSQL em ambos os ambientes; `bcryptjs` mantém compatibilidade com os hashes bcrypt já existentes no Neon.
