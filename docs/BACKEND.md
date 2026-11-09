@@ -220,6 +220,22 @@ No PATCH, omitir `telefone` preserva o contato; `null` ou texto em branco limpa 
 
 ## Relatório operacional
 
+### Agregações e exportação
+
+Os endpoints abaixo exigem JWT com perfil `ADMIN` ou `GESTOR` e os parâmetros obrigatórios `inicio` e `fim` (`YYYY-MM-DD`, início <= fim). Todos aceitam `formato=json|csv|pdf` (padrão `json`). CSV e PDF retornam anexos com `Content-Disposition`; CSV usa UTF-8, separador `;`, escape de aspas e proteção contra fórmulas. JSON retorna `{ inicio, fim, setor, dados }`.
+
+| Endpoint GET                     | Campos em `dados`                                                      | Critério do período                                        |
+| -------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `/api/v1/relatorios/consumo`     | `placa`, `modelo`, `kmRodados`, `litrosAbastecidos`, `consumoMedioKmL` | Encerramento das viagens e data dos abastecimentos, UTC-03 |
+| `/api/v1/relatorios/manutencoes` | `tipo`, `status`, `quantidade`, `custoTotal`                           | `dataManutencao` (data civil); exclui registros sem data   |
+| `/api/v1/relatorios/viagens`     | `setor`, `status`, `viagens`                                           | `dataHoraPretendida`, UTC-03; inclui todos os status       |
+
+Exemplo: `GET /api/v1/relatorios/viagens?inicio=2026-10-01&fim=2026-10-31&setor=Laboratorio&formato=csv`.
+
+O filtro opcional `setor` corresponde exatamente ao `setorOrigem` das viagens; setores ausentes retornam `null`. Consumo e manutenção rejeitam esse filtro com 400, pois não possuem vínculo com setor no modelo atual. A manutenção agrupa por tipo/status e soma os custos conhecidos; custos ausentes contribuem zero. Sem registros, `dados` é vazio e as exportações continuam válidas.
+
+`consumoMedioKmL` é uma estimativa por veículo: quilômetros de viagens encerradas divididos pelos litros abastecidos no período. Retorna `null` sem litros positivos ou sem viagem com odômetros válidos. Como abastecimentos podem incluir combustível ainda não consumido, isso não mede consumo efetivo por viagem ou entre tanques completos. O contrato do relatório operacional abaixo permanece compatível.
+
 `GET /api/v1/relatorios?inicio=2026-10-01&fim=2026-10-30` exige JWT e perfil `ADMIN` ou `GESTOR`. Datas devem ser válidas no formato `YYYY-MM-DD`, com início anterior ou igual ao fim. O intervalo inclui todo o dia final, no fuso UTC-03:00.
 
 - Viagens concluídas: execuções com `dataHoraFim` no período.
