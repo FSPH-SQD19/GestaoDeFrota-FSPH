@@ -158,14 +158,15 @@ model Manutencao {
 }
 
 model Abastecimento {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  veiculoId    String   @map("veiculo_id") @db.Uuid
-  motoristaId  String?  @map("motorista_id") @db.Uuid
-  fornecedorId String?  @map("fornecedor_id") @db.Uuid
-  dataHora     DateTime @default(now()) @map("data_hora")
-  odometro     Decimal? @db.Decimal(10, 2)
-  litros       Decimal? @db.Decimal(8, 2)
-  valorTotal   Decimal? @map("valor_total") @db.Decimal(10, 2)
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  veiculoId        String   @map("veiculo_id") @db.Uuid
+  motoristaId      String?  @map("motorista_id") @db.Uuid
+  fornecedorId     String?  @map("fornecedor_id") @db.Uuid
+  dataHora         DateTime @default(now()) @map("data_hora")
+  odometro         Decimal? @db.Decimal(10, 2)
+  litros           Decimal? @db.Decimal(8, 2)
+  valorTotal       Decimal? @map("valor_total") @db.Decimal(10, 2)
+  postoCredenciado String?  @map("posto_credenciado") @db.VarChar(150)
 
   veiculo    Veiculo     @relation(fields: [veiculoId], references: [id])
   motorista  Motorista?  @relation(fields: [motoristaId], references: [id])
