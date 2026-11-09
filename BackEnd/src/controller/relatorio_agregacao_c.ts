@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import PDFDocument from "pdfkit";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 import { validar } from "../lib/validar";
 import { HttpError } from "../lib/http_error";
 import {
@@ -51,32 +51,55 @@ export function relatorioAgregadoController(tipo: keyof typeof agregadores) {
           "\uFEFF" + [colunas, ...linhas].map((linha) => linha.map(escapar).join(";")).join("\r\n"),
         );
     }
-    const documento = new PDFDocument({ size: "A4", margin: 40 });
-    const partes: Buffer[] = [];
-    const pronto = new Promise<Buffer>((resolve, reject) => {
-      documento.on("data", (parte: Buffer) => partes.push(parte));
-      documento.on("end", () => resolve(Buffer.concat(partes)));
-      documento.on("error", reject);
-    });
-    documento.fontSize(18).text(`Relatório de ${tipo}`);
-    documento.fontSize(11).text(`${filtro.inicio} a ${filtro.fim}`);
-    if (filtro.setor) documento.text(`Setor: ${filtro.setor}`);
+    const documento = await PDFDocument.create();
+    const fonte = await documento.embedFont(StandardFonts.Helvetica);
+    let pagina = documento.addPage([595.28, 841.89]);
+    let y = pagina.getHeight() - 40;
+    const escrever = (texto: string, tamanho = 11) => {
+      // A fonte padrão usa WinAnsi; caracteres não suportados não devem invalidar o relatório.
+      const seguro = Array.from(texto, (caractere) => {
+        try {
+          fonte.encodeText(caractere);
+          return caractere;
+        } catch {
+          return "?";
+        }
+      }).join("");
+      let trecho = "";
+      const desenhar = () => {
+        if (y < 40 + tamanho) {
+          pagina = documento.addPage([595.28, 841.89]);
+          y = pagina.getHeight() - 40;
+        }
+        pagina.drawText(trecho, { x: 40, y: y - tamanho, size: tamanho, font: fonte });
+        y -= tamanho * 1.4;
+      };
+      for (const caractere of seguro) {
+        if (fonte.widthOfTextAtSize(trecho + caractere, tamanho) > pagina.getWidth() - 80) {
+          desenhar();
+          trecho = "";
+        }
+        trecho += caractere;
+      }
+      if (trecho) desenhar();
+    };
+    escrever(`Relatório de ${tipo}`, 18);
+    escrever(`${filtro.inicio} a ${filtro.fim}`);
+    if (filtro.setor) escrever(`Setor: ${filtro.setor}`);
     if (tipo === "consumo")
-      documento.text("Km/L estimado: km de viagens encerradas / litros abastecidos no período.");
-    documento.moveDown();
-    if (!linhas.length) documento.text("Sem registros no período.");
+      escrever("Km/L estimado: km de viagens encerradas / litros abastecidos no período.");
+    y -= 10;
+    if (!linhas.length) escrever("Sem registros no período.");
     for (const linha of linhas) {
       const texto = colunas
         .map((coluna, i) => `${coluna}: ${linha[i] ?? "Indisponível"}`)
         .join(" | ");
-      const altura = documento.heightOfString(texto);
-      if (documento.y + altura > documento.page.height - 40) documento.addPage();
-      documento.text(texto).moveDown(0.5);
+      escrever(texto);
+      y -= 5;
     }
-    documento.end();
     return res
       .attachment(`${nome}.pdf`)
       .type("application/pdf")
-      .send(await pronto);
+      .send(Buffer.from(await documento.save()));
   };
 }

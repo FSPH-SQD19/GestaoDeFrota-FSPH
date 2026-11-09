@@ -6,6 +6,7 @@ vi.mock("../../../src/service/session_s", async () => {
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { PDFDocument } from "pdf-lib";
 const mocks = vi.hoisted(() => ({
   execucoes: vi.fn(),
   abastecimentos: vi.fn(),
@@ -124,6 +125,19 @@ describe("Relatórios agregados", () => {
     const pdf = Buffer.from(await resposta.arrayBuffer()).toString("latin1");
     expect(pdf.startsWith("%PDF-")).toBe(true);
     expect(pdf).toContain("%%EOF");
+  });
+  it("exporta PDF com várias páginas e caracteres fora da fonte padrão", async () => {
+    mocks.viagens.mockResolvedValue(
+      Array.from({ length: 100 }, (_, i) => ({
+        setorOrigem: `Setor ${i} 🚗`,
+        status: "CONCLUIDA",
+        _count: { _all: 1 },
+      })),
+    );
+    const resposta = await consultar(`${query}&formato=pdf`, ["ADMIN"], "/viagens");
+    expect(resposta.status).toBe(200);
+    const pdf = await PDFDocument.load(await resposta.arrayBuffer());
+    expect(pdf.getPageCount()).toBeGreaterThan(1);
   });
 });
 describe.each(["", "/operacional"])("GET /api/v1/relatorios%s", (caminho) => {
