@@ -143,9 +143,12 @@ describe("GET /api/v1/dashboard/resumo", () => {
         viagensDoDia: 3,
         svo: { chamadosAtivos: 4, slaMedioRespostaMinutos: 17.5 },
         alertasOperacionais: {
-          total: 2,
+          total: 3,
           cnh: [{ motoristaId: "m1", situacao: "VENCIDO" }],
-          documentos: [{ id: "no-limite", diasParaVencer: 30 }],
+          documentos: [
+            { id: "vencido", diasParaVencer: -1 },
+            { id: "no-limite", diasParaVencer: 30 },
+          ],
         },
       });
       expect(mocks.contarSolicitacoes).toHaveBeenCalledWith({

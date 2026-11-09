@@ -164,7 +164,7 @@ export async function listarDocumentosVeiculo(veiculoId: string) {
 
 export async function listarAlertasDocumentosVeiculos(hoje = dataLocal()) {
   const documentos = await prisma.documentoVeiculo.findMany({
-    where: { veiculo: { ativo: true }, tipoDocumento: { in: [...TIPOS_DOCUMENTO, "VISTORIA"] } },
+    where: { veiculo: { ativo: true }, tipoDocumento: { in: [...TIPOS_DOCUMENTO] } },
     distinct: ["veiculoId", "tipoDocumento"],
     orderBy: [
       { veiculoId: "asc" },

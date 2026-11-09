@@ -91,7 +91,7 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
     };
   });
   const documentos = alertas.filter(
-    ({ diasParaVencer }) => diasParaVencer >= 0 && diasParaVencer <= DIAS_ALERTA_NOTIFICACAO,
+    ({ diasParaVencer }) => diasParaVencer <= DIAS_ALERTA_NOTIFICACAO,
   );
   return {
     veiculos: { ...frota, porTipoFrota },
