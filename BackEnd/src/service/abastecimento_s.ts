@@ -2,12 +2,14 @@ import { Prisma, type Abastecimento } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
+import { STATUS_ORDEM_EM_COLETA } from "./svo_s";
 
 export const listarAbastecimentosSchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(10),
     veiculoId: z.uuid({ error: "Selecione um veículo válido." }).optional(),
+    motoristaId: z.uuid({ error: "Selecione um motorista válido." }).optional(),
     dataInicio: z.coerce.date().optional(),
     dataFim: z.coerce.date().optional(),
   })
@@ -41,6 +43,15 @@ export const criarAbastecimentoSchema = z.object({
     .positive("Valor Total deve ser maior que 0.")
     .max(99999999.99, "Valor inválido.")
     .refine(temNoMaximoDuasCasas, "Use no máximo 2 casas decimais."),
+  postoCredenciado: z.preprocess(
+    (valor) => (typeof valor === "string" && valor.trim() === "" ? undefined : valor),
+    z
+      .string({ error: "Informe o nome do posto credenciado." })
+      .trim()
+      .max(150, "Posto credenciado deve ter no máximo 150 caracteres.")
+      .nullish()
+      .transform((valor) => valor ?? undefined),
+  ),
 });
 
 export type CriarAbastecimentoInput = z.infer<typeof criarAbastecimentoSchema>;
@@ -91,12 +102,13 @@ export function calcularKmPorLitro(
 }
 
 export async function listarAbastecimentos(filtros: ListarAbastecimentosFiltros) {
-  const { page, pageSize, veiculoId, dataInicio, dataFim } = filtros;
+  const { page, pageSize, veiculoId, motoristaId, dataInicio, dataFim } = filtros;
 
   const fimExclusivo = dataFim ? new Date(dataFim.getTime() + 24 * 60 * 60 * 1000) : undefined;
 
   const where: Prisma.AbastecimentoWhereInput = {
     ...(veiculoId ? { veiculoId } : {}),
+    ...(motoristaId ? { motoristaId } : {}),
     dataHora: { gte: dataInicio, lt: fimExclusivo },
   };
 
@@ -233,4 +245,81 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
     ...resposta,
     kmPorLitro: calcularKmPorLitro(input.odometro, anterior?.odometro ?? null, input.litros),
   };
+}
+
+export const criarAbastecimentoMotoristaSchema = criarAbastecimentoSchema
+  .omit({ motoristaId: true, dataHora: true })
+  .extend({ veiculoId: z.uuid({ error: "Selecione um veículo válido." }).optional() });
+
+export type CriarAbastecimentoMotoristaInput = z.infer<typeof criarAbastecimentoMotoristaSchema>;
+
+async function motoristaDoUsuario(usuarioId: string) {
+  const motorista = await prisma.motorista.findUnique({
+    where: { usuarioId },
+    select: { id: true, ativo: true },
+  });
+  if (!motorista?.ativo) {
+    throw new HttpError(403, "Seu usuário não está vinculado a um motorista ativo.");
+  }
+  return motorista.id;
+}
+
+// Veículos de viagens EM_TRANSITO ou coletas SVO em andamento do motorista.
+export async function veiculosEmExecucao(motoristaId: string) {
+  const [viagens, ordens] = await Promise.all([
+    prisma.solicitacaoViagem.findMany({
+      where: { motoristaAlocadoId: motoristaId, status: "EM_TRANSITO" },
+      select: { veiculoAlocadoId: true },
+    }),
+    prisma.ordemColetaSvo.findMany({
+      where: { motoristaId, status: { in: [...STATUS_ORDEM_EM_COLETA] } },
+      select: { veiculoId: true },
+    }),
+  ]);
+  const ids = [
+    ...viagens.map((viagem) => viagem.veiculoAlocadoId),
+    ...ordens.map((ordem) => ordem.veiculoId),
+  ].filter((id): id is string => Boolean(id));
+  return [...new Set(ids)];
+}
+
+export async function criarAbastecimentoMotorista(
+  input: CriarAbastecimentoMotoristaInput,
+  usuarioId: string,
+) {
+  const motoristaId = await motoristaDoUsuario(usuarioId);
+  const emExecucao = await veiculosEmExecucao(motoristaId);
+
+  if (emExecucao.length === 0) {
+    throw new HttpError(422, "Você não tem viagem ou coleta em andamento.", [
+      {
+        campo: "veiculoId",
+        mensagem: "Inicie a viagem ou a coleta antes de registrar o abastecimento.",
+      },
+    ]);
+  }
+
+  let veiculoId = input.veiculoId;
+  if (!veiculoId) {
+    if (emExecucao.length > 1) {
+      throw new HttpError(422, "Selecione o veículo abastecido.", [
+        { campo: "veiculoId", mensagem: "Há mais de um veículo em andamento com você." },
+      ]);
+    }
+    veiculoId = emExecucao[0]!;
+  } else if (!emExecucao.includes(veiculoId)) {
+    throw new HttpError(422, "Veículo fora da sua viagem ou coleta em andamento.", [
+      { campo: "veiculoId", mensagem: "Informe o veículo da viagem ou coleta em andamento." },
+    ]);
+  }
+
+  return criarAbastecimento({ ...input, veiculoId, motoristaId }, usuarioId);
+}
+
+export async function listarMeusAbastecimentos(
+  filtros: ListarAbastecimentosFiltros,
+  usuarioId: string,
+) {
+  const motoristaId = await motoristaDoUsuario(usuarioId);
+  return listarAbastecimentos({ ...filtros, motoristaId });
 }
