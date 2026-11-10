@@ -310,7 +310,8 @@ export const DashboardPage: React.FC = () => {
           Alertas operacionais
         </h2>
         <p className="mb-4 text-xs text-slate-500">
-          CNHs vencidas ou próximas do vencimento e documentos veiculares com vencimento em até 30 dias.
+          CNHs vencidas ou próximas do vencimento e documentos veiculares com vencimento em até 30
+          dias.
         </p>
         {isLoading ? (
           <p className="text-sm text-slate-500">Carregando alertas...</p>
