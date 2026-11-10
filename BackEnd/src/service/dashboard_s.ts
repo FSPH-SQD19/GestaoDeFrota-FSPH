@@ -80,7 +80,7 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
     const dataVencimento = dataDoBanco(validadeCnh);
     return {
       motoristaId: id,
-      nome: condutor?.nome ?? "Motorista sem usuÃ¡rio vinculado",
+      nome: condutor?.nome ?? "Motorista sem usuário vinculado",
       dataVencimento,
       situacao: calcularSituacao(dataVencimento, hoje),
     };

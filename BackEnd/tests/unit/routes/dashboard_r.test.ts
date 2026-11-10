@@ -72,7 +72,7 @@ function chamar(perfis?: string[]) {
 }
 
 describe("GET /api/v1/dashboard/resumo", () => {
-  it("exige autenticaÃ§Ã£o", async () => {
+  it("exige autenticação", async () => {
     expect((await chamar()).status).toBe(401);
     expect(mocks.veiculosPorStatus).not.toHaveBeenCalled();
   });
@@ -81,7 +81,7 @@ describe("GET /api/v1/dashboard/resumo", () => {
     expect(mocks.veiculosPorStatus).not.toHaveBeenCalled();
   });
   it.each(["ADMIN", "GESTOR"])(
-    "agrega toda a frota ativa para %s, inclusive acima de 100 veÃ­culos",
+    "agrega toda a frota ativa para %s, inclusive acima de 100 veículos",
     async (perfil) => {
       const resposta = await chamar([perfil]);
       expect(resposta.status).toBe(200);
@@ -113,7 +113,7 @@ describe("GET /api/v1/dashboard/resumo", () => {
       );
     },
   );
-  it("consulta o dia local e inclui CNH vencida e documentos atÃ© o 30Âº dia", async () => {
+  it("consulta o dia local e inclui CNH vencida e documentos até o 30º dia", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-07T02:59:59Z"));
     const documento = (id: string, tipoDocumento: string, data: string) => ({
@@ -176,7 +176,7 @@ describe("GET /api/v1/dashboard/resumo", () => {
       vi.useRealTimers();
     }
   });
-  it("retorna todos os totais zerados quando nÃ£o hÃ¡ veÃ­culos", async () => {
+  it("retorna todos os totais zerados quando não há veículos", async () => {
     mocks.veiculosPorStatus.mockResolvedValue([]);
     const resposta = await chamar(["GESTOR"]);
     expect(await resposta.json()).toMatchObject({

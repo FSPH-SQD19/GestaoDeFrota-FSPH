@@ -2,16 +2,20 @@
 
 `GET /api/v1/svo/indicadores` (ADMIN/SVO) preserva os indicadores existentes e acrescenta:
 
-- `tempoMedioChamadoChegadaLocalMinutos`: mÈdia entre abertura e chegada ao local.
-- `tempoMedioChamadoEntregaSvoMinutos`: mÈdia entre abertura e entrega no SVO.
+- `tempoMedioChamadoChegadaLocalMinutos`: m√©dia entre abertura e chegada ao local.
+
+- `tempoMedioChamadoEntregaSvoMinutos`: m√©dia entre abertura e entrega no SVO.
+
 - `amostrasChegadaLocal` e `amostrasEntregaSvo`: denominadores independentes.
 
-As mÈdias s„o n˙meros em minutos, sem arredondamento, ou `null` quando n„o h· amostras. Ordens canceladas, datas desconhecidas e intervalos negativos s„o excluÌdos. Entregas anteriores ‡ chegada tambÈm s„o excluÌdas da mÈdia de entrega. Ordens ainda em andamento podem compor a mÈdia de chegada quando essa etapa j· ocorreu. N„o h· limite de SLA presumido.
+As m√©dias s√£o n√∫meros em minutos, sem arredondamento, ou `null` quando n√£o h√° amostras. Ordens canceladas, datas desconhecidas e intervalos negativos s√£o exclu√≠dos. Entregas anteriores √† chegada tamb√©m s√£o exclu√≠das da m√©dia de entrega. Ordens ainda em andamento podem compor a m√©dia de chegada quando essa etapa j√° ocorreu. N√£o h√° limite de SLA presumido.
 
-A abertura È persistida em `ChamadoSvo.criadoEm`. A migraÁ„o recupera registros antigos pela primeira auditoria CRIAR do chamado; sem auditoria, a data permanece nula e n„o compıe as mÈdias. Aplicar a migraÁ„o antes de iniciar a vers„o nova (`npm run prisma:migrate:deploy --workspace=backend`).
+A abertura √© persistida em `ChamadoSvo.criadoEm`. A migra√ß√£o recupera registros antigos pela primeira auditoria CRIAR do chamado; sem auditoria, a data permanece nula e n√£o comp√µe as m√©dias. Aplicar a migra√ß√£o antes de iniciar a vers√£o nova (`npm run prisma:migrate:deploy --workspace=backend`).
 
-`GET /api/v1/svo/ordens-coleta/minhas` exige MOTORISTA e retorna `{ data, meta: { page, pageSize, total, totalPages } }`. Cada ordem inclui o chamado, os hor·rios das etapas e a viatura (id, placa e modelo). O vÌnculo È resolvido por `Motorista.usuarioId` da sess„o, com motorista ativo. Sem vÌnculo ou ordens, retorna lista vazia. N„o aceita identificador de outro motorista.
+`GET /api/v1/svo/ordens-coleta/minhas` exige MOTORISTA e retorna `{ data, meta: { page, pageSize, total, totalPages } }`. Cada ordem inclui o chamado, os hor√°rios das etapas e a viatura (id, placa e modelo). O v√≠nculo √© resolvido por `Motorista.usuarioId` da sess√£o, com motorista ativo. Sem v√≠nculo ou ordens, retorna lista vazia. N√£o aceita identificador de outro motorista.
 
-Par‚metros opcionais: `page` (padr„o 1), `pageSize` (padr„o 10, m·ximo 100), `status` (AGUARDANDO_DESPACHO, EM_ANDAMENTO, EM_DESLOCAMENTO, NO_LOCAL, ENTREGUE_SVO, CONCLUIDA ou CANCELADA). Sem status, lista o histÛrico completo. OrdenaÁ„o por abertura decrescente e id para desempate. Exemplo: `/api/v1/svo/ordens-coleta/minhas?status=NO_LOCAL&page=1&pageSize=10`.
+Par√¢metros opcionais: `page` (padr√£o 1), `pageSize` (padr√£o 10, m√°ximo 100), `status` (AGUARDANDO_DESPACHO, EM_ANDAMENTO, EM_DESLOCAMENTO, NO_LOCAL, ENTREGUE_SVO, CONCLUIDA ou CANCELADA). Sem status, lista o hist√≥rico completo. Ordena√ß√£o por abertura decrescente e id para desempate. Exemplo: `/api/v1/svo/ordens-coleta/minhas?status=NO_LOCAL&page=1&pageSize=10`.
 
-Esta subtask implementa indicadores e listagem. A autorizaÁ„o MOTORISTA para avanÁo de etapas e a interface mobile n„o s„o alteradas.
+Esta subtask implementa indicadores e listagem. A autoriza√ß√£o MOTORISTA para avan√ßo de etapas e a interface mobile n√£o s√£o alteradas.
+
+O Dashboard reutiliza o mesmo c√°lculo em `svo.slaMedioRespostaMinutos`, medindo abertura do chamado at√© chegada ao local. O seed demo registra abertura anterior aos hor√°rios das coletas.
