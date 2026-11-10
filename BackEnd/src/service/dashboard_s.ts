@@ -9,7 +9,7 @@ import {
   listarAlertasDocumentosVeiculos,
 } from "./documento_veiculo_s";
 import { DIAS_ALERTA_NOTIFICACAO } from "./notificacao_s";
-import { STATUS_ORDEM_ATIVA } from "./svo_s";
+import { obterSlaRespostaSvo, STATUS_ORDEM_ATIVA } from "./svo_s";
 
 function iniciarContagemFrota() {
   return {
@@ -55,12 +55,7 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
           ],
         },
       }),
-      prisma.$queryRaw<[{ slaMedioRespostaMinutos: number | null }]>`
-      SELECT AVG(EXTRACT(EPOCH FROM (data_hora_chegada_local - data_hora_saida)) / 60)
-        ::double precision AS "slaMedioRespostaMinutos"
-      FROM ordens_coleta_svo
-      WHERE data_hora_chegada_local >= data_hora_saida AND status <> 'CANCELADA'
-    `,
+      obterSlaRespostaSvo(),
       prisma.motorista.findMany({
         where: { ativo: true, validadeCnh: { lte: limiteCnh } },
         select: { id: true, validadeCnh: true, usuario: { select: { nome: true } } },
@@ -85,7 +80,7 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
     const dataVencimento = dataDoBanco(validadeCnh);
     return {
       motoristaId: id,
-      nome: condutor?.nome ?? "Motorista sem usuário vinculado",
+      nome: condutor?.nome ?? "Motorista sem usuÃ¡rio vinculado",
       dataVencimento,
       situacao: calcularSituacao(dataVencimento, hoje),
     };
@@ -98,7 +93,10 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
     solicitacoes,
     solicitacoesPendentes: solicitacoes.meta.porStatus.PENDENTE,
     viagensDoDia,
-    svo: { chamadosAtivos, slaMedioRespostaMinutos: respostas[0]?.slaMedioRespostaMinutos ?? null },
+    svo: {
+      chamadosAtivos,
+      slaMedioRespostaMinutos: respostas.tempoMedioChamadoChegadaLocalMinutos,
+    },
     alertas,
     alertasOperacionais: { total: cnh.length + documentos.length, cnh, documentos },
   };

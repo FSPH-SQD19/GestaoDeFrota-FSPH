@@ -77,7 +77,7 @@ vi.mock("../../../src/lib/prisma", () => {
       },
       findUnique: async ({ where }: { where: { id: string } }) =>
         banco.ordem?.id === where.id ? banco.ordem : null,
-      findMany: async () => (banco.ordem ? [banco.ordem] : []),
+      findMany: async () => (banco.ordem ? [{ ...banco.ordem, chamado: banco.chamado }] : []),
       findFirst: async () => null,
       count: async ({ where }: { where: Record<string, unknown> }) =>
         Number(corresponde(banco.ordem, where)),

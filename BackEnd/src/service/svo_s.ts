@@ -12,20 +12,20 @@ const FUSO_PROTOCOLO = "America/Maceio";
 export const criarChamadoSchema = z
   .object({
     nomeFalecido: z
-      .string({ error: "Nome do falecido é obrigatório." })
+      .string({ error: "Nome do falecido Ã© obrigatÃ³rio." })
       .trim()
       .min(2, "Nome do falecido deve ter ao menos 2 caracteres.")
-      .max(150, "Nome do falecido deve ter no máximo 150 caracteres."),
+      .max(150, "Nome do falecido deve ter no mÃ¡ximo 150 caracteres."),
     enderecoOcorrencia: z
-      .string({ error: "Endereço da ocorrência é obrigatório." })
+      .string({ error: "EndereÃ§o da ocorrÃªncia Ã© obrigatÃ³rio." })
       .trim()
-      .min(3, "Endereço da ocorrência deve ter ao menos 3 caracteres.")
-      .max(300, "Endereço da ocorrência deve ter no máximo 300 caracteres."),
+      .min(3, "EndereÃ§o da ocorrÃªncia deve ter ao menos 3 caracteres.")
+      .max(300, "EndereÃ§o da ocorrÃªncia deve ter no mÃ¡ximo 300 caracteres."),
     relatoOcorrencia: z
-      .string({ error: "Relato da ocorrência é obrigatório." })
+      .string({ error: "Relato da ocorrÃªncia Ã© obrigatÃ³rio." })
       .trim()
-      .min(5, "Relato da ocorrência deve ter ao menos 5 caracteres.")
-      .max(1000, "Relato da ocorrência deve ter no máximo 1000 caracteres."),
+      .min(5, "Relato da ocorrÃªncia deve ter ao menos 5 caracteres.")
+      .max(1000, "Relato da ocorrÃªncia deve ter no mÃ¡ximo 1000 caracteres."),
   })
   .strict();
 
@@ -38,7 +38,7 @@ export const triagemSchema = z
       .string({ error: "Descreva a justificativa." })
       .trim()
       .min(3, "Justificativa deve ter ao menos 3 caracteres.")
-      .max(500, "Justificativa deve ter no máximo 500 caracteres.")
+      .max(500, "Justificativa deve ter no mÃ¡ximo 500 caracteres.")
       .optional(),
   })
   .strict()
@@ -47,25 +47,25 @@ export const triagemSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["justificativa"],
-        message: "Justificativa obrigatória para recusa.",
+        message: "Justificativa obrigatÃ³ria para recusa.",
       });
     }
   });
 
 export const emitirOrdemSchema = z
   .object({
-    veiculoId: z.uuid("Selecione uma viatura válida."),
-    motoristaId: z.uuid("Selecione um motorista válido."),
+    veiculoId: z.uuid("Selecione uma viatura vÃ¡lida."),
+    motoristaId: z.uuid("Selecione um motorista vÃ¡lido."),
     numeroDeclaracaoObito: z
-      .string({ error: "Confira o número da declaração de óbito." })
+      .string({ error: "Confira o nÃºmero da declaraÃ§Ã£o de Ã³bito." })
       .trim()
-      .max(50, "Declaração de óbito deve ter no máximo 50 caracteres.")
+      .max(50, "DeclaraÃ§Ã£o de Ã³bito deve ter no mÃ¡ximo 50 caracteres.")
       .optional(),
   })
   .strict();
 
 export const criarOrdemSchema = emitirOrdemSchema.extend({
-  chamadoId: z.uuid("Selecione um chamado válido."),
+  chamadoId: z.uuid("Selecione um chamado vÃ¡lido."),
 });
 
 export const avancarEtapaSchema = z
@@ -83,7 +83,7 @@ const etapaAnterior = {
 const buscaQuerySchema = z.preprocess((valor) => {
   if (typeof valor === "string" && valor.trim() === "") return undefined;
   return valor;
-}, z.string().trim().max(100, "Busca deve ter no máximo 100 caracteres.").optional());
+}, z.string().trim().max(100, "Busca deve ter no mÃ¡ximo 100 caracteres.").optional());
 
 export const listarChamadosSchema = z.object({
   status: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]).optional(),
@@ -183,6 +183,96 @@ function construirWhereChamados(
   return { AND: condicoes };
 }
 
+export const listarMinhasOrdensSvoSchema = z
+  .object({
+    status: z
+      .enum([
+        "AGUARDANDO_DESPACHO",
+        "EM_ANDAMENTO",
+        "EM_DESLOCAMENTO",
+        "NO_LOCAL",
+        "ENTREGUE_SVO",
+        "CONCLUIDA",
+        "CANCELADA",
+      ])
+      .optional(),
+    page: z.coerce.number().int().min(1).max(1000000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  })
+  .strict();
+
+export async function listarMinhasOrdensSvo(
+  usuarioId: string,
+  filtros: z.infer<typeof listarMinhasOrdensSvoSchema>,
+) {
+  const where: Prisma.OrdemColetaSvoWhereInput = {
+    motorista: { is: { usuarioId, ativo: true } },
+    ...(filtros.status ? { status: filtros.status } : {}),
+  };
+  const [data, total] = await Promise.all([
+    prisma.ordemColetaSvo.findMany({
+      where,
+      include: {
+        chamado: true,
+        veiculo: { select: { id: true, placa: true, modelo: true } },
+      },
+      orderBy: [{ chamado: { criadoEm: "desc" } }, { id: "desc" }],
+      skip: (filtros.page - 1) * filtros.pageSize,
+      take: filtros.pageSize,
+    }),
+    prisma.ordemColetaSvo.count({ where }),
+  ]);
+  return {
+    data,
+    meta: {
+      page: filtros.page,
+      pageSize: filtros.pageSize,
+      total,
+      totalPages: Math.ceil(total / filtros.pageSize),
+    },
+  };
+}
+
+export async function obterSlaRespostaSvo() {
+  const ordensSla = await prisma.ordemColetaSvo.findMany({
+    where: { status: { not: "CANCELADA" }, chamado: { criadoEm: { not: null } } },
+    select: {
+      chamado: { select: { criadoEm: true } },
+      dataHoraChegadaLocal: true,
+      dataHoraEntregaSvo: true,
+    },
+  });
+
+  const chegada: number[] = [];
+  const entrega: number[] = [];
+  for (const ordem of ordensSla) {
+    const abertura = ordem.chamado.criadoEm?.getTime();
+    if (abertura === undefined || !Number.isFinite(abertura)) continue;
+    const local = ordem.dataHoraChegadaLocal?.getTime();
+    const svo = ordem.dataHoraEntregaSvo?.getTime();
+    if (local !== undefined && Number.isFinite(local) && local >= abertura) {
+      chegada.push((local - abertura) / 60000);
+    }
+    if (
+      svo !== undefined &&
+      Number.isFinite(svo) &&
+      svo >= abertura &&
+      (local === undefined || (Number.isFinite(local) && local >= abertura && svo >= local))
+    ) {
+      entrega.push((svo - abertura) / 60000);
+    }
+  }
+  const media = (tempos: number[]) =>
+    tempos.length ? tempos.reduce((soma, tempo) => soma + tempo, 0) / tempos.length : null;
+
+  return {
+    tempoMedioChamadoChegadaLocalMinutos: media(chegada),
+    tempoMedioChamadoEntregaSvoMinutos: media(entrega),
+    amostrasChegadaLocal: chegada.length,
+    amostrasEntregaSvo: entrega.length,
+  };
+}
+
 export async function indicadoresSvo() {
   const [
     total,
@@ -193,6 +283,7 @@ export async function indicadoresSvo() {
     coletasEmAndamento,
     viaturasDisponiveis,
     totalViaturas,
+    sla,
   ] = await Promise.all([
     prisma.chamadoSvo.count(),
     prisma.chamadoSvo.count({ where: { statusTriagem: "EM_ANALISE" } }),
@@ -204,9 +295,11 @@ export async function indicadoresSvo() {
     prisma.ordemColetaSvo.count({ where: { status: { in: [...STATUS_ORDEM_EM_COLETA] } } }),
     prisma.veiculo.count({ where: { tipoFrota: "SVO", ativo: true, status: "DISPONIVEL" } }),
     prisma.veiculo.count({ where: { tipoFrota: "SVO", ativo: true } }),
+    obterSlaRespostaSvo(),
   ]);
 
   return {
+    ...sla,
     total,
     emAnalise,
     aguardandoOrdem,
@@ -282,6 +375,7 @@ export async function registrarChamadoSvo(
         ...input,
         numeroProtocolo,
         atendenteId,
+        criadoEm: agora,
       },
       include: incluirRelacoesChamado,
     });
@@ -322,7 +416,7 @@ export async function realizarTriagemSvo(
       const exists = await tx.chamadoSvo.findUnique({ where: { id }, select: { id: true } });
       throw new HttpError(
         exists ? 409 : 404,
-        exists ? "Chamado já triado." : "Chamado não encontrado.",
+        exists ? "Chamado jÃ¡ triado." : "Chamado nÃ£o encontrado.",
       );
     }
 
@@ -362,7 +456,7 @@ async function transacionarSvo<T>(operacao: (tx: Prisma.TransactionClient) => Pr
     ) {
       throw new HttpError(
         409,
-        "Operação SVO em conflito com outra atualização. Atualize os dados e tente novamente.",
+        "OperaÃ§Ã£o SVO em conflito com outra atualizaÃ§Ã£o. Atualize os dados e tente novamente.",
       );
     }
     throw error;
@@ -375,7 +469,7 @@ async function bloquearRecursosSvo(
   motoristaId?: string | null,
   chamadoId?: string,
 ) {
-  // Mesma ordem e chaves da aprovação de solicitações e das manutenções.
+  // Mesma ordem e chaves da aprovaÃ§Ã£o de solicitaÃ§Ãµes e das manutenÃ§Ãµes.
   const recursos = [motoristaId && `motorista:${motoristaId}`, veiculoId && `veiculo:${veiculoId}`]
     .filter((valor): valor is string => Boolean(valor))
     .sort();
@@ -411,28 +505,28 @@ export async function emitirOrdemColetaSvo(
       }),
     ]);
 
-    if (!chamado) throw new HttpError(404, "Chamado não encontrado.");
+    if (!chamado) throw new HttpError(404, "Chamado nÃ£o encontrado.");
     if (chamado.statusTriagem !== "APROVADO") {
       throw new HttpError(409, "Chamado precisa ser aprovado na triagem.");
     }
     if (chamado.ordemColeta) {
-      throw new HttpError(409, "Chamado já possui ordem de coleta.");
+      throw new HttpError(409, "Chamado jÃ¡ possui ordem de coleta.");
     }
     if (!veiculo || veiculo.tipoFrota !== "SVO" || !veiculo.ativo) {
-      throw new HttpError(422, "Viatura SVO indisponível ou inválida.");
+      throw new HttpError(422, "Viatura SVO indisponÃ­vel ou invÃ¡lida.");
     }
     if (veiculo.status === "DESINFECCAO") {
-      throw new HttpError(422, "Viatura bloqueada aguardando confirmação de desinfecção.");
+      throw new HttpError(422, "Viatura bloqueada aguardando confirmaÃ§Ã£o de desinfecÃ§Ã£o.");
     }
     if (!["DISPONIVEL", "EM_VIAGEM"].includes(veiculo.status)) {
-      throw new HttpError(422, "Viatura SVO indisponível ou em manutenção.");
+      throw new HttpError(422, "Viatura SVO indisponÃ­vel ou em manutenÃ§Ã£o.");
     }
     if (veiculo.capacidadeMaxima < 1 || ordensAtivasVeiculo.length >= veiculo.capacidadeMaxima) {
-      throw new HttpError(422, "Capacidade máxima da viatura atingida para esta operação.");
+      throw new HttpError(422, "Capacidade mÃ¡xima da viatura atingida para esta operaÃ§Ã£o.");
     }
 
     if (!motorista || !motorista.ativo) {
-      throw new HttpError(422, "Motorista indisponível ou inválido.");
+      throw new HttpError(422, "Motorista indisponÃ­vel ou invÃ¡lido.");
     }
 
     const outraViatura = await tx.ordemColetaSvo.findFirst({
@@ -444,7 +538,7 @@ export async function emitirOrdemColetaSvo(
       select: { id: true },
     });
     if (outraViatura || ordensAtivasVeiculo.some((ordem) => ordem.motoristaId !== motorista.id)) {
-      throw new HttpError(422, "Motorista indisponível ou alocado em outra operação.");
+      throw new HttpError(422, "Motorista indisponÃ­vel ou alocado em outra operaÃ§Ã£o.");
     }
 
     const motoristaJaNaViatura = ordensAtivasVeiculo.some(
@@ -455,7 +549,7 @@ export async function emitirOrdemColetaSvo(
       motorista.status !== "DISPONIVEL" &&
       !(motorista.status === "OCUPADO" && motoristaJaNaViatura)
     ) {
-      throw new HttpError(422, "Motorista indisponível ou alocado em outra operação.");
+      throw new HttpError(422, "Motorista indisponÃ­vel ou alocado em outra operaÃ§Ã£o.");
     }
 
     if (motorista.validadeCnh < dataHojeUTC()) {
@@ -504,7 +598,7 @@ export async function avancarEtapaColetaSvo(
     where: { id: ordemId },
     select: { chamadoId: true },
   });
-  if (!ordem) throw new HttpError(404, "Ordem de coleta não encontrada.");
+  if (!ordem) throw new HttpError(404, "Ordem de coleta nÃ£o encontrada.");
 
   return atualizarEtapaColetaSvo(ordem.chamadoId, usuarioId, status, ordemId);
 }
@@ -518,7 +612,7 @@ export async function cancelarOrdemColetaSvo(ordemId: string, usuarioId: string)
     where: { id: ordemId },
     select: { chamadoId: true },
   });
-  if (!ordem) throw new HttpError(404, "Ordem de coleta não encontrada.");
+  if (!ordem) throw new HttpError(404, "Ordem de coleta nÃ£o encontrada.");
   return atualizarEtapaColetaSvo(ordem.chamadoId, usuarioId, "CANCELADA", ordemId);
 }
 
@@ -533,9 +627,9 @@ async function atualizarEtapaColetaSvo(
       where: { id: chamadoId },
       include: { ordemColeta: true },
     });
-    if (!referencia) throw new HttpError(404, "Chamado não encontrado.");
+    if (!referencia) throw new HttpError(404, "Chamado nÃ£o encontrado.");
     if (!referencia.ordemColeta)
-      throw new HttpError(409, "Chamado não possui ordem de coleta emitida.");
+      throw new HttpError(409, "Chamado nÃ£o possui ordem de coleta emitida.");
     await bloquearRecursosSvo(
       tx,
       referencia.ordemColeta.veiculoId,
@@ -547,19 +641,19 @@ async function atualizarEtapaColetaSvo(
       include: { ordemColeta: true },
     });
 
-    if (!chamado) throw new HttpError(404, "Chamado não encontrado.");
+    if (!chamado) throw new HttpError(404, "Chamado nÃ£o encontrado.");
     if (!chamado.ordemColeta) {
-      throw new HttpError(409, "Chamado não possui ordem de coleta emitida.");
+      throw new HttpError(409, "Chamado nÃ£o possui ordem de coleta emitida.");
     }
     if (ordemId && chamado.ordemColeta.id !== ordemId) {
-      throw new HttpError(404, "Ordem de coleta não encontrada.");
+      throw new HttpError(404, "Ordem de coleta nÃ£o encontrada.");
     }
 
     const anterior = chamado.ordemColeta.status;
     const esperado = status === "CANCELADA" ? "AGUARDANDO_DESPACHO" : etapaAnterior[status];
-    // Ordens legadas em andamento já têm saída registrada.
+    // Ordens legadas em andamento jÃ¡ tÃªm saÃ­da registrada.
     if (anterior !== esperado && !(anterior === "EM_ANDAMENTO" && status === "NO_LOCAL")) {
-      throw new HttpError(409, "Transição inválida para a etapa atual da coleta.");
+      throw new HttpError(409, "TransiÃ§Ã£o invÃ¡lida para a etapa atual da coleta.");
     }
 
     if (status === "EM_DESLOCAMENTO") {
@@ -575,14 +669,14 @@ async function atualizarEtapaColetaSvo(
         veiculo.tipoFrota !== "SVO" ||
         !["DISPONIVEL", "EM_VIAGEM"].includes(veiculo.status)
       ) {
-        throw new HttpError(422, "Viatura SVO indisponível para despacho.");
+        throw new HttpError(422, "Viatura SVO indisponÃ­vel para despacho.");
       }
       if (
         !motorista?.ativo ||
         motorista.status !== "OCUPADO" ||
         motorista.validadeCnh < dataHojeUTC()
       ) {
-        throw new HttpError(422, "Motorista indisponível ou CNH vencida para despacho.");
+        throw new HttpError(422, "Motorista indisponÃ­vel ou CNH vencida para despacho.");
       }
       await tx.veiculo.update({ where: { id: veiculo.id }, data: { status: "EM_VIAGEM" } });
     }
@@ -686,10 +780,10 @@ async function executarConclusaoDesinfeccaoSvo(
     await bloquearRecursosSvo(tx, veiculoId);
     const veiculo = await tx.veiculo.findUnique({ where: { id: veiculoId } });
     if (!veiculo || veiculo.tipoFrota !== "SVO" || !veiculo.ativo) {
-      throw new HttpError(404, "Viatura SVO não encontrada.");
+      throw new HttpError(404, "Viatura SVO nÃ£o encontrada.");
     }
     if (veiculo.status !== "DESINFECCAO") {
-      throw new HttpError(409, "Esta viatura não está aguardando desinfecção.");
+      throw new HttpError(409, "Esta viatura nÃ£o estÃ¡ aguardando desinfecÃ§Ã£o.");
     }
 
     const ordensAtivas = await tx.ordemColetaSvo.count({

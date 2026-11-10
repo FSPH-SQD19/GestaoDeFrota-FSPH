@@ -84,6 +84,8 @@ import {
   criarChamadoSchema,
   emitirOrdemColetaSvo,
   indicadoresSvo,
+  listarMinhasOrdensSvo,
+  listarMinhasOrdensSvoSchema,
   listarChamadosSchema,
   listarChamadosSvo,
   realizarTriagemSvo,
@@ -445,8 +447,13 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     mocks.ordemCount.mockResolvedValueOnce(3);
     mocks.veiculoCount.mockResolvedValueOnce(2).mockResolvedValueOnce(3);
 
+    mocks.ordemFindMany.mockResolvedValue([]);
     const ind = await indicadoresSvo();
     expect(ind).toEqual({
+      tempoMedioChamadoChegadaLocalMinutos: null,
+      tempoMedioChamadoEntregaSvoMinutos: null,
+      amostrasChegadaLocal: 0,
+      amostrasEntregaSvo: 0,
       total: 10,
       emAnalise: 3,
       aguardandoOrdem: 2,
@@ -578,5 +585,70 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     await expect(emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId })).rejects.toMatchObject(
       { statusCode: 409 },
     );
+  });
+});
+
+describe("SLA e ordens do motorista SVO", () => {
+  it("calcula médias independentes e ignora datas desconhecidas ou invertidas", async () => {
+    const abertura = new Date("2026-11-10T10:00:00Z");
+    const ordem = (
+      local: string | null,
+      entrega: string | null,
+      criadoEm: Date | null = abertura,
+    ) => ({
+      chamado: { criadoEm },
+      dataHoraChegadaLocal: local ? new Date(local) : null,
+      dataHoraEntregaSvo: entrega ? new Date(entrega) : null,
+    });
+    mocks.ordemFindMany.mockResolvedValue([
+      ordem("2026-11-10T10:30:00Z", "2026-11-10T11:00:00Z"),
+      ordem("2026-11-10T11:00:00Z", null),
+      ordem(null, null),
+      ordem("2026-11-10T09:00:00Z", "2026-11-10T09:30:00Z"),
+      ordem("2026-11-10T11:00:00Z", "2026-11-10T10:30:00Z"),
+      ordem(null, "2026-11-10T12:00:00Z", null),
+    ]);
+    expect(await indicadoresSvo()).toMatchObject({
+      tempoMedioChamadoChegadaLocalMinutos: 50,
+      tempoMedioChamadoEntregaSvoMinutos: 60,
+      amostrasChegadaLocal: 3,
+      amostrasEntregaSvo: 1,
+    });
+    expect(mocks.ordemFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { status: { not: "CANCELADA" }, chamado: { criadoEm: { not: null } } },
+      }),
+    );
+  });
+
+  it("restringe dados e contagem ao motorista autenticado com paginação", async () => {
+    mocks.ordemFindMany.mockResolvedValue([{ id: "ordem" }]);
+    mocks.ordemCount.mockResolvedValue(3);
+    const filtros = listarMinhasOrdensSvoSchema.parse({
+      page: "2",
+      pageSize: "2",
+      status: "NO_LOCAL",
+    });
+    expect(await listarMinhasOrdensSvo(usuarioId, filtros)).toEqual({
+      data: [{ id: "ordem" }],
+      meta: { page: 2, pageSize: 2, total: 3, totalPages: 2 },
+    });
+    const where = { motorista: { is: { usuarioId, ativo: true } }, status: "NO_LOCAL" };
+    expect(mocks.ordemFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where, skip: 2, take: 2 }),
+    );
+    expect(mocks.ordemCount).toHaveBeenLastCalledWith({ where });
+  });
+
+  it("rejeita filtro de outro motorista e paginação inválida", () => {
+    for (const query of [
+      { motoristaId },
+      { usuarioId },
+      { page: 0 },
+      { pageSize: 101 },
+      { status: "INVALIDO" },
+    ]) {
+      expect(listarMinhasOrdensSvoSchema.safeParse(query).success).toBe(false);
+    }
   });
 });

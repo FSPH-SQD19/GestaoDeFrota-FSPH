@@ -25,10 +25,10 @@ const accounts = [
 
 export async function popularDemonstracao(prisma: PrismaClient) {
   if (process.env.NODE_ENV === "production")
-    throw new Error("O seed de demonstração é exclusivo de desenvolvimento/homologação.");
+    throw new Error("O seed de demonstraÃ§Ã£o Ã© exclusivo de desenvolvimento/homologaÃ§Ã£o.");
   const destination = new URL(process.env.DATABASE_URL || "");
   const database = `${destination.hostname}${destination.pathname}`;
-  console.log(`Banco de demonstração: ${database}`);
+  console.log(`Banco de demonstraÃ§Ã£o: ${database}`);
   const totalVeiculos = Number(process.env.SEED_DEMO_VEICULOS ?? "7");
   if (!Number.isInteger(totalVeiculos) || totalVeiculos < 7 || totalVeiculos > 99) {
     throw new Error("SEED_DEMO_VEICULOS deve ser um inteiro entre 7 e 99.");
@@ -42,7 +42,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
     !Number.isFinite(anchor.getTime()) ||
     anchor.toISOString().slice(0, 10) !== today
   )
-    throw new Error("SEED_DEMO_DATE inválida; use AAAA-MM-DD.");
+    throw new Error("SEED_DEMO_DATE invÃ¡lida; use AAAA-MM-DD.");
   const credentialsPath = resolve(__dirname, "../.runtime/demo-access.json");
   let password: string;
   if (existsSync(credentialsPath)) {
@@ -56,7 +56,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
       previous.senha.length < 6
     )
       throw new Error(
-        "O arquivo de acessos de demonstração pertence a outro destino ou está inválido.",
+        "O arquivo de acessos de demonstraÃ§Ã£o pertence a outro destino ou estÃ¡ invÃ¡lido.",
       );
     password = previous.senha;
   } else {
@@ -66,7 +66,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
       })
     )
       throw new Error(
-        "Já há contas DEMO e o arquivo de senhas não está disponível. O seed não redefine senhas existentes.",
+        "JÃ¡ hÃ¡ contas DEMO e o arquivo de senhas nÃ£o estÃ¡ disponÃ­vel. O seed nÃ£o redefine senhas existentes.",
       );
     password = randomBytes(12).toString("base64url");
     mkdirSync(resolve(__dirname, "../.runtime"), { recursive: true });
@@ -116,7 +116,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
           },
         });
         if (usuario.id !== account.id)
-          throw new Error(`A conta ${account.email} já existe e não pertence a este seed.`);
+          throw new Error(`A conta ${account.email} jÃ¡ existe e nÃ£o pertence a este seed.`);
         await tx.usuarioPerfil.upsert({
           where: { usuarioId_perfilId: { usuarioId: usuario.id, perfilId: perfil.id } },
           update: {},
@@ -181,7 +181,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
       while (vehicles.length < totalVeiculos) {
         const numero = vehicles.length + 1;
         vehicles.push({
-          modelo: `Veículo adicional DEMO ${numero}`,
+          modelo: `VeÃ­culo adicional DEMO ${numero}`,
           tipoFrota: numero % 2 ? "ADMINISTRATIVA" : "SVO",
           status: "DISPONIVEL",
           odometroAtual: 30000 + numero * 1000,
@@ -291,11 +291,11 @@ export async function popularDemonstracao(prisma: PrismaClient) {
             protocolo: await nextProtocol("SV"),
             solicitanteId: user("solicitante"),
             setorOrigem: ["LACEN DEMO", "Administrativo DEMO", "SVO DEMO"][i % 3],
-            origem: "Sede fictícia DEMO — Aracaju/SE",
+            origem: "Sede fictÃ­cia DEMO â€” Aracaju/SE",
             destino: [
-              "Unidade fictícia DEMO — São Cristóvão/SE",
-              "Laboratório fictício DEMO — Aracaju/SE",
-              "Almoxarifado fictício DEMO — Socorro/SE",
+              "Unidade fictÃ­cia DEMO â€” SÃ£o CristÃ³vÃ£o/SE",
+              "LaboratÃ³rio fictÃ­cio DEMO â€” Aracaju/SE",
+              "Almoxarifado fictÃ­cio DEMO â€” Socorro/SE",
             ][i % 3],
             dataHoraPretendida: day(offset),
             dataHoraRetornoPrevista: day(offset, 16),
@@ -311,8 +311,8 @@ export async function popularDemonstracao(prisma: PrismaClient) {
                   : refused
                     ? "RECUSADA"
                     : "PENDENTE",
-            justificativa: "Dados fictícios de demonstração para validar o fluxo de transporte.",
-            observacoes: "DEMO — sem dados operacionais reais.",
+            justificativa: "Dados fictÃ­cios de demonstraÃ§Ã£o para validar o fluxo de transporte.",
+            observacoes: "DEMO â€” sem dados operacionais reais.",
             motivoRecusa: refused
               ? "DEMO: transporte solicitado fora do escopo institucional."
               : null,
@@ -366,7 +366,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
             descricao:
               i === 0
                 ? "DEMO: reparo do sistema de freios em andamento."
-                : "DEMO: revisão e troca de óleo concluídas.",
+                : "DEMO: revisÃ£o e troca de Ã³leo concluÃ­das.",
             odometroRegistro: i === 0 ? 68000 : i === 3 ? 40100 : i % 2 ? 39500 : 49500,
             custoTotal: i === 0 ? 1800 : 450 + i * 120,
             dataManutencao: day(i === 0 ? -1 : -25 + i * 3),
@@ -382,11 +382,12 @@ export async function popularDemonstracao(prisma: PrismaClient) {
         await tx.chamadoSvo.create({
           data: {
             id: callId,
+            criadoEm: day(i === 3 ? 0 : -2, 7),
             numeroProtocolo: await nextProtocol("SVO"),
             atendenteId: user("svo"),
-            nomeFalecido: `Pessoa fictícia DEMO ${i + 1}`,
-            enderecoOcorrencia: `Endereço fictício DEMO ${i + 1} — Aracaju/SE`,
-            relatoOcorrencia: "Cenário inteiramente fictício para demonstração do fluxo SVO.",
+            nomeFalecido: `Pessoa fictÃ­cia DEMO ${i + 1}`,
+            enderecoOcorrencia: `EndereÃ§o fictÃ­cio DEMO ${i + 1} â€” Aracaju/SE`,
+            relatoOcorrencia: "CenÃ¡rio inteiramente fictÃ­cio para demonstraÃ§Ã£o do fluxo SVO.",
             statusTriagem: i < 2 ? "EM_ANALISE" : i === 6 ? "RECUSADO" : "APROVADO",
           },
         });
@@ -430,9 +431,9 @@ export async function popularDemonstracao(prisma: PrismaClient) {
           gravidade: "MEDIA",
           pontos: 4,
           valor: new Prisma.Decimal("130.16"),
-          descricao: "Excesso de velocidade em até 20%",
-          local: "Via fictícia DEMO 01 — Aracaju/SE",
-          orgaoEmissor: "Órgão municipal DEMO",
+          descricao: "Excesso de velocidade em atÃ© 20%",
+          local: "Via fictÃ­cia DEMO 01 â€” Aracaju/SE",
+          orgaoEmissor: "Ã“rgÃ£o municipal DEMO",
           status: "PENDENTE",
           dataVencimento: day(20, 0),
         },
@@ -449,9 +450,9 @@ export async function popularDemonstracao(prisma: PrismaClient) {
           gravidade: "GRAVE",
           pontos: 5,
           valor: new Prisma.Decimal("195.23"),
-          descricao: "Ultrapassagem em linha contínua",
-          local: "Rodovia fictícia DEMO 02 — Sergipe",
-          orgaoEmissor: "Órgão rodoviário DEMO",
+          descricao: "Ultrapassagem em linha contÃ­nua",
+          local: "Rodovia fictÃ­cia DEMO 02 â€” Sergipe",
+          orgaoEmissor: "Ã“rgÃ£o rodoviÃ¡rio DEMO",
           status: "PAGA",
           dataVencimento: day(-1, 0),
           dataPagamento: day(-2, 16),
@@ -473,7 +474,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
     { maxWait: 15_000, timeout: 120_000 },
   );
   console.log(
-    `Cenários DEMO verificados: 7 usuários, 5 perfis, 3 motoristas, ${totalVeiculos} veículos previstos, 3 fornecedores, 12 viagens, 10 abastecimentos, 4 manutenções, 2 multas e 7 chamados SVO.`,
+    `CenÃ¡rios DEMO verificados: 7 usuÃ¡rios, 5 perfis, 3 motoristas, ${totalVeiculos} veÃ­culos previstos, 3 fornecedores, 12 viagens, 10 abastecimentos, 4 manutenÃ§Ãµes, 2 multas e 7 chamados SVO.`,
   );
   console.log(`Acessos e senha: ${credentialsPath} (ignorado pelo Git).`);
 }
