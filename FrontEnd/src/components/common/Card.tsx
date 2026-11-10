@@ -13,15 +13,15 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    default: "bg-white border border-slate-200/80 shadow-xs",
-    flat: "bg-slate-100/70 border-0",
-    outline: "bg-white border-2 border-slate-200",
+    default: "bg-white border border-slate-200",
+    flat: "bg-slate-100/70 border border-slate-200/60",
+    outline: "bg-white border border-slate-300",
   };
 
   return (
     <div
       className={cn(
-        "rounded-2xl p-6 transition-all duration-150",
+        "rounded-xl p-5 transition-colors duration-150",
         variantStyles[variant],
         className,
       )}

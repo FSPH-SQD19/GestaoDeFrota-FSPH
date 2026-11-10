@@ -19,7 +19,7 @@ O painel apresenta os alertas de documentos retornados por `/dashboard/resumo`. 
 - **Linguagem:** TypeScript (modo estrito com `noUnusedLocals: true`)
 - **Build Tool:** Vite 8
 - **Estilização:** Tailwind CSS v4 (`@tailwindcss/vite` + `@theme`)
-- **Tipografia:** `Space Grotesk` (Google Fonts)
+- **Tipografia:** `Plus Jakarta Sans` (interface e títulos) + `JetBrains Mono` (placas, protocolos, códigos e métricas)
 - **Ícones:** `lucide-react` (traço padrão `stroke-[1.8]` a `stroke-[2]`)
 - **Validação de Formulários:** `react-hook-form` + `zod`
 
@@ -48,9 +48,23 @@ A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a na
 
 **Use sempre o termo "Viagem" / "Viagens".** Exemplos: _"Viagens em trânsito"_, _"Nova Solicitação de Viagem"_, _"Histórico de Viagens"_.
 
+### Diretrizes de geometria, hierarquia e sobriedade
+
+Para manter a linguagem de **centro de despacho operacional** e evitar clichês visuais:
+
+- **Raios de borda padronizados:**
+  - `rounded-md` (`6px`): Badges técnicos, tags de placa/código e botões internos de barras segmentadas.
+  - `rounded-lg` (`8px`): Botões (`<Button />`), campos (`<Input />`, `<Select />`, `<Textarea />`), alertas (`role="alert"` / `role="status"`) e contêineres de abas segmentadas.
+  - `rounded-xl` (`12px`): Contêineres estruturais (`<Card />`, `<Table />`, `<Modal />`, popovers). Evite `rounded-2xl` ou `rounded-3xl` em elementos de interface.
+- **Hierarquia por tipografia e divisores:**
+  - Cabeçalhos de página seguem o padrão `border-b border-slate-200 pb-4`, título `text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900` e subtítulo `text-sm text-slate-500`.
+  - Listas internas dentro de um `<Card className="p-0">` devem usar `divide-y divide-slate-200/70` em vez de aninhar cards dentro de cards.
+  - Cards de indicadores (KPIs) usam fundo branco neutro (`border-slate-200 bg-white`), rótulo `text-[11px] font-semibold uppercase tracking-wider text-slate-500` e número em destaque `tabular-nums`, sem caixas de ícones decorativos.
+  - Placas, protocolos (`SOL-*`, `SVO-*`), CNH, CPF e valores numéricos em tabelas devem usar `font-mono` e `tabular-nums`.
+
 ### Cores semânticas
 
-Para evitar poluição visual e orientar o atendimento à WCAG AA, os status usam **quatro cores semânticas**. A escolha da paleta não substitui a verificação de contraste e acessibilidade de cada aplicação.
+Para evitar poluição visual e orientar o atendimento à WCAG AA, os status usam **quatro cores semânticas** exclusivamente para comunicar estado operacional real:
 
 | Status Operacional  |   Cor / Token   | Classes Tailwind Recomendadas                       | Significado na FSPH                                                                                                                      |
 | :------------------ | :-------------: | :-------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
@@ -61,10 +75,10 @@ Para evitar poluição visual e orientar o atendimento à WCAG AA, os status usa
 
 ### Aplicação da logo ROTA
 
-- Em fundos escuros (como a Sidebar `#090D16`), a logo deve **obrigatoriamente** ficar dentro de um contêiner branco arredondado:
+- Em fundos escuros (como a Sidebar `#0B0F17`), a logo deve **obrigatoriamente** ficar dentro de um contêiner branco arredondado:
   ```tsx
-  <div className="w-11 h-11 rounded-2xl bg-white shadow-md p-2 border border-white/90">
-    <img src={rotaSymbol} alt="ROTA" className="w-full h-full object-contain" />
+  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/90 bg-white p-1.5">
+    <img src={rotaSymbol} alt="ROTA" className="h-full w-full object-contain" />
   </div>
   ```
 - Os arquivos vetoriais oficiais estão centralizados em:
@@ -174,10 +188,10 @@ Use esse controle para selecionar elementos e menus conforme o perfil. A autoriz
 
 ## Responsividade e ergonomia
 
-1. **Evite Poluição Visual:** Mantenha telas com espaçamento generoso (`space-y-6`, `p-6` a `p-8`). Não adicione tags ou badges decorativos sem finalidade funcional.
+1. **Evite Poluição Visual:** Mantenha telas com espaçamento consistente (`space-y-6`, `p-4` a `p-6`). Não adicione tags, pílulas ou ícones decorativos sem finalidade funcional.
 2. **Cards de Métricas:** Sempre estruture em grid responsivo:
-   `grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4.5`
-3. **Sidebar Adaptável:** Em telas menores que `1024px`, a sidebar vira uma gaveta com backdrop. Em telas desktop, ela suporta o modo recolhido (_Rail Mode_) para maximizar o espaço das tabelas.
+   `grid grid-cols-2 gap-3.5 xl:grid-cols-4`
+3. **Sidebar Adaptável:** Em telas menores que `1024px`, a sidebar vira uma gaveta com backdrop. Em telas desktop, ela suporta o modo recolhido (_Rail Mode_, `68px` recolhida / `224px` expandida) para maximizar o espaço das tabelas.
 
 ## Comandos e verificação
 

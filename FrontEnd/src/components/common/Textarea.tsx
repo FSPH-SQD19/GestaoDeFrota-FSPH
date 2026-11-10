@@ -15,9 +15,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full flex flex-col gap-1.5 text-left">
         {label && (
-          <label htmlFor={textareaId} className="text-sm font-medium text-slate-800 select-none">
+          <label htmlFor={textareaId} className="text-xs font-semibold text-slate-700 select-none">
             {label}
-            {props.required && <span className="text-rose-500 ml-1">*</span>}
+            {props.required && <span className="text-rose-600 ml-0.5">*</span>}
           </label>
         )}
 
@@ -27,19 +27,19 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           disabled={disabled}
           rows={rows}
           className={cn(
-            "w-full px-3.5 py-2.5 text-sm text-slate-900 bg-white placeholder:text-slate-400 rounded-xl border transition-all duration-150 resize-y",
+            "w-full px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 rounded-lg border transition-colors duration-150 resize-y",
             "focus:outline-none focus:ring-2 focus:ring-offset-0",
             error
-              ? "border-rose-400 bg-rose-50/20 text-rose-900 focus:border-rose-500 focus:ring-rose-200"
-              : "border-slate-300 hover:border-slate-400 focus:border-slate-800 focus:ring-slate-200",
-            disabled && "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200",
+              ? "border-rose-500 bg-rose-50/20 text-rose-900 focus:border-rose-600 focus:ring-rose-500/15"
+              : "border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-slate-900/10",
+            disabled && "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200",
             className,
           )}
           {...props}
         />
 
         {error ? (
-          <p className="flex items-center gap-1.5 text-xs text-rose-600 font-medium mt-0.5 animate-fadeIn">
+          <p className="flex items-center gap-1.5 text-xs text-rose-700 font-medium mt-0.5">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{error}</span>
           </p>
