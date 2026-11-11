@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../middleware/http_m";
 import {
+  remanejarOrdemSvoController,
+  listarRemanejamentosSvoController,
   listarMinhasOrdensSvoController,
   indicadoresSvoController,
   listarChamadosSvoController,
@@ -25,6 +27,9 @@ router.patch(
   avancarEtapaColetaSvoController,
 );
 router.use(requireRole("ADMIN", "SVO"));
+
+router.patch("/ordens-coleta/:id/remanejamento", remanejarOrdemSvoController);
+router.get("/ordens-coleta/:id/remanejamentos", listarRemanejamentosSvoController);
 
 router.get("/indicadores", indicadoresSvoController);
 router.get("/chamados", listarChamadosSvoController);

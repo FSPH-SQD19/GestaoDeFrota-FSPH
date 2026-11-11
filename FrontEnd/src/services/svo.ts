@@ -442,3 +442,30 @@ export async function obterEscalasEmAndamentoSvo(): Promise<EscalaSvo[]> {
 
   return [...escalasPorId.values()];
 }
+
+export interface RemanejamentoSvo {
+  id: string;
+  criadoEm: string;
+  usuario: { nome: string } | null;
+  dadosNovos: {
+    motivo: string;
+    anterior: { placa?: string; condutor?: string };
+    atual: { placa?: string; condutor?: string };
+  };
+}
+export async function obterRemanejamentosSvo(id: string): Promise<RemanejamentoSvo[]> {
+  const { data } = await api.get<RemanejamentoSvo[]>(
+    `${BASE}/ordens-coleta/${encodeURIComponent(id)}/remanejamentos`,
+  );
+  return data;
+}
+export async function remanejarOrdemSvo(
+  id: string,
+  input: { veiculoId: string; motoristaId: string; motivo: string },
+): Promise<OrdemColetaSvo> {
+  const { data } = await api.patch<OrdemColetaSvo>(
+    `${BASE}/ordens-coleta/${encodeURIComponent(id)}/remanejamento`,
+    input,
+  );
+  return data;
+}

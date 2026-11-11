@@ -1,4 +1,5 @@
-import type { ChamadoSvo } from "../../services/svo";
+import { RemanejamentoSvo } from "./RemanejamentoSvo";
+import type { ViaturaSvo, MotoristaSvo, ChamadoSvo } from "../../services/svo";
 import {
   classificarChamado,
   STATUS_CHAMADO_LABEL,
@@ -12,7 +13,13 @@ export function DetalhesChamadoModal({
   onClose: fecharModal,
   abrirTriagem,
   abrirEmissaoOrdem,
+  viaturas = [],
+  motoristas = [],
+  onRemanejado,
 }: {
+  viaturas?: ViaturaSvo[];
+  motoristas?: MotoristaSvo[];
+  onRemanejado?: () => void;
   selecionado: ChamadoSvo;
   onClose: () => void;
   abrirTriagem: (chamado: ChamadoSvo) => void;
@@ -121,6 +128,14 @@ export function DetalhesChamadoModal({
               }
             />
           </div>
+        )}
+        {selecionado.ordemColeta && onRemanejado && (
+          <RemanejamentoSvo
+            ordem={selecionado.ordemColeta}
+            viaturas={viaturas}
+            motoristas={motoristas}
+            onConcluido={onRemanejado}
+          />
         )}
       </div>
     </Modal>
