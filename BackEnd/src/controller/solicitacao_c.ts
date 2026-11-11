@@ -13,6 +13,8 @@ import {
   listarSolicitacoes,
   listarMinhasViagens,
   listarSolicitacoesSchema,
+  cancelarSolicitacao,
+  cancelarSolicitacaoSchema,
 } from "../service/solicitacao_s";
 import {
   aprovarSolicitacao,
@@ -82,6 +84,20 @@ export async function recusarSolicitacaoController(req: Request, res: Response) 
 
   return res.status(200).json({
     mensagem: "Solicitação recusada com sucesso.",
+    dados: solicitacao,
+  });
+}
+
+export async function cancelarSolicitacaoController(req: Request, res: Response) {
+  const dados = validar(cancelarSolicitacaoSchema, req.body ?? {});
+  const solicitacao = await cancelarSolicitacao(
+    String(req.params.id),
+    dados,
+    usuarioAutenticado(res),
+  );
+
+  return res.status(200).json({
+    mensagem: "Solicitação cancelada com sucesso.",
     dados: solicitacao,
   });
 }

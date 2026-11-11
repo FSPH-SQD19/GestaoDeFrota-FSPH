@@ -5,6 +5,7 @@ import {
   criarSolicitacaoController,
   aprovarSolicitacaoController,
   recusarSolicitacaoController,
+  cancelarSolicitacaoController,
   listarMinhasViagensController,
   iniciarViagemController,
   concluirViagemController,
@@ -38,6 +39,13 @@ router.patch(
   authenticate,
   requireRole("ADMIN", "GESTOR"),
   recusarSolicitacaoController,
+);
+
+router.patch(
+  "/:id/cancelar",
+  authenticate,
+  requireRole("SOLICITANTE", "GESTOR", "ADMIN"),
+  cancelarSolicitacaoController,
 );
 
 router.get("/minhas", authenticate, requireRole("MOTORISTA"), listarMinhasViagensController);

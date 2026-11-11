@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { type UsuarioAutenticado } from "../middleware/http_m";
 import { HttpError } from "../lib/http_error";
-import { notificarSolicitacaoUrgente } from "./notificacao_s";
+import { notificarSolicitacaoUrgente, notificarSolicitacaoCancelada } from "./notificacao_s";
 
 export const STATUS_SOLICITACAO = [
   "PENDENTE",
@@ -11,6 +11,7 @@ export const STATUS_SOLICITACAO = [
   "EM_TRANSITO",
   "CONCLUIDA",
   "RECUSADA",
+  "CANCELADA",
 ] as const;
 export const URGENCIAS = ["NORMAL", "URGENTE"] as const;
 export const TIPOS_TRANSPORTE = [
@@ -366,4 +367,109 @@ export async function criarSolicitacao(
   }
 
   return serializarSolicitacao(registro);
+}
+
+export const cancelarSolicitacaoSchema = z.object({
+  motivoCancelamento: z
+    .string({ error: "Informe a justificativa do cancelamento." })
+    .trim()
+    .min(3, "A justificativa deve ter ao menos 3 caracteres.")
+    .max(500, "A justificativa deve ter no máximo 500 caracteres."),
+});
+
+export type CancelarSolicitacaoInput = z.infer<typeof cancelarSolicitacaoSchema>;
+
+export async function cancelarSolicitacao(
+  id: string,
+  dados: CancelarSolicitacaoInput,
+  usuario: UsuarioAutenticado,
+) {
+  if (!z.uuid().safeParse(id).success) {
+    throw new HttpError(
+      400,
+      "Não foi possível identificar a solicitação. Atualize a lista e tente novamente.",
+    );
+  }
+
+  const solicitacaoExistente = await prisma.solicitacaoViagem.findUnique({
+    where: { id },
+    include: {
+      motoristaAlocado: {
+        select: {
+          usuarioId: true,
+        },
+      },
+    },
+  });
+
+  if (!solicitacaoExistente) {
+    throw new HttpError(404, "Solicitação não encontrada.");
+  }
+
+  const ehGestorOuAdmin = usuario.perfis.some((p) => PERFIS_GESTAO.includes(p));
+  if (!ehGestorOuAdmin && solicitacaoExistente.solicitanteId !== usuario.id) {
+    throw new HttpError(403, "Você não tem permissão para cancelar esta solicitação.");
+  }
+
+  if (
+    solicitacaoExistente.status === "EM_TRANSITO" ||
+    solicitacaoExistente.status === "CONCLUIDA"
+  ) {
+    throw new HttpError(
+      409,
+      "Não é possível cancelar uma viagem que já está em trânsito ou foi concluída.",
+    );
+  }
+
+  if (solicitacaoExistente.status === "CANCELADA") {
+    throw new HttpError(409, "Esta solicitação já foi cancelada.");
+  }
+
+  if (solicitacaoExistente.status === "RECUSADA") {
+    throw new HttpError(409, "Esta solicitação foi recusada e não pode ser cancelada.");
+  }
+
+  const cancelada = await prisma.$transaction(async (tx) => {
+    const registro = await tx.solicitacaoViagem.update({
+      where: { id },
+      data: {
+        status: "CANCELADA",
+        motivoCancelamento: dados.motivoCancelamento,
+        veiculoAlocadoId: null,
+        motoristaAlocadoId: null,
+      },
+      include: incluirRelacoes,
+    });
+
+    await tx.auditoriaSistema.create({
+      data: {
+        usuarioId: usuario.id,
+        acao: "CANCELAR",
+        tabelaAfetada: "solicitacoes_viagem",
+        registroId: id,
+        dadosNovos: {
+          status: "CANCELADA",
+          statusAnterior: solicitacaoExistente.status,
+          protocolo: solicitacaoExistente.protocolo,
+          motivoCancelamento: dados.motivoCancelamento,
+          veiculoAlocadoIdAnterior: solicitacaoExistente.veiculoAlocadoId,
+          motoristaAlocadoIdAnterior: solicitacaoExistente.motoristaAlocadoId,
+        },
+      },
+    });
+
+    return registro;
+  });
+
+  await notificarSolicitacaoCancelada({
+    id: solicitacaoExistente.id,
+    protocolo: solicitacaoExistente.protocolo,
+    solicitanteId: solicitacaoExistente.solicitanteId,
+    motivoCancelamento: dados.motivoCancelamento,
+    canceladoPorId: usuario.id,
+    motoristaUsuarioId: solicitacaoExistente.motoristaAlocado?.usuarioId ?? null,
+    destino: solicitacaoExistente.destino,
+  });
+
+  return serializarSolicitacao(cancelada);
 }
