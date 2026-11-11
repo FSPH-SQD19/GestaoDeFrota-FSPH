@@ -168,6 +168,8 @@ A listagem retorna `{ data, resumo }`. Cada item traz `tipoDocumento`, `dataVenc
 
 O resumo do painel (`GET /api/v1/dashboard/resumo`, perfis `ADMIN` e `GESTOR`) inclui `alertas`: documentos atuais dos veículos ativos com situação `VENCIDO` ou `PROXIMO_VENCIMENTO`, com os mesmos campos da listagem e a `placa` do veículo. A ordenação prioriza o menor `diasParaVencer`. Documentos substituídos por renovação não geram alertas. O bloco `svo` traz `chamadosAtivos`, `slaMedioRespostaMinutos` (chamado → chegada ao local) e `slaMedioEntregaMinutos` (chamado → entrega no SVO), os mesmos critérios de `GET /api/v1/svo/indicadores`.
 
+O campo `relatorioMes` usa o relatório operacional do primeiro dia do mês até o dia atual no fuso de São Paulo, reunindo viagens administrativas concluídas e abastecimentos de ambas as frotas. A relação km/L é apenas estimativa entre os totais do período. Se a consulta mensal falhar, o campo será `null` e os demais indicadores continuam disponíveis.
+
 A aprovação de solicitação (`PATCH .../aprovar`) recusa com `422` o veículo cujo documento atual de algum tipo vence antes do dia do retorno previsto (ou antes de hoje). Cada documento pendente vem em `errors`, com `campo: "veiculoId"`. Veículo sem documento cadastrado não é bloqueado.
 
 ## Erros das rotas de veículos

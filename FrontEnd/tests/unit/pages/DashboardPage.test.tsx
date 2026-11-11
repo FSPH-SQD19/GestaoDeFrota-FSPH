@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardPage } from "../../../src/pages/dashboard/DashboardPage";
@@ -46,12 +46,41 @@ const resumo = {
     data: [],
     meta: {
       total: 400,
-      porStatus: { PENDENTE: 25, APROVADA: 10, EM_TRANSITO: 5, CONCLUIDA: 355, RECUSADA: 5 },
+      porStatus: {
+        PENDENTE: 25,
+        APROVADA: 10,
+        EM_TRANSITO: 5,
+        CONCLUIDA: 350,
+        RECUSADA: 5,
+        CANCELADA: 5,
+      },
     },
   },
   viagensDoDia: 3,
   svo: { chamadosAtivos: 4, slaMedioRespostaMinutos: 17.5, slaMedioEntregaMinutos: 45 },
   alertasOperacionais: { total: 0, cnh: [], documentos: [] },
+  relatorioMes: {
+    kmRodados: 110,
+    consumoEstimadoLitros: 105,
+    veiculos: [
+      {
+        id: "v1",
+        codigo: "ABC1234",
+        descricao: "Veículo A",
+        kmRodados: 100,
+        consumoLitros: 5,
+        destaque: false,
+      },
+      {
+        id: "v2",
+        codigo: "DEF5678",
+        descricao: "Veículo B",
+        kmRodados: 10,
+        consumoLitros: 100,
+        destaque: true,
+      },
+    ],
+  },
 };
 function renderDashboard() {
   return render(
@@ -139,6 +168,18 @@ describe("DashboardPage", () => {
     expect(screen.getByText("SVO", { exact: true })).toBeInTheDocument();
     expect(screen.getAllByText("Inativos")).toHaveLength(2);
     expect(screen.getAllByText("Em desinfecção")).toHaveLength(1);
+    expect(
+      screen.getByRole("img", { name: "Gráfico de distribuição da frota por status" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Canceladas")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Estimativa: quilômetros de viagens administrativas concluídas/),
+    ).toBeInTheDocument();
+    const ranking = screen.getByText("Veículos com maior rodagem no mês").parentElement
+      ?.parentElement;
+    expect(ranking).not.toBeNull();
+    const placas = within(ranking as HTMLElement).getAllByText(/ABC1234|DEF5678/);
+    expect(placas.map((item) => item.textContent)).toEqual(["ABC1234", "DEF5678"]);
     expect(apiRequest).toHaveBeenCalledWith("/dashboard/resumo");
     expect(apiRequest).toHaveBeenCalledTimes(1);
   });
@@ -153,6 +194,7 @@ describe("DashboardPage", () => {
       "Não foi possível carregar os indicadores.",
     );
     expect(screen.queryByText("Nenhum alerta operacional ativo.")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Dados indisponíveis.")).toHaveLength(3);
     await user.click(screen.getByRole("button", { name: "Atualizar" }));
     expect(await screen.findByText("155", { exact: true })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

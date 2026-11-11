@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   listarMotoristas: vi.fn(),
   contarChamados: vi.fn(),
   consultarSla: vi.fn(),
+  execucoesRelatorio: vi.fn(),
+  abastecimentosRelatorio: vi.fn(),
 }));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
@@ -25,6 +27,8 @@ vi.mock("../../../src/lib/prisma", () => ({
     motorista: { findMany: mocks.listarMotoristas },
     chamadoSvo: { count: mocks.contarChamados },
     ordemColetaSvo: { findMany: mocks.consultarSla },
+    execucaoViagem: { findMany: mocks.execucoesRelatorio },
+    abastecimento: { findMany: mocks.abastecimentosRelatorio },
     solicitacaoViagem: {
       findMany: mocks.listarSolicitacoes,
       count: mocks.contarSolicitacoes,
@@ -49,6 +53,8 @@ beforeEach(() => {
   mocks.listarMotoristas.mockResolvedValue([]);
   mocks.contarChamados.mockResolvedValue(0);
   mocks.consultarSla.mockResolvedValue([]);
+  mocks.execucoesRelatorio.mockResolvedValue([]);
+  mocks.abastecimentosRelatorio.mockResolvedValue([]);
   vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
   mocks.veiculosPorStatus.mockResolvedValue([
     { tipoFrota: "ADMINISTRATIVA", ativo: true, status: "DISPONIVEL", _count: { _all: 120 } },
@@ -75,6 +81,65 @@ describe("GET /api/v1/dashboard/resumo", () => {
   it("exige autenticação", async () => {
     expect((await chamar()).status).toBe(401);
     expect(mocks.veiculosPorStatus).not.toHaveBeenCalled();
+  });
+  it("inclui relatório do mês local com quilometragem e abastecimentos reais", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-07T02:59:59Z"));
+    const veiculo = { id: "v1", placa: "ABC1234", modelo: "Teste", tipoFrota: "ADMINISTRATIVA" };
+    mocks.execucoesRelatorio.mockResolvedValue([
+      {
+        kmInicial: 100,
+        kmFinal: 250,
+        solicitacao: { veiculoAlocado: veiculo, motoristaAlocado: null },
+      },
+    ]);
+    mocks.abastecimentosRelatorio.mockResolvedValue([{ veiculo, litros: 30 }]);
+    try {
+      const resposta = await chamar(["GESTOR"]);
+      expect(resposta.status).toBe(200);
+      expect(await resposta.json()).toMatchObject({
+        relatorioMes: {
+          id: "2026-11-01_2026-11-06",
+          kmRodados: 150,
+          consumoEstimadoLitros: 30,
+          veiculos: [{ codigo: "ABC1234", kmRodados: 150, consumoLitros: 30 }],
+        },
+      });
+      expect(mocks.execucoesRelatorio).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            dataHoraFim: {
+              gte: new Date("2026-11-01T03:00:00Z"),
+              lt: new Date("2026-11-07T03:00:00Z"),
+            },
+          },
+        }),
+      );
+      expect(mocks.abastecimentosRelatorio).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            dataHora: {
+              gte: new Date("2026-11-01T03:00:00Z"),
+              lt: new Date("2026-11-07T03:00:00Z"),
+            },
+          },
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("preserva os demais indicadores se o relatório mensal falhar", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.execucoesRelatorio.mockRejectedValueOnce(new Error("Consulta indisponível"));
+    try {
+      const resposta = await chamar(["ADMIN"]);
+      expect(resposta.status).toBe(200);
+      expect(await resposta.json()).toMatchObject({ veiculos: { total: 155 }, relatorioMes: null });
+      expect(log).toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
   });
   it.each(["MOTORISTA", "SOLICITANTE", "ATENDENTE_SVO"])("nega acesso para %s", async (perfil) => {
     expect((await chamar([perfil])).status).toBe(403);

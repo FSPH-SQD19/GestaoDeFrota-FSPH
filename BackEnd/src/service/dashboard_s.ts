@@ -10,6 +10,7 @@ import {
 } from "./documento_veiculo_s";
 import { DIAS_ALERTA_NOTIFICACAO } from "./notificacao_s";
 import { obterSlaRespostaSvo, STATUS_ORDEM_ATIVA } from "./svo_s";
+import { gerarRelatorio } from "./relatorio_s";
 
 function iniciarContagemFrota() {
   return {
@@ -27,41 +28,53 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
   const limiteCnh = new Date(`${hoje}T00:00:00Z`);
   limiteCnh.setUTCDate(limiteCnh.getUTCDate() + DIAS_ALERTA_NOTIFICACAO);
 
-  const [grupos, solicitacoes, alertas, viagensDoDia, chamadosAtivos, slaSvo, motoristas] =
-    await Promise.all([
-      prisma.veiculo.groupBy({
-        by: ["tipoFrota", "status", "ativo"],
-        _count: { _all: true },
-      }),
-      listarSolicitacoes({ page: 1, pageSize: 6 }, usuario),
-      listarAlertasDocumentosVeiculos(hoje),
-      prisma.solicitacaoViagem.count({
-        where: {
-          dataHoraPretendida: { gte: inicio, lt: fim },
-          status: { in: ["APROVADA", "EM_TRANSITO", "CONCLUIDA"] },
-        },
-      }),
-      prisma.chamadoSvo.count({
-        where: {
-          OR: [
-            { statusTriagem: "EM_ANALISE" },
-            {
-              statusTriagem: "APROVADO",
-              OR: [
-                { ordemColeta: { is: null } },
-                { ordemColeta: { is: { status: { in: [...STATUS_ORDEM_ATIVA] } } } },
-              ],
-            },
-          ],
-        },
-      }),
-      obterSlaRespostaSvo(),
-      prisma.motorista.findMany({
-        where: { ativo: true, validadeCnh: { lte: limiteCnh } },
-        select: { id: true, validadeCnh: true, usuario: { select: { nome: true } } },
-        orderBy: [{ validadeCnh: "asc" }, { id: "asc" }],
-      }),
-    ]);
+  const [
+    grupos,
+    solicitacoes,
+    alertas,
+    viagensDoDia,
+    chamadosAtivos,
+    slaSvo,
+    motoristas,
+    relatorioMes,
+  ] = await Promise.all([
+    prisma.veiculo.groupBy({
+      by: ["tipoFrota", "status", "ativo"],
+      _count: { _all: true },
+    }),
+    listarSolicitacoes({ page: 1, pageSize: 6 }, usuario),
+    listarAlertasDocumentosVeiculos(hoje),
+    prisma.solicitacaoViagem.count({
+      where: {
+        dataHoraPretendida: { gte: inicio, lt: fim },
+        status: { in: ["APROVADA", "EM_TRANSITO", "CONCLUIDA"] },
+      },
+    }),
+    prisma.chamadoSvo.count({
+      where: {
+        OR: [
+          { statusTriagem: "EM_ANALISE" },
+          {
+            statusTriagem: "APROVADO",
+            OR: [
+              { ordemColeta: { is: null } },
+              { ordemColeta: { is: { status: { in: [...STATUS_ORDEM_ATIVA] } } } },
+            ],
+          },
+        ],
+      },
+    }),
+    obterSlaRespostaSvo(),
+    prisma.motorista.findMany({
+      where: { ativo: true, validadeCnh: { lte: limiteCnh } },
+      select: { id: true, validadeCnh: true, usuario: { select: { nome: true } } },
+      orderBy: [{ validadeCnh: "asc" }, { id: "asc" }],
+    }),
+    gerarRelatorio({ inicio: `${hoje.slice(0, 7)}-01`, fim: hoje }).catch((erro: unknown) => {
+      console.error("Falha ao carregar o relatório mensal do dashboard", erro);
+      return null;
+    }),
+  ]);
   const frota = iniciarContagemFrota();
   const porTipoFrota = Object.fromEntries(
     TIPOS_FROTA.map((tipo) => [tipo, iniciarContagemFrota()]),
@@ -100,5 +113,6 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
     },
     alertas,
     alertasOperacionais: { total: cnh.length + documentos.length, cnh, documentos },
+    relatorioMes,
   };
 }

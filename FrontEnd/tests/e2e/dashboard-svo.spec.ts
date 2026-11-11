@@ -91,13 +91,34 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
           data: [],
           meta: {
             total: 400,
-            porStatus: { PENDENTE: 25, APROVADA: 10, EM_TRANSITO: 5, CONCLUIDA: 355, RECUSADA: 5 },
+            porStatus: {
+              PENDENTE: 25,
+              APROVADA: 10,
+              EM_TRANSITO: 5,
+              CONCLUIDA: 350,
+              RECUSADA: 5,
+              CANCELADA: 5,
+            },
           },
         },
         svo: {
           chamadosAtivos: 4,
           slaMedioRespostaMinutos: 18,
           slaMedioEntregaMinutos: 45,
+        },
+        relatorioMes: {
+          kmRodados: 100,
+          consumoEstimadoLitros: 10,
+          veiculos: [
+            {
+              id: "v1",
+              codigo: "XYZ1234",
+              descricao: "Veículo de teste",
+              kmRodados: 100,
+              consumoLitros: 10,
+              destaque: false,
+            },
+          ],
         },
       },
     });
@@ -112,6 +133,9 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
   await expect(page.getByText("18 min", { exact: true })).toBeVisible();
   await expect(page.getByText("SLA médio de entrega")).toBeVisible();
   await expect(page.getByText("45 min", { exact: true })).toBeVisible();
+  await expect(page.getByText("Canceladas", { exact: true })).toBeVisible();
+  await expect(page.getByText("XYZ1234", { exact: true })).toBeVisible();
+  await expect(page.getByText("Estimativa: 10 km/L")).toBeVisible();
   total = 160;
   await page.getByRole("button", { name: "Atualizar", exact: true }).click();
   await expect(page.getByText("160", { exact: true })).toBeVisible();
