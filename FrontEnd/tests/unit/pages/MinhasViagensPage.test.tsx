@@ -54,7 +54,14 @@ const lista: ListaMinhasViagensResposta = {
     pageSize: 20,
     total: 1,
     totalPages: 1,
-    porStatus: { PENDENTE: 0, APROVADA: 1, EM_TRANSITO: 0, CONCLUIDA: 0, RECUSADA: 0 },
+    porStatus: {
+      PENDENTE: 0,
+      APROVADA: 1,
+      EM_TRANSITO: 0,
+      CONCLUIDA: 0,
+      RECUSADA: 0,
+      CANCELADA: 0,
+    },
   },
 };
 
