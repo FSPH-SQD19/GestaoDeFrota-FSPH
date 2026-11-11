@@ -37,20 +37,57 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
       json: {
         veiculos: {
           total,
-          porStatus: { DISPONIVEL: total - 25, EM_VIAGEM: 20, MANUTENCAO: 5, DESINFECCAO: 0 },
-        },
-        alertas: [
-          {
-            id: "documento-teste",
-            veiculoId: "veiculo-teste",
-            placa: "ABC1234",
-            tipoDocumento: "CRLV",
-            dataVencimento: "2026-11-04",
-            atual: true,
-            situacao: "PROXIMO_VENCIMENTO",
-            diasParaVencer: 0,
+          totalGeral: total,
+          porStatus: {
+            DISPONIVEL: total - 25,
+            EM_VIAGEM: 20,
+            MANUTENCAO: 5,
+            DESINFECCAO: 0,
+            INATIVO: 0,
           },
-        ],
+          porTipoFrota: {
+            ADMINISTRATIVA: {
+              total,
+              totalGeral: total,
+              porStatus: {
+                DISPONIVEL: total - 25,
+                EM_VIAGEM: 20,
+                MANUTENCAO: 5,
+                DESINFECCAO: 0,
+                INATIVO: 0,
+              },
+            },
+            SVO: {
+              total: 0,
+              totalGeral: 0,
+              porStatus: {
+                DISPONIVEL: 0,
+                EM_VIAGEM: 0,
+                MANUTENCAO: 0,
+                DESINFECCAO: 0,
+                INATIVO: 0,
+              },
+            },
+          },
+        },
+        viagensDoDia: 3,
+        svo: { chamadosAtivos: 2, slaMedioRespostaMinutos: 17.5 },
+        alertasOperacionais: {
+          total: 1,
+          cnh: [],
+          documentos: [
+            {
+              id: "documento-teste",
+              veiculoId: "veiculo-teste",
+              placa: "ABC1234",
+              tipoDocumento: "CRLV",
+              dataVencimento: "2026-11-04",
+              atual: true,
+              situacao: "PROXIMO_VENCIMENTO",
+              diasParaVencer: 0,
+            },
+          ],
+        },
         solicitacoes: {
           data: [],
           meta: {
@@ -63,14 +100,14 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
   });
   await page.goto("/");
   await expect(page.getByText("155", { exact: true })).toBeVisible();
-  await expect(page.getByText("130 disponíveis")).toBeVisible();
+  await expect(page.getByText("130", { exact: true })).toBeVisible();
   await expect(page.getByText("400", { exact: true })).toBeVisible();
   await expect(page.getByText("Veículo ABC1234 — CRLV")).toBeVisible();
   await expect(page.getByText("Vence hoje")).toBeVisible();
   total = 160;
   await page.getByRole("button", { name: "Atualizar", exact: true }).click();
   await expect(page.getByText("160", { exact: true })).toBeVisible();
-  await expect(page.getByText("135 disponíveis")).toBeVisible();
+  await expect(page.getByText("135", { exact: true })).toBeVisible();
   expect(consultas).toBe(2);
   expect(erros).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("dashboard.png"), fullPage: true });
@@ -91,8 +128,41 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
       json: {
         veiculos: {
           total: 1,
-          porStatus: { DISPONIVEL: 1, EM_VIAGEM: 0, MANUTENCAO: 0, DESINFECCAO: 0 },
+          totalGeral: 1,
+          porStatus: {
+            DISPONIVEL: 1,
+            EM_VIAGEM: 0,
+            MANUTENCAO: 0,
+            DESINFECCAO: 0,
+            INATIVO: 0,
+          },
+          porTipoFrota: {
+            ADMINISTRATIVA: {
+              total: 1,
+              totalGeral: 1,
+              porStatus: {
+                DISPONIVEL: 1,
+                EM_VIAGEM: 0,
+                MANUTENCAO: 0,
+                DESINFECCAO: 0,
+                INATIVO: 0,
+              },
+            },
+            SVO: {
+              total: 0,
+              totalGeral: 0,
+              porStatus: {
+                DISPONIVEL: 0,
+                EM_VIAGEM: 0,
+                MANUTENCAO: 0,
+                DESINFECCAO: 0,
+                INATIVO: 0,
+              },
+            },
+          },
         },
+        viagensDoDia: 0,
+        svo: { chamadosAtivos: 0, slaMedioRespostaMinutos: null },
         solicitacoes: {
           data: [],
           meta: {
@@ -100,7 +170,7 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
             porStatus: { PENDENTE: 0, APROVADA: 0, EM_TRANSITO: 0, CONCLUIDA: 0, RECUSADA: 0 },
           },
         },
-        alertas: [],
+        alertasOperacionais: { total: 0, cnh: [], documentos: [] },
       },
     }),
   );

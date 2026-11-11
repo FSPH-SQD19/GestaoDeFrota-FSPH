@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Activity, Car, ClipboardList, Clock3, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  Activity,
+  CalendarDays,
+  Car,
+  ClipboardList,
+  Clock3,
+  RefreshCw,
+  Timer,
+  TriangleAlert,
+} from "lucide-react";
 import { Badge, Button, Card } from "../../components/common";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
@@ -13,10 +22,12 @@ import {
 import type { AlertaDocumentoVeiculo } from "../../types/documentoVeiculo";
 import { ListaAlertasDocumentos } from "../veiculos/ListaAlertasDocumentos";
 
-type StatusVeiculo = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
+type StatusVeiculo = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO" | "INATIVO";
+type TipoFrota = "ADMINISTRATIVA" | "SVO";
 
-interface VeiculosResumo {
+interface ContagemFrota {
   total: number;
+  totalGeral: number;
   porStatus: Record<StatusVeiculo, number>;
 }
 
@@ -28,11 +39,39 @@ interface SolicitacoesResponse {
   };
 }
 
-interface DashboardData {
-  veiculos: VeiculosResumo;
-  solicitacoes: SolicitacoesResponse;
-  alertas: AlertaDocumentoVeiculo[];
+interface AlertaCnh {
+  motoristaId: string;
+  nome: string;
+  dataVencimento: string;
+  situacao: "VENCIDO" | "PROXIMO_VENCIMENTO";
 }
+
+interface AlertasOperacionais {
+  total: number;
+  cnh: AlertaCnh[];
+  documentos: AlertaDocumentoVeiculo[];
+}
+
+interface DashboardData {
+  veiculos: ContagemFrota & { porTipoFrota: Record<TipoFrota, ContagemFrota> };
+  solicitacoes: SolicitacoesResponse;
+  viagensDoDia: number;
+  svo: { chamadosAtivos: number; slaMedioRespostaMinutos: number | null };
+  alertasOperacionais: AlertasOperacionais;
+}
+
+const STATUS_VEICULO_LABEL: Record<StatusVeiculo, string> = {
+  DISPONIVEL: "Disponíveis",
+  EM_VIAGEM: "Em viagem",
+  MANUTENCAO: "Em manutenção",
+  DESINFECCAO: "Em desinfecção",
+  INATIVO: "Inativos",
+};
+const STATUS_VEICULO = Object.keys(STATUS_VEICULO_LABEL) as StatusVeiculo[];
+const TIPO_FROTA_LABEL: Record<TipoFrota, string> = {
+  ADMINISTRATIVA: "Administrativa",
+  SVO: "SVO",
+};
 
 const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -41,9 +80,20 @@ const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
   minute: "2-digit",
 });
+const dataFmt = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const slaFmt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
 function formatarDataHora(valor?: string | null) {
   return valor ? dataHoraFmt.format(new Date(valor)) : "—";
+}
+
+function formatarData(valor: string) {
+  return dataFmt.format(new Date(`${valor}T00:00:00Z`));
 }
 
 export const DashboardPage: React.FC = () => {
@@ -99,27 +149,24 @@ export const DashboardPage: React.FC = () => {
   }, [sessionKey, revisao]);
 
   const porStatus = dados?.solicitacoes.meta.porStatus;
-  const disponiveis = dados?.veiculos.porStatus.DISPONIVEL ?? 0;
-  const emViagem = dados?.veiculos.porStatus.EM_VIAGEM ?? 0;
-  const manutencao = dados?.veiculos.porStatus.MANUTENCAO ?? 0;
   const aguardando = porStatus?.PENDENTE ?? 0;
   const recentes = dados?.solicitacoes.data.slice(0, 6) ?? [];
 
-  const alertasVencimento = dados?.alertas ?? [];
+  const alertasOperacionais = dados?.alertasOperacionais;
 
   const indicadores = [
     {
-      label: "Veículos cadastrados",
+      label: "Veículos ativos",
       value: dados?.veiculos.total ?? 0,
-      description: `${disponiveis} disponíveis`,
+      description: dados ? `${dados.veiculos.totalGeral} cadastrados no total` : "Carregando frota",
       icon: Car,
       tone: "emerald",
     },
     {
-      label: "Em viagem",
-      value: emViagem,
-      description: "Veículos marcados em viagem",
-      icon: Activity,
+      label: "Viagens do dia",
+      value: dados?.viagensDoDia ?? 0,
+      description: "Aprovadas, em trânsito ou concluídas",
+      icon: CalendarDays,
       tone: "blue",
     },
     {
@@ -130,9 +177,26 @@ export const DashboardPage: React.FC = () => {
       tone: "amber",
     },
     {
+      label: "Chamados SVO ativos",
+      value: dados?.svo.chamadosAtivos ?? 0,
+      description: "Em análise ou com coleta ativa",
+      icon: Activity,
+      tone: "blue",
+    },
+    {
+      label: "SLA médio de resposta",
+      value:
+        dados?.svo.slaMedioRespostaMinutos == null
+          ? "—"
+          : `${slaFmt.format(dados.svo.slaMedioRespostaMinutos)} min`,
+      description: "Tempo médio até a chegada local",
+      icon: Timer,
+      tone: "slate",
+    },
+    {
       label: "Solicitações registradas",
       value: dados?.solicitacoes.meta.total ?? 0,
-      description: `${manutencao} veículo(s) em manutenção`,
+      description: "Total no sistema",
       icon: ClipboardList,
       tone: "slate",
     },
@@ -178,7 +242,7 @@ export const DashboardPage: React.FC = () => {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {indicadores.map(({ label, value, description, icon: Icon, tone }) => (
           <Card
             key={label}
@@ -205,21 +269,84 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       <Card className="rounded-3xl border border-slate-200/80 p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-bold text-slate-900">Frota por situação e categoria</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Contagens atuais separadas entre frota administrativa e SVO.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {(["ADMINISTRATIVA", "SVO"] as const).map((tipo) => {
+            const frota = dados?.veiculos.porTipoFrota[tipo];
+            return (
+              <section key={tipo} className="rounded-2xl border border-slate-200 p-4">
+                <div className="mb-3 flex items-baseline justify-between gap-3">
+                  <h3 className="font-bold text-slate-800">{TIPO_FROTA_LABEL[tipo]}</h3>
+                  <span className="text-xs text-slate-500">
+                    {dados ? `${frota?.total ?? 0} ativos` : "—"}
+                  </span>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  {STATUS_VEICULO.filter(
+                    (status) => tipo === "SVO" || status !== "DESINFECCAO",
+                  ).map((status) => (
+                    <div key={status} className="flex items-center justify-between gap-2 text-sm">
+                      <dt className="text-slate-600">{STATUS_VEICULO_LABEL[status]}</dt>
+                      <dd className="font-bold tabular-nums text-slate-900">
+                        {dados ? (frota?.porStatus[status] ?? 0) : "—"}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="rounded-3xl border border-slate-200/80 p-5">
         <h2 className="mb-1 flex items-center gap-2 text-base font-bold text-slate-900">
           <TriangleAlert className="h-5 w-5 text-amber-700" aria-hidden="true" />
-          Alertas de vencimento de documentos
+          Alertas operacionais
         </h2>
         <p className="mb-4 text-xs text-slate-500">
-          Documentos atuais vencidos ou com vencimento nos próximos 90 dias.
+          CNHs vencidas ou próximas do vencimento e documentos veiculares com vencimento em até 30
+          dias.
         </p>
         {isLoading ? (
           <p className="text-sm text-slate-500">Carregando alertas...</p>
         ) : errorMessage ? (
           <p className="text-sm text-slate-500">Não foi possível carregar os alertas.</p>
-        ) : alertasVencimento.length > 0 ? (
-          <ListaAlertasDocumentos documentos={alertasVencimento} />
+        ) : alertasOperacionais && alertasOperacionais.total > 0 ? (
+          <div className="space-y-5">
+            {alertasOperacionais.cnh.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-sm font-bold text-slate-800">CNHs</h3>
+                <div className="space-y-2">
+                  {alertasOperacionais.cnh.map((cnh) => (
+                    <div
+                      key={cnh.motoristaId}
+                      className="flex flex-col gap-2 rounded-2xl border border-slate-200 p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <span className="font-medium text-slate-800">{cnh.nome}</span>
+                      <Badge variant={cnh.situacao === "VENCIDO" ? "danger" : "warning"}>
+                        {cnh.situacao === "VENCIDO" ? "CNH vencida" : "Vence em"} ·{" "}
+                        {formatarData(cnh.dataVencimento)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            {alertasOperacionais.documentos.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-sm font-bold text-slate-800">Documentos dos veículos</h3>
+                <ListaAlertasDocumentos documentos={alertasOperacionais.documentos} />
+              </section>
+            )}
+          </div>
         ) : (
-          <p className="text-sm text-slate-500">Nenhum documento com vencimento próximo.</p>
+          <p className="text-sm text-slate-500">Nenhum alerta operacional ativo.</p>
         )}
       </Card>
 
@@ -228,7 +355,9 @@ export const DashboardPage: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-slate-900">Solicitações recentes</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              Registros reais ordenados pela data de criação.
+              {dados
+                ? `${dados.solicitacoes.meta.total} registros reais ordenados pela data de criação.`
+                : "Registros ordenados pela data de criação."}
             </p>
           </div>
           {porStatus && (
