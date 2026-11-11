@@ -22,7 +22,14 @@ const registro: SolicitacaoViagem = {
   status: "PENDENTE",
   criadoEm: "2026-10-30T10:00:00Z",
 };
-const porStatus = { PENDENTE: 110, APROVADA: 3, EM_TRANSITO: 0, CONCLUIDA: 0, RECUSADA: 0 };
+const porStatus = {
+  PENDENTE: 110,
+  APROVADA: 3,
+  EM_TRANSITO: 0,
+  CONCLUIDA: 0,
+  RECUSADA: 0,
+  CANCELADA: 0,
+};
 function resposta(page = 1) {
   return {
     data: [{ ...registro, protocolo: `SV-TESTE-00${page}` }],
@@ -161,5 +168,30 @@ describe("SolicitacoesPage", () => {
     await user.click(screen.getByRole("button", { name: "Enviar Solicitação" }));
     expect(await screen.findByText(/Solicitação SV-TESTE-001 enviada!/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Origem/)).not.toBeInTheDocument();
+  });
+
+  it("abre modal de cancelamento pela tabela e conclui cancelamento", async () => {
+    const user = userEvent.setup();
+    renderPage(["SOLICITANTE"]);
+    await screen.findByText("SV-TESTE-001");
+    await user.click(screen.getByRole("button", { name: "Cancelar solicitação SV-TESTE-001" }));
+    expect(
+      screen.getByRole("heading", { name: "Cancelar Solicitação SV-TESTE-001" }),
+    ).toBeInTheDocument();
+
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      mensagem: "Solicitação SV-TESTE-001 cancelada com sucesso.",
+      dados: { ...registro, status: "CANCELADA" },
+    });
+
+    await user.type(
+      screen.getByPlaceholderText(/Descreva o motivo do cancelamento/),
+      "Cancelamento teste pelo solicitante",
+    );
+    await user.click(screen.getByRole("button", { name: "Confirmar Cancelamento" }));
+
+    expect(
+      await screen.findByText("Solicitação SV-TESTE-001 cancelada com sucesso."),
+    ).toBeInTheDocument();
   });
 });

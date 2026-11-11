@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Eye, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Eye,
+  ArrowRight,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Ban,
+} from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -19,8 +28,9 @@ import {
 import { AnalisarSolicitacaoModal } from "./AnalisarSolicitacaoModal";
 import { NovaSolicitacaoModal } from "./NovaSolicitacaoModal";
 import { ReagendarViagemModal } from "./ReagendarViagemModal";
+import { CancelarSolicitacaoModal } from "./CancelarSolicitacaoModal";
 
-type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA";
+type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA" | "CANCELADA";
 type FiltroUrgencia = "TODAS" | UrgenciaSolicitacao;
 
 const FILTROS: { id: FiltroStatus; label: string; status: StatusSolicitacao[] | null }[] = [
@@ -29,6 +39,7 @@ const FILTROS: { id: FiltroStatus; label: string; status: StatusSolicitacao[] | 
   { id: "APROVADAS", label: "Aprovadas", status: ["APROVADA", "EM_TRANSITO"] },
   { id: "CONCLUIDA", label: "Concluídas", status: ["CONCLUIDA"] },
   { id: "RECUSADA", label: "Recusadas", status: ["RECUSADA"] },
+  { id: "CANCELADA", label: "Canceladas", status: ["CANCELADA"] },
 ];
 
 const PAGE_SIZE = 20;
@@ -82,6 +93,7 @@ export const SolicitacoesPage: React.FC = () => {
   const [isNovaOpen, setIsNovaOpen] = useState(false);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState<SolicitacaoViagem | null>(null);
 
   const statusSelecionados = useMemo(
     () => FILTROS.find((f) => f.id === filtro)?.status ?? undefined,
@@ -214,7 +226,8 @@ export const SolicitacoesPage: React.FC = () => {
         porStatusApi.APROVADA +
         porStatusApi.EM_TRANSITO +
         porStatusApi.CONCLUIDA +
-        porStatusApi.RECUSADA;
+        porStatusApi.RECUSADA +
+        (porStatusApi.CANCELADA ?? 0);
 
       return {
         total: totalApi,
@@ -337,6 +350,17 @@ export const SolicitacoesPage: React.FC = () => {
             >
               Reagendar
             </Button>
+          )}
+          {(s.status === "PENDENTE" || s.status === "APROVADA") && (
+            <button
+              type="button"
+              onClick={() => setCancelando(s)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              title="Cancelar solicitação"
+              aria-label={`Cancelar solicitação ${s.protocolo}`}
+            >
+              <Ban className="w-4 h-4" />
+            </button>
           )}
         </div>
       ),
@@ -627,6 +651,22 @@ export const SolicitacoesPage: React.FC = () => {
           setSelecionada(null);
           setAnalise({ solicitacao, modo });
         }}
+        onCancelar={(solicitacao) => {
+          setSelecionada(null);
+          setCancelando(solicitacao);
+        }}
+      />
+
+      <CancelarSolicitacaoModal
+        isOpen={cancelando !== null}
+        solicitacao={cancelando}
+        onClose={() => setCancelando(null)}
+        onConcluido={(mensagem) => {
+          setCancelando(null);
+          setSelecionada(null);
+          setMensagemSucesso(mensagem);
+          dispararRecarregamento();
+        }}
       />
     </div>
   );
@@ -668,7 +708,8 @@ const DetalhesSolicitacaoModal: React.FC<{
   isGestor: boolean;
   onClose: () => void;
   onDecidir: (solicitacao: SolicitacaoViagem, modo: "APROVAR" | "RECUSAR") => void;
-}> = ({ solicitacao: s, isGestor, onClose, onDecidir }) => (
+  onCancelar?: (solicitacao: SolicitacaoViagem) => void;
+}> = ({ solicitacao: s, isGestor, onClose, onDecidir, onCancelar }) => (
   <Modal
     isOpen={s !== null}
     onClose={onClose}
@@ -686,6 +727,15 @@ const DetalhesSolicitacaoModal: React.FC<{
               Aprovar e Alocar
             </Button>
           </>
+        )}
+        {s && (s.status === "PENDENTE" || s.status === "APROVADA") && onCancelar && (
+          <Button
+            variant="outline"
+            className="text-rose-600 border-rose-200 hover:bg-rose-50"
+            onClick={() => onCancelar(s)}
+          >
+            Cancelar Solicitação
+          </Button>
         )}
         <Button variant="outline" onClick={onClose}>
           Fechar
@@ -710,6 +760,13 @@ const DetalhesSolicitacaoModal: React.FC<{
           <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm">
             <span className="block font-semibold mb-0.5">Motivo da recusa</span>
             {s.motivoRecusa}
+          </div>
+        )}
+
+        {s.status === "CANCELADA" && s.motivoCancelamento && (
+          <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 text-sm">
+            <span className="block font-semibold mb-0.5">Motivo do cancelamento</span>
+            {s.motivoCancelamento}
           </div>
         )}
 

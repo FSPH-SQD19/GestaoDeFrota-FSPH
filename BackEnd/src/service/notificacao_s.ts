@@ -21,6 +21,7 @@ export const TIPOS_NOTIFICACAO = [
   "SOLICITACAO_URGENTE",
   "VIAGEM_APROVADA",
   "VIAGEM_RECUSADA",
+  "VIAGEM_CANCELADA",
   "CNH_VENCENDO",
   "DOCUMENTO_VEICULO_VENCENDO",
   "SVO_DESINFECCAO_CONCLUIDA",
@@ -698,6 +699,53 @@ export async function notificarSolicitacaoRecusada(dados: {
     ]);
   } catch (erro) {
     console.error("Falha ao notificar recusa da solicitação:", dados.id, erro);
+  }
+}
+
+export async function notificarSolicitacaoCancelada(dados: {
+  id: string;
+  protocolo: string;
+  solicitanteId: string;
+  motivoCancelamento: string;
+  canceladoPorId: string;
+  motoristaUsuarioId?: string | null;
+  destino?: string | null;
+}): Promise<void> {
+  invalidarCacheSincronizacaoNotificacoes();
+
+  try {
+    const itens: NovaNotificacaoInput[] = [];
+
+    if (dados.solicitanteId && dados.canceladoPorId !== dados.solicitanteId) {
+      itens.push({
+        usuarioId: dados.solicitanteId,
+        tipo: "VIAGEM_CANCELADA",
+        titulo: `Viagem ${dados.protocolo} cancelada`,
+        mensagem: `Sua solicitação ${dados.protocolo} foi cancelada pela gestão. Motivo: ${dados.motivoCancelamento}`,
+        referenciaTipo: "SOLICITACAO_VIAGEM",
+        referenciaId: dados.id,
+        chaveUnica: `canc-sol:${dados.id}:${dados.solicitanteId}`,
+      });
+    }
+
+    if (dados.motoristaUsuarioId && dados.motoristaUsuarioId !== dados.canceladoPorId) {
+      const destinoTexto = dados.destino ? ` para ${dados.destino}` : "";
+      itens.push({
+        usuarioId: dados.motoristaUsuarioId,
+        tipo: "VIAGEM_CANCELADA",
+        titulo: `Viagem ${dados.protocolo} cancelada`,
+        mensagem: `A viagem ${dados.protocolo}${destinoTexto} foi cancelada. Motivo: ${dados.motivoCancelamento}`,
+        referenciaTipo: "SOLICITACAO_VIAGEM",
+        referenciaId: dados.id,
+        chaveUnica: `canc-mot:${dados.id}:${dados.motoristaUsuarioId}`,
+      });
+    }
+
+    if (itens.length > 0) {
+      await registrarNotificacoesEmLote(itens);
+    }
+  } catch (erro) {
+    console.error("Falha ao notificar cancelamento da solicitação:", dados.id, erro);
   }
 }
 

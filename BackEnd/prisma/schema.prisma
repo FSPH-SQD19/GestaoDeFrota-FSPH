@@ -199,6 +199,7 @@ model SolicitacaoViagem {
   justificativa           String?
   observacoes             String?
   motivoRecusa            String?   @map("motivo_recusa")
+  motivoCancelamento      String?   @map("motivo_cancelamento")
   veiculoAlocadoId        String?   @map("veiculo_alocado_id") @db.Uuid
   motoristaAlocadoId      String?   @map("motorista_alocado_id") @db.Uuid
   criadoEm                DateTime  @default(now()) @map("criado_em")
