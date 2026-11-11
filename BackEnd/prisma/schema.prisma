@@ -228,7 +228,6 @@ model ExecucaoViagem {
 }
 
 model ChamadoSvo {
-  criadoEm           DateTime?                              @default(now()) @map("criado_em")
   id                 String                                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   numeroProtocolo    String?                                @unique @map("numero_protocolo") @db.VarChar(20)
   atendenteId        String?                                @map("atendente_id") @db.Uuid
@@ -237,7 +236,7 @@ model ChamadoSvo {
   localizacaoGeo     Unsupported("geometry(Point, 4326)")?  @map("localizacao_geo")
   relatoOcorrencia   String?                                @map("relato_ocorrencia")
   statusTriagem      String                                 @default("EM_ANALISE") @map("status_triagem") @db.VarChar(30)
-  criadoEm           DateTime                               @default(now()) @map("criado_em")
+  criadoEm           DateTime?                              @default(now()) @map("criado_em")
 
   atendente    Usuario?         @relation(fields: [atendenteId], references: [id])
   ordemColeta  OrdemColetaSvo?
