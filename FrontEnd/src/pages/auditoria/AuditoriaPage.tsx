@@ -90,8 +90,8 @@ export const AuditoriaPage: React.FC = () => {
   useEffect(() => {
     let ativo = true;
     const filtros: FiltrosAuditoria = {
-      pagina,
-      limite: 20,
+      page: pagina,
+      pageSize: 20,
     };
     if (tabelaAfetada !== "TODAS") filtros.tabelaAfetada = tabelaAfetada;
     if (acao !== "TODAS") filtros.acao = acao;
@@ -106,9 +106,9 @@ export const AuditoriaPage: React.FC = () => {
     void listarAuditoriaApi(filtros)
       .then((resposta) => {
         if (!ativo) return;
-        setLogs(resposta.itens);
-        setTotal(resposta.total);
-        setTotalPaginas(resposta.totalPaginas);
+        setLogs(resposta.data);
+        setTotal(resposta.meta.total);
+        setTotalPaginas(resposta.meta.totalPages);
         setErro(null);
       })
       .catch((err: unknown) => {
@@ -191,7 +191,8 @@ export const AuditoriaPage: React.FC = () => {
             <div className="flex flex-col text-xs">
               <span className="font-medium text-slate-900">{item.usuario.nome}</span>
               <span className="text-[11px] text-slate-500">
-                {item.usuario.perfil} · Mat. {item.usuario.matricula}
+                {item.usuario.setor ? `${item.usuario.setor} · ` : ""}
+                {item.usuario.email ?? ""}
               </span>
             </div>
           ) : (

@@ -4,9 +4,10 @@ import type { FiltrosAuditoria, ListaAuditoriaResposta } from "../types/auditori
 export function listarAuditoriaApi(
   params: FiltrosAuditoria = {},
 ): Promise<ListaAuditoriaResposta> {
-  const query = new URLSearchParams();
-  if (params.pagina) query.set("pagina", String(params.pagina));
-  if (params.limite) query.set("limite", String(params.limite));
+  const query = new URLSearchParams({
+    page: String(params.page ?? 1),
+    pageSize: String(params.pageSize ?? 20),
+  });
   if (params.tabelaAfetada?.trim() && params.tabelaAfetada !== "TODAS") {
     query.set("tabelaAfetada", params.tabelaAfetada.trim());
   }
@@ -26,8 +27,5 @@ export function listarAuditoriaApi(
     query.set("dataFim", params.dataFim.trim());
   }
 
-  const queryString = query.toString();
-  return apiRequest<ListaAuditoriaResposta>(
-    queryString ? `/auditoria?${queryString}` : "/auditoria",
-  );
+  return apiRequest<ListaAuditoriaResposta>(`/auditoria?${query}`, {});
 }

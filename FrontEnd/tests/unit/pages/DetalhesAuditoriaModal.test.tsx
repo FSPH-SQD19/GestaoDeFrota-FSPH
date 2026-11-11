@@ -20,8 +20,8 @@ describe("DetalhesAuditoriaModal", () => {
     usuario: {
       id: "usr-123",
       nome: "Carlos Gestor",
-      matricula: "123456",
-      perfil: "GESTOR",
+      email: "carlos@fsph.se.gov.br",
+      setor: "FROTA",
     },
   };
 
@@ -39,8 +39,8 @@ describe("DetalhesAuditoriaModal", () => {
     expect(screen.getByText("SOLICITACAO_VIAGEM")).toBeInTheDocument();
     expect(screen.getByText("solic-456")).toBeInTheDocument();
     expect(screen.getByText(/Carlos Gestor/i)).toBeInTheDocument();
-    expect(screen.getByText(/123456/i)).toBeInTheDocument();
-    expect(screen.getByText("GESTOR")).toBeInTheDocument();
+    expect(screen.getByText(/carlos@fsph.se.gov.br/i)).toBeInTheDocument();
+    expect(screen.getByText("FROTA")).toBeInTheDocument();
     expect(screen.getByTestId("payload-json")).toHaveTextContent("Hospital Regional de Itabaiana");
     expect(screen.getByTestId("payload-json")).toHaveTextContent("******");
   });

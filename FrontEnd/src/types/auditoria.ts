@@ -1,8 +1,8 @@
 export interface UsuarioAuditoria {
   id: string;
   nome: string;
-  matricula: string;
-  perfil: string;
+  email?: string;
+  setor?: string;
 }
 
 export interface ItemAuditoria {
@@ -17,8 +17,8 @@ export interface ItemAuditoria {
 }
 
 export interface FiltrosAuditoria {
-  pagina?: number;
-  limite?: number;
+  page?: number;
+  pageSize?: number;
   tabelaAfetada?: string;
   acao?: string;
   usuarioId?: string;
@@ -28,9 +28,11 @@ export interface FiltrosAuditoria {
 }
 
 export interface ListaAuditoriaResposta {
-  total: number;
-  pagina: number;
-  limite: number;
-  totalPaginas: number;
-  itens: ItemAuditoria[];
+  data: ItemAuditoria[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }

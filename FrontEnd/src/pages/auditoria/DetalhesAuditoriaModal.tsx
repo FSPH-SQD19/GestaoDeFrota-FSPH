@@ -125,18 +125,22 @@ export const DetalhesAuditoriaModal: React.FC<DetalhesAuditoriaModalProps> = ({
             {log.usuario ? (
               <>
                 <div>
-                  <p className="text-xs text-slate-500">Nome e Matrícula</p>
+                  <p className="text-xs text-slate-500">Nome e E-mail</p>
                   <p className="font-medium text-slate-800">
                     {log.usuario.nome}{" "}
-                    <span className="text-xs text-slate-500">({log.usuario.matricula})</span>
+                    {log.usuario.email && (
+                      <span className="text-xs text-slate-500">({log.usuario.email})</span>
+                    )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500">Perfil de Acesso</p>
-                  <Badge variant="info" size="sm">
-                    {log.usuario.perfil}
-                  </Badge>
-                </div>
+                {log.usuario.setor && (
+                  <div>
+                    <p className="text-xs text-slate-500">Setor</p>
+                    <Badge variant="info" size="sm">
+                      {log.usuario.setor}
+                    </Badge>
+                  </div>
+                )}
               </>
             ) : (
               <div>

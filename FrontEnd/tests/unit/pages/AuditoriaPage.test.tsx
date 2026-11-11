@@ -21,8 +21,8 @@ const mockLogs: ItemAuditoria[] = [
     usuario: {
       id: "usr-1",
       nome: "Mariana Silva",
-      matricula: "98765",
-      perfil: "SOLICITANTE",
+      email: "mariana@fsph.se.gov.br",
+      setor: "UTI",
     },
   },
   {
@@ -36,18 +36,20 @@ const mockLogs: ItemAuditoria[] = [
     usuario: {
       id: "usr-2",
       nome: "Roberto Gestor",
-      matricula: "11223",
-      perfil: "GESTOR",
+      email: "roberto@fsph.se.gov.br",
+      setor: "FROTA",
     },
   },
 ];
 
 const mockResposta: ListaAuditoriaResposta = {
-  total: 2,
-  pagina: 1,
-  limite: 20,
-  totalPaginas: 1,
-  itens: mockLogs,
+  data: mockLogs,
+  meta: {
+    total: 2,
+    page: 1,
+    pageSize: 20,
+    totalPages: 1,
+  },
 };
 
 describe("AuditoriaPage", () => {
@@ -90,7 +92,7 @@ describe("AuditoriaPage", () => {
       expect(listarAuditoriaApi).toHaveBeenCalledWith(
         expect.objectContaining({
           busca: "sol-100",
-          pagina: 1,
+          page: 1,
         }),
       );
     });
@@ -115,11 +117,13 @@ describe("AuditoriaPage", () => {
 
   it("exibe mensagem quando não há logs encontrados", async () => {
     vi.mocked(listarAuditoriaApi).mockResolvedValueOnce({
-      total: 0,
-      pagina: 1,
-      limite: 20,
-      totalPaginas: 1,
-      itens: [],
+      data: [],
+      meta: {
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      },
     });
 
     render(<AuditoriaPage />);
