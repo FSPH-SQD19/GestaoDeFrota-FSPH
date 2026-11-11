@@ -30,6 +30,11 @@ const MinhasViagensPage = lazy(() =>
     default: module.MinhasViagensPage,
   })),
 );
+const MinhasColetasSvoPage = lazy(() =>
+  import("./pages/svo/MinhasColetasSvoPage").then((module) => ({
+    default: module.MinhasColetasSvoPage,
+  })),
+);
 const MotoristasPage = lazy(() =>
   import("./pages/motorista/MotoristaPage").then((module) => ({ default: module.MotoristasPage })),
 );
@@ -107,6 +112,7 @@ const AppContent: React.FC = () => {
             {currentTab === "veiculos" && <VeiculosPage />}
 
             {currentTab === "viagens" && <MinhasViagensPage />}
+            {currentTab === "coletasSvo" && <MinhasColetasSvoPage />}
 
             {currentTab === "motoristas" && <MotoristasPage />}
 

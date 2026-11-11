@@ -181,12 +181,12 @@ beforeEach(() => {
   };
 });
 
-async function request(method: string, path: string, body?: unknown) {
+async function request(method: string, path: string, body?: unknown, perfil = "SVO") {
   const resposta = await fetch(`${url}${path}`, {
     method,
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${signTestToken({ perfis: ["SVO"] }, "svo-fluxo-teste", { subject: usuarioId })}`,
+      authorization: `Bearer ${signTestToken({ perfis: [perfil] }, "svo-fluxo-teste", { subject: usuarioId })}`,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -320,5 +320,45 @@ describe("fluxo HTTP SVO com controladores e serviços reais", () => {
     expect((await etapa("EM_DESLOCAMENTO")).status).toBe(404);
     expect((await cancelar()).status).toBe(404);
     expect((await etapa("CONCLUIDA")).status).toBe(400);
+  });
+
+  it("permite ao motorista listar a coleta atribuída e avançar as três etapas", async () => {
+    await reservar();
+    const minhas = await request("GET", "/ordens-coleta/minhas", undefined, "MOTORISTA");
+    expect(minhas.status).toBe(200);
+    expect(minhas.json).toEqual(
+      expect.objectContaining({
+        data: [expect.objectContaining({ id: ordemId, motoristaId })],
+      }),
+    );
+    expect((await request("GET", "/indicadores", undefined, "MOTORISTA")).status).toBe(403);
+    const saida = await request(
+      "PATCH",
+      `/ordens-coleta/${ordemId}/etapa`,
+      { status: "EM_DESLOCAMENTO" },
+      "MOTORISTA",
+    );
+    expect(saida.status).toBe(200);
+    expect(saida.json).toMatchObject({ status: "EM_DESLOCAMENTO" });
+    expect(
+      (
+        await request(
+          "PATCH",
+          `/ordens-coleta/${ordemId}/etapa`,
+          { status: "NO_LOCAL" },
+          "MOTORISTA",
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await request(
+          "PATCH",
+          `/ordens-coleta/${ordemId}/etapa`,
+          { status: "ENTREGUE_SVO" },
+          "MOTORISTA",
+        )
+      ).json,
+    ).toMatchObject({ status: "ENTREGUE_SVO" });
   });
 });

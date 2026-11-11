@@ -21,6 +21,7 @@ vi.mock("../../../src/services/notificacoesService", () => ({
 import {
   obterChamadosSvo,
   obterEscalasEmAndamentoSvo,
+  obterMinhasColetasSvo,
   criarOrdemColetaSvo,
   avancarEtapaColetaSvo,
   cancelarOrdemColetaSvo,
@@ -86,6 +87,36 @@ describe("serviço SVO - validação das respostas da API", () => {
     });
     await cancelarOrdemColetaSvo(ordem.id);
     expect(mocks.patch).toHaveBeenCalledWith("/api/v1/svo/ordens-coleta/ordem-1/cancelar");
+  });
+
+  it("valida as coletas atribuídas ao motorista", async () => {
+    const ordem = {
+      id: "ordem-1",
+      chamadoId: "chamado-1",
+      veiculoId: "viatura-1",
+      motoristaId: "motorista-1",
+      status: "EM_DESLOCAMENTO",
+      numeroDeclaracaoObito: null,
+      dataHoraSaida: "2026-11-10T12:10:00.000Z",
+      chamado: {
+        id: "chamado-1",
+        numeroProtocolo: "SVO-2026-0007",
+        nomeFalecido: "Pessoa atendida",
+        enderecoOcorrencia: "Rua das Flores, 100",
+        criadoEm: "2026-11-10T12:00:00.000Z",
+        statusTriagem: "APROVADO",
+      },
+    };
+    mocks.get.mockResolvedValue({
+      data: {
+        data: [ordem],
+        meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+      },
+    });
+    await expect(obterMinhasColetasSvo()).resolves.toEqual([ordem]);
+    expect(mocks.get).toHaveBeenCalledWith("/api/v1/svo/ordens-coleta/minhas", {
+      params: { page: 1, pageSize: 100 },
+    });
   });
 
   it("retorna chamados e metadados quando a resposta está no formato esperado", async () => {

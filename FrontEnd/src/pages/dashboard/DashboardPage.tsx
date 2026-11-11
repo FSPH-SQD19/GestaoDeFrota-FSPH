@@ -56,7 +56,11 @@ interface DashboardData {
   veiculos: ContagemFrota & { porTipoFrota: Record<TipoFrota, ContagemFrota> };
   solicitacoes: SolicitacoesResponse;
   viagensDoDia: number;
-  svo: { chamadosAtivos: number; slaMedioRespostaMinutos: number | null };
+  svo: {
+    chamadosAtivos: number;
+    slaMedioRespostaMinutos: number | null;
+    slaMedioEntregaMinutos: number | null;
+  };
   alertasOperacionais: AlertasOperacionais;
 }
 
@@ -189,8 +193,18 @@ export const DashboardPage: React.FC = () => {
         dados?.svo.slaMedioRespostaMinutos == null
           ? "—"
           : `${slaFmt.format(dados.svo.slaMedioRespostaMinutos)} min`,
-      description: "Tempo médio até a chegada local",
+      description: "Chamado → chegada ao local",
       icon: Timer,
+      tone: "slate",
+    },
+    {
+      label: "SLA médio de entrega",
+      value:
+        dados?.svo.slaMedioEntregaMinutos == null
+          ? "—"
+          : `${slaFmt.format(dados.svo.slaMedioEntregaMinutos)} min`,
+      description: "Chamado → entrega no SVO",
+      icon: Clock3,
       tone: "slate",
     },
     {

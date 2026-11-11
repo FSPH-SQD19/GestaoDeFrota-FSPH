@@ -42,9 +42,21 @@ export interface ChamadoSvo {
   enderecoOcorrencia: string | null;
   relatoOcorrencia: string | null;
   statusTriagem: StatusTriagem;
+  criadoEm?: string | null;
   justificativaTriagem?: string | null;
   atendente?: { id: string; nome: string } | null;
   ordemColeta?: OrdemColetaSvo | null;
+}
+
+export interface MinhaColetaSvo extends OrdemColetaSvo {
+  chamado: {
+    id: string;
+    numeroProtocolo: string | null;
+    nomeFalecido: string | null;
+    enderecoOcorrencia: string | null;
+    criadoEm: string;
+    statusTriagem: StatusTriagem;
+  };
 }
 
 export interface ViaturaSvo {
@@ -100,6 +112,8 @@ export interface IndicadoresSvo {
   coletasEmAndamento: number;
   viaturasDisponiveis: number;
   totalViaturas: number;
+  tempoMedioChegadaLocalMinutos: number | null;
+  tempoMedioEntregaSvoMinutos: number | null;
 }
 
 export interface PaginaChamadosSvo {
@@ -122,6 +136,8 @@ const respostaIndicadoresSvoSchema = z
     coletasEmAndamento: z.number().int().nonnegative(),
     viaturasDisponiveis: z.number().int().nonnegative(),
     totalViaturas: z.number().int().nonnegative(),
+    tempoMedioChegadaLocalMinutos: z.number().nonnegative().nullable(),
+    tempoMedioEntregaSvoMinutos: z.number().nonnegative().nullable(),
   })
   .passthrough();
 
@@ -169,6 +185,7 @@ const chamadoSvoSchema = z
     enderecoOcorrencia: z.string().nullable(),
     relatoOcorrencia: z.string().nullable(),
     statusTriagem: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]),
+    criadoEm: z.iso.datetime({ offset: true }).nullable().optional(),
     justificativaTriagem: z.string().nullable().optional(),
     atendente: z.object({ id: z.string(), nome: z.string() }).nullable().optional(),
     ordemColeta: ordemColetaSvoSchema.nullable().optional(),
@@ -274,9 +291,35 @@ export function extrairErroSvo(
   return respostaDeErro(erro, padrao);
 }
 
+const minhaColetaSvoSchema = ordemColetaSvoSchema
+  .extend({
+    chamado: z
+      .object({
+        id: z.string(),
+        numeroProtocolo: z.string().nullable(),
+        nomeFalecido: z.string().nullable(),
+        enderecoOcorrencia: z.string().nullable(),
+        criadoEm: z.iso.datetime({ offset: true }),
+        statusTriagem: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
 export async function obterIndicadoresSvo(): Promise<IndicadoresSvo> {
   const { data } = await api.get<unknown>(`${BASE}/indicadores`);
   return validarRespostaSvo(respostaIndicadoresSvoSchema, data, "indicadores");
+}
+
+const paginaMinhasColetasSvoSchema = paginaSvoSchema(minhaColetaSvoSchema);
+const STATUS_COLETA_ATIVA = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"];
+
+export async function obterMinhasColetasSvo(): Promise<MinhaColetaSvo[]> {
+  const { data } = await api.get<unknown>(`${BASE}/ordens-coleta/minhas`, {
+    params: { page: 1, pageSize: 100 },
+  });
+  const pagina = validarRespostaSvo(paginaMinhasColetasSvoSchema, data, "minhas-coletas");
+  return pagina.data.filter((ordem) => STATUS_COLETA_ATIVA.includes(ordem.status));
 }
 
 export async function obterChamadosSvo(params?: {

@@ -258,7 +258,9 @@ CNHs válidas até hoje não são consideradas vencidas. Os indicadores excluem 
 
 ## Central SVO
 
-A central usa o cliente HTTP compartilhado e os endpoints em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, emissão, avanço de etapa, cancelamento e desinfecção recarregam os dados da API após o sucesso.
+A central usa o cliente HTTP compartilhado e os endpoints em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Os indicadores exibem as médias de SLA (`tempoMedioChegadaLocalMinutos` e `tempoMedioEntregaSvoMinutos`); a fila mostra o tempo decorrido desde `criadoEm` nos chamados ainda abertos. Dashboard e Relatórios (ADMIN/GESTOR) leem o mesmo SLA em `/dashboard/resumo` (`svo.slaMedioRespostaMinutos` e `svo.slaMedioEntregaMinutos`). Registro, triagem, emissão, avanço de etapa, cancelamento e desinfecção recarregam os dados da API após o sucesso.
+
+O perfil `MOTORISTA` acessa **Coletas SVO**, que lista `GET /ordens-coleta/minhas` e avança a próxima etapa em `PATCH /ordens-coleta/:id/etapa`. A tela segue o padrão mobile de Minhas Viagens: lista em cartões, botão da próxima ação e atualização após o sucesso. Enquanto a aba permanece visível, a lista é consultada a cada 15 s para refletir atribuições e etapas novas sem recarregar a tela.
 
 A emissão usa `POST /ordens-coleta` com o ID do chamado e reserva viatura, capacidade e motorista em `AGUARDANDO_DESPACHO`. A fila oferece apenas a próxima ação: **Registrar saída**, **Registrar chegada ao local** e **Registrar entrega ao SVO**, usando o ID da ordem em `PATCH /ordens-coleta/:id/etapa`. Ordens antigas em `EM_ANDAMENTO` começam pela chegada. Antes da saída, **Cancelar ordem** chama `PATCH /ordens-coleta/:id/cancelar` e mantém a ordem cancelada no histórico. Os detalhes exibem os horários de saída, chegada e entrega no fuso de São Paulo.
 

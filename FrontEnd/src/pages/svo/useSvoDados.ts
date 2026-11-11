@@ -23,6 +23,8 @@ const INDICADORES_VAZIOS: IndicadoresSvo = {
   coletasEmAndamento: 0,
   viaturasDisponiveis: 0,
   totalViaturas: 0,
+  tempoMedioChegadaLocalMinutos: null,
+  tempoMedioEntregaSvoMinutos: null,
 };
 
 export function useSvoDados() {

@@ -79,7 +79,8 @@ export async function criarOrdemSvoController(req: Request, res: Response) {
 export async function avancarEtapaColetaSvoController(req: Request, res: Response) {
   const id = validarId(req.params.id as string | undefined);
   const { status } = validar(avancarEtapaSchema, req.body ?? {});
-  return res.json(await avancarEtapaColetaSvo(id, status, usuarioAutenticado(res).id));
+  const usuario = usuarioAutenticado(res);
+  return res.json(await avancarEtapaColetaSvo(id, status, usuario.id, usuario.perfis));
 }
 
 export async function cancelarOrdemSvoController(req: Request, res: Response) {

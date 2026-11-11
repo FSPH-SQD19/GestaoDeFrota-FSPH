@@ -19,6 +19,11 @@ import {
 const router = Router();
 router.use(authenticate);
 router.get("/ordens-coleta/minhas", requireRole("MOTORISTA"), listarMinhasOrdensSvoController);
+router.patch(
+  "/ordens-coleta/:id/etapa",
+  requireRole("ADMIN", "SVO", "MOTORISTA"),
+  avancarEtapaColetaSvoController,
+);
 router.use(requireRole("ADMIN", "SVO"));
 
 router.get("/indicadores", indicadoresSvoController);
@@ -28,7 +33,6 @@ router.get("/motoristas", listarMotoristasSvoController);
 
 router.post("/chamados", registrarChamadoSvoController);
 router.post("/ordens-coleta", criarOrdemSvoController);
-router.patch("/ordens-coleta/:id/etapa", avancarEtapaColetaSvoController);
 router.patch("/ordens-coleta/:id/cancelar", cancelarOrdemSvoController);
 router.post("/chamados/:id/ordens", emitirOrdemSvoController);
 

@@ -71,7 +71,6 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
           },
         },
         viagensDoDia: 3,
-        svo: { chamadosAtivos: 2, slaMedioRespostaMinutos: 17.5 },
         alertasOperacionais: {
           total: 1,
           cnh: [],
@@ -95,6 +94,11 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
             porStatus: { PENDENTE: 25, APROVADA: 10, EM_TRANSITO: 5, CONCLUIDA: 355, RECUSADA: 5 },
           },
         },
+        svo: {
+          chamadosAtivos: 4,
+          slaMedioRespostaMinutos: 18,
+          slaMedioEntregaMinutos: 45,
+        },
       },
     });
   });
@@ -104,6 +108,10 @@ test("dashboard exibe os totais de toda a frota e atualiza pela consulta de resu
   await expect(page.getByText("400", { exact: true })).toBeVisible();
   await expect(page.getByText("Veículo ABC1234 — CRLV")).toBeVisible();
   await expect(page.getByText("Vence hoje")).toBeVisible();
+  await expect(page.getByText("SLA médio de resposta")).toBeVisible();
+  await expect(page.getByText("18 min", { exact: true })).toBeVisible();
+  await expect(page.getByText("SLA médio de entrega")).toBeVisible();
+  await expect(page.getByText("45 min", { exact: true })).toBeVisible();
   total = 160;
   await page.getByRole("button", { name: "Atualizar", exact: true }).click();
   await expect(page.getByText("160", { exact: true })).toBeVisible();
@@ -310,6 +318,8 @@ for (const cancelar of [false, true]) {
               : 0,
             viaturasDisponiveis: viatura.status === "DISPONIVEL" ? 1 : 0,
             totalViaturas: 1,
+            tempoMedioChegadaLocalMinutos: 22,
+            tempoMedioEntregaSvoMinutos: 54,
           },
         });
       if (caminho.endsWith("/viaturas")) return route.fulfill({ json: [viatura] });
@@ -442,6 +452,9 @@ for (const cancelar of [false, true]) {
     });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Central de operações SVO" })).toBeVisible();
+    await expect(page.getByText("Tempo médio até o local")).toBeVisible();
+    await expect(page.getByText("22 min", { exact: true })).toBeVisible();
+    await expect(page.getByText("54 min", { exact: true })).toBeVisible();
     await expect(page).toHaveURL("/");
     await expect(page).toHaveTitle(/Frota/i);
     await expect(page.locator("vite-error-overlay")).toHaveCount(0);
@@ -506,3 +519,69 @@ for (const cancelar of [false, true]) {
     await page.screenshot({ path: testInfo.outputPath("svo.png"), fullPage: true });
   });
 }
+
+test("motorista vê coletas SVO atribuídas e avança a etapa no celular", async ({
+  page,
+}, testInfo) => {
+  const erros: string[] = [];
+  page.on("pageerror", (erro) => erros.push(erro.message));
+  await sessao(page, "MOTORISTA");
+  const ordem = {
+    id: "ordem-motorista",
+    chamadoId: "chamado-motorista",
+    veiculoId: "viatura-svo",
+    motoristaId: "motorista-logado",
+    status: "AGUARDANDO_DESPACHO",
+    numeroDeclaracaoObito: null,
+    dataHoraSaida: null,
+    dataHoraChegadaLocal: null,
+    dataHoraEntregaSvo: null,
+    veiculo: {
+      id: "viatura-svo",
+      placa: "QMA4J28",
+      modelo: "S10 SVO",
+      status: "DISPONIVEL",
+      capacidadeMaxima: 4,
+    },
+    chamado: {
+      id: "chamado-motorista",
+      numeroProtocolo: "SVO-2026-0009",
+      nomeFalecido: "Pessoa atendida",
+      enderecoOcorrencia: "Rua das Flores, 100",
+      criadoEm: "2026-11-10T12:00:00.000Z",
+      statusTriagem: "APROVADO",
+    },
+  };
+  await page.route("**/api/v1/svo/ordens-coleta/minhas?*", (route) => {
+    const ativas = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"];
+    const data = ativas.includes(ordem.status) ? [ordem] : [];
+    return route.fulfill({
+      json: { data, meta: { page: 1, pageSize: 100, total: data.length, totalPages: 1 } },
+    });
+  });
+  await page.route("**/api/v1/svo/ordens-coleta/ordem-motorista/etapa", (route) => {
+    const { status } = route.request().postDataJSON() as { status: string };
+    ordem.status = status;
+    return route.fulfill({ json: ordem });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const menu = page.getByRole("button", { name: "Abrir menu" });
+  if (await menu.isVisible()) await menu.click();
+  await page.getByRole("button", { name: "Coletas SVO", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Coletas SVO" })).toBeVisible();
+  await expect(page.getByText("SVO-2026-0009")).toBeVisible();
+  await page.getByRole("button", { name: "Registrar saída", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Etapa da coleta SVO-2026-0009");
+  await page.getByRole("button", { name: "Registrar chegada ao local", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Registrar entrega ao SVO", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Registrar entrega ao SVO", exact: true }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Coleta SVO-2026-0009 entregue" }),
+  ).toBeVisible();
+  await expect(page.getByText("Nenhuma coleta SVO ativa atribuída a você.")).toBeVisible();
+  expect(erros).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("coletas-svo-motorista.png"), fullPage: true });
+});

@@ -16,6 +16,7 @@ vi.mock("../../../src/service/svo_s", async (importOriginal) => ({
   listarMinhasOrdensSvo: vi.fn(async () => ({ data: [], meta: { total: 0 } })),
   indicadoresSvo: vi.fn(async () => ({ total: 0 })),
   listarChamadosSvo: vi.fn(async () => ({ data: [], meta: { total: 0 } })),
+  listarMinhasColetasSvo: vi.fn(async () => []),
   listarViaturasSvo: vi.fn(async () => []),
   listarMotoristasSvoDisponiveis: vi.fn(async () => []),
   registrarChamadoSvo: vi.fn(async () => ({ id: "chamado" })),
@@ -67,7 +68,6 @@ describe("rotas canônicas SVO", () => {
     ],
     ["POST", `/chamados/${id}/ordens`, { veiculoId: id, motoristaId: id }, 201],
     ["POST", "/ordens-coleta", { chamadoId: id, veiculoId: id, motoristaId: id }, 201],
-    ["PATCH", `/ordens-coleta/${id}/etapa`, { status: "EM_DESLOCAMENTO" }, 200],
     ["PATCH", `/ordens-coleta/${id}/cancelar`, undefined, 200],
     ["PATCH", `/chamados/${id}/triagem`, { decisao: "APROVAR" }, 200],
     ["PATCH", `/chamados/${id}/concluir`, undefined, 200],
@@ -89,6 +89,20 @@ describe("rotas canônicas SVO", () => {
       (await request("PATCH", `/chamados/${id}/triagem`, "SVO", { decisao: "RECUSAR" })).status,
     ).toBe(400);
     expect((await request("GET", "/chamados?page=100000000000", "SVO")).status).toBe(400);
+  });
+  it("libera a listagem das coletas atribuídas e o avanço de etapa ao motorista", async () => {
+    expect((await request("GET", "/ordens-coleta/minhas", null)).status).toBe(401);
+    expect((await request("GET", "/ordens-coleta/minhas", "SVO")).status).toBe(403);
+    expect((await request("GET", "/ordens-coleta/minhas", "ADMIN")).status).toBe(403);
+    expect((await request("GET", "/ordens-coleta/minhas", "MOTORISTA")).status).toBe(200);
+    expect(
+      (await request("PATCH", `/ordens-coleta/${id}/etapa`, "MOTORISTA", { status: "NO_LOCAL" }))
+        .status,
+    ).toBe(200);
+    expect(
+      (await request("PATCH", `/ordens-coleta/${id}/etapa`, "SVO", { status: "NO_LOCAL" })).status,
+    ).toBe(200);
+    expect((await request("GET", "/indicadores", "MOTORISTA")).status).toBe(403);
   });
 });
 

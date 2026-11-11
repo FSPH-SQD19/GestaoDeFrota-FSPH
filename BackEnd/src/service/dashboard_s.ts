@@ -27,7 +27,7 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
   const limiteCnh = new Date(`${hoje}T00:00:00Z`);
   limiteCnh.setUTCDate(limiteCnh.getUTCDate() + DIAS_ALERTA_NOTIFICACAO);
 
-  const [grupos, solicitacoes, alertas, viagensDoDia, chamadosAtivos, respostas, motoristas] =
+  const [grupos, solicitacoes, alertas, viagensDoDia, chamadosAtivos, slaSvo, motoristas] =
     await Promise.all([
       prisma.veiculo.groupBy({
         by: ["tipoFrota", "status", "ativo"],
@@ -95,7 +95,8 @@ export async function obterResumoDashboard(usuario: UsuarioAutenticado, agora = 
     viagensDoDia,
     svo: {
       chamadosAtivos,
-      slaMedioRespostaMinutos: respostas.tempoMedioChamadoChegadaLocalMinutos,
+      slaMedioRespostaMinutos: slaSvo.tempoMedioChamadoChegadaLocalMinutos,
+      slaMedioEntregaMinutos: slaSvo.tempoMedioChamadoEntregaSvoMinutos,
     },
     alertas,
     alertasOperacionais: { total: cnh.length + documentos.length, cnh, documentos },
