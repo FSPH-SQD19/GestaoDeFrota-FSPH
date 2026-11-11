@@ -183,6 +183,96 @@ function construirWhereChamados(
   return { AND: condicoes };
 }
 
+export const listarMinhasOrdensSvoSchema = z
+  .object({
+    status: z
+      .enum([
+        "AGUARDANDO_DESPACHO",
+        "EM_ANDAMENTO",
+        "EM_DESLOCAMENTO",
+        "NO_LOCAL",
+        "ENTREGUE_SVO",
+        "CONCLUIDA",
+        "CANCELADA",
+      ])
+      .optional(),
+    page: z.coerce.number().int().min(1).max(1000000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  })
+  .strict();
+
+export async function listarMinhasOrdensSvo(
+  usuarioId: string,
+  filtros: z.infer<typeof listarMinhasOrdensSvoSchema>,
+) {
+  const where: Prisma.OrdemColetaSvoWhereInput = {
+    motorista: { is: { usuarioId, ativo: true } },
+    ...(filtros.status ? { status: filtros.status } : {}),
+  };
+  const [data, total] = await Promise.all([
+    prisma.ordemColetaSvo.findMany({
+      where,
+      include: {
+        chamado: true,
+        veiculo: { select: { id: true, placa: true, modelo: true } },
+      },
+      orderBy: [{ chamado: { criadoEm: "desc" } }, { id: "desc" }],
+      skip: (filtros.page - 1) * filtros.pageSize,
+      take: filtros.pageSize,
+    }),
+    prisma.ordemColetaSvo.count({ where }),
+  ]);
+  return {
+    data,
+    meta: {
+      page: filtros.page,
+      pageSize: filtros.pageSize,
+      total,
+      totalPages: Math.ceil(total / filtros.pageSize),
+    },
+  };
+}
+
+export async function obterSlaRespostaSvo() {
+  const ordensSla = await prisma.ordemColetaSvo.findMany({
+    where: { status: { not: "CANCELADA" }, chamado: { criadoEm: { not: null } } },
+    select: {
+      chamado: { select: { criadoEm: true } },
+      dataHoraChegadaLocal: true,
+      dataHoraEntregaSvo: true,
+    },
+  });
+
+  const chegada: number[] = [];
+  const entrega: number[] = [];
+  for (const ordem of ordensSla) {
+    const abertura = ordem.chamado.criadoEm?.getTime();
+    if (abertura === undefined || !Number.isFinite(abertura)) continue;
+    const local = ordem.dataHoraChegadaLocal?.getTime();
+    const svo = ordem.dataHoraEntregaSvo?.getTime();
+    if (local !== undefined && Number.isFinite(local) && local >= abertura) {
+      chegada.push((local - abertura) / 60000);
+    }
+    if (
+      svo !== undefined &&
+      Number.isFinite(svo) &&
+      svo >= abertura &&
+      (local === undefined || (Number.isFinite(local) && local >= abertura && svo >= local))
+    ) {
+      entrega.push((svo - abertura) / 60000);
+    }
+  }
+  const media = (tempos: number[]) =>
+    tempos.length ? tempos.reduce((soma, tempo) => soma + tempo, 0) / tempos.length : null;
+
+  return {
+    tempoMedioChamadoChegadaLocalMinutos: media(chegada),
+    tempoMedioChamadoEntregaSvoMinutos: media(entrega),
+    amostrasChegadaLocal: chegada.length,
+    amostrasEntregaSvo: entrega.length,
+  };
+}
+
 export async function indicadoresSvo() {
   const [
     total,
@@ -193,6 +283,7 @@ export async function indicadoresSvo() {
     coletasEmAndamento,
     viaturasDisponiveis,
     totalViaturas,
+    sla,
   ] = await Promise.all([
     prisma.chamadoSvo.count(),
     prisma.chamadoSvo.count({ where: { statusTriagem: "EM_ANALISE" } }),
@@ -204,9 +295,11 @@ export async function indicadoresSvo() {
     prisma.ordemColetaSvo.count({ where: { status: { in: [...STATUS_ORDEM_EM_COLETA] } } }),
     prisma.veiculo.count({ where: { tipoFrota: "SVO", ativo: true, status: "DISPONIVEL" } }),
     prisma.veiculo.count({ where: { tipoFrota: "SVO", ativo: true } }),
+    obterSlaRespostaSvo(),
   ]);
 
   return {
+    ...sla,
     total,
     emAnalise,
     aguardandoOrdem,
@@ -282,6 +375,7 @@ export async function registrarChamadoSvo(
         ...input,
         numeroProtocolo,
         atendenteId,
+        criadoEm: agora,
       },
       include: incluirRelacoesChamado,
     });

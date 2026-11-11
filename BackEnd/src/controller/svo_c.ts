@@ -4,6 +4,8 @@ import { z } from "zod";
 import { usuarioAutenticado } from "../middleware/http_m";
 import { HttpError } from "../lib/http_error";
 import {
+  listarMinhasOrdensSvo,
+  listarMinhasOrdensSvoSchema,
   criarChamadoSchema,
   criarOrdemSchema,
   avancarEtapaSchema,
@@ -111,4 +113,13 @@ export async function listarViaturasSvoController(_req: Request, res: Response) 
 
 export async function listarMotoristasSvoController(_req: Request, res: Response) {
   return res.json(await listarMotoristasSvoDisponiveis());
+}
+
+export async function listarMinhasOrdensSvoController(req: Request, res: Response) {
+  return res.json(
+    await listarMinhasOrdensSvo(
+      usuarioAutenticado(res).id,
+      validar(listarMinhasOrdensSvoSchema, req.query),
+    ),
+  );
 }

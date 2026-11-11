@@ -24,7 +24,7 @@ vi.mock("../../../src/lib/prisma", () => ({
     documentoVeiculo: { findMany: mocks.listarDocumentos },
     motorista: { findMany: mocks.listarMotoristas },
     chamadoSvo: { count: mocks.contarChamados },
-    $queryRaw: mocks.consultarSla,
+    ordemColetaSvo: { findMany: mocks.consultarSla },
     solicitacaoViagem: {
       findMany: mocks.listarSolicitacoes,
       count: mocks.contarSolicitacoes,
@@ -48,7 +48,7 @@ beforeEach(() => {
   mocks.listarDocumentos.mockResolvedValue([]);
   mocks.listarMotoristas.mockResolvedValue([]);
   mocks.contarChamados.mockResolvedValue(0);
-  mocks.consultarSla.mockResolvedValue([{ slaMedioRespostaMinutos: null }]);
+  mocks.consultarSla.mockResolvedValue([]);
   vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
   mocks.veiculosPorStatus.mockResolvedValue([
     { tipoFrota: "ADMINISTRATIVA", ativo: true, status: "DISPONIVEL", _count: { _all: 120 } },
@@ -135,7 +135,14 @@ describe("GET /api/v1/dashboard/resumo", () => {
       where.dataHoraPretendida ? 3 : 400,
     );
     mocks.contarChamados.mockResolvedValue(4);
-    mocks.consultarSla.mockResolvedValue([{ slaMedioRespostaMinutos: 17.5 }]);
+    mocks.consultarSla.mockResolvedValue([
+      {
+        chamado: { criadoEm: new Date("2026-11-06T10:00:00Z") },
+        dataHoraSaida: new Date("2026-11-06T10:10:00Z"),
+        dataHoraChegadaLocal: new Date("2026-11-06T10:17:30Z"),
+        dataHoraEntregaSvo: new Date("2026-11-06T11:00:00Z"),
+      },
+    ]);
     try {
       const resposta = await chamar(["ADMIN"]);
       expect(resposta.status).toBe(200);

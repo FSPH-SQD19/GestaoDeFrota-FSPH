@@ -382,6 +382,7 @@ export async function popularDemonstracao(prisma: PrismaClient) {
         await tx.chamadoSvo.create({
           data: {
             id: callId,
+            criadoEm: day(i === 3 ? 0 : -2, 7),
             numeroProtocolo: await nextProtocol("SVO"),
             atendenteId: user("svo"),
             nomeFalecido: `Pessoa fictícia DEMO ${i + 1}`,

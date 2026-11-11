@@ -13,6 +13,7 @@ vi.mock("../../../src/config/auth", () => ({
 vi.mock("../../../src/lib/prisma", () => ({ prisma: {} }));
 vi.mock("../../../src/service/svo_s", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../src/service/svo_s")>()),
+  listarMinhasOrdensSvo: vi.fn(async () => ({ data: [], meta: { total: 0 } })),
   indicadoresSvo: vi.fn(async () => ({ total: 0 })),
   listarChamadosSvo: vi.fn(async () => ({ data: [], meta: { total: 0 } })),
   listarViaturasSvo: vi.fn(async () => []),
@@ -88,5 +89,23 @@ describe("rotas canônicas SVO", () => {
       (await request("PATCH", `/chamados/${id}/triagem`, "SVO", { decisao: "RECUSAR" })).status,
     ).toBe(400);
     expect((await request("GET", "/chamados?page=100000000000", "SVO")).status).toBe(400);
+  });
+});
+
+describe("ordens SVO do motorista", () => {
+  it("exige autenticação e perfil MOTORISTA", async () => {
+    expect((await request("GET", "/ordens-coleta/minhas", null)).status).toBe(401);
+    expect((await request("GET", "/ordens-coleta/minhas", "SVO")).status).toBe(403);
+    expect((await request("GET", "/ordens-coleta/minhas", "MOTORISTA")).status).toBe(200);
+    const { listarMinhasOrdensSvo } = await import("../../../src/service/svo_s");
+    expect(listarMinhasOrdensSvo).toHaveBeenCalledWith(id, { page: 1, pageSize: 10 });
+  });
+  it("não libera ao motorista as operações administrativas", async () => {
+    for (const path of ["/indicadores", "/chamados", "/viaturas", "/motoristas"]) {
+      expect((await request("GET", path, "MOTORISTA")).status).toBe(403);
+    }
+    expect(
+      (await request("GET", "/ordens-coleta/minhas?motoristaId=outro", "MOTORISTA")).status,
+    ).toBe(400);
   });
 });
