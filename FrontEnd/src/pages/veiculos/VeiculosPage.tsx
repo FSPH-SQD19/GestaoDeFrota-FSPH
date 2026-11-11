@@ -4,7 +4,9 @@ import { Table, Badge, Button, Input, Select, Modal, Card } from "../../componen
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
-import { veiculoSchema } from "./veiculoRules";
+import { veiculoSchema, kmRevisaoFormularioSchema } from "./veiculoRules";
+import { IndicadorRevisao } from "./IndicadorRevisao";
+import { RevisaoVeiculo } from "./RevisaoVeiculo";
 import AlertaDocumentos from "./AlertaDocumentos";
 
 type TipoFrotaApi = "ADMINISTRATIVA" | "SVO";
@@ -29,6 +31,8 @@ interface VeiculoApi {
   combustivel: string | null;
   ano: number | null;
   status: StatusVeiculoApi;
+  odometroAtual: number;
+  kmProximaRevisao: number | null;
 }
 
 interface VeiculoItem {
@@ -41,6 +45,8 @@ interface VeiculoItem {
   combustivel: string;
   ano: number | null;
   status: "Disponível" | "Em viagem" | "Manutenção" | "Desinfecção";
+  odometroAtual: number;
+  kmProximaRevisao: number | null;
 }
 
 interface FormularioVeiculo {
@@ -52,6 +58,7 @@ interface FormularioVeiculo {
   capacidadeMaxima: string;
   ano: string;
   combustivel: string;
+  kmProximaRevisao: string;
 }
 
 const formularioVazio: FormularioVeiculo = {
@@ -63,6 +70,7 @@ const formularioVazio: FormularioVeiculo = {
   capacidadeMaxima: "4",
   ano: "",
   combustivel: "",
+  kmProximaRevisao: "",
 };
 
 const tipoFrotaLabel: Record<TipoFrotaApi, VeiculoItem["tipoFrota"]> = {
@@ -88,12 +96,15 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
     combustivel: veiculo.combustivel || "—",
     ano: veiculo.ano,
     status: statusLabel[veiculo.status],
+    odometroAtual: Number(veiculo.odometroAtual ?? 0),
+    kmProximaRevisao: veiculo.kmProximaRevisao == null ? null : Number(veiculo.kmProximaRevisao),
   };
 }
 
 export const VeiculosPage: React.FC = () => {
   const { sessionKey } = useAuth();
   const [veiculoSelecionado, setVeiculoSelecionado] = useState<VeiculoItem | null>(null);
+  const [veiculoRevisao, setVeiculoRevisao] = useState<VeiculoItem | null>(null);
   const [anoMaximo] = useState(() => new Date().getFullYear() + 1);
   const [searchTerm, setSearchTerm] = useState("");
   const [consulta, setConsulta] = useState({ busca: "", tipoFrota: "", page: 1 });
@@ -104,6 +115,7 @@ export const VeiculosPage: React.FC = () => {
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [formulario, setFormulario] = useState(formularioVazio);
+  const previaRevisao = kmRevisaoFormularioSchema.safeParse(formulario.kmProximaRevisao);
   const [locadoras, setLocadoras] = useState<FornecedorApi[]>([]);
   const [erroLocadoras, setErroLocadoras] = useState("");
   type Resposta = {
@@ -335,6 +347,19 @@ export const VeiculosPage: React.FC = () => {
       },
     },
     {
+      header: "Revisão preventiva",
+      render: (veiculo) => (
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`Ver revisão do veículo ${veiculo.placa}`}
+          onClick={() => setVeiculoRevisao(veiculo)}
+        >
+          Ver revisão
+        </Button>
+      ),
+    },
+    {
       header: "Documentos",
       render: (veiculo) => (
         <Button
@@ -511,6 +536,30 @@ export const VeiculosPage: React.FC = () => {
       )}
 
       <Modal
+        isOpen={veiculoRevisao !== null}
+        onClose={() => setVeiculoRevisao(null)}
+        title="Revisão preventiva"
+        description={
+          veiculoRevisao ? `${veiculoRevisao.placa} · ${veiculoRevisao.modelo}` : undefined
+        }
+      >
+        {veiculoRevisao && (
+          <RevisaoVeiculo
+            key={veiculoRevisao.id}
+            veiculoId={veiculoRevisao.id}
+            odometroAtual={veiculoRevisao.odometroAtual}
+            kmProximaRevisao={veiculoRevisao.kmProximaRevisao}
+            onAtualizado={(kmProximaRevisao) => {
+              setVeiculoRevisao((atual) =>
+                atual?.id === veiculoRevisao.id ? { ...atual, kmProximaRevisao } : atual,
+              );
+              recarregarVeiculos();
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal
         isOpen={veiculoSelecionado !== null}
         onClose={() => setVeiculoSelecionado(null)}
         title="Documentos do veículo"
@@ -631,6 +680,19 @@ export const VeiculosPage: React.FC = () => {
                 onChange={(event) => atualizarFormulario("ano", event.target.value)}
               />
             </div>
+            <Input
+              label="Próxima revisão (km)"
+              type="number"
+              min="0.01"
+              max="99999999.99"
+              step="0.01"
+              value={formulario.kmProximaRevisao}
+              onChange={(event) => atualizarFormulario("kmProximaRevisao", event.target.value)}
+              helperText="Opcional. Informe a leitura prevista no odômetro para a próxima revisão."
+            />
+            {previaRevisao.success && previaRevisao.data !== null && (
+              <IndicadorRevisao odometroAtual={0} kmProximaRevisao={previaRevisao.data} />
+            )}
             <Input
               label="Tipo de combustível"
               maxLength={30}

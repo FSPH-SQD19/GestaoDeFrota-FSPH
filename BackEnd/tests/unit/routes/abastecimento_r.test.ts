@@ -12,6 +12,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 const mocks = vi.hoisted(() => ({
   veiculoFindUnique: vi.fn(),
+  queryRaw: vi.fn(),
+  veiculoUpdate: vi.fn(),
+  usuarioFindMany: vi.fn(),
+  notificacaoCreateMany: vi.fn(),
   motoristaFindUnique: vi.fn(),
   fornecedorFindUnique: vi.fn(),
   abastecimentoFindFirst: vi.fn(),
@@ -25,7 +29,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../../src/lib/prisma", () => {
   const cliente: Record<string, unknown> = {
-    veiculo: { findUnique: mocks.veiculoFindUnique },
+    $queryRaw: mocks.queryRaw,
+    veiculo: { findUnique: mocks.veiculoFindUnique, update: mocks.veiculoUpdate },
+    usuario: { findMany: mocks.usuarioFindMany },
+    notificacao: { createMany: mocks.notificacaoCreateMany },
     motorista: { findUnique: mocks.motoristaFindUnique },
     fornecedor: { findUnique: mocks.fornecedorFindUnique },
     abastecimento: {
@@ -101,7 +108,17 @@ afterAll(() => new Promise((resolve) => server.close(resolve)));
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
-  mocks.veiculoFindUnique.mockResolvedValue({ ativo: true });
+  mocks.queryRaw.mockResolvedValue([]);
+  mocks.veiculoUpdate.mockResolvedValue({});
+  mocks.usuarioFindMany.mockResolvedValue([{ id: usuarioId }]);
+  mocks.notificacaoCreateMany.mockResolvedValue({ count: 1 });
+  mocks.veiculoFindUnique.mockResolvedValue({
+    id: veiculoId,
+    placa: "ABC1234",
+    ativo: true,
+    odometroAtual: new Prisma.Decimal(1000),
+    kmProximaRevisao: null,
+  });
   mocks.motoristaFindUnique.mockImplementation(async ({ where }) =>
     where.usuarioId ? { id: motoristaId, ativo: true } : { ativo: true },
   );
@@ -343,5 +360,78 @@ describe("perfis", () => {
       body: metodo === "POST" ? corpoValido({ veiculoId }) : undefined,
     });
     expect(status).toBe(esperado);
+  });
+});
+
+describe("revisão preventiva no abastecimento", () => {
+  it("atualiza o odômetro e notifica na mesma transação", async () => {
+    mocks.veiculoFindUnique.mockResolvedValue({
+      id: veiculoId,
+      placa: "ABC1234",
+      ativo: true,
+      odometroAtual: new Prisma.Decimal(8000),
+      kmProximaRevisao: new Prisma.Decimal(10000),
+    });
+    const { status } = await chamar("POST", caminho, {
+      perfis: ["GESTOR"],
+      body: corpoValido({ veiculoId, odometro: 9000 }),
+    });
+    expect(status).toBe(201);
+    expect(mocks.queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.abastecimentoCreate.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.veiculoUpdate).toHaveBeenCalledWith({
+      where: { id: veiculoId },
+      data: { odometroAtual: new Prisma.Decimal(9000) },
+    });
+    expect(mocks.notificacaoCreateMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          usuarioId,
+          tipo: "REVISAO_PREVENTIVA_PROXIMA",
+          referenciaId: veiculoId,
+        }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+  it("não reduz o odômetro ao registrar abastecimento antigo", async () => {
+    mocks.veiculoFindUnique.mockResolvedValue({
+      id: veiculoId,
+      placa: "ABC1234",
+      ativo: true,
+      odometroAtual: new Prisma.Decimal(12000),
+      kmProximaRevisao: null,
+    });
+    const { status } = await chamar("POST", caminho, {
+      perfis: ["GESTOR"],
+      body: corpoValido({ veiculoId, odometro: 9000, dataHora: "2026-10-01T10:00:00Z" }),
+    });
+    expect(status).toBe(201);
+    expect(mocks.veiculoUpdate).not.toHaveBeenCalled();
+    expect(mocks.notificacaoCreateMany).not.toHaveBeenCalled();
+  });
+  it("verifica 100% com a quilometragem atual mesmo num lançamento retroativo", async () => {
+    mocks.veiculoFindUnique.mockResolvedValue({
+      id: veiculoId,
+      placa: "ABC1234",
+      ativo: true,
+      odometroAtual: new Prisma.Decimal(10500),
+      kmProximaRevisao: new Prisma.Decimal(10000),
+    });
+    expect(
+      (
+        await chamar("POST", caminho, {
+          perfis: ["GESTOR"],
+          body: corpoValido({ veiculoId, odometro: 9000, dataHora: "2026-10-01T10:00:00Z" }),
+        })
+      ).status,
+    ).toBe(201);
+    expect(mocks.veiculoUpdate).not.toHaveBeenCalled();
+    expect(mocks.notificacaoCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [expect.objectContaining({ tipo: "REVISAO_PREVENTIVA_VENCIDA" })],
+      }),
+    );
   });
 });

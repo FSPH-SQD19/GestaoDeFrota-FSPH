@@ -3,6 +3,19 @@ import { z } from "zod";
 export const TIPOS_DOCUMENTO_VEICULO = ["CRLV", "IPVA", "SEGURO", "VISTORIA"] as const;
 export type TipoDocumentoVeiculo = (typeof TIPOS_DOCUMENTO_VEICULO)[number];
 
+export const kmRevisaoFormularioSchema = z
+  .string()
+  .trim()
+  .transform((valor) => (valor === "" ? null : Number(valor)))
+  .pipe(
+    z
+      .number({ error: "Informe a quilometragem da próxima revisão." })
+      .positive("A quilometragem da revisão deve ser maior que zero.")
+      .max(99999999.99, "Quilometragem da revisão inválida.")
+      .refine((valor) => Math.round(valor * 100) / 100 === valor, "Use no máximo 2 casas decimais.")
+      .nullable(),
+  );
+
 export const veiculoSchema = z
   .object({
     placa: z
@@ -42,6 +55,7 @@ export const veiculoSchema = z
           .refine((v) => v <= new Date().getFullYear() + 1, "Ano inválido.")
           .optional(),
       ),
+    kmProximaRevisao: kmRevisaoFormularioSchema.optional(),
     combustivel: z
       .string()
       .trim()
@@ -58,9 +72,11 @@ export const veiculoSchema = z
       });
     }
   })
-  .transform(({ fornecedorId, ...rest }) =>
-    rest.propriedade === "LOCADO" ? { ...rest, fornecedorId } : rest,
-  );
+  .transform(({ fornecedorId, kmProximaRevisao, ...rest }) => ({
+    ...rest,
+    ...(rest.propriedade === "LOCADO" ? { fornecedorId } : {}),
+    ...(kmProximaRevisao == null ? {} : { kmProximaRevisao }),
+  }));
 
 export const documentoVeiculoSchema = z.object({
   tipoDocumento: z.enum(TIPOS_DOCUMENTO_VEICULO, {

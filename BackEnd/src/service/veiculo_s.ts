@@ -56,6 +56,16 @@ const camposVeiculo = {
     .number({ error: "Informe a quilometragem exibida no odômetro." })
     .min(0, "Odômetro não pode ser negativo.")
     .max(99999999.99, "Odômetro inválido."),
+  kmProximaRevisao: z
+    .number({ error: "Informe a quilometragem da próxima revisão." })
+    .positive("A quilometragem da revisão deve ser maior que zero.")
+    .max(99999999.99, "Quilometragem da revisão inválida.")
+    .refine(
+      (valor) => new Prisma.Decimal(valor).decimalPlaces() <= 2,
+      "Use no máximo 2 casas decimais.",
+    )
+    .nullable()
+    .optional(),
   status: z.enum(STATUS_VEICULO, { error: "Selecione uma situação válida para o veículo." }),
 };
 
@@ -105,10 +115,17 @@ export type ListarVeiculosFiltros = z.infer<typeof listarVeiculosSchema>;
 
 // Servico
 
-export type VeiculoResposta = Omit<Veiculo, "odometroAtual"> & { odometroAtual: number };
+export type VeiculoResposta = Omit<Veiculo, "odometroAtual" | "kmProximaRevisao"> & {
+  odometroAtual: number;
+  kmProximaRevisao: number | null;
+};
 
 export function serializarVeiculo(veiculo: Veiculo): VeiculoResposta {
-  return { ...veiculo, odometroAtual: Number(veiculo.odometroAtual) };
+  return {
+    ...veiculo,
+    odometroAtual: Number(veiculo.odometroAtual),
+    kmProximaRevisao: veiculo.kmProximaRevisao == null ? null : Number(veiculo.kmProximaRevisao),
+  };
 }
 
 export async function listarVeiculos(filtros: ListarVeiculosFiltros) {

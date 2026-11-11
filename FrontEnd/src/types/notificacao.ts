@@ -4,7 +4,9 @@ export type TipoNotificacao =
   | "VIAGEM_RECUSADA"
   | "CNH_VENCENDO"
   | "DOCUMENTO_VEICULO_VENCENDO"
-  | "SVO_DESINFECCAO_CONCLUIDA";
+  | "SVO_DESINFECCAO_CONCLUIDA"
+  | "REVISAO_PREVENTIVA_PROXIMA"
+  | "REVISAO_PREVENTIVA_VENCIDA";
 
 export interface NotificacaoItem {
   id: string;
