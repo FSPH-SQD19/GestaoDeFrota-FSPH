@@ -615,6 +615,7 @@ export const SolicitacoesPage: React.FC = () => {
         <ReagendarViagemModal
           key={reagendamento.id}
           solicitacao={reagendamento}
+          sessionKey={sessionKey}
           onClose={() => setReagendamento(null)}
           onConcluido={() => {
             setReagendamento(null);
@@ -654,6 +655,10 @@ export const SolicitacoesPage: React.FC = () => {
         onCancelar={(solicitacao) => {
           setSelecionada(null);
           setCancelando(solicitacao);
+        }}
+        onReagendar={(solicitacao) => {
+          setSelecionada(null);
+          setReagendamento(solicitacao);
         }}
       />
 
@@ -709,7 +714,8 @@ const DetalhesSolicitacaoModal: React.FC<{
   onClose: () => void;
   onDecidir: (solicitacao: SolicitacaoViagem, modo: "APROVAR" | "RECUSAR") => void;
   onCancelar?: (solicitacao: SolicitacaoViagem) => void;
-}> = ({ solicitacao: s, isGestor, onClose, onDecidir, onCancelar }) => (
+  onReagendar: (solicitacao: SolicitacaoViagem) => void;
+}> = ({ solicitacao: s, isGestor, onClose, onDecidir, onCancelar, onReagendar }) => (
   <Modal
     isOpen={s !== null}
     onClose={onClose}
@@ -727,6 +733,11 @@ const DetalhesSolicitacaoModal: React.FC<{
               Aprovar e Alocar
             </Button>
           </>
+        )}
+        {isGestor && s?.status === "APROVADA" && (
+          <Button variant="outline" onClick={() => onReagendar(s)}>
+            Reagendar / Trocar
+          </Button>
         )}
         {s && (s.status === "PENDENTE" || s.status === "APROVADA") && onCancelar && (
           <Button

@@ -33,7 +33,6 @@ router.patch(
   authenticate,
   requireRole("ADMIN", "GESTOR"),
   aprovarSolicitacaoController,
-  reagendarSolicitacaoController,
 );
 
 router.patch(

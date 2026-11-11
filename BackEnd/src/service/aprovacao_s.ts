@@ -4,7 +4,11 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 import { exigirDocumentosEmDia } from "./documento_veiculo_s";
-import { notificarSolicitacaoAprovada, notificarSolicitacaoRecusada } from "./notificacao_s";
+import {
+  invalidarCacheSincronizacaoNotificacoes,
+  notificarSolicitacaoAprovada,
+  notificarSolicitacaoRecusada,
+} from "./notificacao_s";
 
 export const aprovarSolicitacaoSchema = z.object({
   veiculoId: z.uuid(),
@@ -44,6 +48,7 @@ export const reagendarSolicitacaoSchema = aprovarSolicitacaoSchema
   .safeExtend({
     inicio: z.iso.datetime({ offset: true }).transform((valor) => new Date(valor)),
     fim: z.iso.datetime({ offset: true }).transform((valor) => new Date(valor)),
+    motivo: z.string().trim().min(5, "Informe o motivo da alteração.").max(2000),
   })
   .refine((dados) => dados.inicio < dados.fim, {
     path: ["fim"],
@@ -59,14 +64,18 @@ export function reagendarSolicitacao(
   dados: z.infer<typeof reagendarSolicitacaoSchema>,
   usuarioId: string,
 ) {
-  return salvarAlocacao(id, dados, usuarioId, { inicio: dados.inicio, fim: dados.fim });
+  return salvarAlocacao(id, dados, usuarioId, {
+    inicio: dados.inicio,
+    fim: dados.fim,
+    motivo: dados.motivo,
+  });
 }
 
 async function salvarAlocacao(
   id: string,
   dados: AprovarInput,
   usuarioId: string,
-  janela?: { inicio: Date; fim: Date },
+  janela?: { inicio: Date; fim: Date; motivo: string },
 ) {
   validarId(id);
 
@@ -118,14 +127,6 @@ async function salvarAlocacao(
         ) {
           throw new HttpError(422, "O reagendamento exige uma viagem e uma nova saída futuras.");
         }
-        if (
-          janela &&
-          (solicitacao.veiculoAlocadoId !== veiculoId ||
-            solicitacao.motoristaAlocadoId !== motoristaId)
-        ) {
-          throw new HttpError(422, "O reagendamento mantém o veículo e o motorista alocados.");
-        }
-
         const inicio = janela?.inicio ?? solicitacao.dataHoraPretendida;
         const fim = janela?.fim ?? solicitacao.dataHoraRetornoPrevista;
 
@@ -223,9 +224,52 @@ async function salvarAlocacao(
               motoristaAlocadoId: motoristaId,
               dataHoraPretendida: inicio.toISOString(),
               dataHoraRetornoPrevista: fim.toISOString(),
+              ...(janela
+                ? {
+                    motivo: janela.motivo,
+                    anterior: {
+                      veiculoAlocadoId: solicitacao.veiculoAlocadoId,
+                      motoristaAlocadoId: solicitacao.motoristaAlocadoId,
+                      dataHoraPretendida: solicitacao.dataHoraPretendida?.toISOString() ?? null,
+                      dataHoraRetornoPrevista:
+                        solicitacao.dataHoraRetornoPrevista?.toISOString() ?? null,
+                    },
+                  }
+                : {}),
             },
           },
         });
+
+        if (janela) {
+          const motoristaAnterior =
+            solicitacao.motoristaAlocadoId && solicitacao.motoristaAlocadoId !== motoristaId
+              ? await tx.motorista.findUnique({
+                  where: { id: solicitacao.motoristaAlocadoId },
+                  select: { usuarioId: true },
+                })
+              : null;
+          const destinatarios = new Set(
+            [solicitacao.solicitanteId, motorista.usuarioId, motoristaAnterior?.usuarioId].filter(
+              (destinatario): destinatario is string => Boolean(destinatario),
+            ),
+          );
+          if (destinatarios.size) {
+            await tx.notificacao.createMany({
+              data: [...destinatarios].map((destinatario) => ({
+                usuarioId: destinatario,
+                tipo: "VIAGEM_REAGENDADA",
+                titulo: `Viagem ${solicitacao.protocolo} reagendada`,
+                mensagem:
+                  destinatario === motoristaAnterior?.usuarioId &&
+                  destinatario !== motorista.usuarioId
+                    ? `Você não está mais alocado à viagem ${solicitacao.protocolo}.`
+                    : `A programação da viagem ${solicitacao.protocolo} foi alterada. Consulte os detalhes.`,
+                referenciaTipo: "SOLICITACAO_VIAGEM",
+                referenciaId: id,
+              })),
+            });
+          }
+        }
 
         contextoNotificacao = {
           veiculoPlaca: veiculo.placa ?? null,
@@ -241,6 +285,7 @@ async function salvarAlocacao(
       },
     );
 
+    if (janela) invalidarCacheSincronizacaoNotificacoes();
     if (aprovada.solicitanteId && !janela) {
       const ctx = contextoNotificacao as {
         veiculoPlaca: string | null;

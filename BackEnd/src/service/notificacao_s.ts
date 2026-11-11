@@ -20,6 +20,7 @@ export { invalidarCacheSincronizacaoNotificacoes };
 export const TIPOS_NOTIFICACAO = [
   "SOLICITACAO_URGENTE",
   "VIAGEM_APROVADA",
+  "VIAGEM_REAGENDADA",
   "VIAGEM_RECUSADA",
   "VIAGEM_CANCELADA",
   "CNH_VENCENDO",

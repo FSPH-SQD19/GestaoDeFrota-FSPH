@@ -586,3 +586,98 @@ test("motorista vê coletas SVO atribuídas e avança a etapa no celular", async
   expect(erros).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("coletas-svo-motorista.png"), fullPage: true });
 });
+
+test("gestor reagenda viagem e troca recursos com motivo", async ({ page }) => {
+  await sessao(page, "GESTOR");
+  const erros: string[] = [];
+  page.on("pageerror", (erro) => erros.push(erro.message));
+  const viagem = {
+    id: "11111111-1111-4111-8111-111111111111",
+    protocolo: "SV-TESTE-94",
+    solicitanteNome: "Pessoa Teste",
+    setorOrigem: "LACEN",
+    origem: "Sede",
+    destino: "Hospital",
+    dataHoraPretendida: "2027-01-10T11:00:00Z",
+    dataHoraRetornoPrevista: "2027-01-10T15:00:00Z",
+    quantidadePassageiros: 2,
+    tipoTransporte: "PASSAGEIROS",
+    urgencia: "NORMAL",
+    justificativa: "Transporte institucional",
+    status: "APROVADA",
+    criadoEm: "2026-11-10T12:00:00Z",
+    veiculoAlocadoId: "v1",
+    motoristaAlocadoId: "m1",
+    veiculoAlocado: { placa: "ABC1234", modelo: "A" },
+    motoristaAlocado: { nome: "Motorista atual" },
+  };
+  const porStatus = {
+    PENDENTE: 0,
+    APROVADA: 1,
+    EM_TRANSITO: 0,
+    CONCLUIDA: 0,
+    RECUSADA: 0,
+    CANCELADA: 0,
+  };
+  await page.route("**/api/v1/dashboard/resumo", (route) =>
+    route.fulfill({
+      json: {
+        veiculos: { total: 0, porStatus: {}, totalGeral: 0, porTipoFrota: {} },
+        solicitacoes: { data: [], meta: { total: 0, porStatus } },
+        alertas: [],
+        alertasOperacionais: { total: 0, cnh: [], documentos: [] },
+        viagensDoDia: 0,
+        solicitacoesPendentes: 0,
+        svo: { chamadosAtivos: 0, slaMedioRespostaMinutos: null, slaMedioEntregaMinutos: null },
+      },
+    }),
+  );
+  await page.route("**/api/v1/solicitacoes?*", (route) =>
+    route.fulfill({
+      json: { data: [viagem], meta: { page: 1, pageSize: 20, total: 1, totalPages: 1, porStatus } },
+    }),
+  );
+  await page.route("**/api/v1/veiculos?*", (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          { id: "v1", placa: "ABC1234", modelo: "A", capacidadeMaxima: 4 },
+          { id: "v2", placa: "DEF1234", modelo: "B", capacidadeMaxima: 4 },
+        ],
+        meta: { totalPages: 1 },
+      },
+    }),
+  );
+  await page.route("**/api/v1/motoristas", (route) =>
+    route.fulfill({
+      json: [
+        { id: "m1", ativo: true, status: "DISPONIVEL", usuario: { nome: "Motorista atual" } },
+        { id: "m2", ativo: true, status: "DISPONIVEL", usuario: { nome: "Novo motorista" } },
+      ],
+    }),
+  );
+  let corpo: unknown;
+  await page.route(`**/api/v1/solicitacoes/${viagem.id}/reagendar`, (route) => {
+    corpo = route.request().postDataJSON();
+    return route.fulfill({ json: viagem });
+  });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Olá, Pessoa Teste!" })).toBeVisible();
+  const menu = page.getByRole("button", { name: "Abrir menu" });
+  if (await menu.isVisible()) await menu.click();
+  await page.getByRole("button", { name: "Solicitações", exact: true }).click();
+  await page.getByRole("button", { name: `Reagendar viagem ${viagem.protocolo}` }).click();
+  await page.getByRole("combobox", { name: /Veículo/ }).selectOption("v2");
+  await page.getByRole("combobox", { name: /Motorista/ }).selectOption("m2");
+  await page.getByLabel(/Motivo da alteração/).fill("Troca de equipe");
+  await page.getByRole("button", { name: "Confirmar reagendamento" }).click();
+  await expect(page.getByText("Viagem reagendada.")).toBeVisible();
+  expect(corpo).toMatchObject({
+    veiculoId: "v2",
+    motoristaId: "m2",
+    motivo: "Troca de equipe",
+    inicio: "2027-01-10T11:00:00.000Z",
+    fim: "2027-01-10T15:00:00.000Z",
+  });
+  expect(erros).toEqual([]);
+});
