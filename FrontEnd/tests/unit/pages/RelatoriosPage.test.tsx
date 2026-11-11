@@ -99,4 +99,129 @@ describe("RelatoriosPage", () => {
     expect(csv).toContain('"Modelo; ""Especial"""');
     expect(csv).not.toContain("null");
   });
+
+  it("consulta as agregações de consumo, manutenções e viagens por setor na API", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Nenhum veículo no período selecionado.");
+
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      inicio: "2026-11-01",
+      fim: "2026-11-10",
+      setor: null,
+      dados: [
+        {
+          placa: "QKN1A23",
+          modelo: "Renault Master",
+          kmRodados: 320,
+          litrosAbastecidos: 40,
+          consumoMedioKmL: 8,
+        },
+      ],
+    });
+    await user.click(screen.getByRole("tab", { name: "Consumo médio (km/L)" }));
+    expect(await screen.findByText("QKN1A23")).toBeInTheDocument();
+    expect(screen.getByText("8 km/L")).toBeInTheDocument();
+
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      inicio: "2026-11-01",
+      fim: "2026-11-10",
+      setor: null,
+      dados: [
+        {
+          tipo: "PREVENTIVA",
+          status: "CONCLUIDA",
+          quantidade: 3,
+          custoTotal: 1450.5,
+        },
+      ],
+    });
+    await user.click(screen.getByRole("tab", { name: "Manutenções" }));
+    expect(await screen.findByText("Preventiva")).toBeInTheDocument();
+    expect(screen.getAllByText(/1\.450,50/).length).toBeGreaterThan(0);
+
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      inicio: "2026-11-01",
+      fim: "2026-11-10",
+      setor: null,
+      dados: [{ setor: "LACEN", status: "CONCLUIDA", viagens: 12 }],
+    });
+    await user.click(screen.getByRole("tab", { name: "Viagens por setor" }));
+    expect(await screen.findByText("LACEN")).toBeInTheDocument();
+
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      inicio: "2026-11-01",
+      fim: "2026-11-10",
+      setor: "HEMOSE",
+      dados: [{ setor: "HEMOSE", status: "EM_TRANSITO", viagens: 4 }],
+    });
+    await user.type(screen.getByLabelText("Filtrar por setor"), "HEMOSE");
+    await user.click(screen.getByRole("button", { name: "Filtrar setor" }));
+    expect((await screen.findAllByText("HEMOSE")).length).toBeGreaterThanOrEqual(1);
+    expect(apiRequest).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^\/relatorios\/viagens\?inicio=.*&fim=.*&setor=HEMOSE$/),
+      {},
+    );
+  });
+
+  it("habilita exportação em CSV, download em PDF e impressão em PDF", async () => {
+    const user = userEvent.setup();
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    const clickAnchorSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    const createObjectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:relatorio");
+    const revokeObjectUrlSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+    try {
+      renderPage();
+      await screen.findByText("Nenhum veículo no período selecionado.");
+
+      await user.click(screen.getByRole("button", { name: /Imprimir PDF/i }));
+      expect(printSpy).toHaveBeenCalledTimes(1);
+
+      vi.mocked(apiRequest).mockResolvedValueOnce({
+        inicio: "2026-11-01",
+        fim: "2026-11-10",
+        setor: null,
+        dados: [
+          {
+            placa: "BRA2E19",
+            modelo: "Fiat Toro",
+            kmRodados: 180,
+            litrosAbastecidos: 20,
+            consumoMedioKmL: 9,
+          },
+        ],
+      });
+      await user.click(screen.getByRole("tab", { name: "Consumo médio (km/L)" }));
+      await screen.findByText("BRA2E19");
+
+      vi.mocked(apiRequest).mockResolvedValueOnce(
+        new Blob(["placa;modelo"], { type: "text/csv;charset=utf-8" }),
+      );
+      await user.click(screen.getByRole("button", { name: /Exportar CSV/i }));
+      expect(apiRequest).toHaveBeenLastCalledWith(
+        expect.stringMatching(/^\/relatorios\/consumo\?inicio=.*&fim=.*&formato=csv$/),
+        { responseType: "blob" },
+      );
+
+      vi.mocked(apiRequest).mockResolvedValueOnce(
+        new Blob(["%PDF-1.7"], { type: "application/pdf" }),
+      );
+      await user.click(screen.getByRole("button", { name: /Exportar PDF/i }));
+      expect(apiRequest).toHaveBeenLastCalledWith(
+        expect.stringMatching(/^\/relatorios\/consumo\?inicio=.*&fim=.*&formato=pdf$/),
+        { responseType: "blob" },
+      );
+      expect(createObjectUrlSpy).toHaveBeenCalled();
+      expect(clickAnchorSpy).toHaveBeenCalledTimes(2);
+      expect(revokeObjectUrlSpy).toHaveBeenCalled();
+    } finally {
+      printSpy.mockRestore();
+      clickAnchorSpy.mockRestore();
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
+    }
+  });
 });
