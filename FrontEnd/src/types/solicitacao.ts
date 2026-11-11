@@ -77,6 +77,7 @@ export interface SolicitacaoViagem {
   /** ISO 8601 */
   criadoEm: string;
   motivoRecusa?: string;
+  veiculoAlocadoId?: string | null;
   veiculoAlocado?: { placa: string; modelo: string; odometroAtual?: number | string | null } | null;
   motoristaAlocado?: { nome: string | null } | null;
   execucao?: ExecucaoViagemResumo | null;

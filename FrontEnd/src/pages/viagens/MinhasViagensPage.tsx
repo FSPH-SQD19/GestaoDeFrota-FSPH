@@ -1,20 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  ArrowDownRight,
-  ArrowRight,
-  CalendarDays,
-  CarFront,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock3,
-  MapPin,
-  RefreshCw,
-  UsersRound,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, RefreshCw } from "lucide-react";
 import { Badge, Button, Card } from "../../components/common";
 import { useAuth } from "../../contexts/auth";
+import { listarMeusAbastecimentosApi } from "../../services/abastecimentosService";
 import { listarMinhasViagensApi } from "../../services/solicitacoesService";
+import type { AbastecimentoMotorista } from "../../types/abastecimento";
 import type {
   ExecucaoViagemResposta,
   ListaMinhasViagensResposta,
@@ -22,14 +12,16 @@ import type {
   StatusSolicitacao,
 } from "../../types/solicitacao";
 import { ChecklistViagemModal } from "./ChecklistViagemModal";
+import { RegistrarAbastecimentoModal } from "./RegistrarAbastecimentoModal";
 
 type FiltroViagem = "TODAS" | "A_INICIAR" | "CONCLUIDAS";
 
 const PAGE_SIZE = 20;
+const ABASTECIMENTOS_PAGE_SIZE = 10;
 const FILTROS: { id: FiltroViagem; label: string; status?: StatusSolicitacao }[] = [
-  { id: "TODAS", label: "Todas" },
   { id: "A_INICIAR", label: "A iniciar", status: "APROVADA" },
   { id: "CONCLUIDAS", label: "Concluídas", status: "CONCLUIDA" },
+  { id: "TODAS", label: "Todas" },
 ];
 
 const STATUS_VIAGEM: Record<
@@ -50,6 +42,16 @@ const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 
+const moedaFmt = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+const numeroFmt = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
 function formatarDataHora(data?: string | null): string {
   if (!data) return "Data não informada";
   const valor = new Date(data);
@@ -58,7 +60,7 @@ function formatarDataHora(data?: string | null): string {
 
 export const MinhasViagensPage: React.FC = () => {
   const { sessionKey } = useAuth();
-  const [filtro, setFiltro] = useState<FiltroViagem>("TODAS");
+  const [filtro, setFiltro] = useState<FiltroViagem>("A_INICIAR");
   const [pagina, setPagina] = useState(1);
   const [revisao, setRevisao] = useState(0);
   const [resultado, setResultado] = useState<{
@@ -68,14 +70,25 @@ export const MinhasViagensPage: React.FC = () => {
     erro: string;
   } | null>(null);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
+  const [modalAbastecimentoAberto, setModalAbastecimentoAberto] = useState(false);
+  const [resultadoAbastecimentos, setResultadoAbastecimentos] = useState<{
+    chave: string;
+    dados: AbastecimentoMotorista[];
+    erro: string;
+  } | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
   const statusFiltro = FILTROS.find((item) => item.id === filtro)?.status;
   const chave = JSON.stringify([sessionKey, pagina, filtro, revisao]);
+  const chaveAbastecimentos = JSON.stringify([sessionKey, revisao]);
   const atual = resultado?.chave === chave ? resultado : null;
   const dados = atual?.dados ?? null;
   const erro = atual?.erro ?? "";
   const carregando = !atual;
+  const abastecimentos = resultadoAbastecimentos?.dados ?? [];
+  const erroAbastecimentos =
+    resultadoAbastecimentos?.chave === chaveAbastecimentos ? resultadoAbastecimentos.erro : "";
+  const carregandoAbastecimentos = resultadoAbastecimentos?.chave !== chaveAbastecimentos;
   const viagemEmAndamento =
     resultado?.sessionKey === sessionKey ? (resultado.dados?.viagemEmAndamento ?? null) : null;
   const viagens = useMemo(
@@ -141,6 +154,40 @@ export const MinhasViagensPage: React.FC = () => {
     };
   }, [chave, filtro, pagina, revisao, sessionKey, statusFiltro]);
 
+  useEffect(() => {
+    let ativa = true;
+
+    void Promise.resolve(
+      listarMeusAbastecimentosApi?.({
+        page: 1,
+        pageSize: ABASTECIMENTOS_PAGE_SIZE,
+      }),
+    )
+      .then((resposta) => {
+        if (!ativa) return;
+        setResultadoAbastecimentos((anterior) => ({
+          chave: chaveAbastecimentos,
+          dados: resposta && Array.isArray(resposta.data) ? resposta.data : (anterior?.dados ?? []),
+          erro: "",
+        }));
+      })
+      .catch((error: unknown) => {
+        if (!ativa) return;
+        setResultadoAbastecimentos((anterior) => ({
+          chave: chaveAbastecimentos,
+          dados: anterior?.dados ?? [],
+          erro:
+            error instanceof Error && error.message
+              ? error.message
+              : "Não foi possível carregar o histórico de abastecimentos.",
+        }));
+      });
+
+    return () => {
+      ativa = false;
+    };
+  }, [chaveAbastecimentos]);
+
   const atualizarLista = () => {
     setMensagemSucesso(null);
     setRevisao((atual) => atual + 1);
@@ -152,84 +199,89 @@ export const MinhasViagensPage: React.FC = () => {
     setRevisao((atual) => atual + 1);
   };
 
+  const finalizarAbastecimento = (mensagem: string, novoAbastecimento: AbastecimentoMotorista) => {
+    setModalAbastecimentoAberto(false);
+    setMensagemSucesso(mensagem);
+    setResultadoAbastecimentos((anterior) => ({
+      chave: chaveAbastecimentos,
+      dados: [
+        novoAbastecimento,
+        ...(anterior?.dados ?? []).filter((item) => item.id !== novoAbastecimento.id),
+      ],
+      erro: "",
+    }));
+    setRevisao((atual) => atual + 1);
+  };
+
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 pb-8">
-      <header className="space-y-1">
-        <p className="text-sm font-medium text-slate-500">Área do motorista</p>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-          Minhas viagens
-        </h1>
-        <p className="text-sm text-slate-600">
-          Acompanhe seus deslocamentos e registre cada etapa da viagem.
-        </p>
+    <div className="mx-auto w-full max-w-2xl space-y-6 pb-10">
+      <header className="border-b border-slate-200 pb-4">
+        <p className="text-xs font-medium text-slate-500">Área do motorista</p>
+        <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900">Minhas viagens</h1>
       </header>
 
+      {mensagemSucesso && (
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+        >
+          {mensagemSucesso}
+        </p>
+      )}
+
       {viagemEmAndamento && (
-        <section aria-labelledby="viagem-em-andamento">
-          <h2 id="viagem-em-andamento" className="mb-2 text-base font-semibold text-slate-950">
+        <section aria-labelledby="viagem-em-andamento" className="space-y-2">
+          <h2 id="viagem-em-andamento" className="text-sm font-bold text-slate-900">
             Viagem em andamento
           </h2>
-          <Card className="space-y-4 p-4 sm:p-5">
+          <Card className="space-y-4 border-l-4 border-l-slate-900 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Protocolo
+                <p className="text-lg font-bold leading-snug text-slate-900">
+                  {viagemEmAndamento.destino || "Destino não informado"}
                 </p>
-                <h2 className="mt-0.5 text-base font-bold text-slate-950">
-                  {viagemEmAndamento.protocolo}
-                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Saída de: {viagemEmAndamento.origem || "Origem não informada"}
+                </p>
               </div>
               <Badge variant={STATUS_VIAGEM[viagemEmAndamento.status].variant} dot>
                 {STATUS_VIAGEM[viagemEmAndamento.status].label}
               </Badge>
             </div>
-            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3.5">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    Destino
-                  </p>
-                  <p className="mt-0.5 break-words text-base font-bold leading-snug text-slate-950">
-                    {viagemEmAndamento.destino || "Destino não informado"}
-                  </p>
-                  <div className="mt-2 flex items-start gap-1.5 border-t border-blue-100 pt-2 text-xs text-slate-600">
-                    <ArrowDownRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <p className="break-words">
-                      <span className="font-medium text-slate-500">Saída de: </span>
-                      {viagemEmAndamento.origem || "Origem não informada"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600 sm:grid-cols-2">
-              <span className="inline-flex items-center gap-2">
-                <CarFront className="h-4 w-4 shrink-0 text-slate-400" />
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-sm text-slate-600">
+              <span className="font-semibold text-slate-900">
                 {viagemEmAndamento.veiculoAlocado
                   ? `${viagemEmAndamento.veiculoAlocado.placa} · ${viagemEmAndamento.veiculoAlocado.modelo}`
                   : "Veículo não informado"}
               </span>
-              <span className="inline-flex items-center gap-2">
-                <UsersRound className="h-4 w-4 shrink-0 text-slate-400" />
+              <span>
                 {viagemEmAndamento.quantidadePassageiros}{" "}
                 {viagemEmAndamento.quantidadePassageiros === 1 ? "passageiro" : "passageiros"}
               </span>
+              <h2 className="text-xs font-normal text-slate-400">{viagemEmAndamento.protocolo}</h2>
               {viagemEmAndamento.execucao?.dataHoraInicio && (
-                <span className="inline-flex items-center gap-2">
-                  <Clock3 className="h-4 w-4 shrink-0 text-slate-400" />
-                  Iniciada {formatarDataHora(viagemEmAndamento.execucao.dataHoraInicio)}
-                </span>
+                <span>Iniciada {formatarDataHora(viagemEmAndamento.execucao.dataHoraInicio)}</span>
               )}
             </div>
-            <Button
-              type="button"
-              className="min-h-11 w-full"
-              leftIcon={<CheckCircle2 className="h-4 w-4" />}
-              onClick={() => setSelecionada(viagemEmAndamento)}
-            >
-              Retomar checklist
-            </Button>
+
+            <div className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
+              <Button
+                type="button"
+                className="min-h-12 w-full text-sm font-semibold"
+                onClick={() => setSelecionada(viagemEmAndamento)}
+              >
+                Retomar checklist
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-12 w-full text-sm font-semibold"
+                onClick={() => setModalAbastecimentoAberto(true)}
+              >
+                Registrar abastecimento (Cartão Prime)
+              </Button>
+            </div>
           </Card>
         </section>
       )}
@@ -247,7 +299,7 @@ export const MinhasViagensPage: React.FC = () => {
                   setPagina(1);
                   setFiltro(item.id);
                 }}
-                className={`min-h-10 rounded-full border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${
+                className={`min-h-10 rounded-lg border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${
                   ativo
                     ? "border-slate-900 bg-slate-900 text-white"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -259,15 +311,6 @@ export const MinhasViagensPage: React.FC = () => {
           })}
         </div>
       </nav>
-
-      {mensagemSucesso && (
-        <p
-          role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm font-medium text-emerald-800"
-        >
-          {mensagemSucesso}
-        </p>
-      )}
 
       {carregando ? (
         <Card role="status" className="py-8 text-center text-sm text-slate-500">
@@ -291,68 +334,47 @@ export const MinhasViagensPage: React.FC = () => {
             const status = STATUS_VIAGEM[viagem.status];
             const podeIniciar = viagem.status === "APROVADA";
             return (
-              <Card key={viagem.id} className="space-y-4 p-4 sm:p-5">
+              <Card key={viagem.id} className="space-y-3.5 p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                      <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
                       {formatarDataHora(viagem.dataHoraPretendida)}
                     </p>
-                    <h2 className="mt-1 truncate text-sm font-bold text-slate-950">
-                      {viagem.protocolo}
-                    </h2>
+                    <h2 className="text-xs text-slate-400">{viagem.protocolo}</h2>
                   </div>
                   <Badge variant={status.variant} dot>
                     {status.label}
                   </Badge>
                 </div>
 
-                <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3.5">
-                  <div className="flex items-start gap-2.5">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Destino
-                      </p>
-                      <p className="mt-0.5 break-words text-base font-bold leading-snug text-slate-950">
-                        {viagem.destino || "Destino não informado"}
-                      </p>
-                      <div className="mt-2 flex items-start gap-1.5 border-t border-blue-100 pt-2 text-xs text-slate-600">
-                        <ArrowDownRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                        <p className="break-words">
-                          <span className="font-medium text-slate-500">Saída de: </span>
-                          {viagem.origem || "Origem não informada"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <div>
+                  <p className="text-lg font-bold leading-snug text-slate-900">
+                    {viagem.destino || "Destino não informado"}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Saída de: {viagem.origem || "Origem não informada"}
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600 sm:grid-cols-2">
-                  <span className="inline-flex items-center gap-2">
-                    <CarFront className="h-4 w-4 shrink-0 text-slate-400" />
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-sm text-slate-600">
+                  <span className="font-medium text-slate-800">
                     {viagem.veiculoAlocado
                       ? `${viagem.veiculoAlocado.placa} · ${viagem.veiculoAlocado.modelo}`
                       : "Veículo não informado"}
                   </span>
-                  <span className="inline-flex items-center gap-2">
-                    <UsersRound className="h-4 w-4 shrink-0 text-slate-400" />
+                  <span>
                     {viagem.quantidadePassageiros}{" "}
                     {viagem.quantidadePassageiros === 1 ? "passageiro" : "passageiros"}
                   </span>
-                  <span className="inline-flex min-w-0 items-center gap-2 sm:col-span-2">
-                    <UsersRound className="h-4 w-4 shrink-0 text-slate-400" />
-                    <span className="truncate">
-                      Solicitante: {viagem.solicitanteNome || "Não informado"}
-                    </span>
+                  <span className="text-slate-500">
+                    Solicitante: {viagem.solicitanteNome || "Não informado"}
                   </span>
                 </div>
 
                 {podeIniciar && (
                   <Button
                     type="button"
-                    className="min-h-11 w-full"
-                    leftIcon={<ArrowRight className="h-4 w-4" />}
+                    className="min-h-12 w-full text-sm font-semibold"
                     disabled={Boolean(viagemEmAndamento)}
                     onClick={() => {
                       if (!viagemEmAndamento) setSelecionada(viagem);
@@ -372,8 +394,8 @@ export const MinhasViagensPage: React.FC = () => {
         </section>
       ) : (
         <Card className="px-5 py-10 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-            <MapPin className="h-5 w-5" />
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
+            <MapPin className="h-4.5 w-4.5" />
           </div>
           <h2 className="mt-3 text-sm font-semibold text-slate-900">
             {pagina > 1
@@ -420,6 +442,66 @@ export const MinhasViagensPage: React.FC = () => {
         </div>
       )}
 
+      <section
+        aria-labelledby="historico-abastecimentos"
+        className="space-y-3 border-t border-slate-200 pt-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="historico-abastecimentos" className="text-sm font-bold text-slate-900">
+            Abastecimentos (Cartão Prime)
+          </h2>
+          {!viagemEmAndamento && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10"
+              onClick={() => setModalAbastecimentoAberto(true)}
+            >
+              Registrar abastecimento (Cartão Prime)
+            </Button>
+          )}
+        </div>
+
+        {carregandoAbastecimentos && abastecimentos.length === 0 ? (
+          <Card className="py-6 text-center text-xs text-slate-500">
+            Carregando abastecimentos...
+          </Card>
+        ) : erroAbastecimentos && abastecimentos.length === 0 ? (
+          <Card className="p-4 text-center text-xs text-rose-700">{erroAbastecimentos}</Card>
+        ) : abastecimentos.length > 0 ? (
+          <div className="space-y-2.5">
+            {abastecimentos.map((item) => (
+              <Card key={item.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {item.postoCredenciado || "Posto não informado"}
+                    </p>
+                    <p className="text-xs text-slate-500">{formatarDataHora(item.dataHora)}</p>
+                  </div>
+                  <span className="text-sm font-bold text-slate-900 tabular-nums">
+                    {item.valorTotal !== null ? moedaFmt.format(item.valorTotal) : "—"}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <span>
+                    {item.odometro !== null ? `${numeroFmt.format(item.odometro)} km` : "—"}
+                  </span>
+                  <span>{item.litros !== null ? `${numeroFmt.format(item.litros)} L` : "—"}</span>
+                  {item.kmPorLitro !== null && item.kmPorLitro !== undefined && (
+                    <span>{numeroFmt.format(item.kmPorLitro)} km/L</span>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">Nenhum abastecimento registrado.</p>
+        )}
+      </section>
+
       {selecionada &&
         (selecionada.status === "APROVADA" || selecionada.status === "EM_TRANSITO") && (
           <ChecklistViagemModal
@@ -430,6 +512,13 @@ export const MinhasViagensPage: React.FC = () => {
             onConcluido={finalizarChecklist}
           />
         )}
+
+      <RegistrarAbastecimentoModal
+        isOpen={modalAbastecimentoAberto}
+        viagem={viagemEmAndamento}
+        onClose={() => setModalAbastecimentoAberto(false)}
+        onConcluido={finalizarAbastecimento}
+      />
     </div>
   );
 };
