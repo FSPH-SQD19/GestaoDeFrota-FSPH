@@ -1,3 +1,5 @@
+import type { AlteracaoProgramacao } from "../../services/manutencoesService";
+
 type Intervalo = { id: string; inicio: string; fim: string };
 
 export type Ocupacao = Intervalo & {
@@ -5,7 +7,14 @@ export type Ocupacao = Intervalo & {
   motoristaId: string | null;
 } & (
     | { tipo: "VIAGEM"; protocolo: string; status: "APROVADA" | "EM_TRANSITO" }
-    | { tipo: "MANUTENCAO"; motivo: string | null }
+    | {
+        tipo: "MANUTENCAO";
+        motivo: string | null;
+        status?: string;
+        bloqueia?: boolean;
+        oficina?: string | null;
+        historico?: AlteracaoProgramacao[];
+      }
   );
 
 export function intervalosLivres(inicio: string, fim: string, ocupacoes: Ocupacao[]) {
@@ -20,9 +29,9 @@ export function intervalosLivres(inicio: string, fim: string, ocupacoes: Ocupaca
       fim: new Date(ate).toISOString(),
     });
 
-  for (const ocupacao of [...ocupacoes].sort(
-    (a, b) => Date.parse(a.inicio) - Date.parse(b.inicio),
-  )) {
+  for (const ocupacao of ocupacoes
+    .filter((item) => item.tipo !== "MANUTENCAO" || item.bloqueia !== false)
+    .sort((a, b) => Date.parse(a.inicio) - Date.parse(b.inicio))) {
     const comeco = Math.min(Date.parse(ocupacao.inicio), limite);
     if (cursor < comeco) adicionar(cursor, comeco);
     cursor = Math.max(cursor, Math.min(Date.parse(ocupacao.fim), limite));

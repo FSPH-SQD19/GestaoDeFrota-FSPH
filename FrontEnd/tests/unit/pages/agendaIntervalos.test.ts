@@ -38,3 +38,16 @@ describe("intervalosLivres", () => {
     ]);
   });
 });
+
+it("libera o intervalo de manutenção cancelada, mantendo o evento no histórico", () => {
+  const cancelada: Ocupacao = {
+    ...ocupacao("cancelada", "09:00", "12:00"),
+    tipo: "MANUTENCAO",
+    motivo: null,
+    status: "CANCELADA",
+    bloqueia: false,
+  };
+  expect(intervalosLivres(hora("08:00"), hora("18:00"), [cancelada])).toEqual([
+    expect.objectContaining({ inicio: hora("08:00"), fim: hora("18:00") }),
+  ]);
+});

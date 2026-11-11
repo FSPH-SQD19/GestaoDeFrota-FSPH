@@ -148,11 +148,15 @@ model Manutencao {
   dataManutencao   DateTime? @map("data_manutencao") @db.Date
   status        String    @default("ABERTA") @db.VarChar(20)
   dataConclusao DateTime? @map("data_conclusao")
+  inicioPrevisto DateTime? @map("inicio_previsto")
+  fimPrevisto    DateTime? @map("fim_previsto")
+  versao        Int       @default(0)
 
   veiculo    Veiculo     @relation(fields: [veiculoId], references: [id])
   fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id])
 
   @@index([veiculoId, dataManutencao])
+  @@index([veiculoId, status, inicioPrevisto, fimPrevisto])
   @@index([fornecedorId])
   @@map("manutencoes")
 }

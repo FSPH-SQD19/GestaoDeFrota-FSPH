@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { historicoProgramacoes } from "./programacao_manutencao_s";
 
 const diaMs = 86_400_000;
 const inicioDoDia = (data: string) => new Date(`${data}T00:00:00-03:00`);
@@ -51,11 +52,17 @@ export async function consultarAgenda({ inicio, fim }: z.infer<typeof agendaSche
       prisma.manutencao.findMany({
         where: {
           veiculo: frota,
-          dataManutencao: { lte: new Date(`${fim}T00:00:00Z`) },
           OR: [
-            { dataManutencao: { gte: new Date(`${inicio}T00:00:00Z`) } },
-            { tipo: "CORRETIVA", status: "ABERTA" },
-            { tipo: "CORRETIVA", dataConclusao: { gt: de } },
+            { inicioPrevisto: { lt: ate }, fimPrevisto: { gt: de } },
+            {
+              inicioPrevisto: null,
+              dataManutencao: { lte: new Date(`${fim}T00:00:00Z`) },
+              OR: [
+                { dataManutencao: { gte: new Date(`${inicio}T00:00:00Z`) } },
+                { tipo: "CORRETIVA", status: "ABERTA" },
+                { tipo: "CORRETIVA", dataConclusao: { gt: de } },
+              ],
+            },
           ],
         },
         select: {
@@ -66,6 +73,9 @@ export async function consultarAgenda({ inicio, fim }: z.infer<typeof agendaSche
           status: true,
           dataManutencao: true,
           dataConclusao: true,
+          inicioPrevisto: true,
+          fimPrevisto: true,
+          fornecedor: { select: { razaoSocial: true } },
           veiculo: { select: { id: true, placa: true, modelo: true } },
         },
       }),
@@ -73,6 +83,9 @@ export async function consultarAgenda({ inicio, fim }: z.infer<typeof agendaSche
     { isolationLevel: "RepeatableRead" },
   );
 
+  const historico = await historicoProgramacoes(
+    manutencoes.filter((item) => item.inicioPrevisto).map(({ id }) => id),
+  );
   const veiculosPorId = new Map(veiculos.map((veiculo) => [veiculo.id, veiculo]));
   const ocupacoes = [
     ...viagens.flatMap((viagem) => {
@@ -97,13 +110,18 @@ export async function consultarAgenda({ inicio, fim }: z.infer<typeof agendaSche
       ];
     }),
     ...manutencoes.flatMap((manutencao) => {
-      if (!manutencao.dataManutencao) return [];
-      const inicio = inicioDoDia(manutencao.dataManutencao.toISOString().slice(0, 10));
+      const inicio =
+        manutencao.inicioPrevisto ??
+        (manutencao.dataManutencao
+          ? inicioDoDia(manutencao.dataManutencao.toISOString().slice(0, 10))
+          : null);
+      if (!inicio) return [];
       const fim =
-        manutencao.tipo === "CORRETIVA"
+        manutencao.fimPrevisto ??
+        (manutencao.tipo === "CORRETIVA"
           ? (manutencao.dataConclusao ??
             (manutencao.status === "ABERTA" ? ate : diaSeguinte(inicio)))
-          : diaSeguinte(inicio);
+          : diaSeguinte(inicio));
       if (inicio >= fim || fim <= de) return [];
       veiculosPorId.set(manutencao.veiculoId, manutencao.veiculo);
       return [
@@ -115,6 +133,10 @@ export async function consultarAgenda({ inicio, fim }: z.infer<typeof agendaSche
           veiculoId: manutencao.veiculoId,
           motoristaId: null,
           motivo: manutencao.descricao?.trim() || manutencao.tipo,
+          status: manutencao.status,
+          bloqueia: manutencao.status !== "CANCELADA",
+          oficina: manutencao.fornecedor?.razaoSocial ?? null,
+          historico: historico.get(manutencao.id) ?? [],
         },
       ];
     }),

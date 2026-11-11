@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/auth";
 import { apiRequest } from "../../lib/api";
 import { veiculoSchema } from "./veiculoRules";
 import AlertaDocumentos from "./AlertaDocumentos";
+import { ProgramacaoManutencao } from "./ProgramacaoManutencao";
 
 type TipoFrotaApi = "ADMINISTRATIVA" | "SVO";
 type PropriedadeApi = "PROPRIO" | "LOCADO";
@@ -94,6 +95,7 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
 export const VeiculosPage: React.FC = () => {
   const { sessionKey } = useAuth();
   const [veiculoSelecionado, setVeiculoSelecionado] = useState<VeiculoItem | null>(null);
+  const [veiculoProgramacao, setVeiculoProgramacao] = useState<VeiculoItem | null>(null);
   const [anoMaximo] = useState(() => new Date().getFullYear() + 1);
   const [searchTerm, setSearchTerm] = useState("");
   const [consulta, setConsulta] = useState({ busca: "", tipoFrota: "", page: 1 });
@@ -335,6 +337,19 @@ export const VeiculosPage: React.FC = () => {
       },
     },
     {
+      header: "Manutenção preventiva",
+      render: (veiculo) => (
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`Programação preventiva do veículo ${veiculo.placa}`}
+          onClick={() => setVeiculoProgramacao(veiculo)}
+        >
+          Programação e histórico
+        </Button>
+      ),
+    },
+    {
       header: "Documentos",
       render: (veiculo) => (
         <Button
@@ -509,6 +524,22 @@ export const VeiculosPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={veiculoProgramacao !== null}
+        onClose={() => setVeiculoProgramacao(null)}
+        title="Manutenção preventiva"
+        size="xl"
+        description={
+          veiculoProgramacao
+            ? `${veiculoProgramacao.placa} · ${veiculoProgramacao.modelo}`
+            : undefined
+        }
+      >
+        {veiculoProgramacao && (
+          <ProgramacaoManutencao key={veiculoProgramacao.id} veiculoId={veiculoProgramacao.id} />
+        )}
+      </Modal>
 
       <Modal
         isOpen={veiculoSelecionado !== null}

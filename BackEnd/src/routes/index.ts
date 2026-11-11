@@ -1,4 +1,11 @@
 import { Router } from "express";
+import {
+  listarProgramacoesController,
+  conflitosProgramacaoController,
+  programarManutencaoController,
+  reagendarManutencaoController,
+  cancelarProgramacaoController,
+} from "../controller/programacao_manutencao_c";
 import { consultarAgendaController } from "../controller/agenda_c";
 import veiculos from "./veiculo_r";
 import dashboardRoutes from "./dashboard_r";
@@ -61,6 +68,11 @@ router.use("/api/v1/relatorios", relatorioRoutes);
 manutencoes.use(authenticate, requireRole("ADMIN", "GESTOR"));
 manutencoes.get("/", listarManutencoesController);
 manutencoes.post("/", criarManutencaoController);
+manutencoes.get("/programacoes", listarProgramacoesController);
+manutencoes.post("/programacoes/conflitos", conflitosProgramacaoController);
+manutencoes.post("/programacoes", programarManutencaoController);
+manutencoes.patch("/:id/reagendar", reagendarManutencaoController);
+manutencoes.patch("/:id/cancelar", cancelarProgramacaoController);
 manutencoes.patch("/:id/concluir", concluirManutencaoController);
 
 router.use("/api/v1/manutencoes", manutencoes);

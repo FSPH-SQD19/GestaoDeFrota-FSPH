@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { exigirSemReservaPreventiva } from "./programacao_manutencao_s";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
@@ -39,7 +40,34 @@ function dataLocal(data: Date): string {
   return `${parte("year")}-${parte("month")}-${parte("day")}`;
 }
 
-export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuarioId: string) {
+export const reagendarSolicitacaoSchema = aprovarSolicitacaoSchema
+  .safeExtend({
+    inicio: z.iso.datetime({ offset: true }).transform((valor) => new Date(valor)),
+    fim: z.iso.datetime({ offset: true }).transform((valor) => new Date(valor)),
+  })
+  .refine((dados) => dados.inicio < dados.fim, {
+    path: ["fim"],
+    message: "O retorno deve ser posterior à saída.",
+  });
+
+export function aprovarSolicitacao(id: string, dados: AprovarInput, usuarioId: string) {
+  return salvarAlocacao(id, dados, usuarioId);
+}
+
+export function reagendarSolicitacao(
+  id: string,
+  dados: z.infer<typeof reagendarSolicitacaoSchema>,
+  usuarioId: string,
+) {
+  return salvarAlocacao(id, dados, usuarioId, { inicio: dados.inicio, fim: dados.fim });
+}
+
+async function salvarAlocacao(
+  id: string,
+  dados: AprovarInput,
+  usuarioId: string,
+  janela?: { inicio: Date; fim: Date },
+) {
   validarId(id);
 
   const { veiculoId, motoristaId } = dados;
@@ -78,12 +106,12 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
           throw new HttpError(404, "Solicitação não encontrada.");
         }
 
-        if (solicitacao.status !== "PENDENTE") {
+        if (solicitacao.status !== (janela ? "APROVADA" : "PENDENTE")) {
           throw new HttpError(409, "Solicitação já processada.");
         }
 
-        const inicio = solicitacao.dataHoraPretendida;
-        const fim = solicitacao.dataHoraRetornoPrevista;
+        const inicio = janela?.inicio ?? solicitacao.dataHoraPretendida;
+        const fim = janela?.fim ?? solicitacao.dataHoraRetornoPrevista;
 
         if (!inicio || !fim || inicio >= fim) {
           throw new HttpError(422, "A solicitação precisa ter saída e retorno válidos.");
@@ -142,16 +170,19 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
           throw new HttpError(409, "Veículo ou motorista já possui viagem neste horário.");
         }
 
+        await exigirSemReservaPreventiva(tx, veiculoId, inicio, fim);
+
         const alteracao = await tx.solicitacaoViagem.updateMany({
           where: {
             id,
-            status: "PENDENTE",
+            status: janela ? "APROVADA" : "PENDENTE",
           },
           data: {
             status: "APROVADA",
             veiculoAlocadoId: veiculoId,
             motoristaAlocadoId: motoristaId,
             motivoRecusa: null,
+            ...(janela ? { dataHoraPretendida: inicio, dataHoraRetornoPrevista: fim } : {}),
           },
         });
 
@@ -166,7 +197,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
         await tx.auditoriaSistema.create({
           data: {
             usuarioId,
-            acao: "APROVAR",
+            acao: janela ? "REAGENDAR" : "APROVAR",
             tabelaAfetada: "solicitacoes_viagem",
             registroId: id,
             dadosNovos: {
@@ -194,7 +225,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
       },
     );
 
-    if (aprovada.solicitanteId) {
+    if (aprovada.solicitanteId && !janela) {
       const ctx = contextoNotificacao as {
         veiculoPlaca: string | null;
         motoristaUsuarioId: string | null;

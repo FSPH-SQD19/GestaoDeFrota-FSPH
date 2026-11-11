@@ -16,6 +16,8 @@ import {
 } from "../service/solicitacao_s";
 import {
   aprovarSolicitacao,
+  reagendarSolicitacao,
+  reagendarSolicitacaoSchema,
   recusarSolicitacao,
   aprovarSolicitacaoSchema,
   recusarSolicitacaoSchema,
@@ -69,6 +71,11 @@ export async function aprovarSolicitacaoController(req: Request, res: Response) 
     mensagem: "Solicitação aprovada com sucesso.",
     dados: solicitacao,
   });
+}
+
+export async function reagendarSolicitacaoController(req: Request, res: Response) {
+  const dados = validar(reagendarSolicitacaoSchema, req.body ?? {});
+  res.json(await reagendarSolicitacao(String(req.params.id), dados, usuarioAutenticado(res).id));
 }
 
 export async function recusarSolicitacaoController(req: Request, res: Response) {

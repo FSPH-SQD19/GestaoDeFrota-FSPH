@@ -4,6 +4,7 @@ import {
   listarSolicitacoesController,
   criarSolicitacaoController,
   aprovarSolicitacaoController,
+  reagendarSolicitacaoController,
   recusarSolicitacaoController,
   listarMinhasViagensController,
   iniciarViagemController,
@@ -31,6 +32,7 @@ router.patch(
   authenticate,
   requireRole("ADMIN", "GESTOR"),
   aprovarSolicitacaoController,
+  reagendarSolicitacaoController,
 );
 
 router.patch(
@@ -38,6 +40,13 @@ router.patch(
   authenticate,
   requireRole("ADMIN", "GESTOR"),
   recusarSolicitacaoController,
+);
+
+router.patch(
+  "/:id/reagendar",
+  authenticate,
+  requireRole("ADMIN", "GESTOR"),
+  reagendarSolicitacaoController,
 );
 
 router.get("/minhas", authenticate, requireRole("MOTORISTA"), listarMinhasViagensController);
