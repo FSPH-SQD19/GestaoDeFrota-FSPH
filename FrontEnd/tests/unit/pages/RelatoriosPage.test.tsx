@@ -39,6 +39,27 @@ describe("RelatoriosPage", () => {
     expect(screen.getByText("Sem quilometragem registrada no período.")).toBeInTheDocument();
     expect(document.querySelector("svg [d*=NaN]")).toBeNull();
   });
+  it("exibe o SLA SVO geral a partir do resumo do painel", async () => {
+    vi.mocked(apiRequest).mockImplementation(async (caminho: string) => {
+      if (caminho === "/dashboard/resumo") {
+        return {
+          svo: {
+            chamadosAtivos: 3,
+            slaMedioRespostaMinutos: 18,
+            slaMedioEntregaMinutos: 45,
+          },
+        };
+      }
+      return vazio;
+    });
+    renderPage();
+    expect(await screen.findByText("Tempo médio até o local")).toBeInTheDocument();
+    expect(screen.getByText("18 min")).toBeInTheDocument();
+    expect(screen.getByText("Tempo médio até a entrega")).toBeInTheDocument();
+    expect(screen.getByText("45 min")).toBeInTheDocument();
+    expect(apiRequest).toHaveBeenCalledWith("/dashboard/resumo");
+  });
+
   it("envia o período à API e usa os novos indicadores", async () => {
     const user = userEvent.setup();
     renderPage();

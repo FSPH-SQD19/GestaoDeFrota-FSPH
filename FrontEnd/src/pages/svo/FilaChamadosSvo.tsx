@@ -8,6 +8,7 @@ import {
   Search,
 } from "lucide-react";
 import { Badge, Button, Card, Input } from "../../components/common";
+import { chamadoAbertoParaSla, formatarDuracaoSla, minutosDesde } from "../../lib/svoSla";
 import { cn } from "../../lib/utils";
 import {
   FILTROS,
@@ -18,6 +19,7 @@ import {
 } from "./svoApresentacao";
 import type { ChamadoSvo } from "../../services/svo";
 import type { useSvoDados } from "./useSvoDados";
+import { useAgora } from "./useAgora";
 type Props = Pick<
   ReturnType<typeof useSvoDados>,
   | "chamados"
@@ -56,6 +58,7 @@ export function FilaChamadosSvo({
   abrirDetalhes,
   handleEtapaColeta,
 }: Props) {
+  const agora = useAgora();
   return (
     <Card className="overflow-hidden p-0">
       <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -110,6 +113,7 @@ export function FilaChamadosSvo({
             const protocolo = c.numeroProtocolo ?? c.id;
             const processandoEste = processandoAcaoId === c.id;
             const proximaEtapa = c.ordemColeta ? proximaEtapaColeta(c.ordemColeta.status) : null;
+            const minutosAbertos = chamadoAbertoParaSla(c) ? minutosDesde(c.criadoEm, agora) : null;
 
             return (
               <article key={c.id} className="p-4 transition-colors hover:bg-slate-50/70 sm:px-5">
@@ -122,6 +126,11 @@ export function FilaChamadosSvo({
                       <Badge size="sm" variant={STATUS_CHAMADO_VARIANT[statusOp]} dot>
                         {STATUS_CHAMADO_LABEL[statusOp]}
                       </Badge>
+                      {minutosAbertos != null && (
+                        <Badge size="sm" variant="warning">
+                          SLA {formatarDuracaoSla(minutosAbertos)}
+                        </Badge>
+                      )}
                       {c.ordemColeta?.veiculo && (
                         <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
                           {c.ordemColeta.veiculo.placa}

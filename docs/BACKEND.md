@@ -166,7 +166,7 @@ A situação é calculada a cada consulta no dia de America/Sao_Paulo: `VENCIDO`
 
 A listagem retorna `{ data, resumo }`. Cada item traz `tipoDocumento`, `dataVencimento`, `situacao`, `diasParaVencer` (negativo quando vencido) e `atual` (se é o documento que vale para o tipo). O `resumo` traz `situacaoGeral` (a pior entre os documentos atuais, ou `null` sem documentos), `bloqueiaAlocacao` e `tiposSemRegistro`.
 
-O resumo do painel (`GET /api/v1/dashboard/resumo`, perfis `ADMIN` e `GESTOR`) inclui `alertas`: documentos atuais dos veículos ativos com situação `VENCIDO` ou `PROXIMO_VENCIMENTO`, com os mesmos campos da listagem e a `placa` do veículo. A ordenação prioriza o menor `diasParaVencer`. Documentos substituídos por renovação não geram alertas.
+O resumo do painel (`GET /api/v1/dashboard/resumo`, perfis `ADMIN` e `GESTOR`) inclui `alertas`: documentos atuais dos veículos ativos com situação `VENCIDO` ou `PROXIMO_VENCIMENTO`, com os mesmos campos da listagem e a `placa` do veículo. A ordenação prioriza o menor `diasParaVencer`. Documentos substituídos por renovação não geram alertas. O bloco `svo` traz `chamadosAtivos`, `slaMedioRespostaMinutos` (chamado → chegada ao local) e `slaMedioEntregaMinutos` (chamado → entrega no SVO), os mesmos critérios de `GET /api/v1/svo/indicadores`.
 
 A aprovação de solicitação (`PATCH .../aprovar`) recusa com `422` o veículo cujo documento atual de algum tipo vence antes do dia do retorno previsto (ou antes de hoje). Cada documento pendente vem em `errors`, com `campo: "veiculoId"`. Veículo sem documento cadastrado não é bloqueado.
 
@@ -281,16 +281,17 @@ A migration de status já pertencente à branch foi preservada e não foi aplica
 
 ### Operação SVO
 
-As rotas em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`. IDs são UUIDs. Consultas: `GET /indicadores`, `/chamados` (paginação, busca e filtro `etapa`), `/viaturas` e `/motoristas`. Atendimento: `POST /chamados` e `PATCH /chamados/:id/triagem`.
+As rotas operacionais em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`. O motorista autenticado acessa somente `GET /ordens-coleta/minhas` e `PATCH /ordens-coleta/:id/etapa` da ordem que lhe foi atribuída. IDs são UUIDs. Consultas da central: `GET /indicadores`, `/chamados` (paginação, busca e filtro `etapa`), `/viaturas` e `/motoristas`. Atendimento: `POST /chamados` e `PATCH /chamados/:id/triagem`. Cada chamado traz `criadoEm` (abertura). `GET /indicadores` inclui `tempoMedioChegadaLocalMinutos` e `tempoMedioEntregaSvoMinutos` (`number` ou `null`): médias de chamado → chegada ao local e chamado → entrega no SVO, em minutos, ignorando ordens canceladas.
 
 | Método e caminho (prefixo `/api/v1/svo`) | Corpo                                                           | Resultado                                                                       |
 | ---------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /ordens-coleta/minhas`              | —                                                               | `200`, ordens ativas do motorista logado, com chamado e viatura.                |
 | `POST /ordens-coleta`                    | `{ chamadoId, veiculoId, motoristaId, numeroDeclaracaoObito? }` | `201`, ordem em `AGUARDANDO_DESPACHO`; chamado deve estar aprovado e sem ordem. |
 | `PATCH /ordens-coleta/:id/etapa`         | `{ status: "EM_DESLOCAMENTO" \| "NO_LOCAL" \| "ENTREGUE_SVO" }` | `200`, ordem atualizada; `:id` identifica a ordem, não o chamado.               |
 | `PATCH /ordens-coleta/:id/cancelar`      | Sem corpo                                                       | `200`, ordem em `CANCELADA`; permitido somente antes do despacho.               |
 | `PATCH /viaturas/:id/desinfeccao`        | Sem corpo                                                       | `200`, viatura liberada após confirmar desinfecção.                             |
 
-A sequência obrigatória é `AGUARDANDO_DESPACHO → EM_DESLOCAMENTO → NO_LOCAL → ENTREGUE_SVO`. O servidor registra respectivamente `dataHoraSaida`, `dataHoraChegadaLocal` e `dataHoraEntregaSvo`; todos começam nulos e são retornados na ordem e na listagem dos chamados. Datas são ISO 8601. Repetir ou pular etapa retorna `409`, sem alterar horários ou duplicar auditoria. Corpo ou UUID inválido retorna `400`; registro ausente, `404`; recursos indisponíveis ou CNH vencida, `422`; falta de sessão, `401`; perfil sem acesso, `403`.
+A sequência obrigatória é `AGUARDANDO_DESPACHO → EM_DESLOCAMENTO → NO_LOCAL → ENTREGUE_SVO`. O servidor registra respectivamente `dataHoraSaida`, `dataHoraChegadaLocal` e `dataHoraEntregaSvo`; todos começam nulos e são retornados na ordem e na listagem dos chamados. Datas são ISO 8601. Repetir ou pular etapa retorna `409`, sem alterar horários ou duplicar auditoria. Corpo ou UUID inválido retorna `400`; registro ausente, `404`; recursos indisponíveis ou CNH vencida, `422`; falta de sessão, `401`; perfil sem acesso, `403`. Motorista em ordem de outro condutor também recebe `403`.
 
 Na emissão, a ordem reserva uma vaga e ocupa o motorista, mas mantém a viatura disponível até registrar a saída. Reservas contam para capacidade, vínculo do condutor e filtro `EM_OPERACAO`, mas não para `coletasEmAndamento`. O painel distingue a reserva da coleta em trânsito. No despacho, a viatura e a habilitação do motorista são revalidadas. Cancelar mantém a ordem no histórico e no filtro `ENCERRADO`, libera sua vaga e libera o motorista se não houver outras ordens ativas. O chamado cancelado não admite nova emissão (uma ordem por chamado). Cancelamento antes de qualquer saída não gera desinfecção.
 

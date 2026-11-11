@@ -88,6 +88,7 @@ import {
   listarMinhasOrdensSvoSchema,
   listarChamadosSchema,
   listarChamadosSvo,
+  listarMinhasColetasSvo,
   realizarTriagemSvo,
   registrarChamadoSvo,
   triagemSchema,
@@ -315,7 +316,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
       validadeCnh: new Date("2030-12-31"),
     });
 
-    await avancarEtapaColetaSvo(ordem.id, status, usuarioId);
+    await avancarEtapaColetaSvo(ordem.id, status, usuarioId, ["SVO"]);
 
     expect(mocks.ordemUpdate).toHaveBeenCalledWith({
       where: { id: ordem.id },
@@ -340,11 +341,11 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
         ordemColeta: { id: "ordem", veiculoId, motoristaId, status },
       });
 
-      await expect(avancarEtapaColetaSvo("ordem", "ENTREGUE_SVO", usuarioId)).rejects.toMatchObject(
-        {
-          statusCode: 409,
-        },
-      );
+      await expect(
+        avancarEtapaColetaSvo("ordem", "ENTREGUE_SVO", usuarioId, ["SVO"]),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+      });
       await expect(concluirColetaSvo(chamadoId, usuarioId)).rejects.toMatchObject({
         statusCode: 409,
       });
@@ -454,6 +455,8 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
       tempoMedioChamadoEntregaSvoMinutos: null,
       amostrasChegadaLocal: 0,
       amostrasEntregaSvo: 0,
+      tempoMedioChegadaLocalMinutos: null,
+      tempoMedioEntregaSvoMinutos: null,
       total: 10,
       emAnalise: 3,
       aguardandoOrdem: 2,
@@ -563,6 +566,35 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     expect(mocks.veiculoUpdateMany).not.toHaveBeenCalled();
     expect(mocks.motoristaUpdateMany).not.toHaveBeenCalled();
     expect(mocks.desinfeccaoCreate).not.toHaveBeenCalled();
+  });
+
+  it("lista somente as coletas ativas do motorista logado", async () => {
+    mocks.motoristaFindUnique.mockResolvedValue({ id: motoristaId, ativo: true });
+    mocks.ordemFindMany.mockResolvedValue([{ id: "ordem-ativa", motoristaId }]);
+    await expect(listarMinhasColetasSvo(usuarioId)).resolves.toEqual([
+      { id: "ordem-ativa", motoristaId },
+    ]);
+    expect(mocks.motoristaFindUnique).toHaveBeenCalledWith({
+      where: { usuarioId },
+      select: { id: true, ativo: true },
+    });
+    expect(mocks.ordemFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          motoristaId,
+          status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"] },
+        },
+      }),
+    );
+  });
+
+  it("impede o motorista de avançar ordem de outro condutor", async () => {
+    mocks.ordemFindUnique.mockResolvedValue({ chamadoId, motoristaId: "outro-motorista" });
+    mocks.motoristaFindUnique.mockResolvedValue({ id: motoristaId, ativo: true });
+    await expect(
+      avancarEtapaColetaSvo("ordem", "EM_DESLOCAMENTO", usuarioId, ["MOTORISTA"]),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mocks.chamadoFindUnique).not.toHaveBeenCalled();
   });
 
   it("não libera desinfecção com coletas ativas", async () => {

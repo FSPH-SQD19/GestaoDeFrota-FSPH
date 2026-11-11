@@ -98,7 +98,11 @@ describe("GET /api/v1/dashboard/resumo", () => {
         solicitacoes: { data: [], meta: { total: 400, porStatus: { PENDENTE: 25 } } },
         alertas: [],
         solicitacoesPendentes: 25,
-        svo: { chamadosAtivos: 0, slaMedioRespostaMinutos: null },
+        svo: {
+          chamadosAtivos: 0,
+          slaMedioRespostaMinutos: null,
+          slaMedioEntregaMinutos: null,
+        },
       });
       expect(mocks.veiculosPorStatus).toHaveBeenCalledWith({
         by: ["tipoFrota", "status", "ativo"],
@@ -148,7 +152,7 @@ describe("GET /api/v1/dashboard/resumo", () => {
       expect(resposta.status).toBe(200);
       expect(await resposta.json()).toMatchObject({
         viagensDoDia: 3,
-        svo: { chamadosAtivos: 4, slaMedioRespostaMinutos: 17.5 },
+        svo: { chamadosAtivos: 4, slaMedioRespostaMinutos: 17.5, slaMedioEntregaMinutos: 60 },
         alertasOperacionais: {
           total: 3,
           cnh: [{ motoristaId: "m1", situacao: "VENCIDO" }],

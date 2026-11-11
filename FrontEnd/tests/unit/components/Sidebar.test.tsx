@@ -56,10 +56,11 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(screen.queryByRole("button", { name: /módulo svo/i })).not.toBeInTheDocument();
   });
 
-  it('exibe apenas "Minhas Viagens" para MOTORISTA (sem Dashboard)', () => {
+  it('exibe "Minhas Viagens" e "Coletas SVO" para MOTORISTA (sem Dashboard)', () => {
     renderSidebarWithRole("MOTORISTA");
 
     expect(screen.getByRole("button", { name: "Minhas Viagens" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Coletas SVO" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /dashboard/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /solicitações/i })).not.toBeInTheDocument();
   });

@@ -233,6 +233,21 @@ export async function listarMinhasOrdensSvo(
   };
 }
 
+function ehOperacaoDaCentral(perfis: string[]) {
+  return perfis.includes("ADMIN") || perfis.includes("SVO");
+}
+
+async function motoristaAtivoDoUsuario(usuarioId: string) {
+  const motorista = await prisma.motorista.findUnique({
+    where: { usuarioId },
+    select: { id: true, ativo: true },
+  });
+  if (!motorista?.ativo) {
+    throw new HttpError(403, "Seu usuário não está vinculado a um motorista ativo.");
+  }
+  return motorista.id;
+}
+
 export async function obterSlaRespostaSvo() {
   const ordensSla = await prisma.ordemColetaSvo.findMany({
     where: { status: { not: "CANCELADA" }, chamado: { criadoEm: { not: null } } },
@@ -264,12 +279,16 @@ export async function obterSlaRespostaSvo() {
   }
   const media = (tempos: number[]) =>
     tempos.length ? tempos.reduce((soma, tempo) => soma + tempo, 0) / tempos.length : null;
+  const tempoMedioChegadaLocalMinutos = media(chegada);
+  const tempoMedioEntregaSvoMinutos = media(entrega);
 
   return {
-    tempoMedioChamadoChegadaLocalMinutos: media(chegada),
-    tempoMedioChamadoEntregaSvoMinutos: media(entrega),
+    tempoMedioChamadoChegadaLocalMinutos: tempoMedioChegadaLocalMinutos,
+    tempoMedioChamadoEntregaSvoMinutos: tempoMedioEntregaSvoMinutos,
     amostrasChegadaLocal: chegada.length,
     amostrasEntregaSvo: entrega.length,
+    tempoMedioChegadaLocalMinutos,
+    tempoMedioEntregaSvoMinutos,
   };
 }
 
@@ -308,7 +327,39 @@ export async function indicadoresSvo() {
     coletasEmAndamento,
     viaturasDisponiveis,
     totalViaturas,
+    ...sla,
   };
+}
+
+const incluirMinhasColetas = {
+  chamado: {
+    select: {
+      id: true,
+      numeroProtocolo: true,
+      nomeFalecido: true,
+      enderecoOcorrencia: true,
+      criadoEm: true,
+      statusTriagem: true,
+    },
+  },
+  veiculo: {
+    select: {
+      id: true,
+      placa: true,
+      modelo: true,
+      status: true,
+      capacidadeMaxima: true,
+    },
+  },
+} satisfies Prisma.OrdemColetaSvoInclude;
+
+export async function listarMinhasColetasSvo(usuarioId: string) {
+  const motoristaId = await motoristaAtivoDoUsuario(usuarioId);
+  return prisma.ordemColetaSvo.findMany({
+    where: { motoristaId, status: { in: [...STATUS_ORDEM_ATIVA] } },
+    include: incluirMinhasColetas,
+    orderBy: [{ chamado: { criadoEm: "asc" } }, { id: "asc" }],
+  });
 }
 
 export async function listarChamadosSvo(filtros: z.infer<typeof listarChamadosSchema>) {
@@ -593,12 +644,19 @@ export async function avancarEtapaColetaSvo(
   ordemId: string,
   status: z.infer<typeof avancarEtapaSchema>["status"],
   usuarioId: string,
+  perfis: string[] = ["SVO"],
 ) {
   const ordem = await prisma.ordemColetaSvo.findUnique({
     where: { id: ordemId },
-    select: { chamadoId: true },
+    select: { chamadoId: true, motoristaId: true },
   });
   if (!ordem) throw new HttpError(404, "Ordem de coleta não encontrada.");
+  if (!ehOperacaoDaCentral(perfis)) {
+    const motoristaId = await motoristaAtivoDoUsuario(usuarioId);
+    if (ordem.motoristaId !== motoristaId) {
+      throw new HttpError(403, "Esta ordem de coleta não está atribuída a você.");
+    }
+  }
 
   return atualizarEtapaColetaSvo(ordem.chamadoId, usuarioId, status, ordemId);
 }

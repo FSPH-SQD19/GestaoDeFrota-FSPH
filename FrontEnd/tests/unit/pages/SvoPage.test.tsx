@@ -153,6 +153,8 @@ describe("SvoPage (integrada à API real)", () => {
       ).length,
       viaturasDisponiveis: dbViaturas.filter((v) => v.status === "DISPONIVEL").length,
       totalViaturas: dbViaturas.length,
+      tempoMedioChegadaLocalMinutos: 18,
+      tempoMedioEntregaSvoMinutos: 45,
     }));
 
     svosMocks.obterChamadosSvo.mockImplementation(
@@ -367,6 +369,23 @@ describe("SvoPage (integrada à API real)", () => {
     expect(screen.getByRole("button", { name: "Emitir ordem de coleta" })).toBeEnabled();
   });
 
+  it("mostra o tempo decorrido de SLA nos chamados ainda abertos", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-10T12:18:00.000Z"));
+    dbChamados = [
+      {
+        ...CHAMADOS_BASE[0]!,
+        criadoEm: "2026-11-10T12:00:00.000Z",
+      },
+    ];
+    try {
+      renderSvoPage();
+      expect(await screen.findByText("SLA 18 min")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("carrega chamados, indicadores e viaturas reais da API e filtra por busca no servidor", async () => {
     const user = userEvent.setup();
     renderSvoPage();
@@ -374,6 +393,10 @@ describe("SvoPage (integrada à API real)", () => {
     expect(await screen.findByText("SVO-2026-0001")).toBeInTheDocument();
     expect(screen.getByText("SVO-2026-0002")).toBeInTheDocument();
     expect(screen.getByText("Chevrolet S10 SVO 01")).toBeInTheDocument();
+    expect(screen.getByText("Tempo médio até o local")).toBeInTheDocument();
+    expect(screen.getByText("18 min")).toBeInTheDocument();
+    expect(screen.getByText("Tempo médio até a entrega")).toBeInTheDocument();
+    expect(screen.getByText("45 min")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Buscar chamado"), "Socorro");
 

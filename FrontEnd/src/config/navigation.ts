@@ -23,6 +23,7 @@ export type TabId =
   | "solicitacoes"
   | "agenda"
   | "viagens"
+  | "coletasSvo"
   | "veiculos"
   | "motoristas"
   | "svo"
@@ -64,6 +65,12 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "viagens",
         label: () => "Minhas Viagens",
         icon: Route,
+        roles: ["MOTORISTA"],
+      },
+      {
+        id: "coletasSvo",
+        label: () => "Coletas SVO",
+        icon: PhoneCall,
         roles: ["MOTORISTA"],
       },
     ],

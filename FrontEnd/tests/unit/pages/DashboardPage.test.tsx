@@ -50,7 +50,7 @@ const resumo = {
     },
   },
   viagensDoDia: 3,
-  svo: { chamadosAtivos: 4, slaMedioRespostaMinutos: 17.5 },
+  svo: { chamadosAtivos: 4, slaMedioRespostaMinutos: 17.5, slaMedioEntregaMinutos: 45 },
   alertasOperacionais: { total: 0, cnh: [], documentos: [] },
 };
 function renderDashboard() {
@@ -130,6 +130,8 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Chamados SVO ativos")).toBeInTheDocument();
     expect(screen.getByText("SLA médio de resposta")).toBeInTheDocument();
     expect(screen.getByText("17,5 min")).toBeInTheDocument();
+    expect(screen.getByText("SLA médio de entrega")).toBeInTheDocument();
+    expect(screen.getByText("45 min")).toBeInTheDocument();
     expect(screen.getByText("3", { exact: true })).toBeInTheDocument();
     expect(screen.getByText("4", { exact: true })).toBeInTheDocument();
     expect(screen.getByText("400", { exact: true })).toBeInTheDocument();

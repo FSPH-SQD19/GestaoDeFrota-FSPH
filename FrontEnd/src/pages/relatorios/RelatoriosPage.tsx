@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Calendar,
   CheckCircle2,
+  Clock3,
   Download,
   FileSpreadsheet,
   FileText,
@@ -10,10 +11,12 @@ import {
   Printer,
   Route,
   Search,
+  Timer,
   Wrench,
   X,
 } from "lucide-react";
 import { Badge, Button, Card, Table } from "../../components/common";
+import { formatarDuracaoSla } from "../../lib/svoSla";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
 import type {
@@ -351,6 +354,10 @@ export const RelatoriosPage: React.FC = () => {
     erro: string;
   } | null>(null);
   const [tentativa, setTentativa] = useState(0);
+  const [slaSvo, setSlaSvo] = useState<{
+    slaMedioRespostaMinutos: number | null;
+    slaMedioEntregaMinutos: number | null;
+  } | null>(null);
   const chave = `${intervalo.inicio}_${intervalo.fim}_${sessionKey}_${tentativa}`;
   const periodo = resposta?.chave === chave ? resposta.dados : null;
   const erro = resposta?.chave === chave ? resposta.erro : "";
@@ -395,6 +402,25 @@ export const RelatoriosPage: React.FC = () => {
       ativo = false;
     };
   }, [intervalo.inicio, intervalo.fim, sessionKey, chave]);
+
+  useEffect(() => {
+    let ativo = true;
+    void apiRequest<{
+      svo?: {
+        slaMedioRespostaMinutos: number | null;
+        slaMedioEntregaMinutos: number | null;
+      };
+    }>("/dashboard/resumo")
+      .then((dados) => {
+        if (ativo) setSlaSvo(dados.svo ?? null);
+      })
+      .catch(() => {
+        if (ativo) setSlaSvo(null);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [sessionKey]);
 
   useEffect(() => {
     if (!tipoAgregadoAtivo) return;
@@ -558,8 +584,27 @@ export const RelatoriosPage: React.FC = () => {
             <p className="text-xs text-slate-500">
               Quilometragem de viagens encerradas com odômetros válidos; litros abastecidos no
               período. Coletas SVO não possuem registro de quilometragem. Consumo por viagem e
-              desvios de rota ainda não são registrados.
+              desvios de rota ainda não são registrados. O SLA SVO é a média geral de chamado até a
+              chegada e até a entrega.
             </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4.5">
+              <Indicador
+                rotulo="Tempo médio até o local"
+                detalhe="SLA SVO"
+                valor={formatarDuracaoSla(slaSvo?.slaMedioRespostaMinutos)}
+                nota="Chamado → chegada ao local"
+                tom="warning"
+                icone={<Timer className="h-4.5 w-4.5 stroke-2" />}
+              />
+              <Indicador
+                rotulo="Tempo médio até a entrega"
+                detalhe="SLA SVO"
+                valor={formatarDuracaoSla(slaSvo?.slaMedioEntregaMinutos)}
+                nota="Chamado → entrega no SVO"
+                tom="info"
+                icone={<Clock3 className="h-4.5 w-4.5 stroke-2" />}
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4.5">
               <Indicador
                 rotulo="Km rodados"
