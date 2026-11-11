@@ -76,6 +76,21 @@ describe("SolicitacoesPage", () => {
     expect(apiRequest).toHaveBeenCalledTimes(1);
     expect(screen.queryByLabelText("Filtrar por setor")).not.toBeInTheDocument();
   });
+  it.each([
+    { role: "SOLICITANTE", podeCancelar: false },
+    { role: "GESTOR", podeCancelar: true },
+  ])("aplica a permissão de cancelamento de viagem aprovada para $role", async ({ role, podeCancelar }) => {
+    vi.mocked(apiRequest).mockResolvedValue({
+      ...resposta(),
+      data: [{ ...registro, status: "APROVADA" }],
+    });
+    const user = userEvent.setup();
+    renderPage([role]);
+    await screen.findByRole("button", { name: "Ver detalhes da solicitação SV-TESTE-001" });
+    expect(Boolean(screen.queryByRole("button", { name: "Cancelar solicitação SV-TESTE-001" }))).toBe(podeCancelar);
+    await user.click(screen.getByRole("button", { name: "Ver detalhes da solicitação SV-TESTE-001" }));
+    expect(Boolean(screen.queryByRole("button", { name: "Cancelar Solicitação" }))).toBe(podeCancelar);
+  });
   it("pagina e envia filtros combinados à API voltando à primeira página", async () => {
     const user = userEvent.setup();
     renderPage();

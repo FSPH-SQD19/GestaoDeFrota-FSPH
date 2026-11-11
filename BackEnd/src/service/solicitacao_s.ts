@@ -391,45 +391,54 @@ export async function cancelarSolicitacao(
     );
   }
 
-  const solicitacaoExistente = await prisma.solicitacaoViagem.findUnique({
-    where: { id },
-    include: {
-      motoristaAlocado: {
-        select: {
-          usuarioId: true,
+  const { cancelada, solicitacaoExistente } = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM solicitacoes_viagem WHERE id = ${id}::uuid FOR UPDATE`;
+
+    const solicitacaoExistente = await tx.solicitacaoViagem.findUnique({
+      where: { id },
+      include: {
+        motoristaAlocado: {
+          select: {
+            usuarioId: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!solicitacaoExistente) {
-    throw new HttpError(404, "Solicitação não encontrada.");
-  }
+    if (!solicitacaoExistente) {
+      throw new HttpError(404, "Solicitação não encontrada.");
+    }
 
-  const ehGestorOuAdmin = usuario.perfis.some((p) => PERFIS_GESTAO.includes(p));
-  if (!ehGestorOuAdmin && solicitacaoExistente.solicitanteId !== usuario.id) {
-    throw new HttpError(403, "Você não tem permissão para cancelar esta solicitação.");
-  }
+    const ehGestorOuAdmin = usuario.perfis.some((p) => PERFIS_GESTAO.includes(p));
+    if (!ehGestorOuAdmin && solicitacaoExistente.solicitanteId !== usuario.id) {
+      throw new HttpError(403, "Você não tem permissão para cancelar esta solicitação.");
+    }
 
-  if (
-    solicitacaoExistente.status === "EM_TRANSITO" ||
-    solicitacaoExistente.status === "CONCLUIDA"
-  ) {
-    throw new HttpError(
-      409,
-      "Não é possível cancelar uma viagem que já está em trânsito ou foi concluída.",
-    );
-  }
+    if (
+      solicitacaoExistente.status === "EM_TRANSITO" ||
+      solicitacaoExistente.status === "CONCLUIDA"
+    ) {
+      throw new HttpError(
+        409,
+        "Não é possível cancelar uma viagem que já está em trânsito ou foi concluída.",
+      );
+    }
 
-  if (solicitacaoExistente.status === "CANCELADA") {
-    throw new HttpError(409, "Esta solicitação já foi cancelada.");
-  }
+    if (solicitacaoExistente.status === "CANCELADA") {
+      throw new HttpError(409, "Esta solicitação já foi cancelada.");
+    }
 
-  if (solicitacaoExistente.status === "RECUSADA") {
-    throw new HttpError(409, "Esta solicitação foi recusada e não pode ser cancelada.");
-  }
+    if (solicitacaoExistente.status === "RECUSADA") {
+      throw new HttpError(409, "Esta solicitação foi recusada e não pode ser cancelada.");
+    }
 
-  const cancelada = await prisma.$transaction(async (tx) => {
+    if (solicitacaoExistente.status !== "PENDENTE" && solicitacaoExistente.status !== "APROVADA") {
+      throw new HttpError(409, "Esta solicitação não pode ser cancelada no estado atual.");
+    }
+    if (!ehGestorOuAdmin && solicitacaoExistente.status !== "PENDENTE") {
+      throw new HttpError(409, "Somente a gestão pode cancelar uma solicitação aprovada.");
+    }
+
     const registro = await tx.solicitacaoViagem.update({
       where: { id },
       data: {
@@ -458,7 +467,7 @@ export async function cancelarSolicitacao(
       },
     });
 
-    return registro;
+    return { cancelada: registro, solicitacaoExistente };
   });
 
   await notificarSolicitacaoCancelada({

@@ -351,7 +351,7 @@ export const SolicitacoesPage: React.FC = () => {
               Reagendar
             </Button>
           )}
-          {(s.status === "PENDENTE" || s.status === "APROVADA") && (
+          {(s.status === "PENDENTE" || (isGestor && s.status === "APROVADA")) && (
             <button
               type="button"
               onClick={() => setCancelando(s)}
@@ -739,7 +739,7 @@ const DetalhesSolicitacaoModal: React.FC<{
             Reagendar / Trocar
           </Button>
         )}
-        {s && (s.status === "PENDENTE" || s.status === "APROVADA") && onCancelar && (
+        {s && (s.status === "PENDENTE" || (isGestor && s.status === "APROVADA")) && onCancelar && (
           <Button
             variant="outline"
             className="text-rose-600 border-rose-200 hover:bg-rose-50"

@@ -496,11 +496,18 @@ describe("cancelarSolicitacao", () => {
     motoristaAlocado: { usuarioId: "00000000-0000-4000-8000-0000000000e1" },
   };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => callback(prisma));
+  });
+
   it("permite ao solicitante cancelar sua própria solicitação PENDENTE", async () => {
     mocks.findUnique.mockResolvedValue(solicitacaoPendente);
     mocks.transaction.mockImplementation(async (callback: any) => {
       return callback({
+        $queryRaw: mocks.queryRaw,
         solicitacaoViagem: {
+          findUnique: mocks.findUnique,
           update: vi.fn().mockResolvedValue({
             ...solicitacaoPendente,
             status: "CANCELADA",
@@ -543,7 +550,9 @@ describe("cancelarSolicitacao", () => {
     mocks.findUnique.mockResolvedValue(solicitacaoAprovada);
     mocks.transaction.mockImplementation(async (callback: any) => {
       return callback({
+        $queryRaw: mocks.queryRaw,
         solicitacaoViagem: {
+          findUnique: mocks.findUnique,
           update: vi.fn().mockResolvedValue({
             ...solicitacaoAprovada,
             status: "CANCELADA",
@@ -622,5 +631,28 @@ describe("cancelarSolicitacao", () => {
     await expect(
       cancelarSolicitacao(solicitacaoPendente.id, { motivoCancelamento: "Motivo teste" }, gestor),
     ).rejects.toThrow(HttpError);
+  });
+
+  it("impede solicitante de cancelar solicitação aprovada", async () => {
+    mocks.findUnique.mockResolvedValue(solicitacaoAprovada);
+    await expect(cancelarSolicitacao(solicitacaoAprovada.id, { motivoCancelamento: "Motivo teste" }, solicitante))
+      .rejects.toMatchObject({ statusCode: 409 });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("consulta o estado após adquirir o bloqueio e rejeita viagem iniciada enquanto aguardava", async () => {
+    let liberarBloqueio!: () => void;
+    mocks.queryRaw.mockImplementationOnce(() => new Promise<void>((resolve) => { liberarBloqueio = resolve; }));
+    mocks.findUnique.mockResolvedValue({ ...solicitacaoAprovada, status: "EM_TRANSITO" });
+
+    const cancelamento = cancelarSolicitacao(solicitacaoAprovada.id, { motivoCancelamento: "Motivo teste" }, gestor);
+    expect(mocks.queryRaw).toHaveBeenCalledOnce();
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+    liberarBloqueio();
+
+    await expect(cancelamento).rejects.toMatchObject({ statusCode: 409 });
+    expect(mocks.findUnique).toHaveBeenCalledOnce();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.auditoriaCreate).not.toHaveBeenCalled();
   });
 });
