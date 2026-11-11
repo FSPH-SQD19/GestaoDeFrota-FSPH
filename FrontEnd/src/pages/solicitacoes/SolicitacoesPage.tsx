@@ -33,6 +33,7 @@ import {
 } from "../../types/solicitacao";
 import { AnalisarSolicitacaoModal } from "./AnalisarSolicitacaoModal";
 import { NovaSolicitacaoModal } from "./NovaSolicitacaoModal";
+import { ReagendarViagemModal } from "./ReagendarViagemModal";
 
 type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA";
 type FiltroUrgencia = "TODAS" | UrgenciaSolicitacao;
@@ -92,6 +93,7 @@ export const SolicitacoesPage: React.FC = () => {
     solicitacao: SolicitacaoViagem;
     modo: "APROVAR" | "RECUSAR";
   } | null>(null);
+  const [reagendarModal, setReagendarModal] = useState<SolicitacaoViagem | null>(null);
   const [isNovaOpen, setIsNovaOpen] = useState(false);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
@@ -123,6 +125,7 @@ export const SolicitacoesPage: React.FC = () => {
   const totalPages = Math.max(1, atual?.dados?.meta.totalPages ?? 1);
   const carregando = !atual;
   const erroCarregamento = atual?.erro;
+  
 
   useEffect(() => {
     let ativa = true;
@@ -632,6 +635,18 @@ export const SolicitacoesPage: React.FC = () => {
         onClose={() => setIsNovaOpen(false)}
         onSubmit={handleNovaSolicitacao}
       />
+      {reagendarModal && (
+        <ReagendarViagemModal
+          solicitacao={reagendarModal}
+          sessionKey={sessionKey}
+          onClose={() => setReagendarModal(null)}
+          onConcluido={(mensagem) => {
+            setReagendarModal(null);
+            setMensagemSucesso(mensagem);
+            dispararRecarregamento();
+    }}
+  />
+)}
 
       <DetalhesSolicitacaoModal
         solicitacao={selecionada}
@@ -641,7 +656,12 @@ export const SolicitacoesPage: React.FC = () => {
           setSelecionada(null);
           setAnalise({ solicitacao, modo });
         }}
+        onReagendar={(solicitacao) => {
+          setSelecionada(null); 
+          setReagendarModal(solicitacao); 
+        }}
       />
+      
     </div>
   );
 };
@@ -704,7 +724,8 @@ const DetalhesSolicitacaoModal: React.FC<{
   isGestor: boolean;
   onClose: () => void;
   onDecidir: (solicitacao: SolicitacaoViagem, modo: "APROVAR" | "RECUSAR") => void;
-}> = ({ solicitacao: s, isGestor, onClose, onDecidir }) => (
+  onReagendar: (solicitacao: SolicitacaoViagem) => void;
+}> = ({ solicitacao: s, isGestor, onClose, onDecidir, onReagendar }) => (
   <Modal
     isOpen={s !== null}
     onClose={onClose}
@@ -713,6 +734,13 @@ const DetalhesSolicitacaoModal: React.FC<{
     description={s ? `Enviada em ${formatarDataHora(s.criadoEm)} por ${s.solicitanteNome}` : ""}
     footer={
       <>
+        {/* Botão de Reagendamento visível para Gestor em viagens Aprovadas ou Em Trânsito */}
+        {isGestor && (s?.status === "APROVADA" || s?.status === "EM_TRANSITO") && (
+          <Button variant="outline" onClick={() => onReagendar(s)}>
+            Reagendar / Trocar
+          </Button>
+        )}
+
         {isGestor && s?.status === "PENDENTE" && (
           <>
             <Button variant="danger" onClick={() => onDecidir(s, "RECUSAR")}>

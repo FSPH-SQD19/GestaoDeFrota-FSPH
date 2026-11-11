@@ -19,6 +19,8 @@ import {
   recusarSolicitacao,
   aprovarSolicitacaoSchema,
   recusarSolicitacaoSchema,
+  reagendarViagemAprovada,
+  reagendarViagemSchema
 } from "../service/aprovacao_s";
 
 export async function iniciarViagemController(req: Request, res: Response) {
@@ -83,5 +85,20 @@ export async function recusarSolicitacaoController(req: Request, res: Response) 
   return res.status(200).json({
     mensagem: "Solicitação recusada com sucesso.",
     dados: solicitacao,
+  });
+}
+
+export async function reagendarViagemController(req: Request, res: Response) {
+  const dados = validar(reagendarViagemSchema, req.body ?? {});
+
+  const viagemReagendada = await reagendarViagemAprovada(
+    String(req.params.id),
+    dados,
+    usuarioAutenticado(res).id,
+  );
+
+  return res.status(200).json({
+    mensagem: "Viagem reagendada com sucesso.",
+    dados: viagemReagendada,
   });
 }
