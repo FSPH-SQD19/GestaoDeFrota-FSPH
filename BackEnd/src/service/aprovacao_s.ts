@@ -110,6 +110,22 @@ async function salvarAlocacao(
           throw new HttpError(409, "Solicitação já processada.");
         }
 
+        if (
+          janela &&
+          (!solicitacao.dataHoraPretendida ||
+            solicitacao.dataHoraPretendida.getTime() <= Date.now() ||
+            janela.inicio.getTime() <= Date.now())
+        ) {
+          throw new HttpError(422, "O reagendamento exige uma viagem e uma nova saída futuras.");
+        }
+        if (
+          janela &&
+          (solicitacao.veiculoAlocadoId !== veiculoId ||
+            solicitacao.motoristaAlocadoId !== motoristaId)
+        ) {
+          throw new HttpError(422, "O reagendamento mantém o veículo e o motorista alocados.");
+        }
+
         const inicio = janela?.inicio ?? solicitacao.dataHoraPretendida;
         const fim = janela?.fim ?? solicitacao.dataHoraRetornoPrevista;
 

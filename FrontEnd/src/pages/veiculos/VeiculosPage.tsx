@@ -364,7 +364,9 @@ export const VeiculosPage: React.FC = () => {
     {
       header: "Revisão preventiva",
       render: (veiculo) => (
-        <Button variant="outline" size="sm"
+        <Button
+          variant="outline"
+          size="sm"
           aria-label={`Ver revisão do veículo ${veiculo.placa}`}
           onClick={() => setVeiculoRevisao(veiculo)}
         >

@@ -47,6 +47,8 @@ const solicitacao = {
   protocolo: "SV-TESTE",
   status: "PENDENTE",
   quantidadePassageiros: 3,
+  veiculoAlocadoId: veiculoId,
+  motoristaAlocadoId: motoristaId,
   dataHoraPretendida: new Date("2026-11-10T08:00:00-03:00"),
   dataHoraRetornoPrevista: new Date("2026-11-10T18:00:00-03:00"),
 };
@@ -280,6 +282,10 @@ describe("regras de recusa", () => {
 });
 
 describe("reservas preventivas na aprovação e no reagendamento", () => {
+  beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-11-09T12:00:00Z").getTime());
+  });
+  afterAll(() => vi.restoreAllMocks());
   it("retorna 409 ao aprovar dentro de manutenção programada", async () => {
     mocks.manutencao.mockResolvedValue({ id: "manutencao" });
     expect((await decidir()).status).toBe(409);
@@ -335,6 +341,29 @@ describe("reservas preventivas na aprovação e no reagendamento", () => {
       fim: "2026-11-10T10:00:00-03:00",
     };
     expect((await decidir("reagendar", dados)).status).toBe(409);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("impede reagendar uma viagem cuja saída já passou", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-11-10T12:00:00Z").getTime());
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-11T09:00:00-03:00",
+      fim: "2026-11-11T10:00:00-03:00",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(422);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("impede trocar recursos pelo reagendamento simples", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
+    const dados = {
+      veiculoId: "00000000-0000-4000-8000-000000000099",
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(422);
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });

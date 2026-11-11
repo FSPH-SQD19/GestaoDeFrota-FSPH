@@ -567,7 +567,8 @@ test("motorista vê coletas SVO atribuídas e avança a etapa no celular", async
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   const menu = page.getByRole("button", { name: "Abrir menu" });
-  if (await menu.isVisible()) await menu.click();
+  await expect(menu).toBeVisible();
+  await menu.click();
   await page.getByRole("button", { name: "Coletas SVO", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Coletas SVO" })).toBeVisible();
   await expect(page.getByText("SVO-2026-0009")).toBeVisible();
