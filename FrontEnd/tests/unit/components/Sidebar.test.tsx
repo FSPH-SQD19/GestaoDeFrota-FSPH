@@ -47,6 +47,14 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(podeAcessar("dashboard", ["ADMIN"])).toBe(true);
   });
 
+  it("restringe acesso à trilha de auditoria exclusivamente para ADMIN", () => {
+    expect(podeAcessar("auditoria", ["ADMIN"])).toBe(true);
+    expect(podeAcessar("auditoria", ["GESTOR"])).toBe(false);
+    expect(podeAcessar("auditoria", ["SOLICITANTE"])).toBe(false);
+    expect(podeAcessar("auditoria", ["MOTORISTA"])).toBe(false);
+    expect(podeAcessar("auditoria", ["SVO"])).toBe(false);
+  });
+
   it('exibe apenas "Minhas Solicitações" para SOLICITANTE (sem Dashboard)', () => {
     renderSidebarWithRole("SOLICITANTE");
 
@@ -54,6 +62,7 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(screen.queryByRole("button", { name: /dashboard/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /veículos/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /módulo svo/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /trilha de auditoria/i })).not.toBeInTheDocument();
   });
 
   it('exibe apenas "Minhas Viagens" para MOTORISTA (sem Dashboard)', () => {
@@ -62,6 +71,7 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(screen.getByRole("button", { name: "Minhas Viagens" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /dashboard/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /solicitações/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /trilha de auditoria/i })).not.toBeInTheDocument();
   });
 
   it('exibe apenas "Módulo SVO" para SVO (segregação de frotas)', () => {
@@ -70,9 +80,10 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(screen.getByRole("button", { name: "Módulo SVO" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /dashboard/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /veículos/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /trilha de auditoria/i })).not.toBeInTheDocument();
   });
 
-  it("exibe módulos de frota administrativa para GESTOR e oculta SVO e Usuários", () => {
+  it("exibe módulos de frota administrativa para GESTOR e oculta SVO, Usuários e Auditoria", () => {
     renderSidebarWithRole("GESTOR");
 
     expect(screen.getByRole("button", { name: /dashboard/i })).toBeInTheDocument();
@@ -82,5 +93,14 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(screen.getByRole("button", { name: /relatórios/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /módulo svo/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /usuários/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /trilha de auditoria/i })).not.toBeInTheDocument();
+  });
+
+  it("exibe link para Trilha de Auditoria e Usuários para ADMIN", () => {
+    renderSidebarWithRole("ADMIN");
+
+    expect(screen.getByRole("button", { name: /trilha de auditoria/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /usuários/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /dashboard/i })).toBeInTheDocument();
   });
 });

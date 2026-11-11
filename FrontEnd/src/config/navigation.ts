@@ -9,6 +9,7 @@ import {
   UserCheck,
   PhoneCall,
   Route,
+  ShieldCheck,
 } from "lucide-react";
 import type { UserRole } from "../types/auth";
 
@@ -27,7 +28,8 @@ export type TabId =
   | "motoristas"
   | "svo"
   | "relatorios"
-  | "usuarios";
+  | "usuarios"
+  | "auditoria";
 
 export interface NavItem {
   id: TabId;
@@ -110,6 +112,12 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "usuarios",
         label: () => "Usuários (RBAC)",
         icon: UserCheck,
+        roles: ["ADMIN"],
+      },
+      {
+        id: "auditoria",
+        label: () => "Trilha de Auditoria",
+        icon: ShieldCheck,
         roles: ["ADMIN"],
       },
     ],

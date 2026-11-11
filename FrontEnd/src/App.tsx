@@ -44,6 +44,10 @@ const UsuariosPage = lazy(() =>
   import("./pages/usuarios/UsuariosPage").then((module) => ({ default: module.UsuariosPage })),
 );
 
+const AuditoriaPage = lazy(() =>
+  import("./pages/auditoria/AuditoriaPage").then((module) => ({ default: module.AuditoriaPage })),
+);
+
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const roles = user?.roles ?? [];
@@ -113,6 +117,7 @@ const AppContent: React.FC = () => {
 
             {currentTab === "relatorios" && <RelatoriosPage />}
             {currentTab === "usuarios" && <UsuariosPage />}
+            {currentTab === "auditoria" && <AuditoriaPage />}
           </Suspense>
         </main>
       </div>
