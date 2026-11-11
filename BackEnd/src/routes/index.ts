@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { consultarAgendaController } from "../controller/agenda_c";
 import veiculos from "./veiculo_r";
 import dashboardRoutes from "./dashboard_r";
 import relatorioRoutes from "./relatorio_r";
@@ -37,6 +38,12 @@ router.use("/motoristas", motoristaRoutes);
 router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/veiculos", veiculos);
 router.use("/api/v1/dashboard", dashboardRoutes);
+router.get(
+  "/api/v1/agenda",
+  authenticate,
+  requireRole("ADMIN", "GESTOR"),
+  consultarAgendaController,
+);
 router.use("/solicitacoes", solicitacaoRoutes);
 
 // Consultar abastecimento
