@@ -648,7 +648,7 @@ describe("SLA e ordens do motorista SVO", () => {
     });
     expect(mocks.ordemFindMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: { status: { not: "CANCELADA" }, chamado: { criadoEm: { not: null } } },
+        where: { status: { not: "CANCELADA" } },
       }),
     );
   });

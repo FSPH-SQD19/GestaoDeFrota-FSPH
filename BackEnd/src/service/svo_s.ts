@@ -250,7 +250,7 @@ async function motoristaAtivoDoUsuario(usuarioId: string) {
 
 export async function obterSlaRespostaSvo() {
   const ordensSla = await prisma.ordemColetaSvo.findMany({
-    where: { status: { not: "CANCELADA" }, chamado: { criadoEm: { not: null } } },
+    where: { status: { not: "CANCELADA" } },
     select: {
       chamado: { select: { criadoEm: true } },
       dataHoraChegadaLocal: true,
