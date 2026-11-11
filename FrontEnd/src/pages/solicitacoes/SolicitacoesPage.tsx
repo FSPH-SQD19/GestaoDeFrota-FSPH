@@ -18,6 +18,7 @@ import {
 } from "../../types/solicitacao";
 import { AnalisarSolicitacaoModal } from "./AnalisarSolicitacaoModal";
 import { NovaSolicitacaoModal } from "./NovaSolicitacaoModal";
+import { ReagendarViagemModal } from "./ReagendarViagemModal";
 
 type FiltroStatus = "TODAS" | "PENDENTE" | "APROVADAS" | "CONCLUIDA" | "RECUSADA";
 type FiltroUrgencia = "TODAS" | UrgenciaSolicitacao;
@@ -77,6 +78,7 @@ export const SolicitacoesPage: React.FC = () => {
     solicitacao: SolicitacaoViagem;
     modo: "APROVAR" | "RECUSAR";
   } | null>(null);
+  const [reagendamento, setReagendamento] = useState<SolicitacaoViagem | null>(null);
   const [isNovaOpen, setIsNovaOpen] = useState(false);
   const [selecionada, setSelecionada] = useState<SolicitacaoViagem | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
@@ -326,6 +328,16 @@ export const SolicitacoesPage: React.FC = () => {
           >
             <Eye className="w-4 h-4" />
           </button>
+          {isGestor && s.status === "APROVADA" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReagendamento(s)}
+              aria-label={`Reagendar viagem ${s.protocolo}`}
+            >
+              Reagendar
+            </Button>
+          )}
         </div>
       ),
     },
@@ -575,6 +587,18 @@ export const SolicitacoesPage: React.FC = () => {
         </div>
       )}
 
+      {reagendamento && (
+        <ReagendarViagemModal
+          key={reagendamento.id}
+          solicitacao={reagendamento}
+          onClose={() => setReagendamento(null)}
+          onConcluido={() => {
+            setReagendamento(null);
+            setMensagemSucesso("Viagem reagendada.");
+            dispararRecarregamento();
+          }}
+        />
+      )}
       {analise && (
         <AnalisarSolicitacaoModal
           key={`${analise.solicitacao.id}-${analise.modo}`}

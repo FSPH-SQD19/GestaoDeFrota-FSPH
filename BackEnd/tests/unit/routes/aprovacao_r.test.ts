@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   motorista: vi.fn(),
   conflito: vi.fn(),
   documentos: vi.fn(),
+  manutencao: vi.fn(),
   update: vi.fn(),
   resultado: vi.fn(),
   auditoria: vi.fn(),
@@ -30,6 +31,7 @@ const tx = {
   veiculo: { findUnique: mocks.veiculo },
   motorista: { findUnique: mocks.motorista },
   documentoVeiculo: { findMany: mocks.documentos },
+  manutencao: { findFirst: mocks.manutencao },
   auditoriaSistema: { create: mocks.auditoria },
 };
 vi.mock("../../../src/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
@@ -73,6 +75,7 @@ beforeEach(() => {
   });
   mocks.conflito.mockResolvedValue(null);
   mocks.documentos.mockResolvedValue([]);
+  mocks.manutencao.mockResolvedValue(null);
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.resultado.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
   mocks.auditoria.mockResolvedValue({});
@@ -273,5 +276,65 @@ describe("regras de recusa", () => {
       existe ? 409 : 404,
     );
     expect(mocks.auditoria).not.toHaveBeenCalled();
+  });
+});
+
+describe("reservas preventivas na aprovação e no reagendamento", () => {
+  it("retorna 409 ao aprovar dentro de manutenção programada", async () => {
+    mocks.manutencao.mockResolvedValue({ id: "manutencao" });
+    expect((await decidir()).status).toBe(409);
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.auditoria).not.toHaveBeenCalled();
+  });
+  it("valida manutenção na nova janela antes de reagendar", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
+    mocks.manutencao.mockResolvedValue({ id: "manutencao" });
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(409);
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.manutencao).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          inicioPrevisto: { lt: new Date(dados.fim) },
+          fimPrevisto: { gt: new Date(dados.inicio) },
+        }),
+      }),
+    );
+  });
+  it("reagenda com os recursos e audita o novo período quando não há reservas", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { id, status: "APROVADA" },
+      data: expect.objectContaining({
+        dataHoraPretendida: new Date(dados.inicio),
+        dataHoraRetornoPrevista: new Date(dados.fim),
+      }),
+    });
+    expect(mocks.auditoria).toHaveBeenCalledWith({
+      data: expect.objectContaining({ acao: "REAGENDAR" }),
+    });
+  });
+  it("impede reagendar viagem em trânsito", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "EM_TRANSITO" });
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(409);
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 });

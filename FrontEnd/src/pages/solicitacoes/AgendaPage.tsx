@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { EVENTO_OCUPACAO } from "../../services/manutencoesService";
+import { HistoricoProgramacao } from "../veiculos/HistoricoProgramacao";
 import { apiRequest, respostaDeErro } from "../../lib/api";
 import { Button, Input, Select } from "../../components/common";
 import { intervalosLivres, type Ocupacao } from "./agendaIntervalos";
@@ -65,10 +67,12 @@ export function AgendaPage() {
       if (document.visibilityState === "visible") void carregar();
     }, 30_000);
     window.addEventListener("focus", carregar);
+    window.addEventListener(EVENTO_OCUPACAO, carregar);
     return () => {
       ativa = false;
       window.clearInterval(timer);
       window.removeEventListener("focus", carregar);
+      window.removeEventListener(EVENTO_OCUPACAO, carregar);
     };
   }, [periodo, periodoValido, atualizar]);
 
@@ -166,20 +170,30 @@ export function AgendaPage() {
                     .map((item) => (
                       <li
                         key={item.id}
-                        className={`rounded-lg px-3 py-2 ${item.tipo === "LIVRE" ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-950"}`}
+                        className={`rounded-lg px-3 py-2 ${item.tipo === "LIVRE" ? "bg-emerald-50 text-emerald-900" : item.tipo === "MANUTENCAO" && item.status === "CANCELADA" ? "bg-slate-100 text-slate-600" : "bg-amber-50 text-amber-950"}`}
                       >
                         <strong>
                           {item.tipo === "LIVRE"
                             ? "Sem reserva registrada"
                             : item.tipo === "MANUTENCAO"
-                              ? "Manutenção"
+                              ? item.status === "CANCELADA"
+                                ? "Manutenção cancelada"
+                                : item.status === "PROGRAMADA"
+                                  ? "Preventiva programada"
+                                  : "Manutenção"
                               : item.status === "APROVADA"
                                 ? "Aprovada"
                                 : "Em trânsito"}
                         </strong>
                         {" · "}
                         {formatarIntervalo(item.inicio, item.fim)}
-                        {item.tipo === "MANUTENCAO" && item.motivo && <div>{item.motivo}</div>}
+                        {item.tipo === "MANUTENCAO" && (
+                          <div>
+                            {item.motivo && <p>{item.motivo}</p>}
+                            {item.oficina && <p>Oficina · {item.oficina}</p>}
+                            <HistoricoProgramacao historico={item.historico ?? []} />
+                          </div>
+                        )}
                         {item.tipo === "VIAGEM" && (
                           <div>
                             {[
