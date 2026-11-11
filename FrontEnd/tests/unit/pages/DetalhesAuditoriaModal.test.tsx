@@ -26,13 +26,7 @@ describe("DetalhesAuditoriaModal", () => {
   };
 
   it("renderiza detalhes completos do log de auditoria", () => {
-    render(
-      <DetalhesAuditoriaModal
-        log={logMock}
-        isOpen={true}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<DetalhesAuditoriaModal log={logMock} isOpen={true} onClose={vi.fn()} />);
 
     expect(screen.getByText("Detalhes do Log de Auditoria")).toBeInTheDocument();
     expect(screen.getByText("CRIAR_SOLICITACAO")).toBeInTheDocument();
@@ -51,13 +45,7 @@ describe("DetalhesAuditoriaModal", () => {
       dadosNovos: null,
     };
 
-    render(
-      <DetalhesAuditoriaModal
-        log={logSemPayload}
-        isOpen={true}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<DetalhesAuditoriaModal log={logSemPayload} isOpen={true} onClose={vi.fn()} />);
 
     expect(
       screen.getByText("Nenhum dado payload adicional registrado nesta operação."),
@@ -68,13 +56,7 @@ describe("DetalhesAuditoriaModal", () => {
     const user = userEvent.setup();
     const handleClose = vi.fn();
 
-    render(
-      <DetalhesAuditoriaModal
-        log={logMock}
-        isOpen={true}
-        onClose={handleClose}
-      />,
-    );
+    render(<DetalhesAuditoriaModal log={logMock} isOpen={true} onClose={handleClose} />);
 
     const botoesFechar = screen.getAllByRole("button", { name: "Fechar" });
     await user.click(botoesFechar[0]);

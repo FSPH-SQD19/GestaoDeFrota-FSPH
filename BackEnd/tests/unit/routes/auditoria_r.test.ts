@@ -103,7 +103,10 @@ describe("GET /api/v1/auditoria", () => {
     });
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: Array<{ acao: string; dadosNovos: Record<string, unknown> }>; meta: { total: number } };
+    const body = (await res.json()) as {
+      data: Array<{ acao: string; dadosNovos: Record<string, unknown> }>;
+      meta: { total: number };
+    };
     expect(body.data).toHaveLength(1);
     expect(body.data[0].acao).toBe("CRIAR");
     expect(body.data[0].dadosNovos.protocolo).toBe("SV-2026-0001");

@@ -9,18 +9,36 @@ interface DetalhesAuditoriaModalProps {
   onClose: () => void;
 }
 
-function obterAcaoBadgeVariant(acao: string): "success" | "info" | "warning" | "danger" | "neutral" {
+function obterAcaoBadgeVariant(
+  acao: string,
+): "success" | "info" | "warning" | "danger" | "neutral" {
   const normalizada = acao.toUpperCase();
-  if (normalizada.includes("CRIAR") || normalizada.includes("CREATE") || normalizada.includes("CRIACAO")) {
+  if (
+    normalizada.includes("CRIAR") ||
+    normalizada.includes("CREATE") ||
+    normalizada.includes("CRIACAO")
+  ) {
     return "success";
   }
-  if (normalizada.includes("ATUALIZAR") || normalizada.includes("UPDATE") || normalizada.includes("EDICAO")) {
+  if (
+    normalizada.includes("ATUALIZAR") ||
+    normalizada.includes("UPDATE") ||
+    normalizada.includes("EDICAO")
+  ) {
     return "info";
   }
-  if (normalizada.includes("EXCLUIR") || normalizada.includes("DELETE") || normalizada.includes("CANCELAR")) {
+  if (
+    normalizada.includes("EXCLUIR") ||
+    normalizada.includes("DELETE") ||
+    normalizada.includes("CANCELAR")
+  ) {
     return "danger";
   }
-  if (normalizada.includes("LOGIN") || normalizada.includes("LOGOUT") || normalizada.includes("AUTH")) {
+  if (
+    normalizada.includes("LOGIN") ||
+    normalizada.includes("LOGOUT") ||
+    normalizada.includes("AUTH")
+  ) {
     return "warning";
   }
   return "neutral";
@@ -52,9 +70,7 @@ export const DetalhesAuditoriaModal: React.FC<DetalhesAuditoriaModalProps> = ({
 
   if (!log) return null;
 
-  const payloadString = log.dadosNovos
-    ? JSON.stringify(log.dadosNovos, null, 2)
-    : null;
+  const payloadString = log.dadosNovos ? JSON.stringify(log.dadosNovos, null, 2) : null;
 
   const copiarPayload = async () => {
     if (!payloadString) return;

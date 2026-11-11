@@ -1,9 +1,7 @@
 import { apiRequest } from "../lib/api";
 import type { FiltrosAuditoria, ListaAuditoriaResposta } from "../types/auditoria";
 
-export function listarAuditoriaApi(
-  params: FiltrosAuditoria = {},
-): Promise<ListaAuditoriaResposta> {
+export function listarAuditoriaApi(params: FiltrosAuditoria = {}): Promise<ListaAuditoriaResposta> {
   const query = new URLSearchParams({
     page: String(params.page ?? 1),
     pageSize: String(params.pageSize ?? 20),

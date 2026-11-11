@@ -36,18 +36,36 @@ const ACOES_OPTIONS = [
   { value: "LOGIN", label: "Autenticação (LOGIN)" },
 ];
 
-function obterAcaoBadgeVariant(acao: string): "success" | "info" | "warning" | "danger" | "neutral" {
+function obterAcaoBadgeVariant(
+  acao: string,
+): "success" | "info" | "warning" | "danger" | "neutral" {
   const normalizada = acao.toUpperCase();
-  if (normalizada.includes("CRIAR") || normalizada.includes("CREATE") || normalizada.includes("CRIACAO")) {
+  if (
+    normalizada.includes("CRIAR") ||
+    normalizada.includes("CREATE") ||
+    normalizada.includes("CRIACAO")
+  ) {
     return "success";
   }
-  if (normalizada.includes("ATUALIZAR") || normalizada.includes("UPDATE") || normalizada.includes("EDICAO")) {
+  if (
+    normalizada.includes("ATUALIZAR") ||
+    normalizada.includes("UPDATE") ||
+    normalizada.includes("EDICAO")
+  ) {
     return "info";
   }
-  if (normalizada.includes("EXCLUIR") || normalizada.includes("DELETE") || normalizada.includes("CANCELAR")) {
+  if (
+    normalizada.includes("EXCLUIR") ||
+    normalizada.includes("DELETE") ||
+    normalizada.includes("CANCELAR")
+  ) {
     return "danger";
   }
-  if (normalizada.includes("LOGIN") || normalizada.includes("LOGOUT") || normalizada.includes("AUTH")) {
+  if (
+    normalizada.includes("LOGIN") ||
+    normalizada.includes("LOGOUT") ||
+    normalizada.includes("AUTH")
+  ) {
     return "warning";
   }
   return "neutral";
@@ -165,9 +183,7 @@ export const AuditoriaPage: React.FC = () => {
         header: "Módulo / Tabela",
         accessor: "tabelaAfetada",
         render: (item) => (
-          <span className="font-semibold text-xs text-slate-800">
-            {item.tabelaAfetada}
-          </span>
+          <span className="font-semibold text-xs text-slate-800">{item.tabelaAfetada}</span>
         ),
       },
       {
@@ -238,7 +254,8 @@ export const AuditoriaPage: React.FC = () => {
             </h1>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Rastreabilidade e histórico de operações críticas da frota e do SVO em conformidade com a LGPD.
+            Rastreabilidade e histórico de operações críticas da frota e do SVO em conformidade com
+            a LGPD.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -347,11 +364,7 @@ export const AuditoriaPage: React.FC = () => {
             >
               Limpar Filtros
             </Button>
-            <Button
-              type="submit"
-              size="sm"
-              leftIcon={<Search className="w-3.5 h-3.5" />}
-            >
+            <Button type="submit" size="sm" leftIcon={<Search className="w-3.5 h-3.5" />}>
               Aplicar Busca
             </Button>
           </div>
@@ -406,7 +419,8 @@ export const AuditoriaPage: React.FC = () => {
       <div className="flex items-center gap-2.5 border-t border-slate-200 pt-4 text-xs text-slate-500">
         <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
         <span>
-          Em conformidade com a LGPD e as normas de governança da FSPH, todos os acessos a esta trilha são registrados e senhas/segredos são permanentemente mascarados.
+          Em conformidade com a LGPD e as normas de governança da FSPH, todos os acessos a esta
+          trilha são registrados e senhas/segredos são permanentemente mascarados.
         </span>
       </div>
 
