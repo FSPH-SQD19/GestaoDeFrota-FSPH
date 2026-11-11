@@ -45,6 +45,12 @@ function estiloTipoNotificacao(tipo: string): {
         Icone: XCircle,
         containerClass: "bg-rose-50 text-rose-700 border border-rose-200",
       };
+    case "REVISAO_PREVENTIVA_VENCIDA":
+      return {
+        Icone: AlertTriangle,
+        containerClass: "bg-rose-50 text-rose-700 border border-rose-200",
+      };
+    case "REVISAO_PREVENTIVA_PROXIMA":
     case "CNH_VENCENDO":
     case "DOCUMENTO_VEICULO_VENCENDO":
       return {

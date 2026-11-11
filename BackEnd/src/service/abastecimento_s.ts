@@ -1,5 +1,6 @@
 import { Prisma, type Abastecimento } from "@prisma/client";
 import { z } from "zod";
+import { notificarRevisaoPreventiva } from "./notificacao_s";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 import { STATUS_ORDEM_EM_COLETA } from "./svo_s";
@@ -147,85 +148,83 @@ export async function listarAbastecimentos(filtros: ListarAbastecimentosFiltros)
 }
 
 export async function criarAbastecimento(input: CriarAbastecimentoInput, usuarioId: string) {
-  const veiculo = await prisma.veiculo.findUnique({
-    where: { id: input.veiculoId },
-    select: { ativo: true },
-  });
-  if (!veiculo?.ativo) {
-    throw new HttpError(422, "Veículo não encontrado ou inativo.", [
-      { campo: "veiculoId", mensagem: "Informe um veículo ativo." },
-    ]);
-  }
-
-  if (input.motoristaId) {
-    const motorista = await prisma.motorista.findUnique({
-      where: { id: input.motoristaId },
-      select: { ativo: true },
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM veiculos WHERE id = ${input.veiculoId}::uuid FOR UPDATE`;
+    const veiculo = await tx.veiculo.findUnique({
+      where: { id: input.veiculoId },
+      select: { id: true, placa: true, ativo: true, odometroAtual: true, kmProximaRevisao: true },
     });
-    if (!motorista?.ativo) {
-      throw new HttpError(422, "Motorista não encontrado ou inativo.", [
-        { campo: "motoristaId", mensagem: "Informe um motorista ativo." },
+    if (!veiculo?.ativo) {
+      throw new HttpError(422, "Veículo não encontrado ou inativo.", [
+        { campo: "veiculoId", mensagem: "Informe um veículo ativo." },
       ]);
     }
-  }
-
-  if (input.fornecedorId) {
-    const fornecedor = await prisma.fornecedor.findUnique({
-      where: { id: input.fornecedorId },
-      select: { ativo: true },
+    if (input.motoristaId) {
+      const motorista = await tx.motorista.findUnique({
+        where: { id: input.motoristaId },
+        select: { ativo: true },
+      });
+      if (!motorista?.ativo) {
+        throw new HttpError(422, "Motorista não encontrado ou inativo.", [
+          { campo: "motoristaId", mensagem: "Informe um motorista ativo." },
+        ]);
+      }
+    }
+    if (input.fornecedorId) {
+      const fornecedor = await tx.fornecedor.findUnique({
+        where: { id: input.fornecedorId },
+        select: { ativo: true },
+      });
+      if (!fornecedor?.ativo) {
+        throw new HttpError(422, "Fornecedor não encontrado ou inativo.", [
+          { campo: "fornecedorId", mensagem: "Informe um fornecedor ativo." },
+        ]);
+      }
+    }
+    const dataHora = input.dataHora ?? new Date();
+    const anterior = await tx.abastecimento.findFirst({
+      where: {
+        veiculoId: input.veiculoId,
+        dataHora: { lte: dataHora },
+        odometro: { not: null },
+      },
+      orderBy: [{ dataHora: "desc" }, { odometro: "desc" }],
+      select: { odometro: true },
     });
-    if (!fornecedor?.ativo) {
-      throw new HttpError(422, "Fornecedor não encontrado ou inativo.", [
-        { campo: "fornecedorId", mensagem: "Informe um fornecedor ativo." },
+    const proximo = await tx.abastecimento.findFirst({
+      where: {
+        veiculoId: input.veiculoId,
+        dataHora: { gt: dataHora },
+        odometro: { not: null },
+      },
+      orderBy: [{ dataHora: "asc" }, { odometro: "asc" }],
+      select: { odometro: true },
+    });
+    if (anterior?.odometro && anterior.odometro.gte(input.odometro)) {
+      throw new HttpError(422, "Odômetro inválido.", [
+        {
+          campo: "odometro",
+          mensagem: `Deve ser maior que o último registrado (${anterior.odometro} km).`,
+        },
       ]);
     }
-  }
-
-  const dataHora = input.dataHora ?? new Date();
-
-  const anterior = await prisma.abastecimento.findFirst({
-    where: {
-      veiculoId: input.veiculoId,
-      dataHora: { lte: dataHora },
-      odometro: { not: null },
-    },
-    orderBy: [{ dataHora: "desc" }, { odometro: "desc" }],
-    select: { odometro: true },
-  });
-
-  const proximo = await prisma.abastecimento.findFirst({
-    where: {
-      veiculoId: input.veiculoId,
-      dataHora: { gt: dataHora },
-      odometro: { not: null },
-    },
-    orderBy: [{ dataHora: "asc" }, { odometro: "asc" }],
-    select: { odometro: true },
-  });
-
-  if (anterior?.odometro && anterior.odometro.gte(input.odometro)) {
-    throw new HttpError(422, "Odômetro inválido.", [
-      {
-        campo: "odometro",
-        mensagem: `Deve ser maior que o último registrado (${anterior.odometro} km).`,
-      },
-    ]);
-  }
-
-  if (proximo?.odometro && new Prisma.Decimal(proximo.odometro).lte(input.odometro)) {
-    throw new HttpError(422, "Odômetro inválido.", [
-      {
-        campo: "odometro",
-        mensagem: `Deve ser menor que o registrado depois (${proximo.odometro} km).`,
-      },
-    ]);
-  }
-
-  const abastecimento = await prisma.$transaction(async (tx) => {
-    const criado = await tx.abastecimento.create({
-      data: { ...input, dataHora },
-    });
-
+    if (proximo?.odometro && new Prisma.Decimal(proximo.odometro).lte(input.odometro)) {
+      throw new HttpError(422, "Odômetro inválido.", [
+        {
+          campo: "odometro",
+          mensagem: `Deve ser menor que o registrado depois (${proximo.odometro} km).`,
+        },
+      ]);
+    }
+    const criado = await tx.abastecimento.create({ data: { ...input, dataHora } });
+    const odometroAtual = Prisma.Decimal.max(veiculo.odometroAtual, input.odometro);
+    if (odometroAtual.gt(veiculo.odometroAtual)) {
+      await tx.veiculo.update({
+        where: { id: input.veiculoId },
+        data: { odometroAtual },
+      });
+    }
+    await notificarRevisaoPreventiva(tx, veiculo, odometroAtual);
     await tx.auditoriaSistema.create({
       data: {
         usuarioId,
@@ -235,16 +234,11 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
         dadosNovos: JSON.parse(JSON.stringify(serializarAbastecimento(criado))),
       },
     });
-
-    return criado;
+    return {
+      ...serializarAbastecimento(criado),
+      kmPorLitro: calcularKmPorLitro(input.odometro, anterior?.odometro ?? null, input.litros),
+    };
   });
-
-  const resposta = serializarAbastecimento(abastecimento);
-
-  return {
-    ...resposta,
-    kmPorLitro: calcularKmPorLitro(input.odometro, anterior?.odometro ?? null, input.litros),
-  };
 }
 
 export const criarAbastecimentoMotoristaSchema = criarAbastecimentoSchema

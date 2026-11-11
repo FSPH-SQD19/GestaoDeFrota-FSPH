@@ -396,3 +396,14 @@ describe("validar", () => {
     }
   });
 });
+
+describe("quilometragem da próxima revisão", () => {
+  it.each([0, -1, 100000000, 1.001, "10000"])("rejeita limite inválido %j", (kmProximaRevisao) => {
+    expect(criarVeiculoSchema.safeParse({ ...entrada, kmProximaRevisao }).success).toBe(false);
+    expect(atualizarVeiculoSchema.safeParse({ kmProximaRevisao }).success).toBe(false);
+  });
+  it.each([null, 10000, 10000.25])("aceita limite opcional ou válido %j", (kmProximaRevisao) => {
+    expect(criarVeiculoSchema.safeParse({ ...entrada, kmProximaRevisao }).success).toBe(true);
+    expect(atualizarVeiculoSchema.safeParse({ kmProximaRevisao }).success).toBe(true);
+  });
+});

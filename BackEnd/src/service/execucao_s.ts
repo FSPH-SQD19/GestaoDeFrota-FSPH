@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { notificarRevisaoPreventiva } from "./notificacao_s";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 
@@ -171,6 +172,7 @@ export async function executarViagem(
           ...(veiculo.status === "EM_VIAGEM" ? { status: "DISPONIVEL" } : {}),
         },
       });
+      await notificarRevisaoPreventiva(tx, veiculo, dados.kmFinal);
     }
     if (!iniciar && motorista.status === "OCUPADO") {
       await tx.motorista.update({

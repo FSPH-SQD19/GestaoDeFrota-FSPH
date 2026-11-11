@@ -80,6 +80,7 @@ model Veiculo {
   atualizadoEm     DateTime @default(now()) @updatedAt @map("atualizado_em")
   capacidadeMaxima Int     @default(4) @map("capacidade_maxima")
   odometroAtual    Decimal @default(0) @map("odometro_atual") @db.Decimal(10, 2)
+  kmProximaRevisao Decimal? @map("km_proxima_revisao") @db.Decimal(10, 2)
   combustivel      String?  @db.VarChar(30)
   status           String  @default("DISPONIVEL") @db.VarChar(30)
   ativo            Boolean @default(true)
