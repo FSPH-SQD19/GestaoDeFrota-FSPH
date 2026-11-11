@@ -679,8 +679,33 @@ describe("SLA e ordens do motorista SVO", () => {
       { page: 0 },
       { pageSize: 101 },
       { status: "INVALIDO" },
+      { ativas: "INVALIDO" },
     ]) {
       expect(listarMinhasOrdensSvoSchema.safeParse(query).success).toBe(false);
     }
+  });
+
+  it("filtra ordens ativas antes de paginar e inclui os campos da viatura usados no celular", async () => {
+    mocks.ordemFindMany.mockResolvedValue([]);
+    mocks.ordemCount.mockResolvedValue(0);
+    await listarMinhasOrdensSvo(usuarioId, listarMinhasOrdensSvoSchema.parse({ ativas: "true" }));
+    const where = {
+      motorista: { is: { usuarioId, ativo: true } },
+      AND: {
+        status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"] },
+      },
+    };
+    expect(mocks.ordemFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where,
+        include: {
+          chamado: true,
+          veiculo: {
+            select: { id: true, placa: true, modelo: true, status: true, capacidadeMaxima: true },
+          },
+        },
+      }),
+    );
+    expect(mocks.ordemCount).toHaveBeenLastCalledWith({ where });
   });
 });

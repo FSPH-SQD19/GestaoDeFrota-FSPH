@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useAtualizacaoAutomatica } from "../../lib/useAtualizacaoAutomatica";
 import {
   Activity,
   CalendarDays,
@@ -413,6 +414,7 @@ function GraficoConsumoQuilometragemMes({
 }
 
 export const DashboardPage: React.FC = () => {
+  const revisaoAutomatica = useAtualizacaoAutomatica();
   const { user, sessionKey } = useAuth();
   const [today] = useState(() => new Date());
   const [resultado, setResultado] = useState<{
@@ -462,7 +464,7 @@ export const DashboardPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [sessionKey, revisao]);
+  }, [sessionKey, revisao, revisaoAutomatica]);
 
   const porStatus = dados?.solicitacoes.meta.porStatus;
   const totalVeiculos = dados?.veiculos.total ?? 0;

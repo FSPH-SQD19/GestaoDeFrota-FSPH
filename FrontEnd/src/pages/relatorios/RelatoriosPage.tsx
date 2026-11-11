@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAtualizacaoAutomatica } from "../../lib/useAtualizacaoAutomatica";
 import {
   Calendar,
   CheckCircle2,
@@ -336,6 +337,7 @@ type DadosAgregados = {
 };
 
 export const RelatoriosPage: React.FC = () => {
+  const revisaoAutomatica = useAtualizacaoAutomatica();
   const { user, sessionKey } = useAuth();
   const [hoje] = useState(() => new Date());
   const [intervalo, setIntervalo] = useState<IntervaloRelatorio>(intervaloInicial);
@@ -420,7 +422,7 @@ export const RelatoriosPage: React.FC = () => {
     return () => {
       ativo = false;
     };
-  }, [sessionKey]);
+  }, [sessionKey, revisaoAutomatica]);
 
   useEffect(() => {
     if (!tipoAgregadoAtivo) return;

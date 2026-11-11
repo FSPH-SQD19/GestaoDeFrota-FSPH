@@ -185,6 +185,7 @@ function construirWhereChamados(
 
 export const listarMinhasOrdensSvoSchema = z
   .object({
+    ativas: z.enum(["true", "false"]).optional(),
     status: z
       .enum([
         "AGUARDANDO_DESPACHO",
@@ -208,13 +209,16 @@ export async function listarMinhasOrdensSvo(
   const where: Prisma.OrdemColetaSvoWhereInput = {
     motorista: { is: { usuarioId, ativo: true } },
     ...(filtros.status ? { status: filtros.status } : {}),
+    ...(filtros.ativas === "true" ? { AND: { status: { in: [...STATUS_ORDEM_ATIVA] } } } : {}),
   };
   const [data, total] = await Promise.all([
     prisma.ordemColetaSvo.findMany({
       where,
       include: {
         chamado: true,
-        veiculo: { select: { id: true, placa: true, modelo: true } },
+        veiculo: {
+          select: { id: true, placa: true, modelo: true, status: true, capacidadeMaxima: true },
+        },
       },
       orderBy: [{ chamado: { criadoEm: "desc" } }, { id: "desc" }],
       skip: (filtros.page - 1) * filtros.pageSize,
@@ -318,7 +322,6 @@ export async function indicadoresSvo() {
   ]);
 
   return {
-    ...sla,
     total,
     emAnalise,
     aguardandoOrdem,
