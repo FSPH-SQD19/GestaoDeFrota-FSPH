@@ -17,6 +17,9 @@ const DashboardPage = lazy(() =>
 const VeiculosPage = lazy(() =>
   import("./pages/veiculos/VeiculosPage").then((module) => ({ default: module.VeiculosPage })),
 );
+const AgendaPage = lazy(() =>
+  import("./pages/solicitacoes/AgendaPage").then((module) => ({ default: module.AgendaPage })),
+);
 const SolicitacoesPage = lazy(() =>
   import("./pages/solicitacoes/SolicitacoesPage").then((module) => ({
     default: module.SolicitacoesPage,
@@ -104,6 +107,7 @@ const AppContent: React.FC = () => {
             {currentTab === "motoristas" && <MotoristasPage />}
 
             {currentTab === "solicitacoes" && <SolicitacoesPage />}
+            {currentTab === "agenda" && <AgendaPage />}
 
             {currentTab === "svo" && <SvoPage />}
 

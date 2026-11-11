@@ -1,6 +1,7 @@
 import type React from "react";
 import {
   LayoutGrid,
+  CalendarDays,
   Car,
   Users,
   ClipboardList,
@@ -20,6 +21,7 @@ import type { UserRole } from "../types/auth";
 export type TabId =
   | "dashboard"
   | "solicitacoes"
+  | "agenda"
   | "viagens"
   | "veiculos"
   | "motoristas"
@@ -69,6 +71,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "OPERAÇÃO DA FROTA",
     items: [
+      {
+        id: "agenda",
+        label: () => "Agenda da Frota",
+        icon: CalendarDays,
+        roles: ["ADMIN", "GESTOR"],
+      },
       {
         id: "veiculos",
         label: () => "Veículos",
