@@ -41,6 +41,7 @@ import { app } from "../../../src/app";
 const secret = "chave-sintetica-exclusiva-dos-testes";
 const usuarioId = "00000000-0000-4000-8000-000000000001";
 const veiculoId = "00000000-0000-4000-8000-0000000000a1";
+const fornecedorId = "00000000-0000-4000-8000-0000000000f1";
 
 const registro = {
   id: veiculoId,
@@ -198,6 +199,26 @@ describe("GET /api/v1/veiculos", () => {
     ]);
     expect(mocks.findMany).not.toHaveBeenCalled();
   });
+
+  it("repassa o filtro de locadora ao banco", async () => {
+  await chamar(`/api/v1/veiculos?propriedade=LOCADO&fornecedorId=${fornecedorId}`, {
+    perfis: ["GESTOR"],
+  });
+
+  expect(mocks.findMany).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: expect.objectContaining({ propriedade: "LOCADO", fornecedorId }),
+    }),
+  );
+});
+
+it("retorna 400 para fornecedorId inválido", async () => {
+  const resposta = await chamar("/api/v1/veiculos?fornecedorId=abc", { perfis: ["GESTOR"] });
+
+  expect(resposta.status).toBe(400);
+  expect((resposta.json.errors ?? []).map((erro) => erro.campo)).toEqual(["fornecedorId"]);
+  expect(mocks.findMany).not.toHaveBeenCalled();
+});
 });
 
 describe("POST /api/v1/veiculos", () => {

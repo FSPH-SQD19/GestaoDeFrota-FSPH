@@ -134,24 +134,35 @@ describe("listarVeiculos", () => {
 
   it("aplica os filtros e usa o mesmo where na contagem", async () => {
     await listarVeiculos({
-      page: 1,
+      page: 2,
       pageSize: 5,
       tipoFrota: "SVO",
-      status: "DISPONIVEL",
+      status: "MANUTENCAO",
       propriedade: "LOCADO",
-      ativo: false,
-      busca: "abc-1",
+      fornecedorId,
+      ativo: true,
+      busca: "ABC",
     });
 
-    const where = {
-      ativo: false,
+    const whereEsperado = {
+      ativo: true,
       tipoFrota: "SVO",
-      status: "DISPONIVEL",
+      status: "MANUTENCAO",
       propriedade: "LOCADO",
-      OR: [{ placa: { contains: "ABC1" } }, { modelo: { contains: "abc-1", mode: "insensitive" } }],
+      fornecedorId,
+      OR: [
+        { placa: { contains: "ABC" } },
+        { modelo: { contains: "ABC", mode: "insensitive" } },
+      ],
     };
-    expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({ where }));
-    expect(mocks.count).toHaveBeenCalledWith({ where });
+
+    expect(mocks.findMany).toHaveBeenCalledWith({
+      where: whereEsperado,
+      orderBy: [{ placa: "asc" }],
+      skip: 5,
+      take: 5,
+    });
+    expect(mocks.count).toHaveBeenCalledWith({ where: whereEsperado });
   });
 
   it("retorna lista vazia com zero páginas", async () => {
@@ -372,9 +383,14 @@ describe("listarVeiculosSchema", () => {
     { pageSize: "101" },
     { tipoFrota: "COMUM" },
     { status: "QUEBRADO" },
+    { fornecedorId: "abc" },
     { ativo: "talvez" },
   ])("rejeita %o", (query) => {
     expect(listarVeiculosSchema.safeParse(query).success).toBe(false);
+  });
+
+  it("aceita fornecedorId (UUID) como filtro", () => {
+    expect(listarVeiculosSchema.parse({ fornecedorId }).fornecedorId).toBe(fornecedorId);
   });
 });
 

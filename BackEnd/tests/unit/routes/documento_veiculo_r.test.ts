@@ -179,6 +179,16 @@ describe("POST /api/v1/veiculos/:id/documentos", () => {
         tabelaAfetada: "documentos_veiculo",
       }),
     });
+  }); 
+
+  it("cadastra uma vistoria (201)", async () => {
+  const resposta = await chamar(caminho, {
+    perfis: ["GESTOR"],
+    body: { tipoDocumento: "VISTORIA", dataVencimento: "2099-06-30" },
+  });
+
+  expect(resposta.status).toBe(201);
+  expect(resposta.json).toMatchObject({ tipoDocumento: "VISTORIA" });
   });
 
   it("retorna 400 com os campos inválidos", async () => {

@@ -92,7 +92,8 @@ export const listarVeiculosSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   tipoFrota: z.enum(TIPOS_FROTA).optional(),
   status: z.enum(STATUS_VEICULO).optional(),
-  propriedade: z.enum(PROPRIEDADES).optional(),
+  propriedade: z.enum(PROPRIEDADES).optional(), 
+  fornecedorId: camposVeiculo.fornecedorId.optional(),
   ativo: z
     .enum(["true", "false"])
     .default("true")
@@ -112,13 +113,14 @@ export function serializarVeiculo(veiculo: Veiculo): VeiculoResposta {
 }
 
 export async function listarVeiculos(filtros: ListarVeiculosFiltros) {
-  const { page, pageSize, tipoFrota, status, propriedade, ativo, busca } = filtros;
+  const { page, pageSize, tipoFrota, status, propriedade, fornecedorId, ativo, busca } = filtros;
 
   const where: Prisma.VeiculoWhereInput = {
     ativo,
     ...(tipoFrota ? { tipoFrota } : {}),
     ...(status ? { status } : {}),
     ...(propriedade ? { propriedade } : {}),
+    ...(fornecedorId ? { fornecedorId } : {}),
     ...(busca
       ? {
           OR: [
