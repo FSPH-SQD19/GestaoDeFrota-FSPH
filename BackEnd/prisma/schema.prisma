@@ -68,24 +68,38 @@ model Fornecedor {
   @@map("fornecedores")
 }
 
+model Sede {
+  id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome     String    @unique @db.VarChar(150)
+  ativo    Boolean   @default(true)
+  veiculos Veiculo[]
+
+  @@map("sedes")
+}
+
 model Veiculo {
-  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   propriedade      String   @default("PROPRIO") @db.VarChar(10)
-  placa            String  @unique @db.VarChar(8)
-  modelo           String  @db.VarChar(100)
+  placa            String   @unique @db.VarChar(8)
+  modelo           String   @db.VarChar(100)
   ano              Int?
-  tipoFrota        String  @map("tipo_frota") @db.VarChar(20)
-  fornecedorId     String? @map("fornecedor_id") @db.Uuid
+  tipoFrota        String   @map("tipo_frota") @db.VarChar(20)
+  fornecedorId     String?  @map("fornecedor_id") @db.Uuid
   criadoEm         DateTime @default(now()) @map("criado_em")
   atualizadoEm     DateTime @default(now()) @updatedAt @map("atualizado_em")
-  capacidadeMaxima Int     @default(4) @map("capacidade_maxima")
-  odometroAtual    Decimal @default(0) @map("odometro_atual") @db.Decimal(10, 2)
+  capacidadeMaxima Int      @default(4) @map("capacidade_maxima")
+  odometroAtual    Decimal  @default(0) @map("odometro_atual") @db.Decimal(10, 2)
   kmProximaRevisao Decimal? @map("km_proxima_revisao") @db.Decimal(10, 2)
   combustivel      String?  @db.VarChar(30)
-  status           String  @default("DISPONIVEL") @db.VarChar(30)
-  ativo            Boolean @default(true)
+  status           String   @default("DISPONIVEL") @db.VarChar(30)
+  ativo            Boolean  @default(true)
 
-  fornecedor     Fornecedor?          @relation(fields: [fornecedorId], references: [id])
+  sedeId           String?   @map("sede_id") @db.Uuid
+  foraDeSede       Boolean   @default(false) @map("fora_de_sede")
+  sedeAtualizadaEm DateTime? @map("sede_atualizada_em")
+  sede             Sede?     @relation(fields: [sedeId], references: [id], onDelete: Restrict)
+
+  fornecedor     Fornecedor?         @relation(fields: [fornecedorId], references: [id])
   documentos     DocumentoVeiculo[]
   manutencoes    Manutencao[]
   abastecimentos Abastecimento[]
@@ -96,6 +110,7 @@ model Veiculo {
   multas         MultaInfracao[]
 
   @@index([fornecedorId])
+  @@index([sedeId])
   @@index([tipoFrota, status])
   @@index([ativo])
   @@map("veiculos")

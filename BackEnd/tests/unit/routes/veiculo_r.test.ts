@@ -127,6 +127,7 @@ describe("PATCH /api/v1/veiculos/:id", () => {
     expect(await resposta.json()).toMatchObject({ modelo: "Modelo atualizado" });
     expect(resolveSession).toHaveBeenCalledTimes(1);
     expect(mocks.update).toHaveBeenCalledWith({
+      include: { sede: true },
       where: { id: veiculoId },
       data: { modelo: "Modelo atualizado" },
     });

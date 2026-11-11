@@ -123,6 +123,7 @@ describe("listarVeiculos", () => {
     const resultado = await listarVeiculos({ page: 3, pageSize: 10, ativo: true });
 
     expect(mocks.findMany).toHaveBeenCalledWith({
+      include: { sede: true },
       where: { ativo: true },
       orderBy: [{ placa: "asc" }],
       skip: 20,
@@ -154,6 +155,7 @@ describe("listarVeiculos", () => {
     };
 
     expect(mocks.findMany).toHaveBeenCalledWith({
+      include: { sede: true },
       where: whereEsperado,
       orderBy: [{ placa: "asc" }],
       skip: 5,
