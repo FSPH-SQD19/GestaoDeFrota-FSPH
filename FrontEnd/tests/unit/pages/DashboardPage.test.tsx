@@ -137,6 +137,17 @@ describe("DashboardPage", () => {
     expect(screen.getByText("SVO", { exact: true })).toBeInTheDocument();
     expect(screen.getAllByText("Inativos")).toHaveLength(2);
     expect(screen.getAllByText("Em desinfecção")).toHaveLength(1);
+    expect(
+      screen.getByRole("img", { name: "Gráfico de distribuição da frota por status" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Proporção de solicitações por status" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: "Gráfico de consumo de combustível e quilometragem no mês",
+      }),
+    ).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith("/dashboard/resumo");
     expect(apiRequest).toHaveBeenCalledTimes(1);
   });
