@@ -11,12 +11,6 @@ const formatadorKm = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 
-const POSTOS_SUGERIDOS = [
-  "Posto Prime BR-101 — Aracaju",
-  "Posto Petrox Jardins",
-  "Posto Tancredo Neves",
-] as const;
-
 export type ViagemAbastecimentoAlvo = Pick<
   SolicitacaoViagem,
   "id" | "protocolo" | "destino" | "veiculoAlocadoId" | "veiculoAlocado" | "execucao"
@@ -318,31 +312,6 @@ const ConteudoRegistrarAbastecimentoModal: React.FC<ConteudoProps> = ({
               if (erroGeral) setErroGeral(null);
             }}
           />
-
-          <div className="flex flex-wrap gap-1.5">
-            {POSTOS_SUGERIDOS.map((nomePosto) => {
-              const selecionado = postoCredenciado.trim() === nomePosto;
-              return (
-                <button
-                  key={nomePosto}
-                  type="button"
-                  disabled={enviando}
-                  onClick={() => {
-                    setPostoCredenciado(nomePosto);
-                    if (erroPosto) setErroPosto(null);
-                    if (erroGeral) setErroGeral(null);
-                  }}
-                  className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
-                    selecionado
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  {nomePosto}
-                </button>
-              );
-            })}
-          </div>
         </div>
       </form>
     </Modal>

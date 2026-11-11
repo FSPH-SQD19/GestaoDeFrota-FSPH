@@ -147,8 +147,8 @@ export function AgendaPage() {
       {agenda && !erro && (
         <>
           <p className="text-sm text-slate-600">
-            Horário de Brasília. Os intervalos livres indicam ausência de reservas ou manutenção
-            registrada na agenda.
+            Horário de Brasília. A ausência de reservas ou manutenção registrada não garante a
+            disponibilidade do recurso para alocação.
           </p>
           {recursos.length === 0 && <p>Nenhum recurso encontrado.</p>}
           {recursos.map(({ id, nome, campo }) => {
@@ -170,7 +170,7 @@ export function AgendaPage() {
                       >
                         <strong>
                           {item.tipo === "LIVRE"
-                            ? "Livre"
+                            ? "Sem reserva registrada"
                             : item.tipo === "MANUTENCAO"
                               ? "Manutenção"
                               : item.status === "APROVADA"
