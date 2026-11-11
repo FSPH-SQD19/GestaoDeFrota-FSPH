@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Plus, Search, Truck, Fuel } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -275,18 +275,13 @@ export const VeiculosPage: React.FC = () => {
     {
       header: "Identificação / Placa",
       render: (veiculo) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 font-bold text-slate-700">
-            <Truck className="h-5 w-5 stroke-[1.8]" />
-          </div>
-          <div>
-            <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-sm font-bold tracking-wider text-slate-900">
-              {veiculo.placa}
-            </span>
-            <span className="mt-1 block text-xs text-slate-500">
-              {veiculo.ano ? `Ano ${veiculo.ano}` : "Ano não informado"}
-            </span>
-          </div>
+        <div>
+          <span className="inline-block rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-slate-900">
+            {veiculo.placa}
+          </span>
+          <span className="mt-1 block text-xs text-slate-500">
+            {veiculo.ano ? `Ano ${veiculo.ano}` : "Ano não informado"}
+          </span>
         </div>
       ),
     },
@@ -294,20 +289,17 @@ export const VeiculosPage: React.FC = () => {
       header: "Modelo do Veículo",
       render: (veiculo) => (
         <div>
-          <span className="block text-sm font-bold text-slate-900">{veiculo.modelo}</span>
-          <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-            <Fuel className="h-3.5 w-3.5 text-slate-400" />
-            {veiculo.combustivel}
-          </span>
+          <span className="block text-sm font-semibold text-slate-900">{veiculo.modelo}</span>
+          <span className="mt-0.5 block text-xs text-slate-500">{veiculo.combustivel}</span>
         </div>
       ),
     },
     {
       header: "Frota",
       render: (veiculo) => (
-        <Badge variant={veiculo.tipoFrota === "SVO" ? "danger" : "info"} size="md">
+        <span className="text-xs font-medium text-slate-700">
           {veiculo.tipoFrota === "SVO" ? "Frota SVO" : "Frota Administrativa"}
-        </Badge>
+        </span>
       ),
     },
     {
@@ -321,7 +313,7 @@ export const VeiculosPage: React.FC = () => {
     {
       header: "Capacidade máxima",
       render: (veiculo) => (
-        <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+        <span className="font-mono text-xs font-semibold tabular-nums text-slate-700">
           {veiculo.capacidade}
         </span>
       ),
@@ -336,7 +328,7 @@ export const VeiculosPage: React.FC = () => {
           Desinfecção: "danger",
         } as const;
         return (
-          <Badge variant={variantMap[veiculo.status]} dot size="md">
+          <Badge variant={variantMap[veiculo.status]} dot size="sm">
             {veiculo.status}
           </Badge>
         );
@@ -358,10 +350,10 @@ export const VeiculosPage: React.FC = () => {
   ];
 
   return (
-    <div className="animate-in space-y-6 fade-in duration-200">
-      <div className="flex flex-col gap-4 border-b border-slate-200/60 pb-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Gestão da Frota de Veículos
           </h1>
           <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
@@ -375,7 +367,6 @@ export const VeiculosPage: React.FC = () => {
             setFormError("");
             setIsModalOpen(true);
           }}
-          className="rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800"
         >
           Novo Veículo
         </Button>
@@ -384,7 +375,7 @@ export const VeiculosPage: React.FC = () => {
       {errorMessage && !isModalOpen && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
         >
           {errorMessage}
           <Button variant="outline" size="sm" onClick={recarregarVeiculos}>
@@ -403,32 +394,34 @@ export const VeiculosPage: React.FC = () => {
       {successMessage && (
         <p
           role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
         >
           {successMessage}
         </p>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-4.5">
-          <span className="text-xs font-medium text-slate-500">Total de veículos</span>
+        <Card className="p-4">
+          <span className="text-xs font-semibold text-slate-500">Total de veículos</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">{totalVeiculos}</span>
-            <span className="text-xs text-slate-400">cadastrados</span>
+            <span className="text-2xl font-bold tabular-nums text-slate-900">{totalVeiculos}</span>
+            <span className="text-xs text-slate-500">cadastrados</span>
           </div>
         </Card>
-        <Card className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4.5">
-          <span className="text-xs font-semibold text-blue-700">Frota administrativa</span>
+        <Card className="p-4">
+          <span className="text-xs font-semibold text-slate-500">Frota administrativa</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-blue-900">{administrativos}</span>
-            <span className="text-xs font-medium text-blue-600">veículos</span>
+            <span className="text-2xl font-bold tabular-nums text-slate-900">
+              {administrativos}
+            </span>
+            <span className="text-xs text-slate-500">veículos</span>
           </div>
         </Card>
-        <Card className="rounded-2xl border border-rose-200/80 bg-rose-50/30 p-4.5">
-          <span className="text-xs font-semibold text-rose-700">Frota SVO</span>
+        <Card className="p-4">
+          <span className="text-xs font-semibold text-slate-500">Frota SVO</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-rose-900">{svo}</span>
-            <span className="text-xs font-medium text-rose-600">veículos</span>
+            <span className="text-2xl font-bold tabular-nums text-slate-900">{svo}</span>
+            <span className="text-xs text-slate-500">veículos</span>
           </div>
         </Card>
       </div>
@@ -446,7 +439,7 @@ export const VeiculosPage: React.FC = () => {
             leftIcon={<Search className="h-4 w-4 text-slate-400" />}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-100 p-1">
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-100/80 p-1">
           {(
             [
               ["TODOS", `Todos (${totalVeiculos})`],
@@ -465,7 +458,7 @@ export const VeiculosPage: React.FC = () => {
                   tipoFrota: filter === "ADMIN" ? "ADMINISTRATIVA" : filter === "SVO" ? "SVO" : "",
                 }))
               }
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
                 tabFilter === filter
                   ? "bg-white text-slate-900 shadow-2xs"
                   : "text-slate-600 hover:text-slate-900"
@@ -545,7 +538,6 @@ export const VeiculosPage: React.FC = () => {
               type="submit"
               form="formulario-novo-veiculo"
               isLoading={isSaving}
-              className="bg-slate-900 text-white hover:bg-slate-800"
             >
               Salvar veículo
             </Button>
@@ -647,7 +639,7 @@ export const VeiculosPage: React.FC = () => {
             />
           </fieldset>
           {formError && (
-            <p role="alert" className="text-sm font-medium text-rose-600">
+            <p role="alert" className="text-sm font-medium text-rose-700">
               {formError}
             </p>
           )}

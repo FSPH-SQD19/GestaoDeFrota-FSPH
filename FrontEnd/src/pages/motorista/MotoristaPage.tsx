@@ -1,15 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  CalendarDays,
-  Filter,
-  MoreHorizontal,
-  Pencil,
-  Phone,
-  Plus,
-  Search,
-  ShieldAlert,
-  X,
-} from "lucide-react";
+import { Filter, MoreHorizontal, Pencil, Plus, Search, X } from "lucide-react";
 import { ModalRegistrarMulta } from "../multas/ModalRegistrarMulta";
 import { SecaoMultasMotorista } from "./SecaoMultasMotorista";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
@@ -402,12 +392,6 @@ export const MotoristasPage: React.FC = () => {
     (motorista) => diasAteVencimento(motorista.validadeCnh) < 0,
   ).length;
   const cnHsVencendo = motoristasComCnhAtencao.length - cnHsVencidas;
-  const cardCnhClasses =
-    cnHsVencidas > 0
-      ? "border-rose-200/80 bg-rose-50/30"
-      : cnHsVencendo > 0
-        ? "border-amber-200/80 bg-amber-50/30"
-        : "border-slate-200/80 bg-white";
 
   const alternarFiltroCnhAtencao = () => {
     setFiltroCnhAtencao((ativo) => !ativo);
@@ -419,21 +403,12 @@ export const MotoristasPage: React.FC = () => {
     {
       header: "ID",
       render: (motorista) => (
-        <span className="font-mono text-xs font-bold tracking-wide text-slate-700">
-          {motorista.id}
-        </span>
+        <span className="font-mono text-xs font-semibold text-slate-600">{motorista.id}</span>
       ),
     },
     {
       header: "Nome",
-      render: (motorista) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <span className="text-sm font-bold">{motorista.nome.charAt(0).toUpperCase()}</span>
-          </div>
-          <span className="font-semibold text-slate-900">{motorista.nome}</span>
-        </div>
-      ),
+      render: (motorista) => <span className="font-semibold text-slate-900">{motorista.nome}</span>,
     },
     {
       header: "Vencimento da CNH",
@@ -443,14 +418,13 @@ export const MotoristasPage: React.FC = () => {
         const proxima = dias >= 0 && dias <= 30;
         return (
           <div className="flex items-center gap-2 text-xs">
-            <CalendarDays className="h-4 w-4 text-slate-400" />
             <span
               className={
                 vencida
-                  ? "font-semibold text-rose-700"
+                  ? "font-mono font-semibold text-rose-700"
                   : proxima
-                    ? "font-semibold text-amber-700"
-                    : "text-slate-600"
+                    ? "font-mono font-semibold text-amber-700"
+                    : "font-mono text-slate-700"
               }
             >
               {formatarData(motorista.validadeCnh)}
@@ -467,7 +441,7 @@ export const MotoristasPage: React.FC = () => {
     {
       header: "Status operacional",
       render: (motorista) => (
-        <Badge variant={statusVariant[motorista.status] ?? "neutral"} dot size="md">
+        <Badge variant={statusVariant[motorista.status] ?? "neutral"} dot size="sm">
           {motorista.status}
         </Badge>
       ),
@@ -478,9 +452,8 @@ export const MotoristasPage: React.FC = () => {
         motorista.telefone ? (
           <a
             href={`tel:${motorista.telefone.replace(/\D/g, "")}`}
-            className="inline-flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900"
+            className="font-mono text-xs text-slate-600 hover:text-slate-900"
           >
-            <Phone className="h-3.5 w-3.5 text-slate-400" />
             {motorista.telefone}
           </a>
         ) : (
@@ -490,7 +463,7 @@ export const MotoristasPage: React.FC = () => {
     {
       header: "Cadastro",
       render: (motorista) => (
-        <Badge variant={motorista.ativo ? "success" : "neutral"} dot size="md">
+        <Badge variant={motorista.ativo ? "success" : "neutral"} dot size="sm">
           {motorista.ativo ? "Ativo" : "Inativo"}
         </Badge>
       ),
@@ -502,11 +475,11 @@ export const MotoristasPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setMotoristaSelecionado(motorista)}
-          className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
           title={`Ver detalhes de ${motorista.nome}`}
           aria-label={`Ver detalhes de ${motorista.nome}`}
         >
-          <MoreHorizontal className="h-5 w-5" />
+          <MoreHorizontal className="h-4.5 w-4.5" />
         </button>
       ),
     },
@@ -518,23 +491,16 @@ export const MotoristasPage: React.FC = () => {
   const filtrosAtivos = Object.values(filtros).some(Boolean);
 
   return (
-    <div className="animate-in space-y-6 fade-in duration-200">
-      <div className="flex flex-col gap-4 border-b border-slate-200/60 pb-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Gestão de Motoristas
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Gestão de Motoristas</h1>
           <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
             Consulte os cadastros e acompanhe a validade das CNHs.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            leftIcon={<ShieldAlert className="h-4 w-4 text-amber-600" />}
-            onClick={() => setModalMultaAberto(true)}
-            className="h-11 rounded-2xl border-slate-300 font-semibold text-slate-700 hover:bg-slate-100"
-          >
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button variant="outline" onClick={() => setModalMultaAberto(true)}>
             Registrar infração
           </Button>
           <Button
@@ -544,7 +510,6 @@ export const MotoristasPage: React.FC = () => {
               setErroCadastro("");
               setModalCadastroAberto(true);
             }}
-            className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:w-48"
           >
             Novo motorista
           </Button>
@@ -554,7 +519,7 @@ export const MotoristasPage: React.FC = () => {
       {errorMessage && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
         >
           <span>{errorMessage}</span>
           <Button variant="outline" size="sm" onClick={recarregarMotoristas}>
@@ -565,27 +530,27 @@ export const MotoristasPage: React.FC = () => {
       {successMessage && (
         <p
           role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
         >
           {successMessage}
         </p>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4.5">
-          <span className="text-xs font-semibold text-blue-700">Motoristas ativos</span>
+        <Card className="p-4">
+          <span className="text-xs font-semibold text-slate-500">Motoristas ativos</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-blue-900">
+            <span className="text-2xl font-bold tabular-nums text-slate-900">
               {hasLoadedMotoristas ? ativos : "—"}
             </span>
-            <span className="text-xs font-medium text-blue-600">
+            <span className="text-xs text-slate-500">
               de {hasLoadedMotoristas ? motoristas.length : "—"} cadastrados
             </span>
           </div>
         </Card>
-        <Card className="rounded-2xl border border-rose-200/80 bg-rose-50/30 p-4.5">
-          <span className="text-xs font-semibold text-rose-700">CNHs vencidas</span>
-          <div className="mt-1 text-2xl font-bold text-rose-900">
+        <Card className="p-4">
+          <span className="text-xs font-semibold text-slate-500">CNHs vencidas</span>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-rose-700">
             {hasLoadedMotoristas ? cnHsVencidas : "—"}
           </div>
         </Card>
@@ -593,10 +558,12 @@ export const MotoristasPage: React.FC = () => {
           type="button"
           onClick={alternarFiltroCnhAtencao}
           aria-pressed={filtroCnhAtencao}
-          className={`rounded-2xl border p-4.5 text-left transition-all hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${cardCnhClasses} ${filtroCnhAtencao ? "ring-2 ring-slate-400 ring-offset-2" : ""}`}
+          className={`rounded-xl border bg-white p-4 text-left transition-colors hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 cursor-pointer ${
+            filtroCnhAtencao ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200"
+          }`}
         >
-          <span className="text-xs font-semibold text-amber-700">CNHs vencendo em até 30 dias</span>
-          <div className="mt-1 text-2xl font-bold text-amber-900">
+          <span className="text-xs font-semibold text-slate-500">CNHs vencendo em até 30 dias</span>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-amber-700">
             {hasLoadedMotoristas ? cnHsVencendo : "—"}
           </div>
           <span className="mt-1 block text-xs text-slate-500">
@@ -608,31 +575,29 @@ export const MotoristasPage: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="w-full sm:max-w-md">
-            <Input
-              aria-label="Buscar motorista"
-              placeholder="Buscar motorista por ID ou nome..."
-              value={termoBusca}
-              onChange={(event) => setTermoBusca(event.target.value)}
-              leftIcon={<Search className="h-4 w-4 text-slate-400" />}
-            />
-          </div>
-          <Button
-            variant={filtrosAtivos ? "secondary" : "outline"}
-            leftIcon={<Filter className="h-4 w-4" />}
-            rightIcon={filtrosAtivos ? <span className="text-xs font-bold">●</span> : undefined}
-            onClick={() => setFiltrosAbertos((abertos) => !abertos)}
-            aria-expanded={filtrosAbertos}
-          >
-            Filtros
-          </Button>
+        <div className="w-full sm:max-w-md">
+          <Input
+            aria-label="Buscar motorista"
+            placeholder="Buscar motorista por ID ou nome..."
+            value={termoBusca}
+            onChange={(event) => setTermoBusca(event.target.value)}
+            leftIcon={<Search className="h-4 w-4 text-slate-400" />}
+          />
         </div>
+        <Button
+          variant={filtrosAtivos ? "secondary" : "outline"}
+          leftIcon={<Filter className="h-4 w-4" />}
+          rightIcon={filtrosAtivos ? <span className="text-xs font-bold">●</span> : undefined}
+          onClick={() => setFiltrosAbertos((abertos) => !abertos)}
+          aria-expanded={filtrosAbertos}
+        >
+          Filtros
+        </Button>
       </div>
 
       {filtrosAbertos && (
         <Card className="p-4">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900">Filtrar motoristas</h2>
               <p className="text-xs text-slate-500">
@@ -642,7 +607,7 @@ export const MotoristasPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setFiltrosAbertos(false)}
-              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+              className="rounded-md p-1 text-slate-500 hover:bg-slate-100 cursor-pointer"
               aria-label="Fechar filtros"
             >
               <X className="h-4 w-4" />
@@ -722,25 +687,27 @@ export const MotoristasPage: React.FC = () => {
       >
         {motoristaSelecionado && (
           <div className="space-y-5">
-            <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-xs">
-                <span className="font-bold">
+            <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+                <span className="font-bold text-sm">
                   {motoristaSelecionado.nome.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="min-w-0">
                 <p className="truncate font-bold text-slate-900">{motoristaSelecionado.nome}</p>
-                <p className="text-xs text-slate-500">{motoristaSelecionado.id}</p>
+                <p className="font-mono text-xs text-slate-500">{motoristaSelecionado.id}</p>
               </div>
             </div>
             <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <dt className="text-xs font-medium text-slate-500">CPF</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.cpf}</dd>
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
+                  {motoristaSelecionado.cpf}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Número da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
                   {motoristaSelecionado.numeroCnh}
                 </dd>
               </div>
@@ -752,7 +719,7 @@ export const MotoristasPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Validade da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
                   {formatarData(motoristaSelecionado.validadeCnh)}
                 </dd>
               </div>
@@ -764,14 +731,14 @@ export const MotoristasPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Telefone</dt>
-                <dd className="mt-1 font-semibold text-slate-800">
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
                   {motoristaSelecionado.telefone || "—"}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Status do cadastro</dt>
                 <dd className="mt-1">
-                  <Badge variant={motoristaSelecionado.ativo ? "success" : "neutral"} dot>
+                  <Badge variant={motoristaSelecionado.ativo ? "success" : "neutral"} dot size="sm">
                     {motoristaSelecionado.ativo ? "Ativo" : "Inativo"}
                   </Badge>
                 </dd>
@@ -779,13 +746,17 @@ export const MotoristasPage: React.FC = () => {
               <div>
                 <dt className="text-xs font-medium text-slate-500">Status operacional</dt>
                 <dd className="mt-1">
-                  <Badge variant={statusVariant[motoristaSelecionado.status] ?? "neutral"} dot>
+                  <Badge
+                    variant={statusVariant[motoristaSelecionado.status] ?? "neutral"}
+                    dot
+                    size="sm"
+                  >
                     {motoristaSelecionado.status}
                   </Badge>
                 </dd>
               </div>
             </dl>
-            <div className="mt-6 border-t border-slate-200/80 pt-6">
+            <div className="mt-5 border-t border-slate-200 pt-5">
               <SecaoMultasMotorista
                 motoristaId={motoristaSelecionado.id}
                 onNovaMultaClick={() => setModalMultaAberto(true)}
@@ -823,12 +794,12 @@ export const MotoristasPage: React.FC = () => {
           <form
             id="formulario-edicao-motorista"
             onSubmit={salvarEdicao}
-            className="space-y-5"
+            className="space-y-4"
             noValidate
           >
-            <fieldset disabled={isSaving} className="space-y-5">
+            <fieldset disabled={isSaving} className="space-y-4">
               {!motoristaEmEdicao.email && (
-                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                   Este cadastro não possui conta vinculada. Nome e e-mail não podem ser alterados
                   por aqui.
                 </p>
@@ -891,7 +862,7 @@ export const MotoristasPage: React.FC = () => {
               />
             </fieldset>
             {erroEdicao && (
-              <p role="alert" className="text-sm font-medium text-rose-600">
+              <p role="alert" className="text-sm font-medium text-rose-700">
                 {erroEdicao}
               </p>
             )}
@@ -923,10 +894,10 @@ export const MotoristasPage: React.FC = () => {
         <form
           id="formulario-novo-motorista"
           onSubmit={cadastrarMotorista}
-          className="space-y-5"
+          className="space-y-4"
           noValidate
         >
-          <fieldset disabled={isSaving} className="space-y-5">
+          <fieldset disabled={isSaving} className="space-y-4">
             <Input
               label="Nome completo"
               autoComplete="name"
@@ -998,7 +969,7 @@ export const MotoristasPage: React.FC = () => {
             />
           </fieldset>
           {erroCadastro && (
-            <p role="alert" className="text-sm font-medium text-rose-600">
+            <p role="alert" className="text-sm font-medium text-rose-700">
               {erroCadastro}
             </p>
           )}

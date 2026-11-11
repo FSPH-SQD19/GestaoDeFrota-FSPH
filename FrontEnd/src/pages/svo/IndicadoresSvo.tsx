@@ -1,8 +1,7 @@
-import type React from "react";
-import { Activity, Ambulance, Clock3, Phone } from "lucide-react";
 import { Card } from "../../components/common";
 import { cn } from "../../lib/utils";
 import type { IndicadoresSvo as Indicadores } from "../../services/svo";
+
 export function IndicadoresSvo({
   indicadores,
   totalViaturas,
@@ -11,72 +10,60 @@ export function IndicadoresSvo({
   totalViaturas: number;
 }) {
   return (
-    <section aria-label="Indicadores SVO" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <section aria-label="Indicadores SVO" className="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
       <Metric
-        icon={Phone}
         label="Chamados registrados"
         value={indicadores.total}
         caption={`${indicadores.aprovados} aprovados`}
-        tone="blue"
+        tone="neutral"
       />
       <Metric
-        icon={Clock3}
         label="Aguardando triagem"
         value={indicadores.emAnalise}
         caption={`${indicadores.aguardandoOrdem} aguardando ordem`}
-        tone="amber"
+        tone={indicadores.emAnalise > 0 ? "amber" : "neutral"}
       />
       <Metric
-        icon={Activity}
         label="Coletas em andamento"
         value={indicadores.coletasEmAndamento}
         caption="Após registrar saída"
-        tone="rose"
+        tone={indicadores.coletasEmAndamento > 0 ? "blue" : "neutral"}
       />
       <Metric
-        icon={Ambulance}
         label="Viaturas disponíveis"
         value={`${indicadores.viaturasDisponiveis}/${indicadores.totalViaturas || totalViaturas}`}
         caption="Liberadas para despacho"
-        tone="green"
+        tone={indicadores.viaturasDisponiveis > 0 ? "green" : "neutral"}
       />
     </section>
   );
 }
+
 function Metric({
-  icon: Icon,
   label,
   value,
   caption,
   tone,
 }: {
-  icon: React.ElementType;
   label: string;
   value: string | number;
   caption: string;
-  tone: "blue" | "amber" | "rose" | "green";
+  tone: "neutral" | "blue" | "amber" | "green";
 }) {
-  const palette = {
-    blue: "bg-blue-50 text-blue-700",
-    amber: "bg-amber-50 text-amber-700",
-    rose: "bg-rose-50 text-rose-700",
-    green: "bg-emerald-50 text-emerald-700",
+  const valueTone = {
+    neutral: "text-slate-900",
+    blue: "text-blue-700",
+    amber: "text-amber-700",
+    green: "text-emerald-700",
   };
   return (
-    <Card className="rounded-2xl border border-slate-200/80 p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-2">
-        <span
-          className={cn("flex h-10 w-10 items-center justify-center rounded-xl", palette[tone])}
-        >
-          <Icon className="h-5 w-5" />
-        </span>
-      </div>
-      <p className="mt-4 text-[11px] font-semibold leading-snug text-slate-500 sm:text-xs">
-        {label}
-      </p>
-      <div className="mt-1 flex items-end justify-between gap-2">
-        <p className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{value}</p>
-        <span className="mb-1 text-[10px] text-slate-400">{caption}</span>
+    <Card className="p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+      <div className="mt-2 flex items-baseline justify-between gap-2">
+        <p className={cn("text-2xl font-bold tracking-tight tabular-nums", valueTone[tone])}>
+          {value}
+        </p>
+        <span className="text-xs text-slate-500">{caption}</span>
       </div>
     </Card>
   );

@@ -57,39 +57,38 @@ export function FilaChamadosSvo({
   handleEtapaColeta,
 }: Props) {
   return (
-    <Card className="overflow-hidden rounded-2xl border border-slate-200/80 p-0 shadow-sm">
-      <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="overflow-hidden p-0">
+      <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900">Fila de chamados</h2>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+            <h2 className="text-sm font-semibold text-slate-900">Fila de chamados</h2>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600 tabular-nums">
               {totalRegistros}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500">
             Acompanhe o atendimento, a triagem e a execução das ordens de coleta.
           </p>
         </div>
-        <label className="relative w-full sm:max-w-[250px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <div className="w-full sm:max-w-[260px]">
           <Input
             aria-label="Buscar chamado"
             value={busca}
             onChange={(e) => handleBuscaChange(e.target.value)}
             placeholder="Protocolo, nome ou endereço"
-            className="pl-9"
+            leftIcon={<Search className="h-4 w-4" />}
           />
-        </label>
+        </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-4 pt-3">
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-2.5">
         {FILTROS.map((f) => (
           <button
             key={f.id}
             type="button"
             onClick={() => handleFiltroChange(f.id)}
             className={cn(
-              "whitespace-nowrap border-b-2 px-3 pb-3 text-xs font-semibold transition-colors",
+              "whitespace-nowrap border-b-2 px-3 pb-2.5 text-xs font-semibold transition-colors",
               etapa === f.id
                 ? "border-slate-900 text-slate-900"
                 : "border-transparent text-slate-500 hover:text-slate-800",
@@ -100,7 +99,7 @@ export function FilaChamadosSvo({
         ))}
       </div>
 
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-slate-200/70">
         {carregando && chamados.length === 0 ? (
           <div className="p-10 text-center text-sm text-slate-500">
             Carregando chamados do SVO...
@@ -117,29 +116,29 @@ export function FilaChamadosSvo({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-bold tracking-wide text-slate-700">
+                      <span className="font-mono text-xs font-bold tracking-wide text-slate-900">
                         {protocolo}
                       </span>
                       <Badge size="sm" variant={STATUS_CHAMADO_VARIANT[statusOp]} dot>
                         {STATUS_CHAMADO_LABEL[statusOp]}
                       </Badge>
                       {c.ordemColeta?.veiculo && (
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
+                        <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
                           {c.ordemColeta.veiculo.placa}
                         </span>
                       )}
                     </div>
-                    <p className="mt-2 line-clamp-1 text-sm font-semibold text-slate-800">
+                    <p className="mt-1.5 line-clamp-1 text-sm font-semibold text-slate-900">
                       {c.nomeFalecido || "Identificação não informada"}
                     </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                       <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" />
+                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
                         {c.enderecoOcorrencia || "Endereço não informado"}
                       </span>
                       {c.ordemColeta?.numeroDeclaracaoObito && (
-                        <span className="inline-flex items-center gap-1">
-                          <FileText className="h-3.5 w-3.5" />
+                        <span className="inline-flex items-center gap-1 font-mono">
+                          <FileText className="h-3.5 w-3.5 text-slate-400" />
                           DO: {c.ordemColeta.numeroDeclaracaoObito}
                         </span>
                       )}
@@ -200,8 +199,8 @@ export function FilaChamadosSvo({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-        <span>
+      <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <span className="tabular-nums">
           Página <strong>{page}</strong> de <strong>{totalPages}</strong> ({totalRegistros}{" "}
           {totalRegistros === 1 ? "chamado" : "chamados"})
         </span>
@@ -210,7 +209,7 @@ export function FilaChamadosSvo({
             <button
               type="button"
               onClick={limparFiltros}
-              className="mr-2 font-semibold text-slate-700 hover:text-blue-700"
+              className="mr-2 font-semibold text-slate-700 hover:text-slate-900"
             >
               Limpar filtros <ArrowUpRight className="inline h-3.5 w-3.5" />
             </button>

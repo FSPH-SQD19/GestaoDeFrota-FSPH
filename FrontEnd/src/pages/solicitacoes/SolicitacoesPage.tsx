@@ -1,20 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Plus,
-  Search,
-  Eye,
-  ArrowRight,
-  CalendarClock,
-  Car,
-  UserRound,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  ClipboardList,
-  Siren,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
+import { Plus, Search, Eye, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -268,12 +253,10 @@ export const SolicitacoesPage: React.FC = () => {
       header: "Protocolo",
       render: (s) => (
         <div className="flex flex-col gap-1">
-          <span className="font-mono font-bold text-slate-900 text-xs tracking-wider">
-            {s.protocolo}
-          </span>
+          <span className="font-mono font-semibold text-slate-900 text-xs">{s.protocolo}</span>
           {s.urgencia === "URGENTE" && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600">
-              <Siren className="w-3 h-3" /> Urgente
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700">
+              Urgente
             </span>
           )}
         </div>
@@ -285,7 +268,7 @@ export const SolicitacoesPage: React.FC = () => {
             header: "Setor / Solicitante",
             render: (s: SolicitacaoViagem) => (
               <div className="min-w-[150px]">
-                <span className="inline-block text-xs font-bold text-slate-900">
+                <span className="inline-block text-xs font-semibold text-slate-900">
                   {s.setorOrigem}
                 </span>
                 <span className="block text-xs text-slate-500 truncate max-w-[180px]">
@@ -311,8 +294,7 @@ export const SolicitacoesPage: React.FC = () => {
     {
       header: "Saída prevista",
       render: (s) => (
-        <span className="flex items-center gap-1.5 text-xs text-slate-700 whitespace-nowrap">
-          <CalendarClock className="w-3.5 h-3.5 text-slate-400" />
+        <span className="font-mono text-xs text-slate-700 whitespace-nowrap">
           {formatarDataHora(s.dataHoraPretendida)}
         </span>
       ),
@@ -326,7 +308,7 @@ export const SolicitacoesPage: React.FC = () => {
     {
       header: "Status",
       render: (s) => (
-        <Badge variant={STATUS_SOLICITACAO_VARIANT[s.status]} dot>
+        <Badge variant={STATUS_SOLICITACAO_VARIANT[s.status]} dot size="sm">
           {STATUS_SOLICITACAO_LABEL[s.status]}
         </Badge>
       ),
@@ -338,7 +320,7 @@ export const SolicitacoesPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelecionada(s)}
-            className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
             title="Ver detalhes da viagem"
             aria-label={`Ver detalhes da solicitação ${s.protocolo}`}
           >
@@ -350,11 +332,11 @@ export const SolicitacoesPage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Topo */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
+    <div className="space-y-6">
+      {/* Topo Padronizado */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             {isGestor ? "Gestão de Solicitações de Viagem" : "Minhas Solicitações de Viagem"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -370,7 +352,6 @@ export const SolicitacoesPage: React.FC = () => {
             setMensagemSucesso(null);
             setIsNovaOpen(true);
           }}
-          className="rounded-2xl"
         >
           Nova Solicitação de Viagem
         </Button>
@@ -379,10 +360,10 @@ export const SolicitacoesPage: React.FC = () => {
       {mensagemSucesso && (
         <div
           role="status"
-          className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm"
+          className="flex items-start justify-between gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm"
         >
           <span className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-700" />
             {mensagemSucesso}
           </span>
           <button
@@ -398,7 +379,7 @@ export const SolicitacoesPage: React.FC = () => {
       {erroCarregamento && (
         <div
           role="alert"
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm"
         >
           <span className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -418,7 +399,7 @@ export const SolicitacoesPage: React.FC = () => {
       {isGestor && filaAtual?.erro && (
         <div
           role="alert"
-          className="flex flex-wrap items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
         >
           Não foi possível carregar a fila prioritária. {filaAtual.erro}
           <Button variant="outline" size="sm" onClick={() => dispararRecarregamento()}>
@@ -431,75 +412,56 @@ export const SolicitacoesPage: React.FC = () => {
           Carregando fila prioritária...
         </p>
       )}
+
       {/* Indicadores */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <MetricCard
-          icon={ClipboardList}
-          label="Total solicitado"
-          value={contagem.total}
-          tone="neutral"
-        />
-        <MetricCard
-          icon={Clock}
-          label="Aguardando aprovação"
-          value={contagem.pendentes}
-          tone="warning"
-        />
-        <MetricCard
-          icon={CheckCircle2}
-          label="Aprovadas / em trânsito"
-          value={contagem.aprovadas}
-          tone="success"
-        />
-        <MetricCard icon={XCircle} label="Recusadas" value={contagem.recusadas} tone="danger" />
+        <MetricCard label="Total solicitado" value={contagem.total} tone="neutral" />
+        <MetricCard label="Aguardando aprovação" value={contagem.pendentes} tone="warning" />
+        <MetricCard label="Aprovadas / em trânsito" value={contagem.aprovadas} tone="success" />
+        <MetricCard label="Recusadas" value={contagem.recusadas} tone="danger" />
       </div>
 
       {/* Destaque de Fila Prioritária (URGENTE) para Gestor / Admin */}
       {isGestor && pendentesUrgentes.length > 0 && (
-        <Card className="p-4 sm:p-5 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <span className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
-                <Siren className="w-5 h-5" />
-              </span>
-              <div>
-                <h2 className="text-sm font-bold text-rose-950">
-                  Fila de Análise Prioritária — {totalUrgentes} pedido(s) URGENTE(S) aguardando
-                  decisão
-                </h2>
-                <p className="text-xs text-rose-800">
-                  Exibindo {pendentesUrgentes.length} de {totalUrgentes} pedidos urgentes. Use os
-                  filtros Pendentes e Apenas urgentes para consultar todos.
-                </p>
-              </div>
-            </div>
+        <Card className="p-0 overflow-hidden border-l-4 border-l-rose-600">
+          <div className="border-b border-slate-200 bg-rose-50/40 px-5 py-3.5">
+            <h2 className="text-sm font-bold text-slate-900">
+              Fila de Análise Prioritária — {totalUrgentes} pedido(s) URGENTE(S) aguardando decisão
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-600">
+              Exibindo {pendentesUrgentes.length} de {totalUrgentes} pedidos urgentes. Use os
+              filtros Pendentes e Apenas urgentes para consultar todos.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="divide-y divide-slate-200/70">
             {pendentesUrgentes.map((urg) => (
               <div
                 key={urg.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-white border border-rose-200/80 shadow-2xs"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 bg-white"
               >
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-xs text-slate-900">
+                    <span className="font-mono font-semibold text-xs text-slate-900">
                       {urg.protocolo}
                     </span>
-                    <Badge variant="danger">Urgente</Badge>
-                    <span className="text-xs font-semibold text-slate-600">{urg.setorOrigem}</span>
+                    <Badge variant="danger" size="sm">
+                      Urgente
+                    </Badge>
+                    <span className="text-xs font-medium text-slate-600">{urg.setorOrigem}</span>
                   </div>
                   <p className="text-xs font-semibold text-slate-900 truncate">
                     {urg.origem} → {urg.destino}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    Saída: {formatarDataHora(urg.dataHoraPretendida)} · Solicitante:{" "}
-                    {urg.solicitanteNome}
+                    Saída:{" "}
+                    <span className="font-mono">{formatarDataHora(urg.dataHoraPretendida)}</span> ·
+                    Solicitante: {urg.solicitanteNome}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Button
-                    variant="primary"
+                    variant="outline"
                     size="sm"
                     leftIcon={<Eye className="w-3.5 h-3.5" />}
                     onClick={() => setSelecionada(urg)}
@@ -550,7 +512,7 @@ export const SolicitacoesPage: React.FC = () => {
           )}
 
           <div
-            className="flex min-w-0 items-center gap-1.5 bg-slate-100 p-1 rounded-2xl overflow-x-auto xl:col-span-2"
+            className="flex min-w-0 items-center gap-1 border border-slate-200 bg-slate-100/80 p-1 rounded-lg overflow-x-auto xl:col-span-2"
             role="tablist"
           >
             {FILTROS.map((f) => (
@@ -561,7 +523,7 @@ export const SolicitacoesPage: React.FC = () => {
                 aria-selected={filtro === f.id}
                 onClick={() => handleFiltroStatusChange(f.id)}
                 className={cn(
-                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
+                  "px-3 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer",
                   filtro === f.id
                     ? "bg-white text-slate-900 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900",
@@ -648,45 +610,23 @@ export const SolicitacoesPage: React.FC = () => {
 
 /* ---------- Subcomponentes ---------- */
 
-const toneStyles = {
-  neutral: {
-    card: "border-slate-200/80 bg-white",
-    icon: "bg-slate-100 text-slate-700",
-    text: "text-slate-900",
-  },
-  warning: {
-    card: "border-amber-200/80 bg-amber-50/30",
-    icon: "bg-amber-100 text-amber-700",
-    text: "text-amber-900",
-  },
-  success: {
-    card: "border-emerald-200/80 bg-emerald-50/30",
-    icon: "bg-emerald-100 text-emerald-700",
-    text: "text-emerald-900",
-  },
-  danger: {
-    card: "border-rose-200/80 bg-rose-50/30",
-    icon: "bg-rose-100 text-rose-700",
-    text: "text-rose-900",
-  },
+const toneText = {
+  neutral: "text-slate-900",
+  warning: "text-amber-700",
+  success: "text-emerald-700",
+  danger: "text-rose-700",
 };
 
 const MetricCard: React.FC<{
-  icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number | string;
-  tone: keyof typeof toneStyles;
-}> = ({ icon: Icon, label, value, tone }) => (
-  <Card className={cn("p-4.5 rounded-2xl border", toneStyles[tone].card)}>
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-xs text-slate-600 font-medium">{label}</span>
-      <span
-        className={cn("w-8 h-8 rounded-xl flex items-center justify-center", toneStyles[tone].icon)}
-      >
-        <Icon className="w-4 h-4" />
-      </span>
-    </div>
-    <span className={cn("block mt-1 text-2xl font-bold", toneStyles[tone].text)}>{value}</span>
+  tone: keyof typeof toneText;
+}> = ({ label, value, tone }) => (
+  <Card className="p-4">
+    <span className="text-xs text-slate-500 font-semibold">{label}</span>
+    <span className={cn("block mt-1 text-2xl font-bold tabular-nums", toneText[tone])}>
+      {value}
+    </span>
   </Card>
 );
 
@@ -732,14 +672,18 @@ const DetalhesSolicitacaoModal: React.FC<{
     {s && (
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={STATUS_SOLICITACAO_VARIANT[s.status]} dot>
+          <Badge variant={STATUS_SOLICITACAO_VARIANT[s.status]} dot size="sm">
             {STATUS_SOLICITACAO_LABEL[s.status]}
           </Badge>
-          {s.urgencia === "URGENTE" && <Badge variant="danger">Urgente</Badge>}
+          {s.urgencia === "URGENTE" && (
+            <Badge variant="danger" size="sm">
+              Urgente
+            </Badge>
+          )}
         </div>
 
         {s.status === "RECUSADA" && s.motivoRecusa && (
-          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm">
             <span className="block font-semibold mb-0.5">Motivo da recusa</span>
             {s.motivoRecusa}
           </div>
@@ -748,9 +692,11 @@ const DetalhesSolicitacaoModal: React.FC<{
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <InfoItem label="Origem">{s.origem}</InfoItem>
           <InfoItem label="Destino">{s.destino}</InfoItem>
-          <InfoItem label="Saída prevista">{formatarDataHora(s.dataHoraPretendida)}</InfoItem>
+          <InfoItem label="Saída prevista">
+            <span className="font-mono">{formatarDataHora(s.dataHoraPretendida)}</span>
+          </InfoItem>
           <InfoItem label="Retorno previsto">
-            {formatarDataHora(s.dataHoraRetornoPrevista)}
+            <span className="font-mono">{formatarDataHora(s.dataHoraRetornoPrevista)}</span>
           </InfoItem>
           <InfoItem label="Setor">{s.setorOrigem}</InfoItem>
           <InfoItem label="Transporte">
@@ -762,26 +708,14 @@ const DetalhesSolicitacaoModal: React.FC<{
         {s.observacoes && <InfoItem label="Observações">{s.observacoes}</InfoItem>}
 
         {(s.veiculoAlocado || s.motoristaAlocado) && (
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {s.veiculoAlocado && (
-              <div className="flex items-center gap-3">
-                <span className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
-                  <Car className="w-4 h-4 text-slate-700" />
-                </span>
-                <InfoItem label="Veículo alocado">
-                  <span className="font-mono font-bold">{s.veiculoAlocado.placa}</span> ·{" "}
-                  {s.veiculoAlocado.modelo}
-                </InfoItem>
-              </div>
+              <InfoItem label="Veículo alocado">
+                <span className="font-mono font-bold">{s.veiculoAlocado.placa}</span> ·{" "}
+                {s.veiculoAlocado.modelo}
+              </InfoItem>
             )}
-            {s.motoristaAlocado && (
-              <div className="flex items-center gap-3">
-                <span className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
-                  <UserRound className="w-4 h-4 text-slate-700" />
-                </span>
-                <InfoItem label="Motorista">{s.motoristaAlocado.nome}</InfoItem>
-              </div>
-            )}
+            {s.motoristaAlocado && <InfoItem label="Motorista">{s.motoristaAlocado.nome}</InfoItem>}
           </div>
         )}
 
