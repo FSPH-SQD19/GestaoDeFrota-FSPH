@@ -18,6 +18,7 @@ import {
   listarManutencoesController,
 } from "../controller/manutencao_c";
 import solicitacaoRoutes from "./solicitacao_r";
+import auditoriaRoutes from "./auditoria_r";
 import notificacaoRoutes from "./notificacao_r";
 import multaRoutes from "./multa_r";
 import {
@@ -77,5 +78,8 @@ router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
 router.use("/multas", multaRoutes);
 router.use("/api/v1/multas", multaRoutes);
+
+router.use("/auditoria", auditoriaRoutes);
+router.use("/api/v1/auditoria", auditoriaRoutes);
 
 export default router;

@@ -83,18 +83,21 @@ export const listarAuditoriaSchema = z.object({
     .string()
     .trim()
     .optional()
-    .transform((v) => (v ? new Date(`${v}T00:00:00-03:00`) : undefined)),
+    .transform((v) => (v ? new Date(`${v}T00:00:00-03:00`) : undefined))
+    .optional(),
   dataFim: z
     .string()
     .trim()
     .optional()
-    .transform((v) => (v ? new Date(new Date(`${v}T00:00:00-03:00`).getTime() + 86400000 - 1) : undefined)),
+    .transform((v) => (v ? new Date(new Date(`${v}T00:00:00-03:00`).getTime() + 86400000 - 1) : undefined))
+    .optional(),
   busca: z
     .string()
     .trim()
     .max(100)
     .optional()
-    .transform((v) => (v ? v : undefined)),
+    .transform((v) => (v ? v : undefined))
+    .optional(),
 });
 
 export type ListarAuditoriaParams = z.infer<typeof listarAuditoriaSchema>;
