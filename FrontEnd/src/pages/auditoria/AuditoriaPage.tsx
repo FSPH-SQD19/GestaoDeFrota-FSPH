@@ -17,13 +17,14 @@ import { DetalhesAuditoriaModal } from "./DetalhesAuditoriaModal";
 
 const TABELAS_AFETADAS_OPTIONS = [
   { value: "TODAS", label: "Todos os módulos" },
-  { value: "SOLICITACAO_VIAGEM", label: "Solicitações de Viagem" },
-  { value: "VEICULO", label: "Veículos da Frota" },
-  { value: "USUARIO", label: "Usuários e Acessos" },
-  { value: "MULTA", label: "Multas de Trânsito" },
-  { value: "CHAMADO_SVO", label: "Chamados SVO" },
-  { value: "ORDEM_COLETA_SVO", label: "Ordens de Coleta SVO" },
-  { value: "ABASTECIMENTO", label: "Abastecimentos" },
+  { value: "solicitacoes_viagem", label: "Solicitações de Viagem" },
+  { value: "veiculos", label: "Veículos da Frota" },
+  { value: "usuarios", label: "Usuários e Acessos" },
+  { value: "multas", label: "Multas de Trânsito" },
+  { value: "saidas_operacionais", label: "Saídas Operacionais" },
+  { value: "chamados_svo", label: "Chamados SVO" },
+  { value: "ordens_coleta_svo", label: "Ordens de Coleta SVO" },
+  { value: "abastecimentos", label: "Abastecimentos" },
 ];
 
 const ACOES_OPTIONS = [
