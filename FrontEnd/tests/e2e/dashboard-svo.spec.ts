@@ -552,7 +552,7 @@ test("motorista vê coletas SVO atribuídas e avança a etapa no celular", async
       statusTriagem: "APROVADO",
     },
   };
-  await page.route("**/api/v1/svo/ordens-coleta/minhas", (route) => {
+  await page.route("**/api/v1/svo/ordens-coleta/minhas?*", (route) => {
     const ativas = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"];
     const data = ativas.includes(ordem.status) ? [ordem] : [];
     return route.fulfill({
