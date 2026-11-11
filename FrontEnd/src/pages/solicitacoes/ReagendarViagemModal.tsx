@@ -30,12 +30,7 @@ interface Props {
   onConcluido: (mensagem: string) => void;
 }
 
-export function ReagendarViagemModal({
-  solicitacao,
-  sessionKey,
-  onClose,
-  onConcluido,
-}: Props) {
+export function ReagendarViagemModal({ solicitacao, sessionKey, onClose, onConcluido }: Props) {
   const [revisao, setRevisao] = useState(0);
   const [recursos, setRecursos] = useState<{
     revisao: number;
@@ -46,11 +41,11 @@ export function ReagendarViagemModal({
 
   // Inicializa com os dados atuais já alocados na viagem
   const [veiculoId, setVeiculoId] = useState(
-  (solicitacao as unknown as Record<string, unknown>).veiculoAlocadoId as string ?? ""
-);
-const [motoristaId, setMotoristaId] = useState(
-  (solicitacao as unknown as Record<string, unknown>).motoristaAlocadoId as string ?? ""
-);
+    ((solicitacao as unknown as Record<string, unknown>).veiculoAlocadoId as string) ?? "",
+  );
+  const [motoristaId, setMotoristaId] = useState(
+    ((solicitacao as unknown as Record<string, unknown>).motoristaAlocadoId as string) ?? "",
+  );
   // Datas convertidas para o formato de input datetime-local (YYYY-MM-DDTHH:mm)
   const formatarParaInputData = (dataIso?: string | null) => {
     if (!dataIso) return "";
@@ -59,13 +54,13 @@ const [motoristaId, setMotoristaId] = useState(
   };
 
   const [novoDataInicio, setNovoDataInicio] = useState(
-    formatarParaInputData(solicitacao.dataHoraPretendida)
+    formatarParaInputData(solicitacao.dataHoraPretendida),
   );
   const [novoDataFim, setNovoDataFim] = useState(
-    formatarParaInputData(solicitacao.dataHoraRetornoPrevista)
+    formatarParaInputData(solicitacao.dataHoraRetornoPrevista),
   );
   const [motivo, setMotivo] = useState("");
-  
+
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const salvando = useRef(false);
@@ -73,9 +68,7 @@ const [motoristaId, setMotoristaId] = useState(
   const atual = recursos?.revisao === revisao ? recursos : null;
 
   const janelaValida = Boolean(
-    novoDataInicio &&
-    novoDataFim &&
-    new Date(novoDataInicio) < new Date(novoDataFim),
+    novoDataInicio && novoDataFim && new Date(novoDataInicio) < new Date(novoDataFim),
   );
 
   useEffect(() => {
@@ -173,7 +166,9 @@ const [motoristaId, setMotoristaId] = useState(
       dispararAtualizacaoNotificacoes();
       onConcluido(`Viagem ${solicitacao.protocolo} reagendada com sucesso.`);
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível concluir o reagendamento.");
+      setErro(
+        error instanceof Error ? error.message : "Não foi possível concluir o reagendamento.",
+      );
     } finally {
       salvando.current = false;
       setEnviando(false);
@@ -205,14 +200,16 @@ const [motoristaId, setMotoristaId] = useState(
     >
       <form id="reagendar-viagem" onSubmit={confirmar} className="space-y-4" noValidate>
         <p className="text-sm text-slate-600">
-          Protocolo: <span className="font-medium text-slate-900">{solicitacao.protocolo}</span>. 
+          Protocolo: <span className="font-medium text-slate-900">{solicitacao.protocolo}</span>.
           Altere os campos necessários e informe obrigatoriamente o motivo.
         </p>
 
         <fieldset disabled={enviando} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nova Data/Hora Início</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Nova Data/Hora Início
+              </label>
               <input
                 type="datetime-local"
                 value={novoDataInicio}
@@ -222,7 +219,9 @@ const [motoristaId, setMotoristaId] = useState(
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nova Data/Hora Retorno</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Nova Data/Hora Retorno
+              </label>
               <input
                 type="datetime-local"
                 value={novoDataFim}

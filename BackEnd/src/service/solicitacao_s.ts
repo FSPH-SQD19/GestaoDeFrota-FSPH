@@ -145,8 +145,8 @@ export type ListarSolicitacoesFiltros = z.infer<typeof listarSolicitacoesSchema>
 
 const incluirRelacoes = {
   solicitante: { select: { nome: true } },
-  veiculoAlocado: { select: { id: true ,placa: true, modelo: true } },
-  motoristaAlocado: { select: {id: true, usuario: { select: { nome: true } } } },
+  veiculoAlocado: { select: { id: true, placa: true, modelo: true } },
+  motoristaAlocado: { select: { id: true, usuario: { select: { nome: true } } } },
 } satisfies Prisma.SolicitacaoViagemInclude;
 
 type SolicitacaoComRelacoes = Prisma.SolicitacaoViagemGetPayload<{
@@ -208,7 +208,7 @@ export async function listarSolicitacoes(
 
 const incluirRelacoesMotorista = {
   ...incluirRelacoes,
-  veiculoAlocado: { select: { id:true, placa: true, modelo: true, odometroAtual: true } },
+  veiculoAlocado: { select: { id: true, placa: true, modelo: true, odometroAtual: true } },
   execucao: {
     select: { id: true, kmInicial: true, kmFinal: true, dataHoraInicio: true, dataHoraFim: true },
   },

@@ -8,7 +8,7 @@ import {
   listarMinhasViagensController,
   iniciarViagemController,
   concluirViagemController,
-  reagendarViagemController
+  reagendarViagemController,
 } from "../controller/solicitacao_c";
 
 const router = Router();

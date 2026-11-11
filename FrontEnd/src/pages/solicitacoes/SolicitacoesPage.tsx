@@ -125,7 +125,6 @@ export const SolicitacoesPage: React.FC = () => {
   const totalPages = Math.max(1, atual?.dados?.meta.totalPages ?? 1);
   const carregando = !atual;
   const erroCarregamento = atual?.erro;
-  
 
   useEffect(() => {
     let ativa = true;
@@ -644,9 +643,9 @@ export const SolicitacoesPage: React.FC = () => {
             setReagendarModal(null);
             setMensagemSucesso(mensagem);
             dispararRecarregamento();
-    }}
-  />
-)}
+          }}
+        />
+      )}
 
       <DetalhesSolicitacaoModal
         solicitacao={selecionada}
@@ -657,11 +656,10 @@ export const SolicitacoesPage: React.FC = () => {
           setAnalise({ solicitacao, modo });
         }}
         onReagendar={(solicitacao) => {
-          setSelecionada(null); 
-          setReagendarModal(solicitacao); 
+          setSelecionada(null);
+          setReagendarModal(solicitacao);
         }}
       />
-      
     </div>
   );
 };

@@ -20,7 +20,7 @@ import {
   aprovarSolicitacaoSchema,
   recusarSolicitacaoSchema,
   reagendarViagemAprovada,
-  reagendarViagemSchema
+  reagendarViagemSchema,
 } from "../service/aprovacao_s";
 
 export async function iniciarViagemController(req: Request, res: Response) {

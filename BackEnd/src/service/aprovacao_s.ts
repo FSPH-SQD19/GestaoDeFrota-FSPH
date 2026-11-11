@@ -295,16 +295,20 @@ export const reagendarViagemSchema = z.object({
 
 type ReagendarInput = z.infer<typeof reagendarViagemSchema>;
 
-export async function reagendarViagemAprovada(id: string, dados: ReagendarInput, usuarioId: string) {
+export async function reagendarViagemAprovada(
+  id: string,
+  dados: ReagendarInput,
+  usuarioId: string,
+) {
   validarId(id);
 
   let contextoNotificacao = null as {
-  solicitanteId: string;
-  protocolo: string;
-  destino: string | null;
-  veiculoPlaca: string | null;
-  motoristaUsuarioId: string | null;
-} | null;
+    solicitanteId: string;
+    protocolo: string;
+    destino: string | null;
+    veiculoPlaca: string | null;
+    motoristaUsuarioId: string | null;
+  } | null;
 
   try {
     const viagemReagendada = await prisma.$transaction(
@@ -337,11 +341,18 @@ export async function reagendarViagemAprovada(id: string, dados: ReagendarInput,
         const inicioAtual = solicitacao.dataHoraPretendida;
 
         if (inicioAtual && agora >= inicioAtual) {
-          throw new HttpError(422, "Não é possível reagendar uma viagem que já teve seu início alcançado.");
+          throw new HttpError(
+            422,
+            "Não é possível reagendar uma viagem que já teve seu início alcançado.",
+          );
         }
 
-        const novoInicio = dados.novoDataInicio ? new Date(dados.novoDataInicio) : solicitacao.dataHoraPretendida;
-        const novoFim = dados.novoDataFim ? new Date(dados.novoDataFim) : solicitacao.dataHoraRetornoPrevista;
+        const novoInicio = dados.novoDataInicio
+          ? new Date(dados.novoDataInicio)
+          : solicitacao.dataHoraPretendida;
+        const novoFim = dados.novoDataFim
+          ? new Date(dados.novoDataFim)
+          : solicitacao.dataHoraRetornoPrevista;
         const novoVeiculoId = dados.veiculoId ?? solicitacao.veiculoAlocadoId;
         const novoMotoristaId = dados.motoristaId ?? solicitacao.motoristaAlocadoId;
 
@@ -378,7 +389,10 @@ export async function reagendarViagemAprovada(id: string, dados: ReagendarInput,
         }
 
         if (veiculo.capacidadeMaxima < solicitacao.quantidadePassageiros) {
-          throw new HttpError(422, "Capacidade do veículo insuficiente para a quantidade de passageiros.");
+          throw new HttpError(
+            422,
+            "Capacidade do veículo insuficiente para a quantidade de passageiros.",
+          );
         }
 
         await exigirDocumentosEmDia(tx, novoVeiculoId, dataLocal(novoFim));
@@ -394,7 +408,10 @@ export async function reagendarViagemAprovada(id: string, dados: ReagendarInput,
 
         const validadeCnh = motorista.validadeCnh.toISOString().slice(0, 10);
         if (validadeCnh < dataLocal(novoFim)) {
-          throw new HttpError(422, "A CNH do motorista selecionado estará vencida durante o período da viagem.");
+          throw new HttpError(
+            422,
+            "A CNH do motorista selecionado estará vencida durante o período da viagem.",
+          );
         }
 
         // Checar conflitos de agenda (excluindo a própria viagem)
@@ -412,7 +429,10 @@ export async function reagendarViagemAprovada(id: string, dados: ReagendarInput,
         });
 
         if (conflito) {
-          throw new HttpError(409, "O veículo ou o motorista já possui outra viagem alocada neste horário.");
+          throw new HttpError(
+            409,
+            "O veículo ou o motorista já possui outra viagem alocada neste horário.",
+          );
         }
 
         const dadosAntigosSnapshot = {
@@ -470,7 +490,7 @@ export async function reagendarViagemAprovada(id: string, dados: ReagendarInput,
         isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
         maxWait: 5000,
         timeout: 15000,
-      }
+      },
     );
 
     if (contextoNotificacao && contextoNotificacao.solicitanteId) {
