@@ -33,6 +33,7 @@ const STATUS_VIAGEM: Record<
   EM_TRANSITO: { label: "Em andamento", variant: "warning" },
   CONCLUIDA: { label: "Concluída", variant: "success" },
   RECUSADA: { label: "Recusada", variant: "danger" },
+  CANCELADA: { label: "Cancelada", variant: "neutral" },
 };
 
 const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
