@@ -92,7 +92,7 @@ export const listarVeiculosSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   tipoFrota: z.enum(TIPOS_FROTA).optional(),
   status: z.enum(STATUS_VEICULO).optional(),
-  propriedade: z.enum(PROPRIEDADES).optional(), 
+  propriedade: z.enum(PROPRIEDADES).optional(),
   fornecedorId: camposVeiculo.fornecedorId.optional(),
   ativo: z
     .enum(["true", "false"])

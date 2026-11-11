@@ -150,10 +150,7 @@ describe("listarVeiculos", () => {
       status: "MANUTENCAO",
       propriedade: "LOCADO",
       fornecedorId,
-      OR: [
-        { placa: { contains: "ABC" } },
-        { modelo: { contains: "ABC", mode: "insensitive" } },
-      ],
+      OR: [{ placa: { contains: "ABC" } }, { modelo: { contains: "ABC", mode: "insensitive" } }],
     };
 
     expect(mocks.findMany).toHaveBeenCalledWith({

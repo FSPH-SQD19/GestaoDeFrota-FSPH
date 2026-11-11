@@ -96,7 +96,10 @@ describe("alertas de documentos da frota", () => {
     expect(alertas).toHaveLength(3);
     // Não filtrar a data no banco: um documento antigo vencido pode já ter sido renovado.
     expect(mocks.documentoFindMany).toHaveBeenCalledWith({
-      where: { veiculo: { ativo: true }, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] } },
+      where: {
+        veiculo: { ativo: true },
+        tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] },
+      },
       distinct: ["veiculoId", "tipoDocumento"],
       orderBy: [
         { veiculoId: "asc" },
@@ -385,7 +388,9 @@ describe("exigirDocumentosEmDia", () => {
 
     expect(erro.statusCode).toBe(422);
     expect(erro.message).toBe("Documentação do veículo vencida durante o período da viagem.");
-    expect(erro.errors).toEqual([{ campo: "veiculoId", mensagem: "VISTORIA vencido em 30/10/2026." }]);
+    expect(erro.errors).toEqual([
+      { campo: "veiculoId", mensagem: "VISTORIA vencido em 30/10/2026." },
+    ]);
   });
 
   it("bloqueia documento que vence antes do retorno da viagem", async () => {

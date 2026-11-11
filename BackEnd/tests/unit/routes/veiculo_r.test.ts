@@ -201,24 +201,24 @@ describe("GET /api/v1/veiculos", () => {
   });
 
   it("repassa o filtro de locadora ao banco", async () => {
-  await chamar(`/api/v1/veiculos?propriedade=LOCADO&fornecedorId=${fornecedorId}`, {
-    perfis: ["GESTOR"],
+    await chamar(`/api/v1/veiculos?propriedade=LOCADO&fornecedorId=${fornecedorId}`, {
+      perfis: ["GESTOR"],
+    });
+
+    expect(mocks.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ propriedade: "LOCADO", fornecedorId }),
+      }),
+    );
   });
 
-  expect(mocks.findMany).toHaveBeenCalledWith(
-    expect.objectContaining({
-      where: expect.objectContaining({ propriedade: "LOCADO", fornecedorId }),
-    }),
-  );
-});
+  it("retorna 400 para fornecedorId inválido", async () => {
+    const resposta = await chamar("/api/v1/veiculos?fornecedorId=abc", { perfis: ["GESTOR"] });
 
-it("retorna 400 para fornecedorId inválido", async () => {
-  const resposta = await chamar("/api/v1/veiculos?fornecedorId=abc", { perfis: ["GESTOR"] });
-
-  expect(resposta.status).toBe(400);
-  expect((resposta.json.errors ?? []).map((erro) => erro.campo)).toEqual(["fornecedorId"]);
-  expect(mocks.findMany).not.toHaveBeenCalled();
-});
+    expect(resposta.status).toBe(400);
+    expect((resposta.json.errors ?? []).map((erro) => erro.campo)).toEqual(["fornecedorId"]);
+    expect(mocks.findMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/v1/veiculos", () => {
