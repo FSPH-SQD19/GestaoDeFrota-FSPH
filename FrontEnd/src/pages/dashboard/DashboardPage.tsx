@@ -620,14 +620,17 @@ export const DashboardPage: React.FC = () => {
                 {dados ? value : "—"}
               </span>
             </div>
-            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500" title={description}>
+            <p
+              className="mt-0.5 truncate text-[11px] font-medium text-slate-500"
+              title={description}
+            >
               {description}
             </p>
           </Card>
         ))}
       </div>
 
-{/* Painéis Gráficos Analíticos (Status da Frota + Solicitações por Status + Consumo/Rodagem no Mês) */}
+      {/* Painéis Gráficos Analíticos (Status da Frota + Solicitações por Status + Consumo/Rodagem no Mês) */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <Card className="flex flex-col justify-between p-5 lg:col-span-4">
           <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-200 pb-3.5">
