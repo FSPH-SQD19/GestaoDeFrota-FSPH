@@ -16,9 +16,11 @@ const mocks = vi.hoisted(() => ({
   conflitoSvo: vi.fn(),
   saidaAtiva: vi.fn(),
   documentos: vi.fn(),
+  manutencao: vi.fn(),
   update: vi.fn(),
   resultado: vi.fn(),
   auditoria: vi.fn(),
+  notificacoes: vi.fn(),
   transaction: vi.fn(),
 }));
 const tx = {
@@ -34,7 +36,9 @@ const tx = {
   documentoVeiculo: { findMany: mocks.documentos },
   ordemColetaSvo: { findFirst: mocks.conflitoSvo },
   saidaOperacional: { findFirst: mocks.saidaAtiva },
+  manutencao: { findFirst: mocks.manutencao },
   auditoriaSistema: { create: mocks.auditoria },
+  notificacao: { createMany: mocks.notificacoes },
 };
 vi.mock("../../../src/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
 vi.mock("../../../src/config/auth", () => ({
@@ -44,13 +48,16 @@ import { app } from "../../../src/app";
 const id = "00000000-0000-4000-8000-000000000001",
   veiculoId = "00000000-0000-4000-8000-000000000002",
   motoristaId = "00000000-0000-4000-8000-000000000003";
+const saidaFutura = new Date(Date.now() + 48 * 60 * 60 * 1000);
 const solicitacao = {
   id,
   protocolo: "SV-TESTE",
   status: "PENDENTE",
   quantidadePassageiros: 3,
-  dataHoraPretendida: new Date("2026-11-10T08:00:00-03:00"),
-  dataHoraRetornoPrevista: new Date("2026-11-10T18:00:00-03:00"),
+  veiculoAlocadoId: veiculoId,
+  motoristaAlocadoId: motoristaId,
+  dataHoraPretendida: saidaFutura,
+  dataHoraRetornoPrevista: new Date(saidaFutura.getTime() + 10 * 60 * 60 * 1000),
 };
 let server: Server, url: string;
 beforeAll(async () => {
@@ -73,12 +80,13 @@ beforeEach(() => {
     id: motoristaId,
     ativo: true,
     status: "DISPONIVEL",
-    validadeCnh: new Date("2026-11-10T00:00:00Z"),
+    validadeCnh: new Date("2099-11-10T00:00:00Z"),
   });
   mocks.conflito.mockResolvedValue(null);
   mocks.conflitoSvo.mockResolvedValue(null);
   mocks.saidaAtiva.mockResolvedValue(null);
   mocks.documentos.mockResolvedValue([]);
+  mocks.manutencao.mockResolvedValue(null);
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.resultado.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
   mocks.auditoria.mockResolvedValue({});
@@ -199,6 +207,95 @@ describe("regras de aprovação", () => {
     expect((await decidir()).status).toBe(422);
     expect(mocks.update).not.toHaveBeenCalled();
   });
+  it("rejeita aprovação quando a saída prevista já passou", async () => {
+    mocks.solicitacao.mockResolvedValue({
+      ...solicitacao,
+      dataHoraPretendida: new Date(Date.now() - 1),
+    });
+    expect((await decidir()).status).toBe(422);
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.auditoria).not.toHaveBeenCalled();
+  });
+  it("preenche o retorno ausente na aprovação e verifica conflitos com a janela informada", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, dataHoraRetornoPrevista: null });
+    const fim = new Date(saidaFutura.getTime() + 12 * 60 * 60 * 1000);
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: fim.toISOString(),
+        })
+      ).status,
+    ).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ dataHoraRetornoPrevista: fim }) }),
+    );
+    expect(mocks.conflito).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ dataHoraPretendida: { lt: fim } }),
+      }),
+    );
+  });
+  it("rejeita retorno informado anterior à saída", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, dataHoraRetornoPrevista: null });
+    const retornoAnterior = new Date(saidaFutura.getTime() - 60_000);
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: retornoAnterior.toISOString(),
+        })
+      ).status,
+    ).toBe(422);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("preserva o retorno já registrado quando outro é enviado na aprovação", async () => {
+    const retornoTentativa = new Date(
+      solicitacao.dataHoraRetornoPrevista.getTime() + 24 * 60 * 60 * 1000,
+    );
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: retornoTentativa.toISOString(),
+        })
+      ).status,
+    ).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ dataHoraRetornoPrevista: expect.anything() }),
+      }),
+    );
+    expect(mocks.conflito).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          dataHoraPretendida: { lt: solicitacao.dataHoraRetornoPrevista },
+        }),
+      }),
+    );
+  });
+  it("verifica validade da CNH até o retorno informado na aprovação", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, dataHoraRetornoPrevista: null });
+    mocks.motorista.mockResolvedValue({
+      ativo: true,
+      status: "DISPONIVEL",
+      validadeCnh: saidaFutura,
+    });
+    const retorno = new Date(saidaFutura.getTime() + 48 * 60 * 60 * 1000);
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: retorno.toISOString(),
+        })
+      ).status,
+    ).toBe(422);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
   it("confere capacidade no servidor", async () => {
     mocks.veiculo.mockResolvedValue({
       ativo: true,
@@ -293,4 +390,180 @@ describe("regras de recusa", () => {
     );
     expect(mocks.auditoria).not.toHaveBeenCalled();
   });
+});
+
+describe("reservas preventivas na aprovação e no reagendamento", () => {
+  beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-11-09T12:00:00Z").getTime());
+  });
+  afterAll(() => vi.restoreAllMocks());
+  it("retorna 409 ao aprovar dentro de manutenção programada", async () => {
+    mocks.manutencao.mockResolvedValue({ id: "manutencao" });
+    expect((await decidir()).status).toBe(409);
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.auditoria).not.toHaveBeenCalled();
+  });
+  it("valida manutenção na nova janela antes de reagendar", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
+    mocks.manutencao.mockResolvedValue({ id: "manutencao" });
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+      motivo: "Mudança de horário",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(409);
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.manutencao).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          inicioPrevisto: { lt: new Date(dados.fim) },
+          fimPrevisto: { gt: new Date(dados.inicio) },
+        }),
+      }),
+    );
+  });
+  it("reagenda com os recursos e audita o novo período quando não há reservas", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+      motivo: "Mudança de horário",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { id, status: "APROVADA" },
+      data: expect.objectContaining({
+        dataHoraPretendida: new Date(dados.inicio),
+        dataHoraRetornoPrevista: new Date(dados.fim),
+      }),
+    });
+    expect(mocks.auditoria).toHaveBeenCalledWith({
+      data: expect.objectContaining({ acao: "REAGENDAR" }),
+    });
+  });
+  it("impede reagendar viagem em trânsito", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "EM_TRANSITO" });
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+      motivo: "Mudança de horário",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(409);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("impede reagendar uma viagem cuja saída já passou", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-11-10T12:00:00Z").getTime());
+    mocks.solicitacao.mockResolvedValue({
+      ...solicitacao,
+      status: "APROVADA",
+      dataHoraPretendida: new Date("2026-11-10T08:00:00-03:00"),
+    });
+    const dados = {
+      veiculoId,
+      motoristaId,
+      inicio: "2026-11-11T09:00:00-03:00",
+      fim: "2026-11-11T10:00:00-03:00",
+      motivo: "Mudança de horário",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(422);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("troca recursos, registra motivo e notifica solicitante e motoristas", async () => {
+    const motoristaNovo = "00000000-0000-4000-8000-000000000099";
+    const solicitanteUsuario = "00000000-0000-4000-8000-000000000011";
+    const usuarioAnterior = "00000000-0000-4000-8000-000000000012";
+    const usuarioNovo = "00000000-0000-4000-8000-000000000013";
+    mocks.solicitacao.mockResolvedValue({
+      ...solicitacao,
+      status: "APROVADA",
+      solicitanteId: solicitanteUsuario,
+    });
+    mocks.motorista.mockImplementation(async ({ where }) =>
+      where.id === motoristaId
+        ? { usuarioId: usuarioAnterior }
+        : {
+            id: motoristaNovo,
+            usuarioId: usuarioNovo,
+            ativo: true,
+            status: "DISPONIVEL",
+            validadeCnh: new Date("2027-01-01"),
+          },
+    );
+    const dados = {
+      veiculoId,
+      motoristaId: motoristaNovo,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+      motivo: "Troca de equipe",
+    };
+    expect((await decidir("reagendar", dados)).status).toBe(200);
+    expect(mocks.auditoria).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        dadosNovos: expect.objectContaining({
+          motivo: dados.motivo,
+          anterior: expect.objectContaining({ motoristaAlocadoId: motoristaId }),
+        }),
+      }),
+    });
+    expect(mocks.notificacoes).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ usuarioId: solicitanteUsuario, tipo: "VIAGEM_REAGENDADA" }),
+        expect.objectContaining({ usuarioId: usuarioAnterior, tipo: "VIAGEM_REAGENDADA" }),
+        expect.objectContaining({ usuarioId: usuarioNovo, tipo: "VIAGEM_REAGENDADA" }),
+      ]),
+    });
+  });
+  it("exige motivo e não altera a viagem sem ele", async () => {
+    expect(
+      (
+        await decidir("reagendar", {
+          veiculoId,
+          motoristaId,
+          inicio: "2026-11-10T09:00:00-03:00",
+          fim: "2026-11-10T10:00:00-03:00",
+        })
+      ).status,
+    ).toBe(400);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("recusa reagendamento quando o novo veículo tem reserva preventiva", async () => {
+    mocks.solicitacao.mockResolvedValue({ ...solicitacao, status: "APROVADA" });
+    mocks.manutencao.mockResolvedValue({ id: "manutencao" });
+    const outroVeiculo = "00000000-0000-4000-8000-000000000099";
+    const resposta = await decidir("reagendar", {
+      veiculoId: outroVeiculo,
+      motoristaId,
+      inicio: "2026-11-10T09:00:00-03:00",
+      fim: "2026-11-10T10:00:00-03:00",
+      motivo: "Troca necessária",
+    });
+    expect(resposta.status).toBe(409);
+    expect(mocks.manutencao).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ veiculoId: outroVeiculo }) }),
+    );
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it.each(["MOTORISTA", "SOLICITANTE", "SVO"])(
+    "restringe reagendamento ao gestor e admin (%j)",
+    async (perfil) => {
+      const resposta = await decidir(
+        "reagendar",
+        {
+          veiculoId,
+          motoristaId,
+          inicio: "2026-11-10T09:00:00-03:00",
+          fim: "2026-11-10T10:00:00-03:00",
+          motivo: "Troca necessária",
+        },
+        [perfil],
+      );
+      expect(resposta.status).toBe(403);
+    },
+  );
 });

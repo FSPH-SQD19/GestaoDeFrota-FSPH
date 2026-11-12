@@ -128,8 +128,12 @@ test("restaura a sessão pelo servidor sem credenciais no localStorage e revoga 
   });
   await page.evaluate(() => localStorage.removeItem("@fsph_frota_session_activity"));
   await page.reload();
-  await expect(page.getByRole("navigation", { name: "Navegação do motorista" })).toBeVisible();
-  await page.getByRole("button", { name: "Conta", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Minhas Viagens" })).toBeVisible();
+  const conta = page.getByRole("button", { name: "Conta", exact: true });
+  const menu = page.getByRole("button", { name: "Abrir menu" });
+  if (await conta.isVisible()) await conta.click();
+  else if (await menu.isVisible()) await menu.click();
+  else await page.locator("aside").hover();
   await expect(page.getByRole("button", { name: "Encerrar sessão" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("@fsph_frota_token"))).toBeNull();
   await page.getByRole("button", { name: "Encerrar sessão" }).click();

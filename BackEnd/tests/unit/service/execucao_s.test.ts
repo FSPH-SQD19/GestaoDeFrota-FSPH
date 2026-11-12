@@ -8,6 +8,8 @@ const tx = vi.hoisted(() => ({
   veiculo: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   execucaoViagem: { create: vi.fn(), update: vi.fn() },
   auditoriaSistema: { create: vi.fn() },
+  usuario: { findMany: vi.fn() },
+  notificacao: { createMany: vi.fn() },
 }));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: { $transaction: async (fn: (client: typeof tx) => unknown) => fn(tx) },
@@ -173,5 +175,52 @@ describe("execução de viagens", () => {
     }
     expect(concluirViagemSchema.safeParse({ kmFinal: 120 }).success).toBe(false);
     expect(iniciarViagemSchema.safeParse({ ...saida, checklistSaida: null }).success).toBe(false);
+  });
+});
+
+describe("revisão preventiva ao encerrar a viagem", () => {
+  it.each([
+    [9000, "REVISAO_PREVENTIVA_PROXIMA"],
+    [10000, "REVISAO_PREVENTIVA_VENCIDA"],
+    [11000, "REVISAO_PREVENTIVA_VENCIDA"],
+  ])("notifica a gestão ao retornar com %s km", async (kmFinal, tipo) => {
+    emTransito();
+    tx.veiculo.findUniqueOrThrow.mockResolvedValue({
+      id,
+      placa: "ABC1234",
+      ativo: true,
+      status: "EM_VIAGEM",
+      odometroAtual: new Prisma.Decimal(8000),
+      kmProximaRevisao: new Prisma.Decimal(10000),
+    });
+    tx.usuario.findMany.mockResolvedValue([{ id }]);
+    tx.notificacao.createMany.mockResolvedValue({ count: 1 });
+    await executarViagem(id, id, { ...retorno, kmFinal });
+    expect(tx.notificacao.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ tipo, referenciaId: id })],
+      skipDuplicates: true,
+    });
+    expect(tx.veiculo.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { odometroAtual: kmFinal, status: "DISPONIVEL" },
+    });
+  });
+  it("propaga falha de notificação para impedir a confirmação parcial da transação", async () => {
+    emTransito();
+    tx.veiculo.findUniqueOrThrow.mockResolvedValue({
+      id,
+      placa: "ABC1234",
+      ativo: true,
+      status: "EM_VIAGEM",
+      odometroAtual: new Prisma.Decimal(8000),
+      kmProximaRevisao: new Prisma.Decimal(10000),
+    });
+    tx.usuario.findMany.mockResolvedValue([{ id }]);
+    tx.notificacao.createMany.mockRejectedValueOnce(new Error("Falha ao notificar"));
+    await expect(executarViagem(id, id, { ...retorno, kmFinal: 10000 })).rejects.toThrow(
+      "Falha ao notificar",
+    );
+    expect(tx.solicitacaoViagem.update).not.toHaveBeenCalled();
+    expect(tx.auditoriaSistema.create).not.toHaveBeenCalled();
   });
 });

@@ -19,7 +19,7 @@ O painel apresenta os alertas de documentos retornados por `/dashboard/resumo`. 
 - **Linguagem:** TypeScript (modo estrito com `noUnusedLocals: true`)
 - **Build Tool:** Vite 8
 - **Estilização:** Tailwind CSS v4 (`@tailwindcss/vite` + `@theme`)
-- **Tipografia:** `Space Grotesk` (Google Fonts)
+- **Tipografia:** `Plus Jakarta Sans` (interface e títulos) + `JetBrains Mono` (placas, protocolos, códigos e métricas)
 - **Ícones:** `lucide-react` (traço padrão `stroke-[1.8]` a `stroke-[2]`)
 - **Validação de Formulários:** `react-hook-form` + `zod`
 
@@ -48,9 +48,23 @@ A seleção das telas fica em `App.tsx`. Os componentes de layout organizam a na
 
 **Use sempre o termo "Viagem" / "Viagens".** Exemplos: _"Viagens em trânsito"_, _"Nova Solicitação de Viagem"_, _"Histórico de Viagens"_.
 
+### Diretrizes de geometria, hierarquia e sobriedade
+
+Para manter a linguagem de **centro de despacho operacional** e evitar clichês visuais:
+
+- **Raios de borda padronizados:**
+  - `rounded-md` (`6px`): Badges técnicos, tags de placa/código e botões internos de barras segmentadas.
+  - `rounded-lg` (`8px`): Botões (`<Button />`), campos (`<Input />`, `<Select />`, `<Textarea />`), alertas (`role="alert"` / `role="status"`) e contêineres de abas segmentadas.
+  - `rounded-xl` (`12px`): Contêineres estruturais (`<Card />`, `<Table />`, `<Modal />`, popovers). Evite `rounded-2xl` ou `rounded-3xl` em elementos de interface.
+- **Hierarquia por tipografia e divisores:**
+  - Cabeçalhos de página seguem o padrão `border-b border-slate-200 pb-4`, título `text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900` e subtítulo `text-sm text-slate-500`.
+  - Listas internas dentro de um `<Card className="p-0">` devem usar `divide-y divide-slate-200/70` em vez de aninhar cards dentro de cards.
+  - Cards de indicadores (KPIs) usam fundo branco neutro (`border-slate-200 bg-white`), rótulo `text-[11px] font-semibold uppercase tracking-wider text-slate-500` e número em destaque `tabular-nums`, sem caixas de ícones decorativos.
+  - Placas, protocolos (`SOL-*`, `SVO-*`), CNH, CPF e valores numéricos em tabelas devem usar `font-mono` e `tabular-nums`.
+
 ### Cores semânticas
 
-Para evitar poluição visual e orientar o atendimento à WCAG AA, os status usam **quatro cores semânticas**. A escolha da paleta não substitui a verificação de contraste e acessibilidade de cada aplicação.
+Para evitar poluição visual e orientar o atendimento à WCAG AA, os status usam **quatro cores semânticas** exclusivamente para comunicar estado operacional real:
 
 | Status Operacional  |   Cor / Token   | Classes Tailwind Recomendadas                       | Significado na FSPH                                                                                                                      |
 | :------------------ | :-------------: | :-------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
@@ -61,10 +75,10 @@ Para evitar poluição visual e orientar o atendimento à WCAG AA, os status usa
 
 ### Aplicação da logo ROTA
 
-- Em fundos escuros (como a Sidebar `#090D16`), a logo deve **obrigatoriamente** ficar dentro de um contêiner branco arredondado:
+- Em fundos escuros (como a Sidebar `#0B0F17`), a logo deve **obrigatoriamente** ficar dentro de um contêiner branco arredondado:
   ```tsx
-  <div className="w-11 h-11 rounded-2xl bg-white shadow-md p-2 border border-white/90">
-    <img src={rotaSymbol} alt="ROTA" className="w-full h-full object-contain" />
+  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/90 bg-white p-1.5">
+    <img src={rotaSymbol} alt="ROTA" className="h-full w-full object-contain" />
   </div>
   ```
 - Os arquivos vetoriais oficiais estão centralizados em:
@@ -174,10 +188,10 @@ Use esse controle para selecionar elementos e menus conforme o perfil. A autoriz
 
 ## Responsividade e ergonomia
 
-1. **Evite Poluição Visual:** Mantenha telas com espaçamento generoso (`space-y-6`, `p-6` a `p-8`). Não adicione tags ou badges decorativos sem finalidade funcional.
+1. **Evite Poluição Visual:** Mantenha telas com espaçamento consistente (`space-y-6`, `p-4` a `p-6`). Não adicione tags, pílulas ou ícones decorativos sem finalidade funcional.
 2. **Cards de Métricas:** Sempre estruture em grid responsivo:
-   `grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4.5`
-3. **Sidebar Adaptável:** Em telas menores que `1024px`, a sidebar vira uma gaveta com backdrop. Em telas desktop, ela suporta o modo recolhido (_Rail Mode_) para maximizar o espaço das tabelas.
+   `grid grid-cols-2 gap-3.5 xl:grid-cols-4`
+3. **Sidebar Adaptável:** Em telas menores que `1024px`, a sidebar vira uma gaveta com backdrop. Em telas desktop, ela suporta o modo recolhido (_Rail Mode_, `68px` recolhida / `224px` expandida) para maximizar o espaço das tabelas.
 
 ## Comandos e verificação
 
@@ -216,9 +230,11 @@ O backend já expõe `GET|POST|PATCH|DELETE /api/v1/usuarios` (somente `ADMIN`) 
 
 ## Veículos: validação e paginação
 
-A tela consulta `GET /api/v1/veiculos` com `page`, `pageSize=10`, `busca` e `tipoFrota`. A busca por placa ou modelo aguarda 300 ms após digitar; mudanças de busca ou frota retornam à primeira página. Respostas antigas são descartadas. Os indicadores de cada frota consultam os totais da API com `pageSize=1` e não contam apenas a página carregada. Falhas de listagem e de contagem são apresentadas separadamente, com nova tentativa.
+A tela consulta `GET /api/v1/veiculos` com `page`, `pageSize=10`, `busca` e `tipoFrota`. A busca por placa ou modelo aguarda 300 ms após digitar; mudanças de busca ou frota retornam à primeira página. Respostas antigas são descartadas. Os indicadores de cada frota consultam os totais da API com `pageSize=1` e não contam apenas a página carregada. Falhas de listagem e de contagem são apresentadas separadamente, com nova tentativa. A tabela exibe badge de propriedade (`Próprio`/`Locado`).
 
-O cadastro utiliza `POST /api/v1/veiculos` pelo cliente HTTP compartilhado, respeitando `VITE_API_URL` e o tratamento de sessão expirada. O Zod valida placa brasileira (antiga ou Mercosul), modelo entre 2 e 100 caracteres, capacidade inteira de 1 a 50, ano opcional entre 1950 e o ano atual mais um e combustível opcional de até 30 caracteres. Placa e espaços são normalizados antes do envio. Durante o envio, o modal permanece aberto e bloqueia alterações e submissões repetidas. Uma rejeição preserva os dados preenchidos; o sucesso recarrega a listagem e as contagens.
+O cadastro utiliza `POST /api/v1/veiculos` pelo cliente HTTP compartilhado, respeitando `VITE_API_URL` e o tratamento de sessão expirada. O Zod valida placa brasileira (antiga ou Mercosul), modelo entre 2 e 100 caracteres, propriedade `PROPRIO` ou `LOCADO` (com `fornecedorId` obrigatório quando locado), capacidade inteira de 1 a 50, ano opcional entre 1950 e o ano atual mais um e combustível opcional de até 30 caracteres. A lista de locadoras vem de `GET /api/v1/fornecedores`, filtrada por `LOCADORA`. Placa e espaços são normalizados antes do envio. Durante o envio, o modal permanece aberto e bloqueia alterações e submissões repetidas. Uma rejeição preserva os dados preenchidos; o sucesso recarrega a listagem e as contagens.
+
+O modal de documentos consulta `GET /api/v1/veiculos/:id/documentos`, lista os documentos atuais e alertas de vencimento, e registra/renova via `POST` com `tipoDocumento` (`CRLV`, `IPVA`, `SEGURO`, `VISTORIA`) e `dataVencimento`.
 
 ## Solicitações para gestores
 
@@ -242,7 +258,9 @@ CNHs válidas até hoje não são consideradas vencidas. Os indicadores excluem 
 
 ## Central SVO
 
-A central usa o cliente HTTP compartilhado e os endpoints em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Registro, triagem, emissão, avanço de etapa, cancelamento e desinfecção recarregam os dados da API após o sucesso.
+A central usa o cliente HTTP compartilhado e os endpoints em `/api/v1/svo`, sem dados de demonstração em produção. A navegação mantém as permissões `SVO` e `ADMIN` e carrega o módulo sob demanda. Os indicadores exibem as médias de SLA (`tempoMedioChegadaLocalMinutos` e `tempoMedioEntregaSvoMinutos`); a fila mostra o tempo decorrido desde `criadoEm` nos chamados ainda abertos. Dashboard e Relatórios (ADMIN/GESTOR) leem o mesmo SLA em `/dashboard/resumo` (`svo.slaMedioRespostaMinutos` e `svo.slaMedioEntregaMinutos`). Registro, triagem, emissão, avanço de etapa, cancelamento e desinfecção recarregam os dados da API após o sucesso.
+
+O perfil `MOTORISTA` acessa **Coletas SVO**, que lista `GET /ordens-coleta/minhas` e avança a próxima etapa em `PATCH /ordens-coleta/:id/etapa`. A tela segue o padrão mobile de Minhas Viagens: lista em cartões, botão da próxima ação e atualização após o sucesso. Enquanto a aba permanece visível, a lista é consultada a cada 15 s para refletir atribuições e etapas novas sem recarregar a tela.
 
 A emissão usa `POST /ordens-coleta` com o ID do chamado e reserva viatura, capacidade e motorista em `AGUARDANDO_DESPACHO`. A fila oferece apenas a próxima ação: **Registrar saída**, **Registrar chegada ao local** e **Registrar entrega ao SVO**, usando o ID da ordem em `PATCH /ordens-coleta/:id/etapa`. Ordens antigas em `EM_ANDAMENTO` começam pela chegada. Antes da saída, **Cancelar ordem** chama `PATCH /ordens-coleta/:id/cancelar` e mantém a ordem cancelada no histórico. Os detalhes exibem os horários de saída, chegada e entrega no fuso de São Paulo.
 

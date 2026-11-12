@@ -26,24 +26,23 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const baseStyles =
-      "inline-flex cursor-pointer items-center justify-center font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 select-none";
+      "inline-flex cursor-pointer items-center justify-center font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-55 select-none";
 
     const sizeStyles = {
-      sm: "text-xs px-3 py-1.5 rounded-lg gap-1.5",
-      md: "text-sm px-4 py-2.5 rounded-xl gap-2",
-      lg: "text-base px-5 py-3 rounded-xl gap-2.5",
+      sm: "text-xs px-3 py-1.5 rounded-lg gap-1.5 min-h-8",
+      md: "text-sm px-4 py-2 rounded-lg gap-2 min-h-9.5",
+      lg: "text-sm px-5 py-2.5 rounded-lg gap-2.5 min-h-11",
     };
 
     const variantStyles = {
-      // Preto polido conforme protótipo do Figma ("Acessar")
       primary:
-        "bg-slate-900 text-white hover:bg-slate-800 active:bg-slate-950 shadow-sm focus-visible:ring-slate-900",
+        "bg-slate-900 text-white hover:bg-slate-800 active:bg-slate-950 focus-visible:ring-slate-900",
       secondary:
-        "bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300 focus-visible:ring-slate-400",
+        "bg-slate-100 text-slate-800 hover:bg-slate-200/80 active:bg-slate-300 focus-visible:ring-slate-400",
       outline:
-        "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-50 focus-visible:ring-slate-400",
+        "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 focus-visible:ring-slate-400",
       danger:
-        "bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 focus-visible:ring-rose-600",
+        "bg-rose-700 text-white hover:bg-rose-800 active:bg-rose-900 focus-visible:ring-rose-700",
       ghost:
         "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-300",
     };

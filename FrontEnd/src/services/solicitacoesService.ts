@@ -67,3 +67,18 @@ export function concluirViagemApi(
     data: dados,
   });
 }
+
+export async function cancelarSolicitacaoApi(
+  id: string,
+  motivoCancelamento: string,
+): Promise<{ mensagem: string; dados: SolicitacaoViagem }> {
+  const resposta = await apiRequest<{ mensagem: string; dados: SolicitacaoViagem }>(
+    `/solicitacoes/${encodeURIComponent(id)}/cancelar`,
+    {
+      method: "PATCH",
+      data: { motivoCancelamento },
+    },
+  );
+  dispararAtualizacaoNotificacoes();
+  return resposta;
+}

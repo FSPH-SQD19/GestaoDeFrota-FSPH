@@ -38,6 +38,5 @@ app.use(routes);
 app.use("/api/v1/motoristas", motoristaRoutes);
 app.use("/api/v1/fornecedores", fornecedorRoutes);
 app.use("/api/v1/usuarios", usuarioRoutes);
-
 app.use("/api/v1/svo", svoRoutes);
 app.use(errorHandler);

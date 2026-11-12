@@ -89,6 +89,36 @@ describe("MotoristasPage", () => {
     expect(screen.queryByText("Condutor Hoje")).not.toBeInTheDocument();
     expect(screen.getByText("Usuário sem vínculo")).toBeInTheDocument();
   });
+  it("edita os dados compartilhados e o status pela gestão de motoristas", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Condutor Hoje");
+    await user.click(screen.getByRole("button", { name: "Ver detalhes de Condutor Hoje" }));
+    await user.click(screen.getByRole("button", { name: "Editar cadastro" }));
+
+    await user.clear(screen.getByLabelText(/^Nome completo/));
+    await user.type(screen.getByLabelText(/^Nome completo/), "Ana Condutora");
+    await user.clear(screen.getByLabelText(/^E-mail de acesso/));
+    await user.type(screen.getByLabelText(/^E-mail de acesso/), "ANA@example.test");
+    await user.clear(screen.getByLabelText(/^Telefone para contato/));
+    await user.type(screen.getByLabelText(/^Telefone para contato/), "79988887777");
+    await user.selectOptions(screen.getByLabelText("Status do cadastro"), "false");
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    await screen.findByText("Motorista e conta de acesso atualizados.");
+    expect(apiRequest).toHaveBeenCalledWith(
+      "/motoristas/m1",
+      expect.objectContaining({
+        method: "PATCH",
+        data: {
+          nome: "Ana Condutora",
+          email: "ana@example.test",
+          telefone: "79988887777",
+          ativo: false,
+        },
+      }),
+    );
+  });
   it("apresenta falhas com nova tentativa e não inventa uma lista vazia", async () => {
     vi.mocked(apiRequest).mockRejectedValueOnce(new Error("Falha na consulta"));
     const user = userEvent.setup();

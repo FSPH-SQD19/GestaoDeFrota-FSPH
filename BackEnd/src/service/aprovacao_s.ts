@@ -1,15 +1,24 @@
 import { diarioConfig } from "../config/diario";
 import { STATUS_ORDEM_ATIVA } from "./svo_status";
 import { Prisma } from "@prisma/client";
+import { exigirSemReservaPreventiva } from "./programacao_manutencao_s";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 import { exigirDocumentosEmDia } from "./documento_veiculo_s";
-import { notificarSolicitacaoAprovada, notificarSolicitacaoRecusada } from "./notificacao_s";
+import {
+  invalidarCacheSincronizacaoNotificacoes,
+  notificarSolicitacaoAprovada,
+  notificarSolicitacaoRecusada,
+} from "./notificacao_s";
 
 export const aprovarSolicitacaoSchema = z.object({
   veiculoId: z.uuid(),
   motoristaId: z.uuid(),
+  dataHoraRetornoPrevista: z.iso
+    .datetime({ offset: true })
+    .transform((valor) => new Date(valor))
+    .optional(),
 });
 
 export const recusarSolicitacaoSchema = z.object({
@@ -41,7 +50,39 @@ function dataLocal(data: Date): string {
   return `${parte("year")}-${parte("month")}-${parte("day")}`;
 }
 
-export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuarioId: string) {
+export const reagendarSolicitacaoSchema = aprovarSolicitacaoSchema
+  .safeExtend({
+    inicio: z.iso.datetime({ offset: true }).transform((valor) => new Date(valor)),
+    fim: z.iso.datetime({ offset: true }).transform((valor) => new Date(valor)),
+    motivo: z.string().trim().min(5, "Informe o motivo da alteração.").max(2000),
+  })
+  .refine((dados) => dados.inicio < dados.fim, {
+    path: ["fim"],
+    message: "O retorno deve ser posterior à saída.",
+  });
+
+export function aprovarSolicitacao(id: string, dados: AprovarInput, usuarioId: string) {
+  return salvarAlocacao(id, dados, usuarioId);
+}
+
+export function reagendarSolicitacao(
+  id: string,
+  dados: z.infer<typeof reagendarSolicitacaoSchema>,
+  usuarioId: string,
+) {
+  return salvarAlocacao(id, dados, usuarioId, {
+    inicio: dados.inicio,
+    fim: dados.fim,
+    motivo: dados.motivo,
+  });
+}
+
+async function salvarAlocacao(
+  id: string,
+  dados: AprovarInput,
+  usuarioId: string,
+  janela?: { inicio: Date; fim: Date; motivo: string },
+) {
   validarId(id);
 
   const { veiculoId, motoristaId } = dados;
@@ -80,12 +121,22 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
           throw new HttpError(404, "Solicitação não encontrada.");
         }
 
-        if (solicitacao.status !== "PENDENTE") {
+        if (solicitacao.status !== (janela ? "APROVADA" : "PENDENTE")) {
           throw new HttpError(409, "Solicitação já processada.");
         }
 
-        const inicio = solicitacao.dataHoraPretendida;
-        const fim = solicitacao.dataHoraRetornoPrevista;
+        if (
+          !solicitacao.dataHoraPretendida ||
+          solicitacao.dataHoraPretendida.getTime() <= Date.now()
+        ) {
+          throw new HttpError(422, "A aprovação exige uma saída futura.");
+        }
+        if (janela && janela.inicio.getTime() <= Date.now()) {
+          throw new HttpError(422, "O reagendamento exige uma nova saída futura.");
+        }
+        const inicio = janela?.inicio ?? solicitacao.dataHoraPretendida;
+        const fim =
+          janela?.fim ?? solicitacao.dataHoraRetornoPrevista ?? dados.dataHoraRetornoPrevista;
 
         if (!inicio || !fim || inicio >= fim) {
           throw new HttpError(422, "A solicitação precisa ter saída e retorno válidos.");
@@ -154,16 +205,22 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
             })))
         )
           throw new HttpError(409, "Motorista ou veículo já alocado em saída/SVO.");
+
+        await exigirSemReservaPreventiva(tx, veiculoId, inicio, fim);
         const alteracao = await tx.solicitacaoViagem.updateMany({
           where: {
             id,
-            status: "PENDENTE",
+            status: janela ? "APROVADA" : "PENDENTE",
           },
           data: {
             status: "APROVADA",
             veiculoAlocadoId: veiculoId,
             motoristaAlocadoId: motoristaId,
             motivoRecusa: null,
+            ...(janela ? { dataHoraPretendida: inicio } : {}),
+            ...(janela || !solicitacao.dataHoraRetornoPrevista
+              ? { dataHoraRetornoPrevista: fim }
+              : {}),
           },
         });
 
@@ -178,7 +235,7 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
         await tx.auditoriaSistema.create({
           data: {
             usuarioId,
-            acao: "APROVAR",
+            acao: janela ? "REAGENDAR" : "APROVAR",
             tabelaAfetada: "solicitacoes_viagem",
             registroId: id,
             dadosNovos: {
@@ -188,9 +245,52 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
               motoristaAlocadoId: motoristaId,
               dataHoraPretendida: inicio.toISOString(),
               dataHoraRetornoPrevista: fim.toISOString(),
+              ...(janela
+                ? {
+                    motivo: janela.motivo,
+                    anterior: {
+                      veiculoAlocadoId: solicitacao.veiculoAlocadoId,
+                      motoristaAlocadoId: solicitacao.motoristaAlocadoId,
+                      dataHoraPretendida: solicitacao.dataHoraPretendida?.toISOString() ?? null,
+                      dataHoraRetornoPrevista:
+                        solicitacao.dataHoraRetornoPrevista?.toISOString() ?? null,
+                    },
+                  }
+                : {}),
             },
           },
         });
+
+        if (janela) {
+          const motoristaAnterior =
+            solicitacao.motoristaAlocadoId && solicitacao.motoristaAlocadoId !== motoristaId
+              ? await tx.motorista.findUnique({
+                  where: { id: solicitacao.motoristaAlocadoId },
+                  select: { usuarioId: true },
+                })
+              : null;
+          const destinatarios = new Set(
+            [solicitacao.solicitanteId, motorista.usuarioId, motoristaAnterior?.usuarioId].filter(
+              (destinatario): destinatario is string => Boolean(destinatario),
+            ),
+          );
+          if (destinatarios.size) {
+            await tx.notificacao.createMany({
+              data: [...destinatarios].map((destinatario) => ({
+                usuarioId: destinatario,
+                tipo: "VIAGEM_REAGENDADA",
+                titulo: `Viagem ${solicitacao.protocolo} reagendada`,
+                mensagem:
+                  destinatario === motoristaAnterior?.usuarioId &&
+                  destinatario !== motorista.usuarioId
+                    ? `Você não está mais alocado à viagem ${solicitacao.protocolo}.`
+                    : `A programação da viagem ${solicitacao.protocolo} foi alterada. Consulte os detalhes.`,
+                referenciaTipo: "SOLICITACAO_VIAGEM",
+                referenciaId: id,
+              })),
+            });
+          }
+        }
 
         contextoNotificacao = {
           veiculoPlaca: veiculo.placa ?? null,
@@ -206,7 +306,8 @@ export async function aprovarSolicitacao(id: string, dados: AprovarInput, usuari
       },
     );
 
-    if (aprovada.solicitanteId) {
+    if (janela) invalidarCacheSincronizacaoNotificacoes();
+    if (aprovada.solicitanteId && !janela) {
       const ctx = contextoNotificacao as {
         veiculoPlaca: string | null;
         motoristaUsuarioId: string | null;

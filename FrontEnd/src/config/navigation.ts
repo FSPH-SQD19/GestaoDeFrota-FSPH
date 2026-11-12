@@ -1,6 +1,7 @@
 import type React from "react";
 import {
   LayoutGrid,
+  CalendarDays,
   Car,
   Users,
   ClipboardList,
@@ -8,6 +9,7 @@ import {
   UserCheck,
   PhoneCall,
   Route,
+  ShieldCheck,
 } from "lucide-react";
 import type { UserRole } from "../types/auth";
 
@@ -21,12 +23,15 @@ export type TabId =
   | "rastreamento"
   | "dashboard"
   | "solicitacoes"
+  | "agenda"
   | "viagens"
+  | "coletasSvo"
   | "veiculos"
   | "motoristas"
   | "svo"
   | "relatorios"
-  | "usuarios";
+  | "usuarios"
+  | "auditoria";
 
 export interface NavItem {
   id: TabId;
@@ -65,6 +70,12 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Route,
         roles: ["MOTORISTA"],
       },
+      {
+        id: "coletasSvo",
+        label: () => "Coletas SVO",
+        icon: PhoneCall,
+        roles: ["MOTORISTA"],
+      },
     ],
   },
   {
@@ -75,6 +86,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: () => "Mapa e operação",
         icon: Route,
         roles: ["ADMIN", "GESTOR", "SVO"],
+      },
+      {
+        id: "agenda",
+        label: () => "Agenda da Frota",
+        icon: CalendarDays,
+        roles: ["ADMIN", "GESTOR"],
       },
       {
         id: "veiculos",
@@ -109,6 +126,12 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "usuarios",
         label: () => "Usuários (RBAC)",
         icon: UserCheck,
+        roles: ["ADMIN"],
+      },
+      {
+        id: "auditoria",
+        label: () => "Trilha de Auditoria",
+        icon: ShieldCheck,
         roles: ["ADMIN"],
       },
     ],

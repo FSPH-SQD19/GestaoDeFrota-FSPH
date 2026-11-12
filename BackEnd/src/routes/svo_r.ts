@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../middleware/http_m";
 import {
+  remanejarOrdemSvoController,
+  listarRemanejamentosSvoController,
+  listarMinhasOrdensSvoController,
   indicadoresSvoController,
   listarChamadosSvoController,
   registrarChamadoSvoController,
@@ -16,7 +19,17 @@ import {
 } from "../controller/svo_c";
 
 const router = Router();
-router.use(authenticate, requireRole("ADMIN", "SVO"));
+router.use(authenticate);
+router.get("/ordens-coleta/minhas", requireRole("MOTORISTA"), listarMinhasOrdensSvoController);
+router.patch(
+  "/ordens-coleta/:id/etapa",
+  requireRole("ADMIN", "SVO", "MOTORISTA"),
+  avancarEtapaColetaSvoController,
+);
+router.use(requireRole("ADMIN", "SVO"));
+
+router.patch("/ordens-coleta/:id/remanejamento", remanejarOrdemSvoController);
+router.get("/ordens-coleta/:id/remanejamentos", listarRemanejamentosSvoController);
 
 router.get("/indicadores", indicadoresSvoController);
 router.get("/chamados", listarChamadosSvoController);
@@ -25,7 +38,6 @@ router.get("/motoristas", listarMotoristasSvoController);
 
 router.post("/chamados", registrarChamadoSvoController);
 router.post("/ordens-coleta", criarOrdemSvoController);
-router.patch("/ordens-coleta/:id/etapa", avancarEtapaColetaSvoController);
 router.patch("/ordens-coleta/:id/cancelar", cancelarOrdemSvoController);
 router.post("/chamados/:id/ordens", emitirOrdemSvoController);
 

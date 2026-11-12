@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LogOut, Pin, PinOff } from "lucide-react";
 import { useAuth } from "../../contexts/auth";
 import { NAV_SECTIONS, itensVisiveis, telaInicial, type TabId } from "../../config/navigation";
 import { cn } from "../../lib/utils";
@@ -19,7 +19,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const { logout, user } = useAuth();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const roles = user?.roles ?? [];
 
   const userInitial = user?.nome ? user.nome.charAt(0).toUpperCase() : "?";
@@ -33,106 +34,154 @@ export const Sidebar: React.FC<SidebarProps> = ({
     SOLICITANTE: "Solicitante Setorial",
   };
 
+  // No mobile: expande quando a gaveta está aberta.
+  // No desktop: recolhida por padrão (rail 68px), expande suavemente por hover ou quando fixada (pin).
+  const isExpanded = isMobileOpen || isPinned || isHovered;
+
+  const handleMouseEnter = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setIsHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setIsHovered(false);
+    }
+  };
+
+  const handleFocus = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setIsHovered(true);
+    }
+  };
+
+  const handleBlur = (event: React.FocusEvent<HTMLElement>) => {
+    if (
+      typeof window !== "undefined" &&
+      window.innerWidth >= 1024 &&
+      !event.currentTarget.contains(event.relatedTarget as Node | null)
+    ) {
+      setIsHovered(false);
+    }
+  };
+
   return (
     <>
-      {/* Backdrop para telas mobile */}
+      {/* Espaçador no fluxo desktop: evita reflow/pulo do conteúdo principal durante o hover */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          "hidden lg:block shrink-0 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          isPinned ? "w-[240px]" : "w-[84px]",
+        )}
+      />
+
+      {/* Backdrop escuro para telas mobile */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/60 transition-opacity duration-200 lg:hidden"
           onClick={onCloseMobile}
         />
       )}
 
-      {/* Sidebar Flutuante Dark Executiva */}
+      {/* Sidebar Operacional Dark — geometria fixa p-3 para ícones 100% estáveis */}
       <aside
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocusCapture={handleFocus}
+        onBlurCapture={handleBlur}
         className={cn(
-          "fixed lg:sticky top-4 left-4 z-50 h-[calc(100vh-2rem)] bg-[#090D16] text-white rounded-3xl flex flex-col justify-between shadow-2xl border border-slate-800/80 shrink-0 select-none transition-all duration-300 ease-in-out",
-          isCollapsed ? "w-20 p-3" : "w-72 p-5",
+          "fixed top-3 left-3 z-50 h-[calc(100vh-1.5rem)] bg-[#0B0F19] text-white rounded-2xl p-3 flex flex-col justify-between border border-slate-800 shrink-0 select-none overflow-hidden",
+          "transition-[width,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width]",
+          isExpanded ? "w-60 lg:w-56 shadow-xl" : "w-[68px] shadow-md",
           isMobileOpen ? "translate-x-0" : "-translate-x-[120%] lg:translate-x-0",
         )}
       >
         <div className="flex flex-col flex-1 min-h-0 min-w-0">
-          {/* Header da Sidebar: Logo ROTA + Botão de Colapso (Rail Mode) */}
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div
-              className={cn(
-                "flex items-center gap-3 min-w-0",
-                isCollapsed && "justify-center w-full",
-              )}
-            >
-              {/* Emblema ROTA em Contêiner Branco de Alto Contraste */}
+          {/* Header da Sidebar: Logo ancorada em slot fixo de 44px + Título com fade suave */}
+          <div className="flex items-center justify-between h-11 shrink-0">
+            <div className="flex items-center min-w-0">
               <div
-                className="w-11 h-11 rounded-2xl bg-white shadow-md shadow-blue-500/10 p-2 flex items-center justify-center shrink-0 border border-white/90 group cursor-pointer"
+                className="w-11 h-11 rounded-xl bg-white p-2 flex items-center justify-center shrink-0 border border-slate-200 cursor-pointer"
                 onClick={() => onSelectTab(telaInicial(roles))}
                 title="ROTA · Frota FSPH"
               >
-                <img
-                  src={rotaSymbol}
-                  alt="Símbolo Rota"
-                  className="w-full h-full object-contain transition-transform group-hover:scale-105"
-                />
+                <img src={rotaSymbol} alt="Símbolo Rota" className="w-full h-full object-contain" />
               </div>
 
-              {!isCollapsed && (
-                <div className="flex flex-col min-w-0 animate-in fade-in duration-200">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-lg text-white tracking-tight leading-tight">
-                      ROTA
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[9px] font-bold tracking-wider">
-                      FSPH
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-medium leading-tight truncate">
-                    Gestão de Frota e SVO
+              {/* Título ROTA FSPH */}
+              <div
+                className={cn(
+                  "flex flex-col whitespace-nowrap overflow-hidden transition-[opacity,transform,max-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  isExpanded
+                    ? "max-w-[130px] opacity-100 translate-x-0 ml-2.5"
+                    : "max-w-0 opacity-0 -translate-x-2 ml-0 pointer-events-none",
+                )}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-sm text-white tracking-tight leading-tight">
+                    ROTA
                   </span>
+                  <span className="text-[10px] font-mono font-semibold text-slate-400">FSPH</span>
                 </div>
-              )}
+                <span className="text-[11px] text-slate-400 leading-tight truncate">
+                  Frota & SVO
+                </span>
+              </div>
             </div>
 
-            {/* Botão de Toggle Expandir / Recolher (Oculto no Mobile) */}
-            {!isCollapsed && (
-              <button
-                type="button"
-                onClick={() => setIsCollapsed(true)}
-                className="hidden lg:flex p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Recolher barra lateral"
-                aria-label="Recolher barra lateral"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            )}
+            {/* Botão de Fixar / Desafixar no Desktop */}
+            <button
+              type="button"
+              onClick={() => setIsPinned((prev) => !prev)}
+              aria-pressed={isPinned}
+              tabIndex={isExpanded ? 0 : -1}
+              className={cn(
+                "hidden lg:flex p-1.5 rounded-lg transition-[opacity,transform,background-color,color] duration-200 cursor-pointer shrink-0",
+                isExpanded
+                  ? "opacity-100 scale-100"
+                  : "opacity-0 scale-75 pointer-events-none w-0 p-0 overflow-hidden",
+                isPinned
+                  ? "text-white bg-slate-800 hover:bg-slate-700"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/80",
+              )}
+              title={isPinned ? "Desafixar menu (recolher ao tirar o mouse)" : "Fixar menu aberto"}
+              aria-label={isPinned ? "Desafixar menu" : "Fixar menu"}
+            >
+              {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+            </button>
           </div>
 
-          {/* Botão Expandir quando colapsado */}
-          {isCollapsed && (
-            <div className="hidden lg:flex justify-center pb-2">
-              <button
-                type="button"
-                onClick={() => setIsCollapsed(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Expandir barra lateral"
-                aria-label="Expandir barra lateral"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          <div className="border-t border-slate-800/80 my-2.5 shrink-0" />
 
-          <div className="border-t border-slate-800/80 my-2" />
-
-          {/* Navegação Estruturada por Seções */}
-          <nav className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-0.5 custom-scrollbar">
+          {/* Navegação Estruturada por Seções (sem deslocamento vertical no hover) */}
+          <nav className="flex-1 min-h-0 space-y-2 overflow-y-auto overflow-x-hidden custom-scrollbar">
             {NAV_SECTIONS.map((section, sIndex) => {
               const visibleSectionItems = itensVisiveis(section, roles);
               if (visibleSectionItems.length === 0) return null;
 
               return (
-                <div key={sIndex} className="space-y-1">
-                  {!isCollapsed && section.title && (
-                    <span className="block px-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest select-none">
-                      {section.title}
-                    </span>
+                <div key={sIndex} className="space-y-0.5">
+                  {section.title && (
+                    <div className="relative h-5 flex items-center select-none overflow-hidden">
+                      <span
+                        className={cn(
+                          "absolute left-3.5 w-4 h-px bg-slate-800 transition-opacity duration-200",
+                          isExpanded ? "opacity-0" : "opacity-100",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap transition-[opacity,transform] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                          isExpanded
+                            ? "opacity-100 translate-x-0"
+                            : "opacity-0 -translate-x-1 pointer-events-none",
+                        )}
+                      >
+                        {section.title}
+                      </span>
+                    </div>
                   )}
 
                   {visibleSectionItems.map((item) => {
@@ -147,31 +196,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           onSelectTab(item.id);
                           if (onCloseMobile) onCloseMobile();
                         }}
-                        title={isCollapsed ? label : undefined}
+                        title={label}
+                        aria-label={label}
                         className={cn(
-                          "w-full flex items-center rounded-2xl text-sm font-semibold transition-all duration-150 relative cursor-pointer",
-                          isCollapsed ? "justify-center p-3" : "justify-between px-3.5 py-2.5",
+                          "w-full h-10 flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150 relative cursor-pointer group overflow-hidden",
                           isActive
-                            ? "bg-white text-slate-950 shadow-md shadow-white/10 font-bold"
-                            : "text-slate-400 hover:text-white hover:bg-white/5",
+                            ? "bg-white text-slate-950 font-semibold"
+                            : "text-slate-400 hover:text-white hover:bg-slate-800/70",
                         )}
                       >
-                        {/* Linha indicadora de item ativo (Senior UI Precision) */}
-                        {isActive && !isCollapsed && (
-                          <span className="absolute left-1.5 top-2.5 bottom-2.5 w-1 bg-blue-600 rounded-full" />
+                        {isActive && isExpanded && (
+                          <span className="absolute left-1 top-2.5 bottom-2.5 w-0.5 bg-blue-700 rounded-full" />
                         )}
 
-                        <div className="flex items-center gap-3">
+                        <span className="w-11 h-10 flex items-center justify-center shrink-0">
                           <Icon
                             className={cn(
-                              "w-4.5 h-4.5 shrink-0",
+                              "w-[18px] h-[18px] shrink-0",
                               isActive
-                                ? "text-slate-950 stroke-[2.2]"
-                                : "text-slate-400 stroke-[1.8]",
+                                ? "text-slate-950 stroke-[2.1]"
+                                : "text-slate-400 stroke-[1.8] group-hover:text-white",
                             )}
                           />
-                          {!isCollapsed && <span>{label}</span>}
-                        </div>
+                        </span>
+
+                        <span
+                          className={cn(
+                            "whitespace-nowrap overflow-hidden text-left truncate pr-2.5 transition-[opacity,transform] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] select-none",
+                            isExpanded
+                              ? "opacity-100 translate-x-0"
+                              : "opacity-0 -translate-x-2 pointer-events-none",
+                          )}
+                        >
+                          {label}
+                        </span>
                       </button>
                     );
                   })}
@@ -182,39 +240,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Bloco Inferior: Perfil do Usuário com Logout */}
-        <div className="pt-3 border-t border-slate-800/80">
-          {/* Cartão de Perfil do Usuário com Indicador de Presença Online */}
+        <div className="pt-2.5 border-t border-slate-800/80 shrink-0">
           <div
-            className={cn(
-              "flex items-center rounded-2xl bg-white/5 border border-white/5 transition-all",
-              isCollapsed ? "justify-center p-2" : "justify-between p-2.5",
-            )}
+            className="w-full h-11 flex items-center justify-between rounded-lg bg-slate-900/90 border border-slate-800 overflow-hidden"
+            title={!isExpanded ? user?.nome || "Usuário" : undefined}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative">
-                <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shrink-0">
+            <div className="flex items-center min-w-0">
+              <div className="w-11 h-11 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-md bg-slate-800 text-white flex items-center justify-center font-semibold text-xs border border-slate-700 shrink-0">
                   {userInitial}
                 </div>
               </div>
 
-              {!isCollapsed && (
-                <div className="flex flex-col min-w-0 animate-in fade-in duration-200">
-                  <span className="text-xs font-bold text-white leading-tight truncate">
-                    {user?.nome || "Usuário"}
-                  </span>
-                  <span className="text-[10px] text-slate-400 leading-tight truncate">
-                    {activeRoleName ? roleDisplayMap[activeRoleName] || activeRoleName : ""}
-                  </span>
-                </div>
-              )}
+              <div
+                className={cn(
+                  "flex flex-col whitespace-nowrap overflow-hidden transition-[opacity,transform] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  isExpanded
+                    ? "opacity-100 translate-x-0"
+                    : "opacity-0 -translate-x-2 pointer-events-none",
+                )}
+              >
+                <span className="text-xs font-semibold text-white leading-tight truncate max-w-[105px]">
+                  {user?.nome || "Usuário"}
+                </span>
+                <span className="text-[10px] text-slate-400 leading-tight truncate max-w-[105px]">
+                  {activeRoleName ? roleDisplayMap[activeRoleName] || activeRoleName : ""}
+                </span>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={logout}
+              tabIndex={isExpanded ? 0 : -1}
               className={cn(
-                "rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer",
-                isCollapsed ? "mt-1 p-1" : "p-1.5",
+                "rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-[opacity,transform,color,background-color] duration-200 cursor-pointer shrink-0 mr-1.5",
+                isExpanded
+                  ? "opacity-100 scale-100 p-1.5"
+                  : "opacity-0 scale-75 pointer-events-none w-0 p-0 mr-0 overflow-hidden",
               )}
               title="Encerrar sessão"
               aria-label="Encerrar sessão"

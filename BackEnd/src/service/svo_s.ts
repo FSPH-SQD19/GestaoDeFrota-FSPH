@@ -184,6 +184,119 @@ function construirWhereChamados(
   return { AND: condicoes };
 }
 
+export const listarMinhasOrdensSvoSchema = z
+  .object({
+    ativas: z.enum(["true", "false"]).optional(),
+    status: z
+      .enum([
+        "AGUARDANDO_DESPACHO",
+        "EM_ANDAMENTO",
+        "EM_DESLOCAMENTO",
+        "NO_LOCAL",
+        "ENTREGUE_SVO",
+        "CONCLUIDA",
+        "CANCELADA",
+      ])
+      .optional(),
+    page: z.coerce.number().int().min(1).max(1000000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  })
+  .strict();
+
+export async function listarMinhasOrdensSvo(
+  usuarioId: string,
+  filtros: z.infer<typeof listarMinhasOrdensSvoSchema>,
+) {
+  const where: Prisma.OrdemColetaSvoWhereInput = {
+    motorista: { is: { usuarioId, ativo: true } },
+    ...(filtros.status ? { status: filtros.status } : {}),
+    ...(filtros.ativas === "true" ? { AND: { status: { in: [...STATUS_ORDEM_ATIVA] } } } : {}),
+  };
+  const [data, total] = await Promise.all([
+    prisma.ordemColetaSvo.findMany({
+      where,
+      include: {
+        chamado: true,
+        veiculo: {
+          select: { id: true, placa: true, modelo: true, status: true, capacidadeMaxima: true },
+        },
+      },
+      orderBy: [{ chamado: { criadoEm: "desc" } }, { id: "desc" }],
+      skip: (filtros.page - 1) * filtros.pageSize,
+      take: filtros.pageSize,
+    }),
+    prisma.ordemColetaSvo.count({ where }),
+  ]);
+  return {
+    data,
+    meta: {
+      page: filtros.page,
+      pageSize: filtros.pageSize,
+      total,
+      totalPages: Math.ceil(total / filtros.pageSize),
+    },
+  };
+}
+
+function ehOperacaoDaCentral(perfis: string[]) {
+  return perfis.includes("ADMIN") || perfis.includes("SVO");
+}
+
+async function motoristaAtivoDoUsuario(usuarioId: string) {
+  const motorista = await prisma.motorista.findUnique({
+    where: { usuarioId },
+    select: { id: true, ativo: true },
+  });
+  if (!motorista?.ativo) {
+    throw new HttpError(403, "Seu usuário não está vinculado a um motorista ativo.");
+  }
+  return motorista.id;
+}
+
+export async function obterSlaRespostaSvo() {
+  const ordensSla = await prisma.ordemColetaSvo.findMany({
+    where: { status: { not: "CANCELADA" } },
+    select: {
+      chamado: { select: { criadoEm: true } },
+      dataHoraChegadaLocal: true,
+      dataHoraEntregaSvo: true,
+    },
+  });
+
+  const chegada: number[] = [];
+  const entrega: number[] = [];
+  for (const ordem of ordensSla) {
+    const abertura = ordem.chamado.criadoEm?.getTime();
+    if (abertura === undefined || !Number.isFinite(abertura)) continue;
+    const local = ordem.dataHoraChegadaLocal?.getTime();
+    const svo = ordem.dataHoraEntregaSvo?.getTime();
+    if (local !== undefined && Number.isFinite(local) && local >= abertura) {
+      chegada.push((local - abertura) / 60000);
+    }
+    if (
+      svo !== undefined &&
+      Number.isFinite(svo) &&
+      svo >= abertura &&
+      (local === undefined || (Number.isFinite(local) && local >= abertura && svo >= local))
+    ) {
+      entrega.push((svo - abertura) / 60000);
+    }
+  }
+  const media = (tempos: number[]) =>
+    tempos.length ? tempos.reduce((soma, tempo) => soma + tempo, 0) / tempos.length : null;
+  const tempoMedioChegadaLocalMinutos = media(chegada);
+  const tempoMedioEntregaSvoMinutos = media(entrega);
+
+  return {
+    tempoMedioChamadoChegadaLocalMinutos: tempoMedioChegadaLocalMinutos,
+    tempoMedioChamadoEntregaSvoMinutos: tempoMedioEntregaSvoMinutos,
+    amostrasChegadaLocal: chegada.length,
+    amostrasEntregaSvo: entrega.length,
+    tempoMedioChegadaLocalMinutos,
+    tempoMedioEntregaSvoMinutos,
+  };
+}
+
 export async function indicadoresSvo() {
   const [
     total,
@@ -194,6 +307,7 @@ export async function indicadoresSvo() {
     coletasEmAndamento,
     viaturasDisponiveis,
     totalViaturas,
+    sla,
   ] = await Promise.all([
     prisma.chamadoSvo.count(),
     prisma.chamadoSvo.count({ where: { statusTriagem: "EM_ANALISE" } }),
@@ -205,6 +319,7 @@ export async function indicadoresSvo() {
     prisma.ordemColetaSvo.count({ where: { status: { in: [...STATUS_ORDEM_EM_COLETA] } } }),
     prisma.veiculo.count({ where: { tipoFrota: "SVO", ativo: true, status: "DISPONIVEL" } }),
     prisma.veiculo.count({ where: { tipoFrota: "SVO", ativo: true } }),
+    obterSlaRespostaSvo(),
   ]);
 
   return {
@@ -216,7 +331,39 @@ export async function indicadoresSvo() {
     coletasEmAndamento,
     viaturasDisponiveis,
     totalViaturas,
+    ...sla,
   };
+}
+
+const incluirMinhasColetas = {
+  chamado: {
+    select: {
+      id: true,
+      numeroProtocolo: true,
+      nomeFalecido: true,
+      enderecoOcorrencia: true,
+      criadoEm: true,
+      statusTriagem: true,
+    },
+  },
+  veiculo: {
+    select: {
+      id: true,
+      placa: true,
+      modelo: true,
+      status: true,
+      capacidadeMaxima: true,
+    },
+  },
+} satisfies Prisma.OrdemColetaSvoInclude;
+
+export async function listarMinhasColetasSvo(usuarioId: string) {
+  const motoristaId = await motoristaAtivoDoUsuario(usuarioId);
+  return prisma.ordemColetaSvo.findMany({
+    where: { motoristaId, status: { in: [...STATUS_ORDEM_ATIVA] } },
+    include: incluirMinhasColetas,
+    orderBy: [{ chamado: { criadoEm: "asc" } }, { id: "asc" }],
+  });
 }
 
 export async function listarChamadosSvo(filtros: z.infer<typeof listarChamadosSchema>) {
@@ -283,6 +430,7 @@ export async function registrarChamadoSvo(
         ...input,
         numeroProtocolo,
         atendenteId,
+        criadoEm: agora,
       },
       include: incluirRelacoesChamado,
     });
@@ -517,12 +665,19 @@ export async function avancarEtapaColetaSvo(
   ordemId: string,
   status: z.infer<typeof avancarEtapaSchema>["status"],
   usuarioId: string,
+  perfis: string[] = ["SVO"],
 ) {
   const ordem = await prisma.ordemColetaSvo.findUnique({
     where: { id: ordemId },
-    select: { chamadoId: true },
+    select: { chamadoId: true, motoristaId: true },
   });
   if (!ordem) throw new HttpError(404, "Ordem de coleta não encontrada.");
+  if (!ehOperacaoDaCentral(perfis)) {
+    const motoristaId = await motoristaAtivoDoUsuario(usuarioId);
+    if (ordem.motoristaId !== motoristaId) {
+      throw new HttpError(403, "Esta ordem de coleta não está atribuída a você.");
+    }
+  }
 
   return atualizarEtapaColetaSvo(ordem.chamadoId, usuarioId, status, ordemId);
 }
@@ -574,10 +729,19 @@ async function atualizarEtapaColetaSvo(
     }
 
     if (
+      chamado.ordemColeta.veiculoId !== referencia.ordemColeta.veiculoId ||
+      chamado.ordemColeta.motoristaId !== referencia.ordemColeta.motoristaId
+    ) {
+      throw new HttpError(409, "Alocação alterada durante a atualização. Tente novamente.");
+    }
+
+    if (
       diarioConfig().enabled &&
       (await tx.saidaOrdem.findUnique({ where: { ordemId: chamado.ordemColeta.id } }))
-    )
+    ) {
       throw new HttpError(409, "Conclua a saída no diário de bordo ao retornar à base.");
+    }
+
     const anterior = chamado.ordemColeta.status;
     const esperado = status === "CANCELADA" ? "AGUARDANDO_DESPACHO" : etapaAnterior[status];
     // Ordens legadas em andamento já têm saída registrada.
@@ -819,5 +983,167 @@ export async function listarMotoristasSvoDisponiveis() {
       usuario: { select: { nome: true } },
     },
     orderBy: { cpf: "asc" },
+  });
+}
+
+export const remanejarOrdemSchema = z
+  .object({
+    veiculoId: z.uuid("Selecione uma viatura válida.").optional(),
+    motoristaId: z.uuid("Selecione um motorista válido.").optional(),
+    motivo: z.string().trim().min(3, "Informe o motivo da troca (mínimo 3 caracteres).").max(500),
+  })
+  .strict()
+  .refine((v) => v.veiculoId || v.motoristaId, "Informe o recurso de destino.");
+
+export async function listarRemanejamentosSvo(ordemId: string) {
+  if (!(await prisma.ordemColetaSvo.findUnique({ where: { id: ordemId } })))
+    throw new HttpError(404, "Ordem de coleta não encontrada.");
+  return prisma.auditoriaSistema.findMany({
+    where: { tabelaAfetada: "ordens_coleta_svo", registroId: ordemId, acao: "REMANEJAR_ORDEM" },
+    include: { usuario: { select: { id: true, nome: true } } },
+    orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
+  });
+}
+
+export async function remanejarOrdemColetaSvo(
+  ordemId: string,
+  input: z.infer<typeof remanejarOrdemSchema>,
+  usuarioId: string,
+) {
+  return transacionarSvo(async (tx) => {
+    const referencia = await tx.ordemColetaSvo.findUnique({ where: { id: ordemId } });
+    if (!referencia) throw new HttpError(404, "Ordem de coleta não encontrada.");
+    const veiculoId = input.veiculoId ?? referencia.veiculoId;
+    const motoristaId = input.motoristaId ?? referencia.motoristaId;
+    if (!veiculoId || !motoristaId) throw new HttpError(422, "Informe viatura e condutor.");
+    // Bloquear todos os recursos na mesma ordem global usada nos despachos.
+    const chaves = [
+      ...new Set(
+        [
+          `veiculo:${veiculoId}`,
+          `motorista:${motoristaId}`,
+          referencia.veiculoId && `veiculo:${referencia.veiculoId}`,
+          referencia.motoristaId && `motorista:${referencia.motoristaId}`,
+        ].filter((v): v is string => Boolean(v)),
+      ),
+    ].sort();
+    for (const chave of chaves)
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${chave}, 0))`;
+    await bloquearRecursosSvo(tx, veiculoId, motoristaId, referencia.chamadoId);
+    const anterior = await tx.ordemColetaSvo.findUnique({
+      where: { id: ordemId },
+      include: { veiculo: true, motorista: { include: { usuario: true } } },
+    });
+    if (
+      !anterior ||
+      anterior.veiculoId !== referencia.veiculoId ||
+      anterior.motoristaId !== referencia.motoristaId
+    )
+      throw new HttpError(409, "Alocação alterada por outra operação. Atualize os dados.");
+    if (!["EM_DESLOCAMENTO", "NO_LOCAL"].includes(anterior.status))
+      throw new HttpError(409, "Remanejamento permitido apenas em deslocamento ou no local.");
+    if (veiculoId === anterior.veiculoId && motoristaId === anterior.motoristaId)
+      throw new HttpError(422, "Selecione uma viatura ou condutor diferente.");
+    const [veiculo, motorista, outras, viagem, desinfeccao] = await Promise.all([
+      tx.veiculo.findUnique({ where: { id: veiculoId } }),
+      tx.motorista.findUnique({ where: { id: motoristaId }, include: { usuario: true } }),
+      tx.ordemColetaSvo.findMany({
+        where: {
+          id: { not: ordemId },
+          status: { in: [...STATUS_ORDEM_ATIVA] },
+          OR: [{ veiculoId }, { motoristaId }],
+        },
+      }),
+      tx.solicitacaoViagem.findFirst({
+        where: {
+          status: { in: ["APROVADA", "EM_TRANSITO"] },
+          OR: [{ veiculoAlocadoId: veiculoId }, { motoristaAlocadoId: motoristaId }],
+        },
+        select: { id: true },
+      }),
+      tx.desinfeccaoSvo.count({ where: { veiculoId, status: "EM_ANDAMENTO" } }),
+    ]);
+    if (!veiculo?.ativo || veiculo.tipoFrota !== "SVO")
+      throw new HttpError(422, "Viatura deve pertencer à frota SVO ativa.");
+    if (viagem) throw new HttpError(409, "Recurso alocado em outra viagem ativa.");
+    if (desinfeccao || veiculo.status === "DESINFECCAO")
+      throw new HttpError(409, "Viatura bloqueada para desinfecção.");
+    if (!["DISPONIVEL", "EM_VIAGEM"].includes(veiculo.status))
+      throw new HttpError(409, "Viatura indisponível ou em manutenção.");
+    const naViatura = outras.filter((o) => o.veiculoId === veiculoId);
+    if (naViatura.length >= veiculo.capacidadeMaxima)
+      throw new HttpError(409, "Capacidade máxima da viatura atingida.");
+    if (!motorista?.ativo || motorista.validadeCnh < dataHojeUTC())
+      throw new HttpError(422, "Condutor inativo ou CNH vencida.");
+    if (
+      !["DISPONIVEL", "OCUPADO"].includes(motorista.status) ||
+      (motorista.status === "OCUPADO" &&
+        motoristaId !== anterior.motoristaId &&
+        !naViatura.some((o) => o.motoristaId === motoristaId)) ||
+      outras.some((o) => o.motoristaId === motoristaId && o.veiculoId !== veiculoId) ||
+      naViatura.some((o) => o.motoristaId !== motoristaId)
+    )
+      throw new HttpError(
+        409,
+        "Condutor indisponível ou incompatível com as demais ordens ativas.",
+      );
+    const ordem = await tx.ordemColetaSvo.update({
+      where: { id: ordemId },
+      data: { veiculoId, motoristaId },
+    });
+    await tx.veiculo.update({ where: { id: veiculoId }, data: { status: "EM_VIAGEM" } });
+    await tx.motorista.update({ where: { id: motoristaId }, data: { status: "OCUPADO" } });
+    if (
+      anterior.veiculoId &&
+      anterior.veiculoId !== veiculoId &&
+      !(await tx.ordemColetaSvo.count({
+        where: { veiculoId: anterior.veiculoId, status: { in: [...STATUS_ORDEM_ATIVA] } },
+      }))
+    ) {
+      const liberada = await tx.veiculo.updateMany({
+        where: { id: anterior.veiculoId, status: "EM_VIAGEM" },
+        data: { status: "DESINFECCAO" },
+      });
+      if (liberada.count)
+        await tx.desinfeccaoSvo.create({
+          data: { veiculoId: anterior.veiculoId, responsavelId: usuarioId, status: "EM_ANDAMENTO" },
+        });
+    }
+    if (
+      anterior.motoristaId &&
+      anterior.motoristaId !== motoristaId &&
+      !(await tx.ordemColetaSvo.count({
+        where: { motoristaId: anterior.motoristaId, status: { in: [...STATUS_ORDEM_ATIVA] } },
+      }))
+    )
+      await tx.motorista.updateMany({
+        where: { id: anterior.motoristaId, ativo: true, status: "OCUPADO" },
+        data: { status: "DISPONIVEL" },
+      });
+    await tx.auditoriaSistema.create({
+      data: {
+        usuarioId,
+        acao: "REMANEJAR_ORDEM",
+        tabelaAfetada: "ordens_coleta_svo",
+        registroId: ordemId,
+        dadosNovos: {
+          motivo: input.motivo,
+          status: anterior.status,
+          anterior: {
+            veiculoId: anterior.veiculoId,
+            placa: anterior.veiculo?.placa,
+            motoristaId: anterior.motoristaId,
+            condutor: anterior.motorista?.usuario?.nome,
+          },
+          atual: {
+            veiculoId,
+            placa: veiculo.placa,
+            motoristaId,
+            condutor: motorista.usuario?.nome,
+          },
+        },
+      },
+    });
+    return ordem;
   });
 }

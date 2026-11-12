@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Filter, MoreHorizontal, Phone, Plus, Search, X } from "lucide-react";
+import { Filter, MoreHorizontal, Pencil, Plus, Search, X } from "lucide-react";
+import { ModalRegistrarMulta } from "../multas/ModalRegistrarMulta";
+import { SecaoMultasMotorista } from "./SecaoMultasMotorista";
 import { Badge, Button, Card, Input, Modal, Select, Table } from "../../components/common";
 import type { Column } from "../../components/common/Table";
 import { useAuth } from "../../contexts/auth";
@@ -33,6 +35,14 @@ interface FormularioMotorista {
   categoriaCnh: string;
   validadeCnh: string;
   telefone: string;
+}
+
+interface FormularioEdicaoMotorista {
+  nome: string;
+  email: string;
+  telefone: string;
+  validadeCnh: string;
+  ativo: boolean;
 }
 
 interface FiltrosMotoristas {
@@ -151,11 +161,39 @@ export const MotoristasPage: React.FC = () => {
   const hasLoadedMotoristas = Boolean(atual?.dados);
   const isLoading = !atual;
   const errorMessage = atual?.erro ?? "";
+  const [modalMultaAberto, setModalMultaAberto] = useState(false);
+  const [versaoMultas, setVersaoMultas] = useState(0);
+  const [veiculosOpcoes, setVeiculosOpcoes] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (modalMultaAberto && veiculosOpcoes.length === 0) {
+      apiRequest<{ data: { id: string; placa: string; modelo: string }[] }>(
+        "/veiculos?pageSize=100",
+      )
+        .then((res) => {
+          if (res?.data) {
+            setVeiculosOpcoes(
+              res.data.map((v) => ({ value: v.id, label: `${v.placa} - ${v.modelo}` })),
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }, [modalMultaAberto, veiculosOpcoes.length]);
   const [termoBusca, setTermoBusca] = useState("");
   const [filtros, setFiltros] = useState(filtrosVazios);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroCnhAtencao, setFiltroCnhAtencao] = useState(false);
   const [motoristaSelecionado, setMotoristaSelecionado] = useState<Motorista | null>(null);
+  const [motoristaEmEdicao, setMotoristaEmEdicao] = useState<Motorista | null>(null);
+  const [formularioEdicao, setFormularioEdicao] = useState<FormularioEdicaoMotorista>({
+    nome: "",
+    email: "",
+    telefone: "",
+    validadeCnh: "",
+    ativo: true,
+  });
+  const [erroEdicao, setErroEdicao] = useState("");
   const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
   const [formulario, setFormulario] = useState(formularioVazio);
   const [cpfTocado, setCpfTocado] = useState(false);
@@ -244,6 +282,81 @@ export const MotoristasPage: React.FC = () => {
     }
   };
 
+  const abrirEdicao = (motorista: Motorista) => {
+    setFormularioEdicao({
+      nome: motorista.nome === "Usuário sem vínculo" ? "" : motorista.nome,
+      email: motorista.email ?? "",
+      telefone: motorista.telefone ?? "",
+      validadeCnh: motorista.validadeCnh,
+      ativo: motorista.ativo,
+    });
+    setErroEdicao("");
+    setMotoristaSelecionado(null);
+    setMotoristaEmEdicao(motorista);
+  };
+
+  const salvarEdicao = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!motoristaEmEdicao || salvando.current) return;
+    if (
+      motoristaEmEdicao.email &&
+      (!formularioEdicao.nome.trim() || !formularioEdicao.email.trim())
+    ) {
+      setErroEdicao("Informe o nome e o e-mail da conta vinculada.");
+      return;
+    }
+
+    const dados: {
+      nome?: string;
+      email?: string;
+      telefone?: string | null;
+      validadeCnh?: string;
+      ativo?: boolean;
+    } = {};
+    if (motoristaEmEdicao.email && formularioEdicao.nome.trim() !== motoristaEmEdicao.nome) {
+      dados.nome = formularioEdicao.nome.trim();
+    }
+    if (
+      motoristaEmEdicao.email &&
+      formularioEdicao.email.trim().toLowerCase() !== motoristaEmEdicao.email.toLowerCase()
+    ) {
+      dados.email = formularioEdicao.email.trim().toLowerCase();
+    }
+    const telefone = formularioEdicao.telefone.trim() || null;
+    if (telefone !== (motoristaEmEdicao.telefone ?? null)) dados.telefone = telefone;
+    if (formularioEdicao.validadeCnh !== motoristaEmEdicao.validadeCnh) {
+      dados.validadeCnh = formularioEdicao.validadeCnh;
+    }
+    if (formularioEdicao.ativo !== motoristaEmEdicao.ativo) {
+      dados.ativo = formularioEdicao.ativo;
+    }
+    if (Object.keys(dados).length === 0) {
+      setErroEdicao("Nenhuma alteração foi feita.");
+      return;
+    }
+
+    salvando.current = true;
+    setIsSaving(true);
+    setErroEdicao("");
+    setSuccessMessage("");
+    try {
+      await apiRequest<MotoristaApi>(`/motoristas/${encodeURIComponent(motoristaEmEdicao.id)}`, {
+        method: "PATCH",
+        data: dados,
+      });
+      setMotoristaEmEdicao(null);
+      setSuccessMessage("Motorista e conta de acesso atualizados.");
+      recarregarMotoristas();
+    } catch (error) {
+      setErroEdicao(
+        error instanceof Error ? error.message : "Não foi possível atualizar o motorista.",
+      );
+    } finally {
+      salvando.current = false;
+      setIsSaving(false);
+    }
+  };
+
   const motoristasFiltrados = useMemo(() => {
     const busca = termoBusca.trim().toLocaleLowerCase("pt-BR");
 
@@ -279,12 +392,6 @@ export const MotoristasPage: React.FC = () => {
     (motorista) => diasAteVencimento(motorista.validadeCnh) < 0,
   ).length;
   const cnHsVencendo = motoristasComCnhAtencao.length - cnHsVencidas;
-  const cardCnhClasses =
-    cnHsVencidas > 0
-      ? "border-rose-200/80 bg-rose-50/30"
-      : cnHsVencendo > 0
-        ? "border-amber-200/80 bg-amber-50/30"
-        : "border-slate-200/80 bg-white";
 
   const alternarFiltroCnhAtencao = () => {
     setFiltroCnhAtencao((ativo) => !ativo);
@@ -296,21 +403,12 @@ export const MotoristasPage: React.FC = () => {
     {
       header: "ID",
       render: (motorista) => (
-        <span className="font-mono text-xs font-bold tracking-wide text-slate-700">
-          {motorista.id}
-        </span>
+        <span className="font-mono text-xs font-semibold text-slate-600">{motorista.id}</span>
       ),
     },
     {
       header: "Nome",
-      render: (motorista) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <span className="text-sm font-bold">{motorista.nome.charAt(0).toUpperCase()}</span>
-          </div>
-          <span className="font-semibold text-slate-900">{motorista.nome}</span>
-        </div>
-      ),
+      render: (motorista) => <span className="font-semibold text-slate-900">{motorista.nome}</span>,
     },
     {
       header: "Vencimento da CNH",
@@ -320,14 +418,13 @@ export const MotoristasPage: React.FC = () => {
         const proxima = dias >= 0 && dias <= 30;
         return (
           <div className="flex items-center gap-2 text-xs">
-            <CalendarDays className="h-4 w-4 text-slate-400" />
             <span
               className={
                 vencida
-                  ? "font-semibold text-rose-700"
+                  ? "font-mono font-semibold text-rose-700"
                   : proxima
-                    ? "font-semibold text-amber-700"
-                    : "text-slate-600"
+                    ? "font-mono font-semibold text-amber-700"
+                    : "font-mono text-slate-700"
               }
             >
               {formatarData(motorista.validadeCnh)}
@@ -344,7 +441,7 @@ export const MotoristasPage: React.FC = () => {
     {
       header: "Status operacional",
       render: (motorista) => (
-        <Badge variant={statusVariant[motorista.status] ?? "neutral"} dot size="md">
+        <Badge variant={statusVariant[motorista.status] ?? "neutral"} dot size="sm">
           {motorista.status}
         </Badge>
       ),
@@ -355,9 +452,8 @@ export const MotoristasPage: React.FC = () => {
         motorista.telefone ? (
           <a
             href={`tel:${motorista.telefone.replace(/\D/g, "")}`}
-            className="inline-flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900"
+            className="font-mono text-xs text-slate-600 hover:text-slate-900"
           >
-            <Phone className="h-3.5 w-3.5 text-slate-400" />
             {motorista.telefone}
           </a>
         ) : (
@@ -367,7 +463,7 @@ export const MotoristasPage: React.FC = () => {
     {
       header: "Cadastro",
       render: (motorista) => (
-        <Badge variant={motorista.ativo ? "success" : "neutral"} dot size="md">
+        <Badge variant={motorista.ativo ? "success" : "neutral"} dot size="sm">
           {motorista.ativo ? "Ativo" : "Inativo"}
         </Badge>
       ),
@@ -379,11 +475,11 @@ export const MotoristasPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setMotoristaSelecionado(motorista)}
-          className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
           title={`Ver detalhes de ${motorista.nome}`}
           aria-label={`Ver detalhes de ${motorista.nome}`}
         >
-          <MoreHorizontal className="h-5 w-5" />
+          <MoreHorizontal className="h-4.5 w-4.5" />
         </button>
       ),
     },
@@ -395,33 +491,35 @@ export const MotoristasPage: React.FC = () => {
   const filtrosAtivos = Object.values(filtros).some(Boolean);
 
   return (
-    <div className="animate-in space-y-6 fade-in duration-200">
-      <div className="flex flex-col gap-4 border-b border-slate-200/60 pb-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Gestão de Motoristas
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Gestão de Motoristas</h1>
           <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
             Consulte os cadastros e acompanhe a validade das CNHs.
           </p>
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => {
-            setErroCadastro("");
-            setModalCadastroAberto(true);
-          }}
-          className="h-11 w-full shrink-0 rounded-2xl bg-slate-900 text-white shadow-sm hover:bg-slate-800 sm:w-48"
-        >
-          Novo motorista
-        </Button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button variant="outline" onClick={() => setModalMultaAberto(true)}>
+            Registrar infração
+          </Button>
+          <Button
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => {
+              setErroCadastro("");
+              setModalCadastroAberto(true);
+            }}
+          >
+            Novo motorista
+          </Button>
+        </div>
       </div>
 
       {errorMessage && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
         >
           <span>{errorMessage}</span>
           <Button variant="outline" size="sm" onClick={recarregarMotoristas}>
@@ -432,27 +530,27 @@ export const MotoristasPage: React.FC = () => {
       {successMessage && (
         <p
           role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
         >
           {successMessage}
         </p>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4.5">
-          <span className="text-xs font-semibold text-blue-700">Motoristas ativos</span>
+        <Card className="p-4">
+          <span className="text-xs font-semibold text-slate-500">Motoristas ativos</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-blue-900">
+            <span className="text-2xl font-bold tabular-nums text-slate-900">
               {hasLoadedMotoristas ? ativos : "—"}
             </span>
-            <span className="text-xs font-medium text-blue-600">
+            <span className="text-xs text-slate-500">
               de {hasLoadedMotoristas ? motoristas.length : "—"} cadastrados
             </span>
           </div>
         </Card>
-        <Card className="rounded-2xl border border-rose-200/80 bg-rose-50/30 p-4.5">
-          <span className="text-xs font-semibold text-rose-700">CNHs vencidas</span>
-          <div className="mt-1 text-2xl font-bold text-rose-900">
+        <Card className="p-4">
+          <span className="text-xs font-semibold text-slate-500">CNHs vencidas</span>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-rose-700">
             {hasLoadedMotoristas ? cnHsVencidas : "—"}
           </div>
         </Card>
@@ -460,10 +558,12 @@ export const MotoristasPage: React.FC = () => {
           type="button"
           onClick={alternarFiltroCnhAtencao}
           aria-pressed={filtroCnhAtencao}
-          className={`rounded-2xl border p-4.5 text-left transition-all hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${cardCnhClasses} ${filtroCnhAtencao ? "ring-2 ring-slate-400 ring-offset-2" : ""}`}
+          className={`rounded-xl border bg-white p-4 text-left transition-colors hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 cursor-pointer ${
+            filtroCnhAtencao ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200"
+          }`}
         >
-          <span className="text-xs font-semibold text-amber-700">CNHs vencendo em até 30 dias</span>
-          <div className="mt-1 text-2xl font-bold text-amber-900">
+          <span className="text-xs font-semibold text-slate-500">CNHs vencendo em até 30 dias</span>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-amber-700">
             {hasLoadedMotoristas ? cnHsVencendo : "—"}
           </div>
           <span className="mt-1 block text-xs text-slate-500">
@@ -475,31 +575,29 @@ export const MotoristasPage: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="w-full sm:max-w-md">
-            <Input
-              aria-label="Buscar motorista"
-              placeholder="Buscar motorista por ID ou nome..."
-              value={termoBusca}
-              onChange={(event) => setTermoBusca(event.target.value)}
-              leftIcon={<Search className="h-4 w-4 text-slate-400" />}
-            />
-          </div>
-          <Button
-            variant={filtrosAtivos ? "secondary" : "outline"}
-            leftIcon={<Filter className="h-4 w-4" />}
-            rightIcon={filtrosAtivos ? <span className="text-xs font-bold">●</span> : undefined}
-            onClick={() => setFiltrosAbertos((abertos) => !abertos)}
-            aria-expanded={filtrosAbertos}
-          >
-            Filtros
-          </Button>
+        <div className="w-full sm:max-w-md">
+          <Input
+            aria-label="Buscar motorista"
+            placeholder="Buscar motorista por ID ou nome..."
+            value={termoBusca}
+            onChange={(event) => setTermoBusca(event.target.value)}
+            leftIcon={<Search className="h-4 w-4 text-slate-400" />}
+          />
         </div>
+        <Button
+          variant={filtrosAtivos ? "secondary" : "outline"}
+          leftIcon={<Filter className="h-4 w-4" />}
+          rightIcon={filtrosAtivos ? <span className="text-xs font-bold">●</span> : undefined}
+          onClick={() => setFiltrosAbertos((abertos) => !abertos)}
+          aria-expanded={filtrosAbertos}
+        >
+          Filtros
+        </Button>
       </div>
 
       {filtrosAbertos && (
         <Card className="p-4">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900">Filtrar motoristas</h2>
               <p className="text-xs text-slate-500">
@@ -509,7 +607,7 @@ export const MotoristasPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setFiltrosAbertos(false)}
-              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+              className="rounded-md p-1 text-slate-500 hover:bg-slate-100 cursor-pointer"
               aria-label="Fechar filtros"
             >
               <X className="h-4 w-4" />
@@ -568,36 +666,48 @@ export const MotoristasPage: React.FC = () => {
         isOpen={Boolean(motoristaSelecionado)}
         onClose={() => setMotoristaSelecionado(null)}
         title="Dados do motorista"
+        size="xl"
         description={motoristaSelecionado ? `Cadastro ${motoristaSelecionado.id}` : undefined}
         footer={
           motoristaSelecionado && (
-            <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
-              Fechar
-            </Button>
+            <div className="flex w-full justify-between">
+              <Button
+                variant="outline"
+                leftIcon={<Pencil className="h-4 w-4" />}
+                onClick={() => abrirEdicao(motoristaSelecionado)}
+              >
+                Editar cadastro
+              </Button>
+              <Button variant="ghost" onClick={() => setMotoristaSelecionado(null)}>
+                Fechar
+              </Button>
+            </div>
           )
         }
       >
         {motoristaSelecionado && (
           <div className="space-y-5">
-            <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-xs">
-                <span className="font-bold">
+            <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+                <span className="font-bold text-sm">
                   {motoristaSelecionado.nome.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="min-w-0">
                 <p className="truncate font-bold text-slate-900">{motoristaSelecionado.nome}</p>
-                <p className="text-xs text-slate-500">{motoristaSelecionado.id}</p>
+                <p className="font-mono text-xs text-slate-500">{motoristaSelecionado.id}</p>
               </div>
             </div>
-            <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <dt className="text-xs font-medium text-slate-500">CPF</dt>
-                <dd className="mt-1 font-semibold text-slate-800">{motoristaSelecionado.cpf}</dd>
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
+                  {motoristaSelecionado.cpf}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Número da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
                   {motoristaSelecionado.numeroCnh}
                 </dd>
               </div>
@@ -609,7 +719,7 @@ export const MotoristasPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Validade da CNH</dt>
-                <dd className="mt-1 font-semibold text-slate-800">
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
                   {formatarData(motoristaSelecionado.validadeCnh)}
                 </dd>
               </div>
@@ -621,14 +731,14 @@ export const MotoristasPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Telefone</dt>
-                <dd className="mt-1 font-semibold text-slate-800">
+                <dd className="mt-1 font-mono text-sm font-semibold text-slate-800">
                   {motoristaSelecionado.telefone || "—"}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">Status do cadastro</dt>
                 <dd className="mt-1">
-                  <Badge variant={motoristaSelecionado.ativo ? "success" : "neutral"} dot>
+                  <Badge variant={motoristaSelecionado.ativo ? "success" : "neutral"} dot size="sm">
                     {motoristaSelecionado.ativo ? "Ativo" : "Inativo"}
                   </Badge>
                 </dd>
@@ -636,13 +746,127 @@ export const MotoristasPage: React.FC = () => {
               <div>
                 <dt className="text-xs font-medium text-slate-500">Status operacional</dt>
                 <dd className="mt-1">
-                  <Badge variant={statusVariant[motoristaSelecionado.status] ?? "neutral"} dot>
+                  <Badge
+                    variant={statusVariant[motoristaSelecionado.status] ?? "neutral"}
+                    dot
+                    size="sm"
+                  >
                     {motoristaSelecionado.status}
                   </Badge>
                 </dd>
               </div>
             </dl>
+            <div className="mt-5 border-t border-slate-200 pt-5">
+              <SecaoMultasMotorista
+                motoristaId={motoristaSelecionado.id}
+                onNovaMultaClick={() => setModalMultaAberto(true)}
+                versaoExterno={versaoMultas}
+              />
+            </div>
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(motoristaEmEdicao)}
+        onClose={() => {
+          if (!salvando.current) setMotoristaEmEdicao(null);
+        }}
+        title="Editar cadastro do motorista"
+        description="Os dados de contato e o status da conta vinculada são mantidos em sincronia com a gestão de usuários."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setMotoristaEmEdicao(null)} disabled={isSaving}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              form="formulario-edicao-motorista"
+              isLoading={isSaving}
+            >
+              Salvar alterações
+            </Button>
+          </>
+        }
+      >
+        {motoristaEmEdicao && (
+          <form
+            id="formulario-edicao-motorista"
+            onSubmit={salvarEdicao}
+            className="space-y-4"
+            noValidate
+          >
+            <fieldset disabled={isSaving} className="space-y-4">
+              {!motoristaEmEdicao.email && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  Este cadastro não possui conta vinculada. Nome e e-mail não podem ser alterados
+                  por aqui.
+                </p>
+              )}
+              <Input
+                label="Nome completo"
+                autoComplete="name"
+                required={Boolean(motoristaEmEdicao.email)}
+                maxLength={150}
+                disabled={!motoristaEmEdicao.email}
+                value={formularioEdicao.nome}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, nome: event.target.value })
+                }
+              />
+              <Input
+                label="E-mail de acesso"
+                type="email"
+                autoComplete="email"
+                required={Boolean(motoristaEmEdicao.email)}
+                maxLength={150}
+                disabled={!motoristaEmEdicao.email}
+                value={formularioEdicao.email}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, email: event.target.value })
+                }
+              />
+              <Input
+                label="Telefone para contato"
+                type="tel"
+                autoComplete="tel"
+                maxLength={20}
+                value={formularioEdicao.telefone}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, telefone: event.target.value })
+                }
+              />
+              <Input
+                label="Validade da CNH"
+                type="date"
+                required
+                value={formularioEdicao.validadeCnh}
+                onChange={(event) =>
+                  setFormularioEdicao({ ...formularioEdicao, validadeCnh: event.target.value })
+                }
+              />
+              <Select
+                label="Status do cadastro"
+                value={String(formularioEdicao.ativo)}
+                onChange={(event) =>
+                  setFormularioEdicao({
+                    ...formularioEdicao,
+                    ativo: event.target.value === "true",
+                  })
+                }
+                options={[
+                  { value: "true", label: "Ativo" },
+                  { value: "false", label: "Inativo" },
+                ]}
+              />
+            </fieldset>
+            {erroEdicao && (
+              <p role="alert" className="text-sm font-medium text-rose-700">
+                {erroEdicao}
+              </p>
+            )}
+          </form>
         )}
       </Modal>
 
@@ -670,10 +894,10 @@ export const MotoristasPage: React.FC = () => {
         <form
           id="formulario-novo-motorista"
           onSubmit={cadastrarMotorista}
-          className="space-y-5"
+          className="space-y-4"
           noValidate
         >
-          <fieldset disabled={isSaving} className="space-y-5">
+          <fieldset disabled={isSaving} className="space-y-4">
             <Input
               label="Nome completo"
               autoComplete="name"
@@ -745,12 +969,28 @@ export const MotoristasPage: React.FC = () => {
             />
           </fieldset>
           {erroCadastro && (
-            <p role="alert" className="text-sm font-medium text-rose-600">
+            <p role="alert" className="text-sm font-medium text-rose-700">
               {erroCadastro}
             </p>
           )}
         </form>
       </Modal>
+
+      <ModalRegistrarMulta
+        isOpen={modalMultaAberto}
+        onClose={() => setModalMultaAberto(false)}
+        onSuccess={() => {
+          setSuccessMessage("Infração/multa registrada com sucesso.");
+          setVersaoMultas((v) => v + 1);
+          setModalMultaAberto(false);
+        }}
+        veiculos={veiculosOpcoes}
+        motoristas={motoristas.map((m) => ({
+          value: m.id,
+          label: `${m.nome} (CNH: ${m.numeroCnh})`,
+        }))}
+        motoristaIdPadrao={motoristaSelecionado?.id}
+      />
     </div>
   );
 };

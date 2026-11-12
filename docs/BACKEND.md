@@ -25,26 +25,31 @@ O fluxo das rotas de veículos é: rota → autenticação e perfil → controll
 
 ## Endpoints disponíveis
 
-| Método | Caminho                                                     | Autenticação                | Resultado                                                    |
-| ------ | ----------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ |
-| GET    | `/health`                                                   | Pública                     | Status do processo da API; não consulta o banco.             |
-| POST   | `/auth/login`                                               | Pública                     | Login com e-mail e senha.                                    |
-| POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                        |
-| GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`. |
-| GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                            |
-| GET    | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Lista paginada de usuários.                                  |
-| GET    | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Detalhe do usuário (sem hash de senha).                      |
-| POST   | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Cadastro de usuário com perfis e senha inicial.              |
-| PATCH  | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Atualização de dados, setor, telefone, ativo e perfis.       |
-| DELETE | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Inativação (soft delete) e revogação de sessões.             |
-| PATCH  | `/api/v1/auth/usuarios/:id/redefinir-senha`                 | JWT com `ADMIN`             | Redefinição administrativa de senha (já existente).          |
-| GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                  |
-| POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                         |
-| GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                |
-| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA ou seguro).                |
-| GET    | `/notificacoes`, `/api/v1/notificacoes`                     | JWT                         | Lista notificações e contador de não lidas do usuário.       |
-| PATCH  | `/notificacoes/:id/lida`, `/api/v1/notificacoes/:id/lida`   | JWT                         | Marca uma notificação do usuário autenticado como lida.      |
-| PATCH  | `/notificacoes/ler-todas`, `/api/v1/notificacoes/ler-todas` | JWT                         | Marca todas as notificações não lidas do usuário como lidas. |
+| Método | Caminho                                                     | Autenticação                | Resultado                                                      |
+| ------ | ----------------------------------------------------------- | --------------------------- | -------------------------------------------------------------- |
+| GET    | `/health`                                                   | Pública                     | Status do processo da API; não consulta o banco.               |
+| POST   | `/auth/login`                                               | Pública                     | Login com e-mail e senha.                                      |
+| POST   | `/api/v1/auth/login`                                        | Pública                     | Alias do mesmo login.                                          |
+| GET    | `/auth/perfil`, `/api/v1/auth/perfil`                       | JWT                         | Identidade autenticada em `{ usuario: { userId, perfis } }`.   |
+| GET    | `/auth/admin`, `/api/v1/auth/admin`                         | JWT com `ADMIN`             | Confirmação de acesso autorizado.                              |
+| GET    | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Lista paginada de usuários.                                    |
+| GET    | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Detalhe do usuário (sem hash de senha).                        |
+| POST   | `/api/v1/usuarios`                                          | JWT com `ADMIN`             | Cadastro de usuário com perfis e senha inicial.                |
+| PATCH  | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Atualização de dados, setor, telefone, ativo e perfis.         |
+| DELETE | `/api/v1/usuarios/:id`                                      | JWT com `ADMIN`             | Inativação (soft delete) e revogação de sessões.               |
+| PATCH  | `/api/v1/auth/usuarios/:id/redefinir-senha`                 | JWT com `ADMIN`             | Redefinição administrativa de senha (já existente).            |
+| GET    | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Lista paginada de veículos.                                    |
+| POST   | `/api/v1/veiculos`                                          | JWT com `ADMIN` ou `GESTOR` | Cadastro de veículo.                                           |
+| GET    | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Documentos do veículo com situação calculada.                  |
+| POST   | `/api/v1/veiculos/:id/documentos`                           | JWT com `ADMIN` ou `GESTOR` | Cadastro de documento (CRLV, IPVA, seguro ou vistoria).        |
+| GET    | `/notificacoes`, `/api/v1/notificacoes`                     | JWT                         | Lista notificações e contador de não lidas do usuário.         |
+| PATCH  | `/notificacoes/:id/lida`, `/api/v1/notificacoes/:id/lida`   | JWT                         | Marca uma notificação do usuário autenticado como lida.        |
+| PATCH  | `/notificacoes/ler-todas`, `/api/v1/notificacoes/ler-todas` | JWT                         | Marca todas as notificações não lidas do usuário como lidas.   |
+| GET    | `/api/v1/multas`                                            | JWT com `ADMIN` ou `GESTOR` | Lista paginada de infrações, totais em R$ e pontos acumulados. |
+| GET    | `/api/v1/multas/:id`                                        | JWT com `ADMIN` ou `GESTOR` | Detalhes da infração, dados do auto, veículo e condutor.       |
+| POST   | `/api/v1/multas`                                            | JWT com `ADMIN` ou `GESTOR` | Registro de nova infração de trânsito (CTB / FSPH).            |
+| PATCH  | `/api/v1/multas/:id`                                        | JWT com `ADMIN` ou `GESTOR` | Atualização de status (PAGA, EM_RECURSO), data de quitação.    |
+| GET    | `/api/v1/multas/motorista/:motoristaId`                     | JWT com `ADMIN` ou `GESTOR` | Histórico e somatório de pontos na CNH do condutor.            |
 
 ## Autenticação
 
@@ -149,19 +154,21 @@ Após salvar, o serviço tenta registrar auditoria com usuário, ação, tabela,
 
 ## Documentos do veículo
 
-Controle de CRLV/licenciamento, IPVA e seguro (RF010-DOC, RB01). Corpo do cadastro:
+Controle de CRLV/licenciamento, IPVA, seguro e vistoria (RF010-DOC, RB01). Corpo do cadastro:
 
 ```json
 { "tipoDocumento": "CRLV", "dataVencimento": "2027-03-31" }
 ```
 
-`tipoDocumento` aceita `CRLV`, `IPVA` ou `SEGURO`; `dataVencimento` usa `AAAA-MM-DD`, entre 2000 e 2100. Documento já vencido pode ser cadastrado. Renovar é cadastrar um novo documento do mesmo tipo: por tipo, vale o de maior vencimento e o histórico é mantido. Mesmo tipo com o mesmo vencimento retorna `409`; veículo inexistente `404`; veículo inativo `422`.
+`tipoDocumento` aceita `CRLV`, `IPVA`, `SEGURO` ou `VISTORIA`; `dataVencimento` usa `AAAA-MM-DD`, entre 2000 e 2100. Documento já vencido pode ser cadastrado. Renovar é cadastrar um novo documento do mesmo tipo: por tipo, vale o de maior vencimento e o histórico é mantido. Mesmo tipo com o mesmo vencimento retorna `409`; veículo inexistente `404`; veículo inativo `422`. A migration `20261108180000_documentos_vistoria` inclui `VISTORIA` na constraint do banco.
 
 A situação é calculada a cada consulta no dia de America/Sao_Paulo: `VENCIDO` depois da data de vencimento, `PROXIMO_VENCIMENTO` a partir de 90 dias antes (inclusive o próprio dia) e `VIGENTE` antes disso. A coluna `status` guarda só a situação no momento do cadastro.
 
 A listagem retorna `{ data, resumo }`. Cada item traz `tipoDocumento`, `dataVencimento`, `situacao`, `diasParaVencer` (negativo quando vencido) e `atual` (se é o documento que vale para o tipo). O `resumo` traz `situacaoGeral` (a pior entre os documentos atuais, ou `null` sem documentos), `bloqueiaAlocacao` e `tiposSemRegistro`.
 
-O resumo do painel (`GET /api/v1/dashboard/resumo`, perfis `ADMIN` e `GESTOR`) inclui `alertas`: documentos atuais dos veículos ativos com situação `VENCIDO` ou `PROXIMO_VENCIMENTO`, com os mesmos campos da listagem e a `placa` do veículo. A ordenação prioriza o menor `diasParaVencer`. Documentos substituídos por renovação não geram alertas.
+O resumo do painel (`GET /api/v1/dashboard/resumo`, perfis `ADMIN` e `GESTOR`) inclui `alertas`: documentos atuais dos veículos ativos com situação `VENCIDO` ou `PROXIMO_VENCIMENTO`, com os mesmos campos da listagem e a `placa` do veículo. A ordenação prioriza o menor `diasParaVencer`. Documentos substituídos por renovação não geram alertas. O bloco `svo` traz `chamadosAtivos`, `slaMedioRespostaMinutos` (chamado → chegada ao local) e `slaMedioEntregaMinutos` (chamado → entrega no SVO), os mesmos critérios de `GET /api/v1/svo/indicadores`.
+
+O campo `relatorioMes` usa o relatório operacional do primeiro dia do mês até o dia atual no fuso de São Paulo, reunindo viagens administrativas concluídas e abastecimentos de ambas as frotas. A relação km/L é apenas estimativa entre os totais do período. Se a consulta mensal falhar, o campo será `null` e os demais indicadores continuam disponíveis.
 
 A aprovação de solicitação (`PATCH .../aprovar`) recusa com `422` o veículo cujo documento atual de algum tipo vence antes do dia do retorno previsto (ou antes de hoje). Cada documento pendente vem em `errors`, com `campo: "veiculoId"`. Veículo sem documento cadastrado não é bloqueado.
 
@@ -215,6 +222,22 @@ No PATCH, omitir `telefone` preserva o contato; `null` ou texto em branco limpa 
 
 ## Relatório operacional
 
+### Agregações e exportação
+
+Os endpoints abaixo exigem JWT com perfil `ADMIN` ou `GESTOR` e os parâmetros obrigatórios `inicio` e `fim` (`YYYY-MM-DD`, início <= fim). Todos aceitam `formato=json|csv|pdf` (padrão `json`). CSV e PDF retornam anexos com `Content-Disposition`; CSV usa UTF-8, separador `;`, escape de aspas e proteção contra fórmulas. JSON retorna `{ inicio, fim, setor, dados }`.
+
+| Endpoint GET                     | Campos em `dados`                                                      | Critério do período                                        |
+| -------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `/api/v1/relatorios/consumo`     | `placa`, `modelo`, `kmRodados`, `litrosAbastecidos`, `consumoMedioKmL` | Encerramento das viagens e data dos abastecimentos, UTC-03 |
+| `/api/v1/relatorios/manutencoes` | `tipo`, `status`, `quantidade`, `custoTotal`                           | `dataManutencao` (data civil); exclui registros sem data   |
+| `/api/v1/relatorios/viagens`     | `setor`, `status`, `viagens`                                           | `dataHoraPretendida`, UTC-03; inclui todos os status       |
+
+Exemplo: `GET /api/v1/relatorios/viagens?inicio=2026-10-01&fim=2026-10-31&setor=Laboratorio&formato=csv`.
+
+O filtro opcional `setor` corresponde exatamente ao `setorOrigem` das viagens; setores ausentes retornam `null`. Consumo e manutenção rejeitam esse filtro com 400, pois não possuem vínculo com setor no modelo atual. A manutenção agrupa por tipo/status e soma os custos conhecidos; custos ausentes contribuem zero. Sem registros, `dados` é vazio e as exportações continuam válidas.
+
+`consumoMedioKmL` é uma estimativa por veículo: quilômetros de viagens encerradas divididos pelos litros abastecidos no período. Retorna `null` sem litros positivos ou sem viagem com odômetros válidos. Como abastecimentos podem incluir combustível ainda não consumido, isso não mede consumo efetivo por viagem ou entre tanques completos. O contrato do relatório operacional abaixo permanece compatível.
+
 `GET /api/v1/relatorios?inicio=2026-10-01&fim=2026-10-30` exige JWT e perfil `ADMIN` ou `GESTOR`. Datas devem ser válidas no formato `YYYY-MM-DD`, com início anterior ou igual ao fim. O intervalo inclui todo o dia final, no fuso UTC-03:00.
 
 - Viagens concluídas: execuções com `dataHoraFim` no período.
@@ -240,6 +263,8 @@ Esta branch já implementa `PATCH /solicitacoes/:id/aprovar` e `PATCH /solicitac
 
 A aprovação recebe UUIDs `veiculoId` e `motoristaId`. Exige solicitação pendente, saída e retorno previstos válidos, veículo administrativo ativo e disponível com capacidade suficiente, motorista ativo e disponível e CNH válida até a data do retorno em America/Sao_Paulo. O serviço verifica sobreposição de intervalos em viagens aprovadas ou em trânsito; horários adjacentes não conflitam.
 
+`PATCH /api/v1/solicitacoes/:id/reagendar` permite a `ADMIN` e `GESTOR` alterar horário, veículo ou motorista de viagem aprovada cuja saída ainda não ocorreu. Recebe `{ veiculoId, motoristaId, inicio, fim, motivo }`: IDs UUID, datas ISO com fuso e motivo entre 5 e 2000 caracteres. A nova saída deve ser futura e anterior ao retorno. As validações de capacidade, CNH, documentos, viagens concorrentes e manutenção preventiva são reaplicadas. A alteração, a auditoria com valores anteriores e motivo e as notificações para o solicitante e os motoristas envolvidos são gravadas na mesma transação; falha na gravação desfaz a alteração.
+
 As travas transacionais por recurso são obtidas em ordem fixa, seguidas da trava da solicitação. A consulta das travas retorna um inteiro para evitar desserializar o tipo void no Prisma. A decisão usa atualização condicional do status PENDENTE e auditoria na mesma transação. A recusa recebe `motivoRecusa` não vazio com até 2000 caracteres e também usa atualização condicional e auditoria. Ausência retorna 404; decisão já processada, conflito de alocação e concorrência conhecida retornam 409; recursos ou intervalo inválidos retornam 422; dados inválidos retornam 400.
 
 As regras e respostas são cobertas por testes HTTP com Prisma simulado. O teste de concorrência com PostgreSQL real não foi executado nesta sessão, pois o daemon Docker local está indisponível.
@@ -260,16 +285,17 @@ A migration de status já pertencente à branch foi preservada e não foi aplica
 
 ### Operação SVO
 
-As rotas em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`. IDs são UUIDs. Consultas: `GET /indicadores`, `/chamados` (paginação, busca e filtro `etapa`), `/viaturas` e `/motoristas`. Atendimento: `POST /chamados` e `PATCH /chamados/:id/triagem`.
+As rotas operacionais em `/api/v1/svo` exigem perfil `SVO` ou `ADMIN`. O motorista autenticado acessa somente `GET /ordens-coleta/minhas` e `PATCH /ordens-coleta/:id/etapa` da ordem que lhe foi atribuída. IDs são UUIDs. Consultas da central: `GET /indicadores`, `/chamados` (paginação, busca e filtro `etapa`), `/viaturas` e `/motoristas`. Atendimento: `POST /chamados` e `PATCH /chamados/:id/triagem`. Cada chamado traz `criadoEm` (abertura). `GET /indicadores` inclui `tempoMedioChegadaLocalMinutos` e `tempoMedioEntregaSvoMinutos` (`number` ou `null`): médias de chamado → chegada ao local e chamado → entrega no SVO, em minutos, ignorando ordens canceladas.
 
 | Método e caminho (prefixo `/api/v1/svo`) | Corpo                                                           | Resultado                                                                       |
 | ---------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /ordens-coleta/minhas`              | —                                                               | `200`, ordens ativas do motorista logado, com chamado e viatura.                |
 | `POST /ordens-coleta`                    | `{ chamadoId, veiculoId, motoristaId, numeroDeclaracaoObito? }` | `201`, ordem em `AGUARDANDO_DESPACHO`; chamado deve estar aprovado e sem ordem. |
 | `PATCH /ordens-coleta/:id/etapa`         | `{ status: "EM_DESLOCAMENTO" \| "NO_LOCAL" \| "ENTREGUE_SVO" }` | `200`, ordem atualizada; `:id` identifica a ordem, não o chamado.               |
 | `PATCH /ordens-coleta/:id/cancelar`      | Sem corpo                                                       | `200`, ordem em `CANCELADA`; permitido somente antes do despacho.               |
 | `PATCH /viaturas/:id/desinfeccao`        | Sem corpo                                                       | `200`, viatura liberada após confirmar desinfecção.                             |
 
-A sequência obrigatória é `AGUARDANDO_DESPACHO → EM_DESLOCAMENTO → NO_LOCAL → ENTREGUE_SVO`. O servidor registra respectivamente `dataHoraSaida`, `dataHoraChegadaLocal` e `dataHoraEntregaSvo`; todos começam nulos e são retornados na ordem e na listagem dos chamados. Datas são ISO 8601. Repetir ou pular etapa retorna `409`, sem alterar horários ou duplicar auditoria. Corpo ou UUID inválido retorna `400`; registro ausente, `404`; recursos indisponíveis ou CNH vencida, `422`; falta de sessão, `401`; perfil sem acesso, `403`.
+A sequência obrigatória é `AGUARDANDO_DESPACHO → EM_DESLOCAMENTO → NO_LOCAL → ENTREGUE_SVO`. O servidor registra respectivamente `dataHoraSaida`, `dataHoraChegadaLocal` e `dataHoraEntregaSvo`; todos começam nulos e são retornados na ordem e na listagem dos chamados. Datas são ISO 8601. Repetir ou pular etapa retorna `409`, sem alterar horários ou duplicar auditoria. Corpo ou UUID inválido retorna `400`; registro ausente, `404`; recursos indisponíveis ou CNH vencida, `422`; falta de sessão, `401`; perfil sem acesso, `403`. Motorista em ordem de outro condutor também recebe `403`.
 
 Na emissão, a ordem reserva uma vaga e ocupa o motorista, mas mantém a viatura disponível até registrar a saída. Reservas contam para capacidade, vínculo do condutor e filtro `EM_OPERACAO`, mas não para `coletasEmAndamento`. O painel distingue a reserva da coleta em trânsito. No despacho, a viatura e a habilitação do motorista são revalidadas. Cancelar mantém a ordem no histórico e no filtro `ENCERRADO`, libera sua vaga e libera o motorista se não houver outras ordens ativas. O chamado cancelado não admite nova emissão (uma ordem por chamado). Cancelamento antes de qualquer saída não gera desinfecção.
 
@@ -290,6 +316,15 @@ Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatur
 - `PATCH /api/v1/svo/escalas/:id/encerrar`: grava `encerradaEm`. Encerrar antes do início cancela a escala e libera o horário do motorista. `404` inexistente, `409` já encerrada.
 
 A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
+
+### Abastecimentos e Cartão Rede Prime
+
+Atende a S19FROTA-242. O Cartão Corporativo Rede Prime vale em vários postos credenciados, sem fornecedor fixo por CNPJ: o campo opcional `postoCredenciado` (texto até 150 caracteres; vazio ou só espaços vira `null`) registra o posto, e `fornecedorId` continua opcional.
+
+- `POST /api/v1/abastecimentos` (`ADMIN`, `GESTOR` ou `MOTORISTA`): `{ veiculoId, motoristaId?, fornecedorId?, dataHora?, odometro, litros, valorTotal, postoCredenciado? }`. Retorna `201`.
+- Para quem só tem `MOTORISTA`, o motorista é sempre o vinculado ao usuário logado (`motoristaId` e `dataHora` do corpo são ignorados; vale a hora do servidor) e o veículo precisa estar em execução com ele: viagem `EM_TRANSITO` em que está alocado ou ordem de coleta SVO em `EM_DESLOCAMENTO`, `NO_LOCAL` ou `EM_ANDAMENTO`. `veiculoId` é opcional quando há um único veículo em execução. Erros: `403` usuário sem motorista ativo vinculado, `422` sem viagem/coleta em andamento, veículo fora dela ou mais de um veículo sem `veiculoId` informado. As validações de odômetro e a auditoria são as mesmas do cadastro pela gestão.
+- `GET /api/v1/abastecimentos` (`ADMIN` ou `GESTOR`): aceita também o filtro `motoristaId`; cada item traz `postoCredenciado`.
+- `GET /api/v1/abastecimentos/meus` (`MOTORISTA`): mesmos filtros, formato e paginação, restrito aos lançamentos do motorista logado.
 
 ### Compatibilidade com Cloudflare
 

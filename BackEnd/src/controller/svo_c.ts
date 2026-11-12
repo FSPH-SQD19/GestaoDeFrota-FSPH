@@ -4,6 +4,11 @@ import { z } from "zod";
 import { usuarioAutenticado } from "../middleware/http_m";
 import { HttpError } from "../lib/http_error";
 import {
+  remanejarOrdemSchema,
+  remanejarOrdemColetaSvo,
+  listarRemanejamentosSvo,
+  listarMinhasOrdensSvo,
+  listarMinhasOrdensSvoSchema,
   criarChamadoSchema,
   criarOrdemSchema,
   avancarEtapaSchema,
@@ -77,7 +82,8 @@ export async function criarOrdemSvoController(req: Request, res: Response) {
 export async function avancarEtapaColetaSvoController(req: Request, res: Response) {
   const id = validarId(req.params.id as string | undefined);
   const { status } = validar(avancarEtapaSchema, req.body ?? {});
-  return res.json(await avancarEtapaColetaSvo(id, status, usuarioAutenticado(res).id));
+  const usuario = usuarioAutenticado(res);
+  return res.json(await avancarEtapaColetaSvo(id, status, usuario.id, usuario.perfis));
 }
 
 export async function cancelarOrdemSvoController(req: Request, res: Response) {
@@ -111,4 +117,26 @@ export async function listarViaturasSvoController(_req: Request, res: Response) 
 
 export async function listarMotoristasSvoController(_req: Request, res: Response) {
   return res.json(await listarMotoristasSvoDisponiveis());
+}
+
+export async function listarMinhasOrdensSvoController(req: Request, res: Response) {
+  return res.json(
+    await listarMinhasOrdensSvo(
+      usuarioAutenticado(res).id,
+      validar(listarMinhasOrdensSvoSchema, req.query),
+    ),
+  );
+}
+
+export async function remanejarOrdemSvoController(req: Request, res: Response) {
+  return res.json(
+    await remanejarOrdemColetaSvo(
+      validarId(req.params.id as string),
+      validar(remanejarOrdemSchema, req.body ?? {}),
+      usuarioAutenticado(res).id,
+    ),
+  );
+}
+export async function listarRemanejamentosSvoController(req: Request, res: Response) {
+  return res.json(await listarRemanejamentosSvo(validarId(req.params.id as string)));
 }

@@ -7,6 +7,7 @@ import { signTestToken } from "../../helpers/auth";
 const mocks = vi.hoisted(() => {
   const tx = {
     usuario: { create: vi.fn(), update: vi.fn() },
+    motorista: { updateMany: vi.fn() },
     usuarioPerfil: { deleteMany: vi.fn(), createMany: vi.fn() },
     authSessao: { deleteMany: vi.fn() },
   };
@@ -168,6 +169,17 @@ describe("CRUD de usuários", () => {
       dados: { id: usuarioId, email: "ana@example.test", telefone: "(79) 99999-1234" },
     });
     expect(mocks.create).toHaveBeenCalled();
+  });
+
+  it("rejeita criar usuário com perfil MOTORISTA pela gestão genérica", async () => {
+    const resposta = await chamar("POST", "", { ...entrada, perfis: ["MOTORISTA"] });
+    expect(resposta).toMatchObject({
+      status: 400,
+      body: {
+        message: "O perfil MOTORISTA deve ser atribuído pelo cadastro da Gestão de Motoristas.",
+      },
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("valida campos obrigatórios no cadastro", async () => {

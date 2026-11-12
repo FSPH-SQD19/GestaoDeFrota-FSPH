@@ -27,8 +27,8 @@ export const listarManutencoesSchema = z
     dataInicio: dataSchema.optional(),
     dataFim: dataSchema.optional(),
     status: z
-      .enum([MANUTENCAO_ABERTA, MANUTENCAO_CONCLUIDA], {
-        error: "Selecione manutenções abertas ou concluídas.",
+      .enum([MANUTENCAO_ABERTA, MANUTENCAO_CONCLUIDA, "PROGRAMADA", "CANCELADA"], {
+        error: "Selecione uma situação de manutenção válida.",
       })
       .optional(),
   })
@@ -108,15 +108,21 @@ export async function listarManutencoes(filtros: ListarManutencoesFiltros) {
   };
 }
 
-async function bloquearVeiculo(tx: Prisma.TransactionClient, veiculoId: string) {
+export async function bloquearVeiculo(tx: Prisma.TransactionClient, veiculoId: string) {
   // Compartilha a trava com a aprovação de solicitações para o mesmo veículo.
   await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${`veiculo:${veiculoId}`}, 0))`;
   await tx.$queryRaw`SELECT id FROM veiculos WHERE id = ${veiculoId}::uuid FOR UPDATE`;
 }
 
-async function transacionar<T>(operacao: (tx: Prisma.TransactionClient) => Promise<T>) {
+export async function transacionarManutencao<T>(
+  operacao: (tx: Prisma.TransactionClient) => Promise<T>,
+) {
   try {
-    return await prisma.$transaction(operacao, { maxWait: 5000, timeout: 15000 });
+    return await prisma.$transaction(operacao, {
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      maxWait: 5000,
+      timeout: 15000,
+    });
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -129,7 +135,7 @@ async function transacionar<T>(operacao: (tx: Prisma.TransactionClient) => Promi
 }
 
 export async function criarManutencao(input: CriarManutencaoInput, usuarioId: string) {
-  const manutencao = await transacionar(async (tx) => {
+  const manutencao = await transacionarManutencao(async (tx) => {
     await bloquearVeiculo(tx, input.veiculoId);
     const veiculo = await tx.veiculo.findUnique({
       where: { id: input.veiculoId },
@@ -194,7 +200,7 @@ export async function concluirManutencao(id: string, usuarioId: string) {
   });
   if (!manutencao) throw new HttpError(404, "Manutenção não encontrada.");
 
-  return transacionar(async (tx) => {
+  return transacionarManutencao(async (tx) => {
     await bloquearVeiculo(tx, manutencao.veiculoId);
     const alteracao = await tx.manutencao.updateMany({
       where: { id, status: MANUTENCAO_ABERTA },

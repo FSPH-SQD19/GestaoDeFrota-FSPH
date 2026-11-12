@@ -139,9 +139,9 @@ const ConteudoMinhaContaModal: React.FC<ConteudoProps> = ({ usuario, onClose }) 
     >
       <div className="space-y-5">
         {/* Resumo do Perfil */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
               {inicial}
             </div>
             <div className="min-w-0 flex-1">
@@ -153,13 +153,13 @@ const ConteudoMinhaContaModal: React.FC<ConteudoProps> = ({ usuario, onClose }) 
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200/70 pt-2.5">
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200/80 pt-2.5">
             <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 mr-1">
               <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
               Perfis:
             </span>
             {usuario.roles.map((role) => (
-              <Badge key={role} variant="info">
+              <Badge key={role} variant="neutral" size="sm">
                 {ROTULOS_PERFIL[role] || role}
               </Badge>
             ))}
@@ -228,7 +228,7 @@ const ConteudoMinhaContaModal: React.FC<ConteudoProps> = ({ usuario, onClose }) 
           {erroGeral && (
             <p
               role="alert"
-              className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-700"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-800"
             >
               {erroGeral}
             </p>
@@ -237,9 +237,9 @@ const ConteudoMinhaContaModal: React.FC<ConteudoProps> = ({ usuario, onClose }) 
           {mensagemSucesso && (
             <div
               role="status"
-              className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-800"
+              className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-800"
             >
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
               <span>{mensagemSucesso}</span>
             </div>
           )}

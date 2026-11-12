@@ -1,4 +1,4 @@
-import type { Notificacao } from "@prisma/client";
+import { Prisma, type Notificacao } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { type UsuarioAutenticado } from "../middleware/http_m";
@@ -20,10 +20,14 @@ export { invalidarCacheSincronizacaoNotificacoes };
 export const TIPOS_NOTIFICACAO = [
   "SOLICITACAO_URGENTE",
   "VIAGEM_APROVADA",
+  "VIAGEM_REAGENDADA",
   "VIAGEM_RECUSADA",
+  "VIAGEM_CANCELADA",
   "CNH_VENCENDO",
   "DOCUMENTO_VEICULO_VENCENDO",
   "SVO_DESINFECCAO_CONCLUIDA",
+  "REVISAO_PREVENTIVA_PROXIMA",
+  "REVISAO_PREVENTIVA_VENCIDA",
 ] as const;
 
 export type TipoNotificacao = (typeof TIPOS_NOTIFICACAO)[number];
@@ -140,8 +144,11 @@ export function serializarNotificacao(registro: Notificacao): NotificacaoRespost
   };
 }
 
-async function listarIdsUsuariosAtivosPorPerfis(perfis: readonly string[]): Promise<string[]> {
-  const usuarios = await prisma.usuario.findMany({
+async function listarIdsUsuariosAtivosPorPerfis(
+  perfis: readonly string[],
+  tx: Prisma.TransactionClient = prisma,
+): Promise<string[]> {
+  const usuarios = await tx.usuario.findMany({
     where: {
       ativo: true,
       perfis: {
@@ -157,10 +164,13 @@ async function listarIdsUsuariosAtivosPorPerfis(perfis: readonly string[]): Prom
   return usuarios.map((u) => u.id);
 }
 
-async function criarNotificacoesEmLote(itens: NovaNotificacaoInput[]): Promise<void> {
+async function criarNotificacoesEmLote(
+  itens: NovaNotificacaoInput[],
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
   if (itens.length === 0) return;
 
-  await prisma.notificacao.createMany({
+  await tx.notificacao.createMany({
     data: itens.map((item) => ({
       usuarioId: item.usuarioId,
       tipo: item.tipo,
@@ -693,6 +703,53 @@ export async function notificarSolicitacaoRecusada(dados: {
   }
 }
 
+export async function notificarSolicitacaoCancelada(dados: {
+  id: string;
+  protocolo: string;
+  solicitanteId: string;
+  motivoCancelamento: string;
+  canceladoPorId: string;
+  motoristaUsuarioId?: string | null;
+  destino?: string | null;
+}): Promise<void> {
+  invalidarCacheSincronizacaoNotificacoes();
+
+  try {
+    const itens: NovaNotificacaoInput[] = [];
+
+    if (dados.solicitanteId && dados.canceladoPorId !== dados.solicitanteId) {
+      itens.push({
+        usuarioId: dados.solicitanteId,
+        tipo: "VIAGEM_CANCELADA",
+        titulo: `Viagem ${dados.protocolo} cancelada`,
+        mensagem: `Sua solicitação ${dados.protocolo} foi cancelada pela gestão. Motivo: ${dados.motivoCancelamento}`,
+        referenciaTipo: "SOLICITACAO_VIAGEM",
+        referenciaId: dados.id,
+        chaveUnica: `canc-sol:${dados.id}:${dados.solicitanteId}`,
+      });
+    }
+
+    if (dados.motoristaUsuarioId && dados.motoristaUsuarioId !== dados.canceladoPorId) {
+      const destinoTexto = dados.destino ? ` para ${dados.destino}` : "";
+      itens.push({
+        usuarioId: dados.motoristaUsuarioId,
+        tipo: "VIAGEM_CANCELADA",
+        titulo: `Viagem ${dados.protocolo} cancelada`,
+        mensagem: `A viagem ${dados.protocolo}${destinoTexto} foi cancelada. Motivo: ${dados.motivoCancelamento}`,
+        referenciaTipo: "SOLICITACAO_VIAGEM",
+        referenciaId: dados.id,
+        chaveUnica: `canc-mot:${dados.id}:${dados.motoristaUsuarioId}`,
+      });
+    }
+
+    if (itens.length > 0) {
+      await registrarNotificacoesEmLote(itens);
+    }
+  } catch (erro) {
+    console.error("Falha ao notificar cancelamento da solicitação:", dados.id, erro);
+  }
+}
+
 export async function notificarViaturaSvoLiberada(dados: {
   veiculoId: string;
   placa: string;
@@ -724,4 +781,38 @@ export async function notificarViaturaSvoLiberada(dados: {
   } catch (erro) {
     console.error("Falha ao notificar liberação de viatura SVO:", dados.veiculoId, erro);
   }
+}
+
+/** Persiste o alerta na mesma transação que atualiza o odômetro. */
+export async function notificarRevisaoPreventiva(
+  tx: Prisma.TransactionClient,
+  veiculo: { id: string; placa: string; kmProximaRevisao: Prisma.Decimal | null },
+  odometroAtual: Prisma.Decimal | number,
+) {
+  if (veiculo.kmProximaRevisao == null) return;
+  const limite = new Prisma.Decimal(veiculo.kmProximaRevisao);
+  if (limite.lte(0)) return;
+  const odometro = new Prisma.Decimal(odometroAtual);
+  if (odometro.times(10).lt(limite.times(9))) return;
+
+  const nivel = odometro.gte(limite) ? 100 : 90;
+  const destinatarios = await listarIdsUsuariosAtivosPorPerfis(["ADMIN", "GESTOR"], tx);
+  const numero = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+  const kmAtual = numero.format(odometro.toNumber());
+  const kmLimite = numero.format(limite.toNumber());
+  await criarNotificacoesEmLote(
+    destinatarios.map((usuarioId) => ({
+      usuarioId,
+      tipo: nivel === 100 ? "REVISAO_PREVENTIVA_VENCIDA" : "REVISAO_PREVENTIVA_PROXIMA",
+      titulo: `Revisão preventiva ${nivel === 100 ? "atingida" : "próxima"} — ${veiculo.placa}`,
+      mensagem:
+        nivel === 100
+          ? `O veículo ${veiculo.placa} está com ${kmAtual} km e atingiu o limite de ${kmLimite} km da próxima revisão preventiva.`
+          : `O veículo ${veiculo.placa} está com ${kmAtual} km e atingiu pelo menos 90% do limite de ${kmLimite} km da próxima revisão preventiva.`,
+      referenciaTipo: "VEICULO",
+      referenciaId: veiculo.id,
+      chaveUnica: `rev:${veiculo.id}:${limite.toFixed(2)}:${nivel}:${usuarioId}`,
+    })),
+    tx,
+  );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAtualizacaoAutomatica } from "../../lib/useAtualizacaoAutomatica";
 import {
   obterChamadosSvo,
   obterEscalasEmAndamentoSvo,
@@ -23,9 +24,12 @@ const INDICADORES_VAZIOS: IndicadoresSvo = {
   coletasEmAndamento: 0,
   viaturasDisponiveis: 0,
   totalViaturas: 0,
+  tempoMedioChegadaLocalMinutos: null,
+  tempoMedioEntregaSvoMinutos: null,
 };
 
 export function useSvoDados() {
+  const revisaoAutomatica = useAtualizacaoAutomatica();
   const [recursos, setRecursos] = useState({
     indicadores: INDICADORES_VAZIOS,
     viaturas: [] as ViaturaSvo[],
@@ -92,7 +96,7 @@ export function useSvoDados() {
     return () => {
       cancelado = true;
     };
-  }, [etapa, busca, page, reloadTick]);
+  }, [etapa, busca, page, reloadTick, revisaoAutomatica]);
 
   // Carrega indicadores, viaturas SVO e motoristas disponíveis
   useEffect(() => {
@@ -114,7 +118,7 @@ export function useSvoDados() {
     return () => {
       cancelado = true;
     };
-  }, [reloadTick]);
+  }, [reloadTick, revisaoAutomatica]);
 
   useEffect(() => {
     let cancelado = false;

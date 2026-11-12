@@ -96,7 +96,10 @@ describe("alertas de documentos da frota", () => {
     expect(alertas).toHaveLength(3);
     // Não filtrar a data no banco: um documento antigo vencido pode já ter sido renovado.
     expect(mocks.documentoFindMany).toHaveBeenCalledWith({
-      where: { veiculo: { ativo: true }, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO"] } },
+      where: {
+        veiculo: { ativo: true },
+        tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] },
+      },
       distinct: ["veiculoId", "tipoDocumento"],
       orderBy: [
         { veiculoId: "asc" },
@@ -151,6 +154,15 @@ describe("criarDocumentoVeiculoSchema", () => {
     ).toEqual({ tipoDocumento: "CRLV", dataVencimento: "2027-03-31" });
   });
 
+  it("aceita o tipo VISTORIA", () => {
+    expect(
+      validar(criarDocumentoVeiculoSchema, {
+        tipoDocumento: "VISTORIA",
+        dataVencimento: "2027-05-10",
+      }),
+    ).toEqual({ tipoDocumento: "VISTORIA", dataVencimento: "2027-05-10" });
+  });
+
   it.each([
     [{}, ["tipoDocumento", "dataVencimento"]],
     [{ tipoDocumento: "CNH", dataVencimento: "2027-03-31" }, ["tipoDocumento"]],
@@ -195,7 +207,7 @@ describe("listarDocumentosVeiculo", () => {
       resumo: {
         situacaoGeral: null,
         bloqueiaAlocacao: false,
-        tiposSemRegistro: ["CRLV", "IPVA", "SEGURO"],
+        tiposSemRegistro: ["CRLV", "IPVA", "SEGURO", "VISTORIA"],
       },
     });
   });
@@ -245,7 +257,7 @@ describe("listarDocumentosVeiculo", () => {
     expect(resultado.resumo).toEqual({
       situacaoGeral: "PROXIMO_VENCIMENTO",
       bloqueiaAlocacao: false,
-      tiposSemRegistro: ["IPVA"],
+      tiposSemRegistro: ["IPVA", "VISTORIA"],
     });
   });
 
@@ -354,7 +366,7 @@ describe("exigirDocumentosEmDia", () => {
 
     await expect(exigirDocumentosEmDia(tx, veiculoId, "2026-11-10")).resolves.toBeUndefined();
     expect(findMany).toHaveBeenCalledWith({
-      where: { veiculoId, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO"] } },
+      where: { veiculoId, tipoDocumento: { in: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] } },
       select: { tipoDocumento: true, dataVencimento: true },
     });
   });
@@ -367,6 +379,18 @@ describe("exigirDocumentosEmDia", () => {
     expect(erro.statusCode).toBe(422);
     expect(erro.message).toBe("Documentação do veículo vencida durante o período da viagem.");
     expect(erro.errors).toEqual([{ campo: "veiculoId", mensagem: "CRLV vencido em 30/10/2026." }]);
+  });
+
+  it("bloqueia vistoria vencida", async () => {
+    const { tx } = txCom([documento("a", "VISTORIA", "2026-10-30")]);
+
+    const erro = await erroDe(exigirDocumentosEmDia(tx, veiculoId, "2026-11-10"));
+
+    expect(erro.statusCode).toBe(422);
+    expect(erro.message).toBe("Documentação do veículo vencida durante o período da viagem.");
+    expect(erro.errors).toEqual([
+      { campo: "veiculoId", mensagem: "VISTORIA vencido em 30/10/2026." },
+    ]);
   });
 
   it("bloqueia documento que vence antes do retorno da viagem", async () => {

@@ -63,18 +63,21 @@ export async function atualizarMotoristaController(req: Request, res: Response) 
     throw new HttpError(400, "Não foi possível identificar o motorista. Selecione-o novamente.");
   }
 
-  const { validadeCnh, ativo } = req.body ?? {};
+  const { nome, email, telefone, validadeCnh, ativo } = req.body ?? {};
 
   if (
+    (nome !== undefined && typeof nome !== "string") ||
+    (email !== undefined && typeof email !== "string") ||
+    (telefone !== undefined && telefone !== null && typeof telefone !== "string") ||
     (validadeCnh !== undefined && typeof validadeCnh !== "string") ||
     (ativo !== undefined && typeof ativo !== "boolean")
   ) {
-    throw new HttpError(400, "Confira a validade da CNH e a opção de motorista ativo.");
+    throw new HttpError(400, "Confira os dados do motorista.");
   }
 
   const motorista = await atualizarMotorista(
     id,
-    { validadeCnh, ativo },
+    { nome, email, telefone, validadeCnh, ativo },
     usuarioAutenticado(res).id,
   );
 
