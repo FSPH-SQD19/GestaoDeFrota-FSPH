@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../helpers/auth";
@@ -136,6 +136,35 @@ function renderSvoPage() {
 describe("SvoPage (integrada à API real)", () => {
   let dbChamados: ChamadoSvo[];
   let dbViaturas: ViaturaSvo[];
+
+  it("atualiza fila e médias automaticamente após uma coleta registrada no celular", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval"] });
+    try {
+      renderSvoPage();
+      await screen.findByText("Antônio Pereira");
+      dbChamados = dbChamados.filter((chamado) => chamado.id !== "cham-01");
+      svosMocks.obterIndicadoresSvo.mockResolvedValueOnce({
+        total: 1,
+        emAnalise: 0,
+        aguardandoOrdem: 1,
+        aprovados: 1,
+        recusados: 0,
+        coletasEmAndamento: 0,
+        viaturasDisponiveis: 1,
+        totalViaturas: 2,
+        tempoMedioChegadaLocalMinutos: 30,
+        tempoMedioEntregaSvoMinutos: 90,
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      expect(screen.queryByText("Antônio Pereira")).not.toBeInTheDocument();
+      expect(screen.getByText("30 min")).toBeInTheDocument();
+      expect(screen.getByText("1 h 30 min")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   beforeEach(() => {
     dbChamados = structuredClone(CHAMADOS_BASE);

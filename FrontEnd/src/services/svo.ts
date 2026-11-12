@@ -54,7 +54,7 @@ export interface MinhaColetaSvo extends OrdemColetaSvo {
     numeroProtocolo: string | null;
     nomeFalecido: string | null;
     enderecoOcorrencia: string | null;
-    criadoEm: string;
+    criadoEm: string | null;
     statusTriagem: StatusTriagem;
   };
 }
@@ -299,7 +299,7 @@ const minhaColetaSvoSchema = ordemColetaSvoSchema
         numeroProtocolo: z.string().nullable(),
         nomeFalecido: z.string().nullable(),
         enderecoOcorrencia: z.string().nullable(),
-        criadoEm: z.iso.datetime({ offset: true }),
+        criadoEm: z.iso.datetime({ offset: true }).nullable(),
         statusTriagem: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]),
       })
       .passthrough(),
@@ -315,11 +315,23 @@ const paginaMinhasColetasSvoSchema = paginaSvoSchema(minhaColetaSvoSchema);
 const STATUS_COLETA_ATIVA = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"];
 
 export async function obterMinhasColetasSvo(): Promise<MinhaColetaSvo[]> {
-  const { data } = await api.get<unknown>(`${BASE}/ordens-coleta/minhas`, {
-    params: { page: 1, pageSize: 100 },
-  });
-  const pagina = validarRespostaSvo(paginaMinhasColetasSvoSchema, data, "minhas-coletas");
-  return pagina.data.filter((ordem) => STATUS_COLETA_ATIVA.includes(ordem.status));
+  const consultar = async (page: number) => {
+    const { data } = await api.get<unknown>(`${BASE}/ordens-coleta/minhas`, {
+      params: { page, pageSize: 100, ativas: "true" },
+    });
+    const pagina = validarRespostaSvo(paginaMinhasColetasSvoSchema, data, "minhas-coletas");
+    if (pagina.meta.page !== page || pagina.meta.pageSize !== 100) {
+      throw new Error("Não foi possível carregar todas as coletas SVO. Tente novamente.");
+    }
+    return pagina;
+  };
+  const primeira = await consultar(1);
+  const ordens = new Map(primeira.data.map((ordem) => [ordem.id, ordem]));
+  for (let page = 2; page <= primeira.meta.totalPages; page += 1) {
+    const pagina = await consultar(page);
+    for (const ordem of pagina.data) ordens.set(ordem.id, ordem);
+  }
+  return [...ordens.values()].filter((ordem) => STATUS_COLETA_ATIVA.includes(ordem.status));
 }
 
 export async function obterChamadosSvo(params?: {

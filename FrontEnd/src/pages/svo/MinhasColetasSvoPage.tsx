@@ -54,7 +54,10 @@ export function MinhasColetasSvoPage() {
 
   useEffect(() => {
     let ativa = true;
+    let emVoo = false;
     const carregar = (silencioso: boolean) => {
+      if (emVoo) return;
+      emVoo = true;
       void obterMinhasColetasSvo()
         .then((resposta) => {
           if (ativa) setResultado({ sessionKey, revisao, coletas: resposta, erro: "" });
@@ -67,6 +70,9 @@ export function MinhasColetasSvoPage() {
             coletas: null,
             erro: extrairErroSvo(error, "Não foi possível carregar suas coletas SVO."),
           });
+        })
+        .finally(() => {
+          emVoo = false;
         });
     };
     carregar(false);
@@ -85,7 +91,7 @@ export function MinhasColetasSvoPage() {
   }, [sessionKey, revisao]);
 
   const avancar = async (ordem: MinhaColetaSvo) => {
-    if (processandoId) return;
+    if (processandoId || aguardando) return;
     const proxima = proximaEtapaColeta(ordem.status);
     if (!proxima) return;
     setProcessandoId(ordem.id);
@@ -221,7 +227,7 @@ export function MinhasColetasSvoPage() {
                   <Button
                     type="button"
                     className="min-h-11 w-full"
-                    disabled={!!processandoId}
+                    disabled={!!processandoId || aguardando}
                     onClick={() => void avancar(ordem)}
                   >
                     {processando ? "Registrando..." : proxima.label}
