@@ -33,6 +33,15 @@ afterAll(async () => {
 });
 async function fixture(tipo: "SVO" | "ADMINISTRATIVA" = "ADMINISTRATIVA") {
   const key = randomUUID().replaceAll("-", "");
+  const letrasPlaca = Array.from({ length: 3 }, (_, index) =>
+    String.fromCharCode(65 + (Number.parseInt(key.slice(index * 2, index * 2 + 2), 16) % 26)),
+  ).join("");
+  const digitoPlaca = Number.parseInt(key.slice(6, 7), 16) % 10;
+  const caracterePlaca = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(
+    Number.parseInt(key.slice(7, 9), 16) % 36,
+  );
+  const sufixoPlaca = String(Number.parseInt(key.slice(9, 13), 16) % 100).padStart(2, "0");
+  const placa = `${letrasPlaca}${digitoPlaca}${caracterePlaca}${sufixoPlaca}`;
   const user = await prisma.usuario.create({
     data: { nome: "Integração", email: `${key}@test.invalid`, senhaHash: "synthetic" },
   });
@@ -46,7 +55,7 @@ async function fixture(tipo: "SVO" | "ADMINISTRATIVA" = "ADMINISTRATIVA") {
   });
   const veiculo = await prisma.veiculo.create({
     data: {
-      placa: key.slice(0, 8),
+      placa,
       modelo: "Integração",
       tipoFrota: tipo,
       capacidadeMaxima: 4,
