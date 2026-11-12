@@ -467,6 +467,12 @@ for (const cancelar of [false, true]) {
         motorista.status = "DISPONIVEL";
         return route.fulfill({ json: chamado.ordemColeta });
       }
+      if (
+        caminho === "/api/v1/svo/ordens-coleta/ordem-teste/remanejamentos" &&
+        request.method() === "GET"
+      ) {
+        return route.fulfill({ json: [] });
+      }
       if (caminho.endsWith("/desinfeccao")) {
         acoes.push("desinfetar");
         viatura.status = "DISPONIVEL";
@@ -522,6 +528,8 @@ for (const cancelar of [false, true]) {
       await expect(page.getByText("03/11/2026, 08:00", { exact: true })).toBeVisible();
       await expect(page.getByText("03/11/2026, 08:30", { exact: true })).toBeVisible();
       await expect(page.getByText("03/11/2026, 09:30", { exact: true })).toBeVisible();
+      await expect(page.getByText("Histórico de remanejamentos", { exact: true })).toBeVisible();
+      await expect(page.getByText("Nenhuma troca registrada.", { exact: true })).toBeVisible();
       await page
         .getByRole("button", { name: "Fechar", exact: true })
         .filter({ hasText: "Fechar" })

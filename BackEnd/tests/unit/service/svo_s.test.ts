@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   motoristaFindUnique: vi.fn(),
   motoristaUpdate: vi.fn(),
   motoristaUpdateMany: vi.fn(),
+  viagemFindFirst: vi.fn(),
+  desinfeccaoCount: vi.fn(),
   desinfeccaoCreate: vi.fn(),
   desinfeccaoUpdateMany: vi.fn(),
   auditoriaFindMany: vi.fn(),
@@ -77,6 +79,8 @@ vi.mock("../../../src/lib/prisma", () => ({
 }));
 
 import {
+  remanejarOrdemColetaSvo,
+  remanejarOrdemSchema,
   avancarEtapaColetaSvo,
   cancelarOrdemColetaSvo,
   concluirColetaSvo,
@@ -114,6 +118,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
           updateMany: mocks.chamadoUpdateMany,
         },
         ordemColetaSvo: {
+          findUnique: mocks.ordemFindUnique,
           count: mocks.ordemCount,
           findMany: mocks.ordemFindMany,
           findFirst: mocks.ordemFindFirst,
@@ -130,7 +135,9 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
           update: mocks.motoristaUpdate,
           updateMany: mocks.motoristaUpdateMany,
         },
+        solicitacaoViagem: { findFirst: mocks.viagemFindFirst },
         desinfeccaoSvo: {
+          count: mocks.desinfeccaoCount,
           create: mocks.desinfeccaoCreate,
           updateMany: mocks.desinfeccaoUpdateMany,
         },
@@ -139,6 +146,112 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
         },
       }),
     );
+  });
+
+  describe("remanejamento", () => {
+    const destino = "00000000-0000-4000-8000-000000000021";
+    const input = { veiculoId: destino, motivo: "Pane na viatura" };
+    beforeEach(() => {
+      mocks.ordemFindUnique.mockResolvedValue({
+        id: "ordem",
+        chamadoId,
+        veiculoId,
+        motoristaId,
+        status: "NO_LOCAL",
+        veiculo: { placa: "ANTIGA" },
+        motorista: { usuario: { nome: "Condutor" } },
+      });
+      mocks.veiculoFindUnique.mockResolvedValue({
+        id: destino,
+        tipoFrota: "SVO",
+        ativo: true,
+        status: "DISPONIVEL",
+        capacidadeMaxima: 2,
+        placa: "NOVA",
+      });
+      mocks.motoristaFindUnique.mockResolvedValue({
+        id: motoristaId,
+        ativo: true,
+        status: "OCUPADO",
+        validadeCnh: new Date("2099-01-01"),
+        usuario: { nome: "Condutor" },
+      });
+      mocks.ordemFindMany.mockResolvedValue([]);
+      mocks.ordemCount.mockResolvedValue(0);
+      mocks.ordemUpdate.mockResolvedValue({
+        id: "ordem",
+        veiculoId: destino,
+        motoristaId,
+        status: "NO_LOCAL",
+      });
+    });
+    it("exige motivo e algum recurso", () => {
+      expect(remanejarOrdemSchema.safeParse({ ...input, motivo: " " }).success).toBe(false);
+      expect(remanejarOrdemSchema.safeParse({ motivo: "Pane" }).success).toBe(false);
+    });
+    it("troca apenas alocação e registra os recursos anteriores", async () => {
+      await remanejarOrdemColetaSvo("ordem", input, usuarioId);
+      expect(mocks.ordemUpdate).toHaveBeenCalledWith({
+        where: { id: "ordem" },
+        data: { veiculoId: destino, motoristaId },
+      });
+      expect(mocks.desinfeccaoCreate).toHaveBeenCalled();
+      expect(mocks.auditoriaCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            usuarioId,
+            acao: "REMANEJAR_ORDEM",
+            dadosNovos: expect.objectContaining({
+              motivo: input.motivo,
+              anterior: expect.objectContaining({ veiculoId }),
+            }),
+          }),
+        }),
+      );
+    });
+    it.each(["AGUARDANDO_DESPACHO", "ENTREGUE_SVO", "CANCELADA"])(
+      "rejeita etapa %s",
+      async (status) => {
+        mocks.ordemFindUnique.mockResolvedValue({ chamadoId, veiculoId, motoristaId, status });
+        await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+          "Remanejamento permitido",
+        );
+        expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+      },
+    );
+    it("rejeita desinfecção sem alterar alocação", async () => {
+      mocks.veiculoFindUnique.mockResolvedValue({
+        ativo: true,
+        tipoFrota: "SVO",
+        status: "DESINFECCAO",
+      });
+      await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+        "desinfecção",
+      );
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+    });
+    it("respeita capacidade e as demais ordens", async () => {
+      mocks.ordemFindMany.mockResolvedValue([
+        { veiculoId: destino, motoristaId },
+        { veiculoId: destino, motoristaId },
+      ]);
+      await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+        "Capacidade",
+      );
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+    });
+    it("preserva ocupação da viatura de origem se há outras ordens", async () => {
+      mocks.ordemCount.mockResolvedValue(1);
+      await remanejarOrdemColetaSvo("ordem", input, usuarioId);
+      expect(mocks.desinfeccaoCreate).not.toHaveBeenCalled();
+    });
+    it("impede condutor em outra viatura", async () => {
+      mocks.ordemFindMany.mockResolvedValue([{ veiculoId, motoristaId }]);
+      await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+        "Condutor indisponível",
+      );
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+    });
   });
 
   it("valida schema de criação e exige justificativa ao recusar triagem", () => {

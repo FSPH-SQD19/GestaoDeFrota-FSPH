@@ -4,6 +4,9 @@ import { z } from "zod";
 import { usuarioAutenticado } from "../middleware/http_m";
 import { HttpError } from "../lib/http_error";
 import {
+  remanejarOrdemSchema,
+  remanejarOrdemColetaSvo,
+  listarRemanejamentosSvo,
   listarMinhasOrdensSvo,
   listarMinhasOrdensSvoSchema,
   criarChamadoSchema,
@@ -123,4 +126,17 @@ export async function listarMinhasOrdensSvoController(req: Request, res: Respons
       validar(listarMinhasOrdensSvoSchema, req.query),
     ),
   );
+}
+
+export async function remanejarOrdemSvoController(req: Request, res: Response) {
+  return res.json(
+    await remanejarOrdemColetaSvo(
+      validarId(req.params.id as string),
+      validar(remanejarOrdemSchema, req.body ?? {}),
+      usuarioAutenticado(res).id,
+    ),
+  );
+}
+export async function listarRemanejamentosSvoController(req: Request, res: Response) {
+  return res.json(await listarRemanejamentosSvo(validarId(req.params.id as string)));
 }

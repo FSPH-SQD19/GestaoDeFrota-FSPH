@@ -231,6 +231,9 @@ export function SvoPage() {
       )}
       {modal === "DETALHE" && selecionado && (
         <DetalhesChamadoModal
+          viaturas={dados.viaturas}
+          motoristas={dados.motoristas}
+          onRemanejado={() => concluirFormulario("Recursos remanejados com sucesso.")}
           selecionado={selecionado}
           onClose={fecharModal}
           abrirTriagem={abrirTriagem}
