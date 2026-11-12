@@ -1,3 +1,4 @@
+import { SedeVeiculo, GerenciarSedes, type Sede } from "./SedeVeiculo";
 import React, { useEffect, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Table, Badge, Button, Input, Select, Modal, Card } from "../../components/common";
@@ -22,6 +23,10 @@ interface FornecedorApi {
 }
 
 interface VeiculoApi {
+  sedeId?: string | null;
+  foraDeSede?: boolean;
+  sedeAtualizadaEm?: string | null;
+  sede?: Sede | null;
   id: string;
   placa: string;
   modelo: string;
@@ -37,6 +42,10 @@ interface VeiculoApi {
 }
 
 interface VeiculoItem {
+  sedeId?: string | null;
+  foraDeSede?: boolean;
+  sedeAtualizadaEm?: string | null;
+  sede?: Sede | null;
   id: string;
   placa: string;
   modelo: string;
@@ -88,6 +97,10 @@ const statusLabel: Record<StatusVeiculoApi, VeiculoItem["status"]> = {
 
 function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
   return {
+    sedeId: veiculo.sedeId,
+    foraDeSede: veiculo.foraDeSede,
+    sedeAtualizadaEm: veiculo.sedeAtualizadaEm,
+    sede: veiculo.sede,
     id: veiculo.id,
     placa: veiculo.placa,
     modelo: veiculo.modelo,
@@ -103,7 +116,13 @@ function mapearVeiculo(veiculo: VeiculoApi): VeiculoItem {
 }
 
 export const VeiculosPage: React.FC = () => {
-  const { sessionKey } = useAuth();
+  const { sessionKey, user } = useAuth();
+  const [sedes, setSedes] = useState<Sede[]>([]);
+  const [erroSedes, setErroSedes] = useState("");
+  const [sedeCadastro, setSedeCadastro] = useState("");
+  const [filtroSede, setFiltroSede] = useState("");
+  const [veiculoSede, setVeiculoSede] = useState<VeiculoItem | null>(null);
+  const [gerenciarSedes, setGerenciarSedes] = useState(false);
   const [veiculoSelecionado, setVeiculoSelecionado] = useState<VeiculoItem | null>(null);
   const [veiculoProgramacao, setVeiculoProgramacao] = useState<VeiculoItem | null>(null);
   const [veiculoRevisao, setVeiculoRevisao] = useState<VeiculoItem | null>(null);
@@ -137,6 +156,7 @@ export const VeiculosPage: React.FC = () => {
     erro: string;
   } | null>(null);
   const params = new URLSearchParams({ page: String(consulta.page), pageSize: "10" });
+  if (filtroSede) params.set("sede", filtroSede);
   if (consulta.busca) params.set("busca", consulta.busca);
   if (consulta.tipoFrota) params.set("tipoFrota", consulta.tipoFrota);
   const caminho = `/veiculos?${params}`;
@@ -240,6 +260,23 @@ export const VeiculosPage: React.FC = () => {
     };
   }, [chaveResumo, sessionKey]);
 
+  useEffect(() => {
+    let ativo = true;
+    void apiRequest<{ data: Sede[] }>("/sedes", {})
+      .then((r) => {
+        if (ativo) {
+          setSedes(r.data);
+          setErroSedes("");
+        }
+      })
+      .catch((e) => {
+        if (ativo) setErroSedes(e.message);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [sessionKey, revisao]);
+
   const atualizarFormulario = <K extends keyof FormularioVeiculo>(
     campo: K,
     valor: FormularioVeiculo[K],
@@ -260,8 +297,13 @@ export const VeiculosPage: React.FC = () => {
     try {
       const response = await apiRequest<VeiculoApi>("/veiculos", {
         method: "POST",
-        data: validacao.data,
+        data: {
+          ...validacao.data,
+          sedeId: sedeCadastro && sedeCadastro !== "FORA_DE_SEDE" ? sedeCadastro : null,
+          foraDeSede: sedeCadastro === "FORA_DE_SEDE",
+        },
       });
+      setSedeCadastro("");
       setFormulario(formularioVazio);
       setIsModalOpen(false);
       setSearchTerm("");
@@ -286,6 +328,22 @@ export const VeiculosPage: React.FC = () => {
   };
 
   const columns: Column<VeiculoItem>[] = [
+    {
+      header: "Sede atual / Atualização",
+      render: (v) => (
+        <div>
+          <p>{v.foraDeSede ? "Fora de sede" : (v.sede?.nome ?? "Sede não informada")}</p>
+          <p>
+            {v.sedeAtualizadaEm
+              ? new Date(v.sedeAtualizadaEm).toLocaleString("pt-BR")
+              : "Sem registro"}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setVeiculoSede(v)}>
+            Detalhes / Editar sede
+          </Button>
+        </div>
+      ),
+    },
     {
       header: "Identificação / Placa",
       render: (veiculo) => (
@@ -510,6 +568,45 @@ export const VeiculosPage: React.FC = () => {
         </div>
       </div>
 
+      {erroSedes && <p role="alert">{erroSedes}</p>}
+      <Select
+        label="Filtrar por sede"
+        value={filtroSede}
+        onChange={(e) => {
+          setFiltroSede(e.target.value);
+          setConsulta((a) => ({ ...a, page: 1 }));
+        }}
+        options={[
+          { value: "", label: "Todas as sedes" },
+          { value: "SEM_SEDE", label: "Sede não informada" },
+          { value: "FORA_DE_SEDE", label: "Fora de sede" },
+          ...sedes.map((s) => ({ value: s.id, label: s.nome + (s.ativo ? "" : " (inativa)") })),
+        ]}
+      />
+      {user?.roles.includes("ADMIN") && (
+        <Button onClick={() => setGerenciarSedes(true)}>Gerenciar sedes</Button>
+      )}
+      <Modal
+        isOpen={veiculoSede !== null || gerenciarSedes}
+        onClose={() => {
+          setVeiculoSede(null);
+          setGerenciarSedes(false);
+        }}
+        title={veiculoSede ? `Sede do veículo ${veiculoSede.placa}` : "Gerenciar sedes"}
+      >
+        {veiculoSede ? (
+          <SedeVeiculo
+            key={veiculoSede.id}
+            veiculo={veiculoSede}
+            onAtualizado={() => {
+              recarregarVeiculos();
+              setVeiculoSede(null);
+            }}
+          />
+        ) : (
+          gerenciarSedes && <GerenciarSedes onAtualizado={recarregarVeiculos} />
+        )}
+      </Modal>
       <Table
         columns={columns}
         data={veiculos}
@@ -631,6 +728,16 @@ export const VeiculosPage: React.FC = () => {
           noValidate
         >
           <fieldset disabled={isSaving} className="space-y-4">
+            <Select
+              label="Sede atual"
+              value={sedeCadastro}
+              onChange={(e) => setSedeCadastro(e.target.value)}
+              options={[
+                { value: "", label: "Sede não informada" },
+                { value: "FORA_DE_SEDE", label: "Fora de sede" },
+                ...sedes.filter((s) => s.ativo).map((s) => ({ value: s.id, label: s.nome })),
+              ]}
+            />
             <Input
               label="Placa"
               placeholder="Ex.: BRA2E19"

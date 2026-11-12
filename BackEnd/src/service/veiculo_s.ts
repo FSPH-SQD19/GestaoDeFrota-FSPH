@@ -30,6 +30,8 @@ const placaSchema = z
 const anoMaximo = () => new Date().getFullYear() + 1;
 
 const camposVeiculo = {
+  sedeId: z.uuid().nullable().optional(),
+  foraDeSede: z.boolean().optional(),
   placa: placaSchema,
   modelo: z
     .string({ error: "Modelo é obrigatório." })
@@ -98,6 +100,7 @@ export const criarVeiculoSchema = z
   });
 
 export const listarVeiculosSchema = z.object({
+  sede: z.union([z.uuid(), z.enum(["SEM_SEDE", "FORA_DE_SEDE"])]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   tipoFrota: z.enum(TIPOS_FROTA).optional(),
@@ -134,6 +137,13 @@ export async function listarVeiculos(filtros: ListarVeiculosFiltros) {
 
   const where: Prisma.VeiculoWhereInput = {
     ativo,
+    ...(filtros.sede === "SEM_SEDE"
+      ? { sedeId: null, foraDeSede: false }
+      : filtros.sede === "FORA_DE_SEDE"
+        ? { foraDeSede: true }
+        : filtros.sede
+          ? { sedeId: filtros.sede }
+          : {}),
     ...(tipoFrota ? { tipoFrota } : {}),
     ...(status ? { status } : {}),
     ...(propriedade ? { propriedade } : {}),
@@ -151,6 +161,7 @@ export async function listarVeiculos(filtros: ListarVeiculosFiltros) {
   const [veiculos, total] = await Promise.all([
     prisma.veiculo.findMany({
       where,
+      include: { sede: true },
       orderBy: [{ placa: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -187,7 +198,18 @@ export async function criarVeiculo(input: CriarVeiculoInput, usuarioId: string) 
 
   let veiculo: Veiculo;
   try {
-    veiculo = await prisma.veiculo.create({ data: input });
+    veiculo =
+      input.sedeId || input.foraDeSede
+        ? await prisma.$transaction(async (tx) => {
+            await validarSede(tx, input.sedeId, input.foraDeSede);
+            const criado = await tx.veiculo.create({
+              data: { ...input, sedeAtualizadaEm: new Date() },
+              include: { sede: true },
+            });
+            await auditarSede(tx, criado, null, usuarioId);
+            return criado;
+          })
+        : await prisma.veiculo.create({ data: input });
   } catch (error) {
     // Caso tenha duas requisicoes com a mesma placa
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -290,10 +312,41 @@ export async function atualizarVeiculo(
   let veiculo: Veiculo;
 
   try {
-    veiculo = await prisma.veiculo.update({
-      where: { id },
-      data: dadosAtualizados,
-    });
+    veiculo =
+      input.sedeId !== undefined || input.foraDeSede !== undefined
+        ? await prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT id FROM veiculos WHERE id = ${id}::uuid FOR UPDATE`;
+            const anterior = await tx.veiculo.findUniqueOrThrow({
+              where: { id },
+              include: { sede: true },
+            });
+            const sedeId =
+              input.sedeId !== undefined
+                ? input.sedeId
+                : input.foraDeSede === true
+                  ? null
+                  : anterior.sedeId;
+            const foraDeSede = input.foraDeSede ?? (input.sedeId ? false : anterior.foraDeSede);
+            await validarSede(tx, sedeId, foraDeSede, anterior.sedeId);
+            const mudou = sedeId !== anterior.sedeId || foraDeSede !== anterior.foraDeSede;
+            const atualizado = await tx.veiculo.update({
+              where: { id },
+              data: {
+                ...dadosAtualizados,
+                sedeId,
+                foraDeSede,
+                ...(mudou ? { sedeAtualizadaEm: new Date() } : {}),
+              },
+              include: { sede: true },
+            });
+            if (mudou) await auditarSede(tx, atualizado, anterior, usuarioId);
+            return atualizado;
+          })
+        : await prisma.veiculo.update({
+            where: { id },
+            data: dadosAtualizados,
+            include: { sede: true },
+          });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw erroPlacaDuplicada();
@@ -319,4 +372,45 @@ export async function atualizarVeiculo(
     console.error("Falha ao registrar auditoria do veículo", veiculo.id, erro);
   }
   return resposta;
+}
+
+async function validarSede(
+  tx: Prisma.TransactionClient,
+  sedeId?: string | null,
+  foraDeSede?: boolean,
+  anterior?: string | null,
+) {
+  if (sedeId && foraDeSede)
+    throw new HttpError(422, "Um veículo fora de sede não pode ter uma sede selecionada.");
+  if (sedeId) {
+    const sede = await tx.sede.findUnique({ where: { id: sedeId } });
+    if (!sede || (!sede.ativo && sedeId !== anterior))
+      throw new HttpError(422, "Selecione uma sede ativa.");
+  }
+}
+async function auditarSede(
+  tx: Prisma.TransactionClient,
+  novo: Veiculo & { sede: { nome: string } | null },
+  anterior: (Veiculo & { sede: { nome: string } | null }) | null,
+  usuarioId: string,
+) {
+  const local = (v: typeof anterior) => ({
+    sedeId: v?.sedeId ?? null,
+    nome: v?.sede?.nome ?? null,
+    foraDeSede: v?.foraDeSede ?? false,
+  });
+  await tx.auditoriaSistema.create({
+    data: {
+      usuarioId,
+      acao: "ALTERAR_SEDE",
+      tabelaAfetada: "veiculos",
+      registroId: novo.id,
+      dadosNovos: {
+        veiculo: { id: novo.id, placa: novo.placa },
+        sedeAnterior: local(anterior),
+        novaSede: local(novo),
+        horario: novo.sedeAtualizadaEm!.toISOString(),
+      },
+    },
+  });
 }

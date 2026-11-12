@@ -227,6 +227,7 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
       },
     }),
   );
+  await page.route("**/api/v1/sedes", (route) => route.fulfill({ json: { data: [] } }));
   let consultas = 0;
   await page.route("**/api/v1/veiculos/veiculo-teste/documentos", (route) => {
     consultas++;
@@ -278,6 +279,9 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
   await page.getByRole("button", { name: "Veículos", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Gestão da Frota de Veículos" })).toBeVisible();
   await expect(page.getByText("Próprio", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("table").getByText("Sede não informada", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Ver documentos do veículo ABC1234" }).click();
   await expect(page.getByRole("alert")).toHaveText("Falha ao consultar documentos.");
   await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
