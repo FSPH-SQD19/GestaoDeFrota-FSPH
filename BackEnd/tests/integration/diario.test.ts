@@ -42,6 +42,9 @@ async function fixture(tipo: "SVO" | "ADMINISTRATIVA" = "ADMINISTRATIVA") {
   );
   const sufixoPlaca = String(Number.parseInt(key.slice(9, 13), 16) % 100).padStart(2, "0");
   const placa = `${letrasPlaca}${digitoPlaca}${caracterePlaca}${sufixoPlaca}`;
+  const protocolo = `SV-${new Date().getFullYear()}-${Number.parseInt(key.slice(0, 9), 16)
+    .toString()
+    .padStart(4, "0")}`;
   const user = await prisma.usuario.create({
     data: { nome: "Integração", email: `${key}@test.invalid`, senhaHash: "synthetic" },
   });
@@ -67,7 +70,7 @@ async function fixture(tipo: "SVO" | "ADMINISTRATIVA" = "ADMINISTRATIVA") {
   if (tipo === "ADMINISTRATIVA") {
     const solicitacao = await prisma.solicitacaoViagem.create({
       data: {
-        protocolo: key.slice(0, 20),
+        protocolo,
         solicitanteId: user.id,
         motoristaAlocadoId: motorista.id,
         veiculoAlocadoId: veiculo.id,
