@@ -84,6 +84,19 @@ function emTransito() {
   });
 }
 describe("execução de viagens", () => {
+  it.each([saida, retorno])(
+    "impede execução paralela ao diário quando o PWA está ativo",
+    async (dados) => {
+      vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+      await expect(executarViagem(id, id, dados)).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Use a área do motorista para iniciar ou concluir esta viagem.",
+      });
+      expect(tx.$queryRaw).not.toHaveBeenCalled();
+      expect(tx.execucaoViagem.create).not.toHaveBeenCalled();
+      expect(tx.execucaoViagem.update).not.toHaveBeenCalled();
+    },
+  );
   it("inicia e registra checklist, horário e status", async () => {
     expect(await executarViagem(id, id, saida)).toMatchObject({ status: "EM_TRANSITO" });
     expect(tx.execucaoViagem.create).toHaveBeenCalledWith({

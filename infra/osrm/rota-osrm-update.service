@@ -1,0 +1,11 @@
+[Unit]
+Description=Preparar candidato mensal do mapa OSRM ROTA
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=rota
+WorkingDirectory=/opt/rota/infra/osrm
+ExecStart=/usr/bin/bash /opt/rota/infra/osrm/prepare.sh
+TimeoutStartSec=2h

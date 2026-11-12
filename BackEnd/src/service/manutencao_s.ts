@@ -4,13 +4,13 @@ import { prisma } from "../lib/prisma";
 import { temNoMaximoDuasCasas, decimalParaNumero } from "./abastecimento_s";
 import { HttpError } from "../lib/http_error";
 
-export const TIPOS_MANUTENCAO = ["PREVENTIVA", "CORRETIVA"] as const;
+const TIPOS_MANUTENCAO = ["PREVENTIVA", "CORRETIVA"] as const;
 
 const STATUS_EM_MANUTENCAO = "MANUTENCAO";
 const STATUS_DISPONIVEL = "DISPONIVEL";
-export const MANUTENCAO_ABERTA = "ABERTA" as const;
-export const MANUTENCAO_CONCLUIDA = "CONCLUIDA" as const;
-export const TIPO_CORRETIVA = "CORRETIVA" as const;
+const MANUTENCAO_ABERTA = "ABERTA" as const;
+const MANUTENCAO_CONCLUIDA = "CONCLUIDA" as const;
+const TIPO_CORRETIVA = "CORRETIVA" as const;
 
 const dataSchema = z.union([z.iso.date(), z.iso.datetime({ offset: true })]).transform((valor) => {
   return new Date(`${valor.slice(0, 10)}T00:00:00.000Z`);
@@ -74,7 +74,7 @@ export type ManutencaoResposta = Omit<Manutencao, "odometroRegistro" | "custoTot
   custoTotal: number | null;
 };
 
-export function serializarManutencao(manutencao: Manutencao): ManutencaoResposta {
+function serializarManutencao(manutencao: Manutencao): ManutencaoResposta {
   return {
     ...manutencao,
     odometroRegistro: decimalParaNumero(manutencao.odometroRegistro),

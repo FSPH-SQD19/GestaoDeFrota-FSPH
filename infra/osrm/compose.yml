@@ -1,0 +1,18 @@
+services:
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    command: osrm-routed --algorithm mld /data/sergipe.osrm
+    volumes:
+      - ./data/current:/data:ro
+    restart: unless-stopped
+  gateway:
+    image: nginx:1.29-alpine
+    environment:
+      OSRM_TOKEN: ${OSRM_TOKEN:?Configure OSRM_TOKEN no ambiente do servidor}
+    ports:
+      - "127.0.0.1:5000:80"
+    volumes:
+      - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      - osrm
+    restart: unless-stopped

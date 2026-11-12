@@ -1,3 +1,5 @@
+import { diarioConfig } from "../config/diario";
+import { STATUS_ORDEM_ATIVA } from "./svo_status";
 import { Prisma } from "@prisma/client";
 import { exigirSemReservaPreventiva } from "./programacao_manutencao_s";
 import { z } from "zod";
@@ -13,8 +15,8 @@ import {
 export const aprovarSolicitacaoSchema = z.object({
   veiculoId: z.uuid(),
   motoristaId: z.uuid(),
-  dataHoraRetornoPrevista: z
-    .iso.datetime({ offset: true })
+  dataHoraRetornoPrevista: z.iso
+    .datetime({ offset: true })
     .transform((valor) => new Date(valor))
     .optional(),
 });
@@ -133,7 +135,8 @@ async function salvarAlocacao(
           throw new HttpError(422, "O reagendamento exige uma nova saída futura.");
         }
         const inicio = janela?.inicio ?? solicitacao.dataHoraPretendida;
-        const fim = janela?.fim ?? solicitacao.dataHoraRetornoPrevista ?? dados.dataHoraRetornoPrevista;
+        const fim =
+          janela?.fim ?? solicitacao.dataHoraRetornoPrevista ?? dados.dataHoraRetornoPrevista;
 
         if (!inicio || !fim || inicio >= fim) {
           throw new HttpError(422, "A solicitação precisa ter saída e retorno válidos.");
@@ -192,8 +195,18 @@ async function salvarAlocacao(
           throw new HttpError(409, "Veículo ou motorista já possui viagem neste horário.");
         }
 
-        await exigirSemReservaPreventiva(tx, veiculoId, inicio, fim);
+        if (
+          diarioConfig().enabled &&
+          ((await tx.ordemColetaSvo.findFirst({
+            where: { motoristaId, status: { in: [...STATUS_ORDEM_ATIVA] } },
+          })) ||
+            (await tx.saidaOperacional.findFirst({
+              where: { status: "EM_ANDAMENTO", OR: [{ motoristaId }, { veiculoId }] },
+            })))
+        )
+          throw new HttpError(409, "Motorista ou veículo já alocado em saída/SVO.");
 
+        await exigirSemReservaPreventiva(tx, veiculoId, inicio, fim);
         const alteracao = await tx.solicitacaoViagem.updateMany({
           where: {
             id,
@@ -205,7 +218,7 @@ async function salvarAlocacao(
             motoristaAlocadoId: motoristaId,
             motivoRecusa: null,
             ...(janela ? { dataHoraPretendida: inicio } : {}),
-            ...((janela || !solicitacao.dataHoraRetornoPrevista)
+            ...(janela || !solicitacao.dataHoraRetornoPrevista
               ? { dataHoraRetornoPrevista: fim }
               : {}),
           },

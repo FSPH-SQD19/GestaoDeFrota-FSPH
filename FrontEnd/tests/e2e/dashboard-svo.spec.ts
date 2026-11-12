@@ -562,6 +562,9 @@ test("motorista vê coletas SVO atribuídas e avança a etapa no celular", async
   const erros: string[] = [];
   page.on("pageerror", (erro) => erros.push(erro.message));
   await sessao(page, "MOTORISTA");
+  await page.route("**/api/v1/motorista/config", (route) =>
+    route.fulfill({ json: { enabled: false } }),
+  );
   const ordem = {
     id: "ordem-motorista",
     chamadoId: "chamado-motorista",

@@ -35,3 +35,5 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 - Ao mudar scripts, endpoints, variáveis ou arquivos, atualizar os guias e links afetados no mesmo PR.
 
 O [README da raiz](../README.md) é a entrada do repositório. Os detalhes do projeto ficam nesta pasta.
+
+- [PWA dos motoristas: operação, OSRM, offline e homologação](MOTORISTA_PWA.md)

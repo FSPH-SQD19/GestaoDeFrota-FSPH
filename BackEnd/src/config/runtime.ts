@@ -9,6 +9,9 @@ export type WorkerRuntime = {
   appOrigins?: string;
   issuer: string;
   audience: string;
+  driverPwaEnabled?: string;
+  osrmUrl?: string;
+  osrmToken?: string;
 };
 const requests = new AsyncLocalStorage<WorkerRuntime>();
 export const getWorkerRuntime = () => requests.getStore();

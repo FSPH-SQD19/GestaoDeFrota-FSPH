@@ -1,11 +1,12 @@
+import { diarioConfig } from "../config/diario";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 import { notificarViaturaSvoLiberada } from "./notificacao_s";
 
-export const STATUS_ORDEM_EM_COLETA = ["EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"] as const;
-export const STATUS_ORDEM_ATIVA = ["AGUARDANDO_DESPACHO", ...STATUS_ORDEM_EM_COLETA] as const;
+import { STATUS_ORDEM_ATIVA, STATUS_ORDEM_EM_COLETA } from "./svo_status";
+export { STATUS_ORDEM_ATIVA, STATUS_ORDEM_EM_COLETA } from "./svo_status";
 const PREFIXO_PROTOCOLO_SVO = "SVO";
 const FUSO_PROTOCOLO = "America/Maceio";
 
@@ -334,37 +335,6 @@ export async function indicadoresSvo() {
   };
 }
 
-const incluirMinhasColetas = {
-  chamado: {
-    select: {
-      id: true,
-      numeroProtocolo: true,
-      nomeFalecido: true,
-      enderecoOcorrencia: true,
-      criadoEm: true,
-      statusTriagem: true,
-    },
-  },
-  veiculo: {
-    select: {
-      id: true,
-      placa: true,
-      modelo: true,
-      status: true,
-      capacidadeMaxima: true,
-    },
-  },
-} satisfies Prisma.OrdemColetaSvoInclude;
-
-export async function listarMinhasColetasSvo(usuarioId: string) {
-  const motoristaId = await motoristaAtivoDoUsuario(usuarioId);
-  return prisma.ordemColetaSvo.findMany({
-    where: { motoristaId, status: { in: [...STATUS_ORDEM_ATIVA] } },
-    include: incluirMinhasColetas,
-    orderBy: [{ chamado: { criadoEm: "asc" } }, { id: "asc" }],
-  });
-}
-
 export async function listarChamadosSvo(filtros: z.infer<typeof listarChamadosSchema>) {
   const where = construirWhereChamados(filtros);
   const [registros, total] = await Promise.all([
@@ -610,6 +580,23 @@ export async function emitirOrdemColetaSvo(
       throw new HttpError(422, "CNH do motorista vencida.");
     }
 
+    if (diarioConfig().enabled) {
+      const ativa = await tx.saidaOperacional.findFirst({
+        where: {
+          status: "EM_ANDAMENTO",
+          OR: [{ motoristaId: motorista.id }, { veiculoId: veiculo.id }],
+        },
+      });
+      const conflito = await tx.solicitacaoViagem.findFirst({
+        where: {
+          motoristaAlocadoId: motorista.id,
+          status: { in: ["APROVADA", "EM_TRANSITO"] },
+          OR: [{ status: "EM_TRANSITO" }, { dataHoraRetornoPrevista: { gte: new Date() } }],
+        },
+      });
+      if (ativa || conflito)
+        throw new HttpError(409, "Recursos já alocados em saída ou viagem administrativa.");
+    }
     const ordem = await tx.ordemColetaSvo.create({
       data: {
         chamadoId,
@@ -715,6 +702,13 @@ async function atualizarEtapaColetaSvo(
       chamado.ordemColeta.motoristaId !== referencia.ordemColeta.motoristaId
     ) {
       throw new HttpError(409, "Alocação alterada durante a atualização. Tente novamente.");
+    }
+
+    if (
+      diarioConfig().enabled &&
+      (await tx.saidaOrdem.findUnique({ where: { ordemId: chamado.ordemColeta.id } }))
+    ) {
+      throw new HttpError(409, "Conclua a saída no diário de bordo ao retornar à base.");
     }
 
     const anterior = chamado.ordemColeta.status;

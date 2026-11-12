@@ -3,6 +3,7 @@ import { z } from "zod";
 import { notificarRevisaoPreventiva } from "./notificacao_s";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
+import { diarioConfig } from "../config/diario";
 
 const kmSchema = z.number().min(0).max(99999999.99).multipleOf(0.01);
 const fotoSchema = z
@@ -86,6 +87,9 @@ export async function executarViagem(
   usuarioId: string,
   dados: IniciarViagemInput | ConcluirViagemInput,
 ) {
+  if (diarioConfig().enabled) {
+    throw new HttpError(409, "Use a área do motorista para iniciar ou concluir esta viagem.");
+  }
   if (!z.uuid().safeParse(id).success) {
     throw new HttpError(
       400,

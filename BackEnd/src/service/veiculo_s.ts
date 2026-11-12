@@ -9,7 +9,7 @@ import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cach
 
 export const TIPOS_FROTA = ["ADMINISTRATIVA", "SVO"] as const;
 export const STATUS_VEICULO = ["DISPONIVEL", "EM_VIAGEM", "MANUTENCAO", "DESINFECCAO"] as const;
-export const PROPRIEDADES = ["PROPRIO", "LOCADO"] as const;
+const PROPRIEDADES = ["PROPRIO", "LOCADO"] as const;
 
 export type TipoFrota = (typeof TIPOS_FROTA)[number];
 export type StatusVeiculo = (typeof STATUS_VEICULO)[number];

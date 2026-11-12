@@ -8,7 +8,7 @@ import { validarNovaSenha } from "./senha_s";
 import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 import { normalizarTelefone } from "./telefone_s";
 
-export const PERFIS_USUARIO = ["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"] as const;
+const PERFIS_USUARIO = ["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"] as const;
 
 const usuarioSelect = {
   id: true,

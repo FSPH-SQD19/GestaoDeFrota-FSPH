@@ -73,7 +73,7 @@ export function temNoMaximoDuasCasas(valor: number): boolean {
   return Math.abs(valor * 100 - Math.round(valor * 100)) < 1e-9;
 }
 
-export function serializarAbastecimento(abastecimento: Abastecimento): AbastecimentoResposta {
+function serializarAbastecimento(abastecimento: Abastecimento): AbastecimentoResposta {
   return {
     ...abastecimento,
     odometro: decimalParaNumero(abastecimento.odometro),
@@ -84,7 +84,7 @@ export function serializarAbastecimento(abastecimento: Abastecimento): Abastecim
 
 type NumeroDecimal = Prisma.Decimal | number | null;
 
-export function calcularKmPorLitro(
+function calcularKmPorLitro(
   odometro: NumeroDecimal,
   odometroAnterior: NumeroDecimal,
   litros: NumeroDecimal,
@@ -147,8 +147,12 @@ export async function listarAbastecimentos(filtros: ListarAbastecimentosFiltros)
   };
 }
 
-export async function criarAbastecimento(input: CriarAbastecimentoInput, usuarioId: string) {
-  return prisma.$transaction(async (tx) => {
+export async function criarAbastecimento(
+  input: CriarAbastecimentoInput,
+  usuarioId: string,
+  transaction?: Prisma.TransactionClient,
+) {
+  const salvar = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM veiculos WHERE id = ${input.veiculoId}::uuid FOR UPDATE`;
     const veiculo = await tx.veiculo.findUnique({
       where: { id: input.veiculoId },
@@ -238,7 +242,9 @@ export async function criarAbastecimento(input: CriarAbastecimentoInput, usuario
       ...serializarAbastecimento(criado),
       kmPorLitro: calcularKmPorLitro(input.odometro, anterior?.odometro ?? null, input.litros),
     };
-  });
+  };
+
+  return transaction ? salvar(transaction) : prisma.$transaction(salvar);
 }
 
 export const criarAbastecimentoMotoristaSchema = criarAbastecimentoSchema
@@ -259,7 +265,7 @@ async function motoristaDoUsuario(usuarioId: string) {
 }
 
 // Veículos de viagens EM_TRANSITO ou coletas SVO em andamento do motorista.
-export async function veiculosEmExecucao(motoristaId: string) {
+async function veiculosEmExecucao(motoristaId: string) {
   const [viagens, ordens] = await Promise.all([
     prisma.solicitacaoViagem.findMany({
       where: { motoristaAlocadoId: motoristaId, status: "EM_TRANSITO" },

@@ -1,3 +1,4 @@
+import diarioRoutes from "./diario_r";
 import { Router } from "express";
 import {
   listarProgramacoesController,
@@ -36,6 +37,7 @@ import {
 } from "../controller/escala_svo_c";
 
 const router = Router();
+router.use("/api/v1", diarioRoutes);
 const abastecimento = Router();
 const manutencoes = Router();
 const escalasSvo = Router();
