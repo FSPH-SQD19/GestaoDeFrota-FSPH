@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { validar } from "../lib/validar";
@@ -15,7 +16,14 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     where: { nome: { equals: data.nome, mode: "insensitive" } },
   });
   if (existe) throw new HttpError(409, "Já existe uma sede com esse nome.");
-  res.status(201).json(await prisma.sede.create({ data }));
+  try {
+    return res.status(201).json(await prisma.sede.create({ data }));
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new HttpError(409, "Já existe uma sede com esse nome.");
+    }
+    throw error;
+  }
 });
 router.patch("/:id", requireRole("ADMIN"), async (req, res) => {
   const id = validar(z.uuid(), req.params.id);

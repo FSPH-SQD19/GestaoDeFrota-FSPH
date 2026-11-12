@@ -19,6 +19,11 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   fornecedorFindUnique: vi.fn(),
   auditoriaCreate: vi.fn(),
+  sedeFindMany: vi.fn(),
+  sedeFindFirst: vi.fn(),
+  sedeFindUnique: vi.fn(),
+  sedeCreate: vi.fn(),
+  sedeUpdate: vi.fn(),
 }));
 
 vi.mock("../../../src/lib/prisma", () => ({
@@ -32,6 +37,13 @@ vi.mock("../../../src/lib/prisma", () => ({
     },
     fornecedor: { findUnique: mocks.fornecedorFindUnique },
     auditoriaSistema: { create: mocks.auditoriaCreate },
+    sede: {
+      findMany: mocks.sedeFindMany,
+      findFirst: mocks.sedeFindFirst,
+      findUnique: mocks.sedeFindUnique,
+      create: mocks.sedeCreate,
+      update: mocks.sedeUpdate,
+    },
     usuario: { findUnique: vi.fn() },
   },
 }));
@@ -112,7 +124,37 @@ beforeEach(() => {
   mocks.create.mockResolvedValue(registro);
   mocks.update.mockResolvedValue({ ...registro, modelo: "Modelo atualizado" });
   mocks.auditoriaCreate.mockResolvedValue({});
+  mocks.sedeFindMany.mockResolvedValue([]);
+  mocks.sedeFindFirst.mockResolvedValue(null);
+  mocks.sedeFindUnique.mockResolvedValue({ id: "sede-teste", nome: "Sede teste", ativo: true });
+  mocks.sedeCreate.mockResolvedValue({ id: "sede-teste", nome: "Sede teste", ativo: true });
+  mocks.sedeUpdate.mockResolvedValue({ id: "sede-teste", nome: "Sede teste", ativo: false });
   mocks.fornecedorFindUnique.mockResolvedValue({ ativo: true });
+});
+
+describe("POST /api/v1/sedes", () => {
+  it("responde 409 quando a unicidade do banco detecta cadastro concorrente", async () => {
+    mocks.sedeFindFirst.mockResolvedValue(null);
+    mocks.sedeCreate.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Nome duplicado", {
+        code: "P2002",
+        clientVersion: "6",
+      }),
+    );
+    const resposta = await fetch(`${baseUrl}/api/v1/sedes`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token(["ADMIN"])}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ nome: "sede teste" }),
+    });
+    expect(resposta.status).toBe(409);
+    expect(await resposta.json()).toMatchObject({
+      statusCode: 409,
+      message: "Já existe uma sede com esse nome.",
+    });
+  });
 });
 
 describe("PATCH /api/v1/veiculos/:id", () => {
