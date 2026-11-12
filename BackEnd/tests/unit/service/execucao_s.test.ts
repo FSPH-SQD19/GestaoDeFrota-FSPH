@@ -7,6 +7,8 @@ const tx = vi.hoisted(() => ({
   motorista: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   veiculo: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   execucaoViagem: { create: vi.fn(), update: vi.fn() },
+  avariaViagem: { findUnique: vi.fn(), create: vi.fn() },
+  avariaHistorico: { create: vi.fn() },
   auditoriaSistema: { create: vi.fn() },
   usuario: { findMany: vi.fn() },
   notificacao: { createMany: vi.fn() },
@@ -65,6 +67,9 @@ beforeEach(() => {
   });
   tx.execucaoViagem.create.mockResolvedValue(saida);
   tx.execucaoViagem.update.mockResolvedValue(retorno);
+  tx.avariaViagem.findUnique.mockResolvedValue(null);
+  tx.avariaViagem.create.mockResolvedValue({ id: "avaria-1" });
+  tx.avariaHistorico.create.mockResolvedValue({});
 });
 function emTransito() {
   tx.motorista.findUniqueOrThrow.mockResolvedValue({
@@ -126,6 +131,64 @@ describe("execução de viagens", () => {
     expect(tx.auditoriaSistema.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ dadosNovos: { status: "CONCLUIDA", kmFinal: 120 } }),
     });
+  });
+
+  it("registra avaria uma única vez e bloqueia o veículo até a avaliação", async () => {
+    emTransito();
+    tx.execucaoViagem.update.mockResolvedValue({ ...retorno, id: "execucao-1" });
+    const retornoComAvaria = {
+      ...retorno,
+      checklistRetorno: {
+        ...retorno.checklistRetorno,
+        semOcorrencias: false,
+        ocorrencias: "Avaria na porta lateral",
+      },
+    };
+
+    await executarViagem(id, id, retornoComAvaria);
+
+    expect(tx.avariaViagem.create).toHaveBeenCalledWith({
+      data: {
+        solicitacaoId: id,
+        execucaoId: "execucao-1",
+        veiculoId: id,
+        registradaPorId: id,
+        descricao: "Avaria na porta lateral",
+        situacao: "PENDENTE",
+      },
+    });
+    expect(tx.veiculo.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { odometroAtual: 120, status: "MANUTENCAO" },
+    });
+    expect(tx.avariaHistorico.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        avariaId: "avaria-1",
+        autorId: id,
+        situacaoNova: "PENDENTE",
+      }),
+    });
+  });
+
+  it("reaproveita a conclusão e a avaria quando a mesma solicitação é repetida", async () => {
+    const dataHoraFim = new Date("2026-11-12T12:00:00.000Z");
+    tx.solicitacaoViagem.findUnique.mockResolvedValue({
+      ...viagem,
+      status: "CONCLUIDA",
+      execucao: {
+        id: "execucao-1",
+        kmInicial: new Prisma.Decimal(100),
+        kmFinal: new Prisma.Decimal(120),
+        dataHoraFim,
+        checklistRetorno: retorno.checklistRetorno,
+      },
+    });
+
+    const resposta = await executarViagem(id, id, retorno);
+
+    expect(resposta).toMatchObject({ id: "execucao-1", status: "CONCLUIDA" });
+    expect(tx.execucaoViagem.update).not.toHaveBeenCalled();
+    expect(tx.avariaViagem.create).not.toHaveBeenCalled();
   });
 
   it("rejeita km final menor sem alterar registros", async () => {

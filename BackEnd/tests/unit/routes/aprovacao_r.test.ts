@@ -189,7 +189,10 @@ describe("regras de aprovação", () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
   it("rejeita aprovação quando a saída prevista já passou", async () => {
-    mocks.solicitacao.mockResolvedValue({ ...solicitacao, dataHoraPretendida: new Date(Date.now() - 1) });
+    mocks.solicitacao.mockResolvedValue({
+      ...solicitacao,
+      dataHoraPretendida: new Date(Date.now() - 1),
+    });
     expect((await decidir()).status).toBe(422);
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.auditoria).not.toHaveBeenCalled();
@@ -197,27 +200,81 @@ describe("regras de aprovação", () => {
   it("preenche o retorno ausente na aprovação e verifica conflitos com a janela informada", async () => {
     mocks.solicitacao.mockResolvedValue({ ...solicitacao, dataHoraRetornoPrevista: null });
     const fim = new Date(saidaFutura.getTime() + 12 * 60 * 60 * 1000);
-    expect((await decidir("aprovar", { veiculoId, motoristaId, dataHoraRetornoPrevista: fim.toISOString() })).status).toBe(200);
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dataHoraRetornoPrevista: fim }) }));
-    expect(mocks.conflito).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ dataHoraPretendida: { lt: fim } }) }));
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: fim.toISOString(),
+        })
+      ).status,
+    ).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ dataHoraRetornoPrevista: fim }) }),
+    );
+    expect(mocks.conflito).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ dataHoraPretendida: { lt: fim } }),
+      }),
+    );
   });
   it("rejeita retorno informado anterior à saída", async () => {
     mocks.solicitacao.mockResolvedValue({ ...solicitacao, dataHoraRetornoPrevista: null });
     const retornoAnterior = new Date(saidaFutura.getTime() - 60_000);
-    expect((await decidir("aprovar", { veiculoId, motoristaId, dataHoraRetornoPrevista: retornoAnterior.toISOString() })).status).toBe(422);
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: retornoAnterior.toISOString(),
+        })
+      ).status,
+    ).toBe(422);
     expect(mocks.update).not.toHaveBeenCalled();
   });
   it("preserva o retorno já registrado quando outro é enviado na aprovação", async () => {
-    const retornoTentativa = new Date(solicitacao.dataHoraRetornoPrevista.getTime() + 24 * 60 * 60 * 1000);
-    expect((await decidir("aprovar", { veiculoId, motoristaId, dataHoraRetornoPrevista: retornoTentativa.toISOString() })).status).toBe(200);
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.not.objectContaining({ dataHoraRetornoPrevista: expect.anything() }) }));
-    expect(mocks.conflito).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ dataHoraPretendida: { lt: solicitacao.dataHoraRetornoPrevista } }) }));
+    const retornoTentativa = new Date(
+      solicitacao.dataHoraRetornoPrevista.getTime() + 24 * 60 * 60 * 1000,
+    );
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: retornoTentativa.toISOString(),
+        })
+      ).status,
+    ).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ dataHoraRetornoPrevista: expect.anything() }),
+      }),
+    );
+    expect(mocks.conflito).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          dataHoraPretendida: { lt: solicitacao.dataHoraRetornoPrevista },
+        }),
+      }),
+    );
   });
   it("verifica validade da CNH até o retorno informado na aprovação", async () => {
     mocks.solicitacao.mockResolvedValue({ ...solicitacao, dataHoraRetornoPrevista: null });
-    mocks.motorista.mockResolvedValue({ ativo: true, status: "DISPONIVEL", validadeCnh: saidaFutura });
+    mocks.motorista.mockResolvedValue({
+      ativo: true,
+      status: "DISPONIVEL",
+      validadeCnh: saidaFutura,
+    });
     const retorno = new Date(saidaFutura.getTime() + 48 * 60 * 60 * 1000);
-    expect((await decidir("aprovar", { veiculoId, motoristaId, dataHoraRetornoPrevista: retorno.toISOString() })).status).toBe(422);
+    expect(
+      (
+        await decidir("aprovar", {
+          veiculoId,
+          motoristaId,
+          dataHoraRetornoPrevista: retorno.toISOString(),
+        })
+      ).status,
+    ).toBe(422);
     expect(mocks.update).not.toHaveBeenCalled();
   });
   it("confere capacidade no servidor", async () => {

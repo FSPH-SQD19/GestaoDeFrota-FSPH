@@ -10,6 +10,7 @@ import {
   PhoneCall,
   Route,
   ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import type { UserRole } from "../types/auth";
 
@@ -26,6 +27,7 @@ export type TabId =
   | "viagens"
   | "coletasSvo"
   | "veiculos"
+  | "avarias"
   | "motoristas"
   | "svo"
   | "relatorios"
@@ -90,6 +92,12 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "veiculos",
         label: () => "Veículos",
         icon: Car,
+        roles: ["ADMIN", "GESTOR"],
+      },
+      {
+        id: "avarias",
+        label: () => "Avarias",
+        icon: AlertTriangle,
         roles: ["ADMIN", "GESTOR"],
       },
       {

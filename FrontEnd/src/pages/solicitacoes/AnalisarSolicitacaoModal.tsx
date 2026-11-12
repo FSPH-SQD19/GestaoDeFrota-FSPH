@@ -61,9 +61,7 @@ export function AnalisarSolicitacaoModal({
   const inicio = solicitacao.dataHoraPretendida;
   const fim = solicitacao.dataHoraRetornoPrevista || retornoInformado;
   const saidaFutura = Boolean(inicio && new Date(inicio) > agora);
-  const janelaValida = Boolean(
-    inicio && fim && saidaFutura && new Date(inicio) < new Date(fim),
-  );
+  const janelaValida = Boolean(inicio && fim && saidaFutura && new Date(inicio) < new Date(fim));
   const limite = janelaValida
     ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(fim!))
     : "";
@@ -97,9 +95,7 @@ export function AnalisarSolicitacaoModal({
           setRecursos({
             revisao,
             veiculos,
-            motoristas: motoristas.filter(
-              (m) => m.ativo && m.status === "DISPONIVEL",
-            ),
+            motoristas: motoristas.filter((m) => m.ativo && m.status === "DISPONIVEL"),
             erro: "",
           });
       })

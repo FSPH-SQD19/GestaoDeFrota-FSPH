@@ -26,6 +26,9 @@ model Usuario {
   desinfeccoes DesinfeccaoSvo[]
   auditorias   AuditoriaSistema[]
   notificacoes Notificacao[]
+  avariasRegistradas AvariaViagem[] @relation("AvariaRegistradaPor")
+  avariasAnalisadas  AvariaViagem[] @relation("AvariaAnalisadaPor")
+  historicosAvaria   AvariaHistorico[]
 
   @@index([ativo])
   @@index([setor])
@@ -108,6 +111,7 @@ model Veiculo {
   desinfeccoes   DesinfeccaoSvo[]
   escalasSvo     EscalaSvo[]
   multas         MultaInfracao[]
+  avarias        AvariaViagem[]
 
   @@index([fornecedorId])
   @@index([sedeId])
@@ -167,9 +171,12 @@ model Manutencao {
   inicioPrevisto DateTime? @map("inicio_previsto")
   fimPrevisto    DateTime? @map("fim_previsto")
   versao        Int       @default(0)
+  avariaId      String?   @unique @map("avaria_id") @db.Uuid
 
   veiculo    Veiculo     @relation(fields: [veiculoId], references: [id])
   fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id])
+  avaria     AvariaViagem? @relation(fields: [avariaId], references: [id], onDelete: SetNull)
+  historicoAvaria AvariaHistorico[]
 
   @@index([veiculoId, dataManutencao])
   @@index([veiculoId, status, inicioPrevisto, fimPrevisto])
@@ -224,6 +231,7 @@ model SolicitacaoViagem {
   motoristaAlocado  Motorista?       @relation(fields: [motoristaAlocadoId], references: [id])
   execucao          ExecucaoViagem?
   multas            MultaInfracao[]
+  avaria            AvariaViagem?
 
   @@index([solicitanteId, criadoEm])
   @@index([criadoEm])
@@ -244,8 +252,54 @@ model ExecucaoViagem {
   checklistRetorno Json?     @map("checklist_retorno")
 
   solicitacao SolicitacaoViagem @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  avaria      AvariaViagem?
 
   @@map("execucoes_viagem")
+}
+
+model AvariaViagem {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitacaoId    String    @unique @map("solicitacao_id") @db.Uuid
+  execucaoId       String    @unique @map("execucao_id") @db.Uuid
+  veiculoId        String    @map("veiculo_id") @db.Uuid
+  registradaPorId  String    @map("registrada_por_id") @db.Uuid
+  analisadaPorId   String?   @map("analisada_por_id") @db.Uuid
+  descricao        String    @db.VarChar(1000)
+  situacao         String    @default("PENDENTE") @db.VarChar(40)
+  criadaEm         DateTime  @default(now()) @map("criada_em")
+  analisadaEm      DateTime? @map("analisada_em")
+  justificativa    String?   @db.VarChar(500)
+
+  solicitacao   SolicitacaoViagem @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
+  execucao      ExecucaoViagem    @relation(fields: [execucaoId], references: [id], onDelete: Restrict)
+  veiculo       Veiculo           @relation(fields: [veiculoId], references: [id], onDelete: Restrict)
+  registradaPor Usuario           @relation("AvariaRegistradaPor", fields: [registradaPorId], references: [id], onDelete: Restrict)
+  analisadaPor  Usuario?          @relation("AvariaAnalisadaPor", fields: [analisadaPorId], references: [id], onDelete: Restrict)
+  manutencao    Manutencao?
+  historico     AvariaHistorico[]
+
+  @@index([situacao, criadaEm])
+  @@index([veiculoId, situacao])
+  @@map("avarias_viagem")
+}
+
+model AvariaHistorico {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  avariaId          String    @map("avaria_id") @db.Uuid
+  autorId           String    @map("autor_id") @db.Uuid
+  situacaoAnterior  String?   @map("situacao_anterior") @db.VarChar(40)
+  situacaoNova      String    @map("situacao_nova") @db.VarChar(40)
+  justificativa     String?   @db.VarChar(500)
+  manutencaoId      String?   @map("manutencao_id") @db.Uuid
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+
+  avaria     AvariaViagem @relation(fields: [avariaId], references: [id], onDelete: Cascade)
+  autor      Usuario      @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  manutencao Manutencao?  @relation(fields: [manutencaoId], references: [id], onDelete: SetNull)
+
+  @@index([avariaId, criadoEm])
+  @@index([autorId])
+  @@map("avarias_viagem_historico")
 }
 
 model ChamadoSvo {

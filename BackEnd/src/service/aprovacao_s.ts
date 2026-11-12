@@ -13,8 +13,8 @@ import {
 export const aprovarSolicitacaoSchema = z.object({
   veiculoId: z.uuid(),
   motoristaId: z.uuid(),
-  dataHoraRetornoPrevista: z
-    .iso.datetime({ offset: true })
+  dataHoraRetornoPrevista: z.iso
+    .datetime({ offset: true })
     .transform((valor) => new Date(valor))
     .optional(),
 });
@@ -133,7 +133,8 @@ async function salvarAlocacao(
           throw new HttpError(422, "O reagendamento exige uma nova saída futura.");
         }
         const inicio = janela?.inicio ?? solicitacao.dataHoraPretendida;
-        const fim = janela?.fim ?? solicitacao.dataHoraRetornoPrevista ?? dados.dataHoraRetornoPrevista;
+        const fim =
+          janela?.fim ?? solicitacao.dataHoraRetornoPrevista ?? dados.dataHoraRetornoPrevista;
 
         if (!inicio || !fim || inicio >= fim) {
           throw new HttpError(422, "A solicitação precisa ter saída e retorno válidos.");
@@ -205,7 +206,7 @@ async function salvarAlocacao(
             motoristaAlocadoId: motoristaId,
             motivoRecusa: null,
             ...(janela ? { dataHoraPretendida: inicio } : {}),
-            ...((janela || !solicitacao.dataHoraRetornoPrevista)
+            ...(janela || !solicitacao.dataHoraRetornoPrevista
               ? { dataHoraRetornoPrevista: fim }
               : {}),
           },
