@@ -598,33 +598,36 @@ export const DashboardPage: React.FC = () => {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {/* Indicadores Rápidos / KPIs Compactos */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         {indicadores.map(({ label, value, description, icon: Icon, tone }) => (
           <Card
             key={label}
-            className="flex min-h-36 flex-col justify-between rounded-3xl border border-slate-200/90 p-5"
+            className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xs transition-all hover:border-slate-300"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {label}
-                </span>
-                <p className="mt-1 text-xs font-medium text-slate-600">{description}</p>
-              </div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {label}
+              </span>
               <span
-                className={`flex h-9 w-9 items-center justify-center rounded-2xl ${toneStyles[tone]}`}
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${toneStyles[tone]}`}
               >
-                <Icon className="h-4.5 w-4.5" />
+                <Icon className="h-3 w-3" />
               </span>
             </div>
-            <span className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">
-              {dados ? value : "—"}
-            </span>
+            <div className="mt-1.5 flex items-baseline justify-between gap-1">
+              <span className="text-xl font-extrabold tabular-nums text-slate-900 xl:text-2xl">
+                {dados ? value : "—"}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500" title={description}>
+              {description}
+            </p>
           </Card>
         ))}
       </div>
 
-      {/* Painéis Gráficos Analíticos (Status da Frota + Solicitações por Status + Consumo/Rodagem no Mês) */}
+{/* Painéis Gráficos Analíticos (Status da Frota + Solicitações por Status + Consumo/Rodagem no Mês) */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <Card className="flex flex-col justify-between p-5 lg:col-span-4">
           <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-200 pb-3.5">
