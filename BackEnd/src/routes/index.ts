@@ -9,6 +9,7 @@ import {
 } from "../controller/programacao_manutencao_c";
 import { consultarAgendaController } from "../controller/agenda_c";
 import sedes from "./sede_r";
+import avarias from "./avaria_r";
 import veiculos from "./veiculo_r";
 import dashboardRoutes from "./dashboard_r";
 import relatorioRoutes from "./relatorio_r";
@@ -49,6 +50,7 @@ router.use("/motoristas", motoristaRoutes);
 router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/veiculos", veiculos);
 router.use("/api/v1/sedes", sedes);
+router.use("/api/v1/avarias", avarias);
 router.use("/api/v1/dashboard", dashboardRoutes);
 router.get(
   "/api/v1/agenda",
