@@ -13,6 +13,10 @@ import {
 export const aprovarSolicitacaoSchema = z.object({
   veiculoId: z.uuid(),
   motoristaId: z.uuid(),
+  dataHoraRetornoPrevista: z
+    .iso.datetime({ offset: true })
+    .transform((valor) => new Date(valor))
+    .optional(),
 });
 
 export const recusarSolicitacaoSchema = z.object({
@@ -120,15 +124,16 @@ async function salvarAlocacao(
         }
 
         if (
-          janela &&
-          (!solicitacao.dataHoraPretendida ||
-            solicitacao.dataHoraPretendida.getTime() <= Date.now() ||
-            janela.inicio.getTime() <= Date.now())
+          !solicitacao.dataHoraPretendida ||
+          solicitacao.dataHoraPretendida.getTime() <= Date.now()
         ) {
-          throw new HttpError(422, "O reagendamento exige uma viagem e uma nova saída futuras.");
+          throw new HttpError(422, "A aprovação exige uma saída futura.");
+        }
+        if (janela && janela.inicio.getTime() <= Date.now()) {
+          throw new HttpError(422, "O reagendamento exige uma nova saída futura.");
         }
         const inicio = janela?.inicio ?? solicitacao.dataHoraPretendida;
-        const fim = janela?.fim ?? solicitacao.dataHoraRetornoPrevista;
+        const fim = janela?.fim ?? solicitacao.dataHoraRetornoPrevista ?? dados.dataHoraRetornoPrevista;
 
         if (!inicio || !fim || inicio >= fim) {
           throw new HttpError(422, "A solicitação precisa ter saída e retorno válidos.");
@@ -199,7 +204,10 @@ async function salvarAlocacao(
             veiculoAlocadoId: veiculoId,
             motoristaAlocadoId: motoristaId,
             motivoRecusa: null,
-            ...(janela ? { dataHoraPretendida: inicio, dataHoraRetornoPrevista: fim } : {}),
+            ...(janela ? { dataHoraPretendida: inicio } : {}),
+            ...((janela || !solicitacao.dataHoraRetornoPrevista)
+              ? { dataHoraRetornoPrevista: fim }
+              : {}),
           },
         });
 
