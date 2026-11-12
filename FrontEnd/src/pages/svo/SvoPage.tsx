@@ -110,13 +110,10 @@ export function SvoPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="flex flex-col gap-4 border-b border-slate-200/70 pb-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.14em] text-rose-600">
-            <span className="h-2 w-2 rounded-full bg-rose-500" /> Operação especializada
-          </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[26px]">
             Central de operações SVO
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -124,11 +121,11 @@ export function SvoPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-right sm:block">
+          <div className="hidden border-r border-slate-200 pr-3 text-right sm:block">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Acesso
             </p>
-            <p className="text-xs font-bold text-slate-700">
+            <p className="text-xs font-semibold text-slate-700">
               {user?.roles.includes("ADMIN") ? "Administrador" : "Atendente SVO"}
             </p>
           </div>
@@ -152,7 +149,7 @@ export function SvoPage() {
       {aviso && (
         <div
           role="status"
-          className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
         >
           <span className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -167,7 +164,7 @@ export function SvoPage() {
       {(erroPagina || erroRecursos) && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+          className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
         >
           <span className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" />
@@ -234,6 +231,9 @@ export function SvoPage() {
       )}
       {modal === "DETALHE" && selecionado && (
         <DetalhesChamadoModal
+          viaturas={dados.viaturas}
+          motoristas={dados.motoristas}
+          onRemanejado={() => concluirFormulario("Recursos remanejados com sucesso.")}
           selecionado={selecionado}
           onClose={fecharModal}
           abrirTriagem={abrirTriagem}

@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { notificarRevisaoPreventiva } from "./notificacao_s";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
+import { diarioConfig } from "../config/diario";
 
 const kmSchema = z.number().min(0).max(99999999.99).multipleOf(0.01);
 const fotoSchema = z
@@ -72,6 +74,52 @@ export const concluirViagemSchema = z.object({
 type IniciarViagemInput = z.infer<typeof iniciarViagemSchema>;
 type ConcluirViagemInput = z.infer<typeof concluirViagemSchema>;
 
+const ITENS_RETORNO: Record<keyof typeof itensRetornoSchema.shape, string> = {
+  pneusLataria: "Integridade externa e pneus",
+  estacionadoLocalCorreto: "Veículo estacionado no pátio",
+  documentosChaveDevolvidos: "Chave e documentos entregues",
+  limpezaInterna: "Interior livre de objetos e resíduos",
+};
+
+function descreverAvaria(checklist: ConcluirViagemInput["checklistRetorno"]): string | null {
+  const itensComProblema = Object.entries(ITENS_RETORNO)
+    .filter(([chave]) => !checklist[chave as keyof typeof itensRetornoSchema.shape])
+    .map(([, descricao]) => descricao);
+  if (checklist.semOcorrencias && itensComProblema.length === 0) return null;
+
+  return [
+    checklist.ocorrencias?.trim(),
+    itensComProblema.length ? `Itens com problema: ${itensComProblema.join(", ")}.` : null,
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 1000);
+}
+
+function ordenarJson(valor: unknown): unknown {
+  if (Array.isArray(valor)) return valor.map(ordenarJson);
+  if (valor && typeof valor === "object") {
+    return Object.fromEntries(
+      Object.entries(valor)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([chave, valorFilho]) => [chave, ordenarJson(valorFilho)]),
+    );
+  }
+  return valor;
+}
+
+function mesmaConclusao(
+  execucao: { kmFinal: Prisma.Decimal | null; checklistRetorno: Prisma.JsonValue | null },
+  dados: ConcluirViagemInput,
+) {
+  return (
+    execucao.kmFinal !== null &&
+    execucao.kmFinal.equals(dados.kmFinal) &&
+    JSON.stringify(ordenarJson(execucao.checklistRetorno)) ===
+      JSON.stringify(ordenarJson(dados.checklistRetorno))
+  );
+}
+
 export async function iniciarViagem(id: string, dados: IniciarViagemInput, usuarioId: string) {
   return executarViagem(id, usuarioId, dados);
 }
@@ -85,6 +133,9 @@ export async function executarViagem(
   usuarioId: string,
   dados: IniciarViagemInput | ConcluirViagemInput,
 ) {
+  if (diarioConfig().enabled) {
+    throw new HttpError(409, "Use a área do motorista para iniciar ou concluir esta viagem.");
+  }
   if (!z.uuid().safeParse(id).success) {
     throw new HttpError(
       400,
@@ -107,6 +158,15 @@ export async function executarViagem(
       throw new HttpError(403, "Somente o motorista alocado pode executar esta viagem.");
     }
     if (viagem.status !== (iniciar ? "APROVADA" : "EM_TRANSITO")) {
+      if (
+        !iniciar &&
+        "kmFinal" in dados &&
+        viagem.status === "CONCLUIDA" &&
+        viagem.execucao?.dataHoraFim &&
+        mesmaConclusao(viagem.execucao, dados)
+      ) {
+        return { ...viagem.execucao, status: "CONCLUIDA" };
+      }
       throw new HttpError(
         409,
         "Esta ação não está disponível na situação atual da viagem. Atualize a lista e tente novamente.",
@@ -160,6 +220,7 @@ export async function executarViagem(
       if (new Prisma.Decimal(dados.kmFinal).lessThan(veiculo.odometroAtual)) {
         throw new HttpError(422, "Km final não pode ser menor que o odômetro atual.");
       }
+      const descricaoAvaria = descreverAvaria(dados.checklistRetorno);
       execucao = await tx.execucaoViagem.update({
         where: { solicitacaoId: id },
         data: { ...dados, dataHoraFim: new Date() },
@@ -168,9 +229,53 @@ export async function executarViagem(
         where: { id: veiculoId },
         data: {
           odometroAtual: dados.kmFinal,
-          ...(veiculo.status === "EM_VIAGEM" ? { status: "DISPONIVEL" } : {}),
+          ...(descricaoAvaria
+            ? { status: "MANUTENCAO" }
+            : veiculo.status === "EM_VIAGEM"
+              ? { status: "DISPONIVEL" }
+              : {}),
         },
       });
+      await notificarRevisaoPreventiva(tx, veiculo, dados.kmFinal);
+
+      if (descricaoAvaria) {
+        const avariaExistente = await tx.avariaViagem.findUnique({ where: { solicitacaoId: id } });
+        if (!avariaExistente) {
+          const avaria = await tx.avariaViagem.create({
+            data: {
+              solicitacaoId: id,
+              execucaoId: execucao.id,
+              veiculoId,
+              registradaPorId: usuarioId,
+              descricao: descricaoAvaria,
+              situacao: "PENDENTE",
+            },
+          });
+          await tx.avariaHistorico.create({
+            data: {
+              avariaId: avaria.id,
+              autorId: usuarioId,
+              situacaoNova: "PENDENTE",
+              justificativa: "Avaria registrada no checklist de retorno.",
+            },
+          });
+          await tx.auditoriaSistema.create({
+            data: {
+              usuarioId,
+              acao: "REGISTRAR_AVARIA",
+              tabelaAfetada: "avarias_viagem",
+              registroId: avaria.id,
+              dadosNovos: {
+                solicitacaoId: id,
+                execucaoId: execucao.id,
+                veiculoId,
+                descricao: descricaoAvaria,
+                situacao: "PENDENTE",
+              },
+            },
+          });
+        }
+      }
     }
     if (!iniciar && motorista.status === "OCUPADO") {
       await tx.motorista.update({

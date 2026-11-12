@@ -2,7 +2,8 @@
 // Alinhados ao model `SolicitacaoViagem` do Prisma; campos extras serão
 // incorporados ao schema quando o endpoint do back-end for criado.
 
-export type StatusSolicitacao = "PENDENTE" | "APROVADA" | "EM_TRANSITO" | "CONCLUIDA" | "RECUSADA";
+export type StatusSolicitacao =
+  "PENDENTE" | "APROVADA" | "EM_TRANSITO" | "CONCLUIDA" | "RECUSADA" | "CANCELADA";
 
 export type UrgenciaSolicitacao = "NORMAL" | "URGENTE";
 
@@ -77,6 +78,9 @@ export interface SolicitacaoViagem {
   /** ISO 8601 */
   criadoEm: string;
   motivoRecusa?: string;
+  motivoCancelamento?: string | null;
+  veiculoAlocadoId?: string | null;
+  motoristaAlocadoId?: string | null;
   veiculoAlocado?: { placa: string; modelo: string; odometroAtual?: number | string | null } | null;
   motoristaAlocado?: { nome: string | null } | null;
   execucao?: ExecucaoViagemResumo | null;
@@ -103,6 +107,7 @@ export const STATUS_SOLICITACAO_LABEL: Record<StatusSolicitacao, string> = {
   EM_TRANSITO: "Em trânsito",
   CONCLUIDA: "Concluída",
   RECUSADA: "Recusada",
+  CANCELADA: "Cancelada",
 };
 
 export const STATUS_SOLICITACAO_VARIANT: Record<
@@ -114,6 +119,7 @@ export const STATUS_SOLICITACAO_VARIANT: Record<
   EM_TRANSITO: "info",
   CONCLUIDA: "success",
   RECUSADA: "danger",
+  CANCELADA: "neutral",
 };
 
 export const TIPO_TRANSPORTE_LABEL: Record<TipoTransporte, string> = {

@@ -1,10 +1,22 @@
+import diarioRoutes from "./diario_r";
 import { Router } from "express";
+import {
+  listarProgramacoesController,
+  conflitosProgramacaoController,
+  programarManutencaoController,
+  reagendarManutencaoController,
+  cancelarProgramacaoController,
+} from "../controller/programacao_manutencao_c";
+import { consultarAgendaController } from "../controller/agenda_c";
+import sedes from "./sede_r";
+import avarias from "./avaria_r";
 import veiculos from "./veiculo_r";
 import dashboardRoutes from "./dashboard_r";
 import relatorioRoutes from "./relatorio_r";
 import {
   listarAbastecimentosController,
   criarAbastecimentoController,
+  listarMeusAbastecimentosController,
 } from "../controller/abastecimento_c";
 import { healthController } from "../controller/health_c";
 import { authenticate, requireRole } from "../middleware/http_m";
@@ -16,6 +28,7 @@ import {
   listarManutencoesController,
 } from "../controller/manutencao_c";
 import solicitacaoRoutes from "./solicitacao_r";
+import auditoriaRoutes from "./auditoria_r";
 import notificacaoRoutes from "./notificacao_r";
 import multaRoutes from "./multa_r";
 import {
@@ -25,6 +38,7 @@ import {
 } from "../controller/escala_svo_c";
 
 const router = Router();
+router.use("/api/v1", diarioRoutes);
 const abastecimento = Router();
 const manutencoes = Router();
 const escalasSvo = Router();
@@ -35,13 +49,22 @@ router.use("/motoristas", motoristaRoutes);
 
 router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/veiculos", veiculos);
+router.use("/api/v1/sedes", sedes);
+router.use("/api/v1/avarias", avarias);
 router.use("/api/v1/dashboard", dashboardRoutes);
+router.get(
+  "/api/v1/agenda",
+  authenticate,
+  requireRole("ADMIN", "GESTOR"),
+  consultarAgendaController,
+);
 router.use("/solicitacoes", solicitacaoRoutes);
 
 // Consultar abastecimento
-abastecimento.use(authenticate, requireRole("ADMIN", "GESTOR"));
-abastecimento.get("/", listarAbastecimentosController);
-abastecimento.post("/", criarAbastecimentoController);
+abastecimento.use(authenticate);
+abastecimento.get("/meus", requireRole("MOTORISTA"), listarMeusAbastecimentosController);
+abastecimento.get("/", requireRole("ADMIN", "GESTOR"), listarAbastecimentosController);
+abastecimento.post("/", requireRole("ADMIN", "GESTOR", "MOTORISTA"), criarAbastecimentoController);
 
 router.use("/api/v1/abastecimentos", abastecimento);
 
@@ -52,6 +75,11 @@ router.use("/api/v1/relatorios", relatorioRoutes);
 manutencoes.use(authenticate, requireRole("ADMIN", "GESTOR"));
 manutencoes.get("/", listarManutencoesController);
 manutencoes.post("/", criarManutencaoController);
+manutencoes.get("/programacoes", listarProgramacoesController);
+manutencoes.post("/programacoes/conflitos", conflitosProgramacaoController);
+manutencoes.post("/programacoes", programarManutencaoController);
+manutencoes.patch("/:id/reagendar", reagendarManutencaoController);
+manutencoes.patch("/:id/cancelar", cancelarProgramacaoController);
 manutencoes.patch("/:id/concluir", concluirManutencaoController);
 
 router.use("/api/v1/manutencoes", manutencoes);
@@ -68,5 +96,8 @@ router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
 router.use("/multas", multaRoutes);
 router.use("/api/v1/multas", multaRoutes);
+
+router.use("/auditoria", auditoriaRoutes);
+router.use("/api/v1/auditoria", auditoriaRoutes);
 
 export default router;

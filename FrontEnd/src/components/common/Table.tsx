@@ -29,19 +29,19 @@ export function Table<T>({
   return (
     <div
       className={cn(
-        "w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs",
+        "w-full overflow-hidden rounded-xl border border-slate-200 bg-white",
         className,
       )}
     >
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-200/70 bg-slate-50/70 text-slate-600 font-medium">
+            <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600">
               {columns.map((col, index) => (
                 <th
                   key={index}
                   className={cn(
-                    "px-5 py-3.5 select-none font-semibold text-xs tracking-wider uppercase text-slate-500",
+                    "px-4 py-3 select-none font-semibold text-[11px] tracking-wider uppercase text-slate-500",
                     col.className,
                   )}
                 >
@@ -50,21 +50,21 @@ export function Table<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-200/70">
             {isLoading ? (
               <tr>
-                <td colSpan={columns.length} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-slate-500">
                   <div className="flex flex-col items-center justify-center gap-2">
-                    <div className="w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin" />
-                    <span className="text-xs">Carregando dados...</span>
+                    <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin" />
+                    <span className="text-xs font-medium">Carregando dados...</span>
                   </div>
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-slate-500">
                   <div className="flex flex-col items-center justify-center gap-2">
-                    <Inbox className="w-8 h-8 text-slate-300 stroke-[1.5]" />
+                    <Inbox className="w-6 h-6 text-slate-400 stroke-[1.5]" />
                     <span className="text-sm text-slate-500">{emptyMessage}</span>
                   </div>
                 </td>
@@ -73,12 +73,12 @@ export function Table<T>({
               data.map((row, rowIndex) => (
                 <tr
                   key={keyExtractor(row, rowIndex)}
-                  className="hover:bg-slate-50/60 transition-colors"
+                  className="hover:bg-slate-50/80 transition-colors"
                 >
                   {columns.map((col, colIndex) => (
                     <td
                       key={colIndex}
-                      className={cn("px-5 py-3.5 text-slate-700 align-middle", col.className)}
+                      className={cn("px-4 py-3 text-slate-700 align-middle", col.className)}
                     >
                       {col.render
                         ? col.render(row)

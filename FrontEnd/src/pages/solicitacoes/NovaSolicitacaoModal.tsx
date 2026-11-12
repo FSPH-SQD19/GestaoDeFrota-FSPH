@@ -170,7 +170,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
       description="Preencha os dados da viagem. O Gestor de Frota analisará e alocará veículo e motorista."
       footer={
         <>
-          <Button variant="ghost" onClick={handleClose} disabled={isSubmitting}>
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button
@@ -178,7 +178,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
             form={FORM_ID}
             variant="primary"
             isLoading={isSubmitting}
-            leftIcon={<Send className="w-4 h-4" />}
+            leftIcon={<Send className="h-4 w-4" />}
           >
             Enviar Solicitação
           </Button>
@@ -196,16 +196,16 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
         {erroEnvio && (
           <div
             role="alert"
-            className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium"
+            className="flex items-start gap-2.5 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-800"
           >
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
             <span>{erroEnvio}</span>
           </div>
         )}
 
-        <fieldset disabled={isSubmitting} className="space-y-5">
+        <fieldset disabled={isSubmitting} className="space-y-4">
           {/* Setor e urgência */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select
               label="Setor solicitante"
               required
@@ -227,8 +227,8 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           </div>
 
           {urgencia === "URGENTE" && (
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
                 Solicitações urgentes têm prioridade na fila do gestor. Use apenas quando o atraso
                 comprometer a assistência ou a integridade de amostras.
@@ -237,7 +237,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           )}
 
           {/* Itinerário */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Origem"
               required
@@ -255,7 +255,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           </div>
 
           {/* Datas */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               id="dataHoraPretendida"
               label="Data e hora de saída"
@@ -275,7 +275,7 @@ export const NovaSolicitacaoModal: React.FC<NovaSolicitacaoModalProps> = ({
           </div>
 
           {/* Carga */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select
               label="Tipo de transporte"
               required

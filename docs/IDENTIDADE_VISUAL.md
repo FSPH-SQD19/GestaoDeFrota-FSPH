@@ -37,51 +37,59 @@ O símbolo do **ROTA** foi desenhado com geometria vetorial pura (`viewBox="0 0 
 
 ### Cores primárias da marca
 
-| Nome da Cor        | Amostra |    HEX    |      RGB       |      CMYK       | Aplicação                                      |
-| :----------------- | :-----: | :-------: | :------------: | :-------------: | :--------------------------------------------- |
-| **Rota Blue**      |   🟦    | `#2563EB` | `37, 99, 235`  | `84, 58, 0, 8`  | Cor principal, botões de ação e destaques      |
-| **Rota Sky Cyan**  |   🩵    | `#38BDF8` | `56, 189, 248` | `77, 24, 0, 3`  | Núcleo GPS, foco, brilhos e tags ativas        |
-| **Rota Deep Navy** |   ⬛    | `#0A0D14` |  `10, 13, 20`  | `50, 35, 0, 92` | Fundo da Sidebar flutuante, header e modo dark |
-| **Rota Indigo**    |   🟣    | `#4F46E5` | `79, 70, 229`  | `66, 69, 0, 10` | Transições e faixas secundárias do loop        |
+| Nome da Cor        | Amostra |    HEX    |      RGB       |      CMYK       | Aplicação                                       |
+| :----------------- | :-----: | :-------: | :------------: | :-------------: | :---------------------------------------------- |
+| **Rota Blue**      |   🟦    | `#1D4ED8` | `29, 78, 216`  | `87, 64, 0, 15` | Destaque institucional, foco e indicadores      |
+| **Rota Sky Cyan**  |   🩵    | `#38BDF8` | `56, 189, 248` | `77, 24, 0, 3`  | Núcleo vetorial da marca ROTA                   |
+| **Rota Deep Navy** |   ⬛    | `#0B0F17` |  `11, 15, 23`  | `52, 35, 0, 91` | Fundo da Sidebar e botões primários (`#0F172A`) |
+| **Rota Indigo**    |   🟣    | `#4F46E5` | `79, 70, 229`  | `66, 69, 0, 10` | Faixa secundária exclusiva do símbolo vetorial  |
 
 ### Cores funcionais da frota
 
 | Status                        | Amostra |    HEX    | Significado Operacional                                        |
 | :---------------------------- | :-----: | :-------: | :------------------------------------------------------------- |
-| **Disponível (Emerald)**      |   🟢    | `#10B981` | Viaturas prontas para saída imediata e checklists aprovados    |
-| **Em Viagem (Sapphire)**      |   🔵    | `#2563EB` | Veículos em trânsito com condutor escalado                     |
-| **Pendente / Alerta (Amber)** |   🟡    | `#F59E0B` | Solicitações aguardando gestor, CNH/IPVA a vencer e revisões   |
-| **SVO / Desinfecção (Coral)** |   🔴    | `#E11D48` | Chamados de óbito e quarentena sanitária biológica obrigatória |
+| **Disponível (Emerald)**      |   🟢    | `#047857` | Viaturas prontas para saída imediata e checklists aprovados    |
+| **Em Viagem (Sapphire)**      |   🔵    | `#1D4ED8` | Veículos em trânsito com condutor escalado                     |
+| **Pendente / Alerta (Amber)** |   🟡    | `#B45309` | Solicitações aguardando gestor, CNH/IPVA a vencer e revisões   |
+| **SVO / Desinfecção (Coral)** |   🔴    | `#BE123C` | Chamados de óbito e quarentena sanitária biológica obrigatória |
 
-### Tokens usados pela interface
+### Tokens usados pela interface (`FrontEnd/src/index.css`)
 
-As paletas acima preservam as referências de marca e os valores RGB/CMYK do material original. Os tokens de implementação em `FrontEnd/src/index.css` usam variações para aplicação na interface:
+Os tokens CSS centralizam superfícies, bordas, textos e estados semânticos para evitar variações ad-hoc entre telas:
 
-| Token                       | HEX       |
-| --------------------------- | --------- |
-| `--color-rota-cobalt`       | `#2563EB` |
-| `--color-rota-cyan`         | `#0EA5E9` |
-| `--color-rota-indigo`       | `#4F46E5` |
-| `--color-status-available`  | `#059669` |
-| `--color-status-transit`    | `#2563EB` |
-| `--color-status-pending`    | `#D97706` |
-| `--color-status-quarantine` | `#E11D48` |
-| `--color-sidebar-bg`        | `#090D16` |
-| `--color-sidebar-surface`   | `#121826` |
-| `--color-sidebar-hover`     | `#1E2638` |
+| Token                       | HEX       | Papel na Interface                                    |
+| --------------------------- | --------- | ----------------------------------------------------- |
+| `--color-surface-canvas`    | `#F6F7F9` | Plano de fundo geral da aplicação                     |
+| `--color-surface-card`      | `#FFFFFF` | Superfície de cards, tabelas e modais                 |
+| `--color-surface-muted`     | `#F1F3F6` | Cabeçalhos de tabela e barras segmentadas             |
+| `--color-border-subtle`     | `#E2E8F0` | Bordas estruturais de cards e divisores (`slate-200`) |
+| `--color-border-strong`     | `#CBD5E1` | Bordas de controles e inputs (`slate-300`)            |
+| `--color-text-primary`      | `#0F172A` | Títulos, métricas e dados principais (`slate-900`)    |
+| `--color-text-secondary`    | `#475569` | Textos de apoio e células secundárias (`slate-600`)   |
+| `--color-text-muted`        | `#64748B` | Rótulos auxiliares e legendas (`slate-500`)           |
+| `--color-rota-cobalt`       | `#1D4ED8` | Cor de destaque institucional e estados ativos        |
+| `--color-status-available`  | `#047857` | Disponível / Aprovado / Concluído                     |
+| `--color-status-transit`    | `#1D4ED8` | Em viagem / Em andamento                              |
+| `--color-status-pending`    | `#B45309` | Pendente / Em análise / Vencimento próximo            |
+| `--color-status-quarantine` | `#BE123C` | Desinfecção SVO / Urgente / Vencido / Recusado        |
+| `--color-sidebar-bg`        | `#0B0F17` | Fundo da barra lateral de navegação                   |
+| `--color-sidebar-surface`   | `#111827` | Superfície interna da barra lateral                   |
+| `--color-sidebar-hover`     | `#1E293B` | Estado ativo/hover de itens na barra lateral          |
 
-Consulte [Front-end](FRONTEND.md#cores-semânticas) para as classes semânticas e a aplicação da logo na barra lateral.
+Consulte [Front-end](FRONTEND.md#identidade-visual-e-componentes) para as regras de geometria, tipografia e uso dos componentes base.
 
 ## Tipografia
 
-A tipografia padrão do ecossistema ROTA é a **Space Grotesk** (Google Fonts), escolhida por suas formas geométricas técnicas e alta legibilidade para placas, hodômetros e códigos de solicitação:
+O sistema combina duas famílias tipográficas carregadas em `FrontEnd/index.html` e atribuídas aos tokens `--font-sans` e `--font-mono`:
 
-- **Títulos e Wordmark:** `Space Grotesk Bold (700)` ou `ExtraBold (800)`
-- **Menus e Elementos de Interface:** `Space Grotesk SemiBold (600)`
-- **Métricas e Dados Numéricos:** `Space Grotesk Bold (700)`
-- **Textos Corridos e Legendas:** `Space Grotesk Regular (400)`
-
-O `FrontEnd/index.html` carrega os pesos 300, 400, 500, 600 e 700. O peso 800 é uma referência gráfica para composições da marca.
+- **Interface e Títulos (`--font-sans: "Plus Jakarta Sans"`):**
+  - Títulos de página (`h1`): `24px–26px`, `font-bold (700)`, `tracking-tight`
+  - Títulos de seção/card (`h2`, `h3`): `14px–16px`, `font-semibold (600)`
+  - Rótulos de campos e cabeçalhos de tabela: `11px–12px`, `font-semibold (600)`
+  - Corpo de dados e formulários: `13px–14px`, `font-normal (400)` / `font-medium (500)`
+- **Dados Técnicos (`--font-mono: "JetBrains Mono"` + `tabular-nums`):**
+  - Placas Mercosul/antigas (`QMA4J28`), protocolos (`SOL-2026-0001`, `SVO-2026-0001`), números de CNH, CPF, odômetros e horários de turno.
+  - Todas as tabelas, listas de definição (`dd`) e indicadores numéricos aplicam `font-variant-numeric: tabular-nums` globalmente para alinhamento vertical.
 
 ## Arquivos e formatos
 

@@ -5,11 +5,11 @@ import { HttpError } from "../lib/http_error";
 import { registrarAuditoria } from "./auditoria_s";
 import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
-export const TIPOS_DOCUMENTO = ["CRLV", "IPVA", "SEGURO"] as const;
-export const SITUACOES_DOCUMENTO = ["VIGENTE", "PROXIMO_VENCIMENTO", "VENCIDO"] as const;
+export const TIPOS_DOCUMENTO = ["CRLV", "IPVA", "SEGURO", "VISTORIA"] as const;
+const SITUACOES_DOCUMENTO = ["VIGENTE", "PROXIMO_VENCIMENTO", "VENCIDO"] as const;
 
 // RB01/RF010-DOC: avisar a partir de três meses antes do vencimento.
-export const DIAS_ALERTA_VENCIMENTO = 90;
+const DIAS_ALERTA_VENCIMENTO = 90;
 
 const FUSO = "America/Sao_Paulo";
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
@@ -70,7 +70,7 @@ function validarIdVeiculo(id: string) {
 
 export const criarDocumentoVeiculoSchema = z.object({
   tipoDocumento: z.enum(TIPOS_DOCUMENTO, {
-    error: "Selecione o documento: CRLV, IPVA ou seguro.",
+    error: "Selecione o documento: CRLV, IPVA, seguro ou vistoria.",
   }),
   dataVencimento: z.iso
     .date({ error: "Informe uma data de vencimento válida." })
@@ -162,7 +162,7 @@ export async function listarDocumentosVeiculo(veiculoId: string) {
   };
 }
 
-export async function listarAlertasDocumentosVeiculos() {
+export async function listarAlertasDocumentosVeiculos(hoje = dataLocal()) {
   const documentos = await prisma.documentoVeiculo.findMany({
     where: { veiculo: { ativo: true }, tipoDocumento: { in: [...TIPOS_DOCUMENTO] } },
     distinct: ["veiculoId", "tipoDocumento"],
@@ -174,7 +174,6 @@ export async function listarAlertasDocumentosVeiculos() {
     ],
     include: { veiculo: { select: { placa: true } } },
   });
-  const hoje = dataLocal();
   return documentos
     .map((documento) => ({
       ...serializarDocumento(documento, hoje, true),

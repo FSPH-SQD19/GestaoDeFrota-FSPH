@@ -15,8 +15,8 @@ export function signTestToken(
   });
   return jwt.sign(payload, secret, {
     algorithm: "HS256",
-    issuer: "fsph-frota-api",
-    audience: "fsph-frota-web",
+    issuer: process.env.JWT_ISSUER || "fsph-frota-api",
+    audience: process.env.JWT_AUDIENCE || "fsph-frota-web",
     expiresIn: 28800,
     jwtid: id,
     ...options,

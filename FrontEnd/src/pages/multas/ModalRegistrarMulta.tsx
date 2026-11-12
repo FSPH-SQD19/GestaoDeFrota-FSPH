@@ -150,25 +150,25 @@ export const ModalRegistrarMulta: React.FC<ModalRegistrarMultaProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Registrar Multa / Infração"
+      description="Cadastre autos de infração de trânsito vinculados a veículos e condutores da FSPH."
       size="xl"
       footer={
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} disabled={salvando}>
+        <>
+          <Button variant="outline" onClick={onClose} disabled={salvando}>
             Cancelar
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={salvando}>
             {salvando ? "Salvando..." : "Salvar Infração"}
           </Button>
-        </div>
+        </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-neutral-500">
-          Cadastre autos de infração de trânsito vinculados a veículos e condutores da FSPH.
-        </p>
-
         {erro && (
-          <div className="flex items-center gap-2 rounded-lg bg-danger-50 p-3 text-sm text-danger-700 dark:bg-danger-900/20 dark:text-danger-400">
+          <div
+            role="alert"
+            className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700"
+          >
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{erro}</span>
           </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Modal, Select, Textarea } from "../../components/common";
+import { Button, Input, Modal, Select, Textarea } from "../../components/common";
 import { apiRequest } from "../../lib/api";
+import { atualizarOcupacao } from "../../services/manutencoesService";
 import { dispararAtualizacaoNotificacoes } from "../../services/notificacoesService";
 import type { SolicitacaoViagem } from "../../types/solicitacao";
 
@@ -21,6 +22,12 @@ type Motorista = {
   validadeCnh: string;
   usuario: { nome: string } | null;
 };
+function dataLocalParaInput(valor: string) {
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return undefined;
+  data.setMinutes(data.getMinutes() - data.getTimezoneOffset());
+  return data.toISOString().slice(0, 16);
+}
 interface Props {
   solicitacao: SolicitacaoViagem;
   sessionKey: string | null;
@@ -35,6 +42,7 @@ export function AnalisarSolicitacaoModal({
   onClose,
   onConcluido,
 }: Props) {
+  const [agora] = useState(() => new Date());
   const [revisao, setRevisao] = useState(0);
   const [recursos, setRecursos] = useState<{
     revisao: number;
@@ -44,15 +52,21 @@ export function AnalisarSolicitacaoModal({
   } | null>(null);
   const [veiculoId, setVeiculoId] = useState("");
   const [motoristaId, setMotoristaId] = useState("");
+  const [retornoInformado, setRetornoInformado] = useState("");
   const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const salvando = useRef(false);
   const atual = recursos?.revisao === revisao ? recursos : null;
-  const janelaValida = Boolean(
-    solicitacao.dataHoraPretendida &&
-    solicitacao.dataHoraRetornoPrevista &&
-    new Date(solicitacao.dataHoraPretendida) < new Date(solicitacao.dataHoraRetornoPrevista),
+  const inicio = solicitacao.dataHoraPretendida;
+  const fim = solicitacao.dataHoraRetornoPrevista || retornoInformado;
+  const saidaFutura = Boolean(inicio && new Date(inicio) > agora);
+  const janelaValida = Boolean(inicio && fim && saidaFutura && new Date(inicio) < new Date(fim));
+  const limite = janelaValida
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(fim!))
+    : "";
+  const motoristasDisponiveis = (atual?.motoristas ?? []).filter(
+    (m) => m.validadeCnh.slice(0, 10) >= limite,
   );
   useEffect(() => {
     if (modo !== "APROVAR") return;
@@ -77,19 +91,11 @@ export function AnalisarSolicitacaoModal({
     };
     void Promise.all([carregarVeiculos(), apiRequest<Motorista[]>("/motoristas", {})])
       .then(([veiculos, motoristas]) => {
-        const fim = solicitacao.dataHoraRetornoPrevista;
-        const limite = fim
-          ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
-              new Date(fim),
-            )
-          : "";
         if (ativo)
           setRecursos({
             revisao,
             veiculos,
-            motoristas: motoristas.filter(
-              (m) => m.ativo && m.status === "DISPONIVEL" && m.validadeCnh.slice(0, 10) >= limite,
-            ),
+            motoristas: motoristas.filter((m) => m.ativo && m.status === "DISPONIVEL"),
             erro: "",
           });
       })
@@ -105,7 +111,7 @@ export function AnalisarSolicitacaoModal({
     return () => {
       ativo = false;
     };
-  }, [modo, sessionKey, revisao, solicitacao.dataHoraRetornoPrevista]);
+  }, [modo, sessionKey, revisao]);
   const fechar = () => {
     if (!salvando.current) onClose();
   };
@@ -116,10 +122,10 @@ export function AnalisarSolicitacaoModal({
     if (modo === "APROVAR") {
       const veiculo = atual?.veiculos.find((v) => v.id === veiculoId);
       if (!janelaValida) {
-        setErro("A aprovação exige saída e retorno previstos válidos.");
+        setErro("A aprovação exige uma saída futura e um retorno posterior à saída.");
         return;
       }
-      if (!veiculo || !atual?.motoristas.some((m) => m.id === motoristaId)) {
+      if (!veiculo || !motoristasDisponiveis.some((m) => m.id === motoristaId)) {
         setErro("Selecione um veículo e um motorista disponíveis.");
         return;
       }
@@ -138,10 +144,20 @@ export function AnalisarSolicitacaoModal({
         `/solicitacoes/${encodeURIComponent(solicitacao.id)}/${modo === "APROVAR" ? "aprovar" : "recusar"}`,
         {
           method: "PATCH",
-          data: modo === "APROVAR" ? { veiculoId, motoristaId } : { motivoRecusa: motivo.trim() },
+          data:
+            modo === "APROVAR"
+              ? {
+                  veiculoId,
+                  motoristaId,
+                  ...(!solicitacao.dataHoraRetornoPrevista
+                    ? { dataHoraRetornoPrevista: new Date(retornoInformado).toISOString() }
+                    : {}),
+                }
+              : { motivoRecusa: motivo.trim() },
         },
       );
       dispararAtualizacaoNotificacoes();
+      atualizarOcupacao();
       onConcluido(
         `Solicitação ${solicitacao.protocolo} ${modo === "APROVAR" ? "aprovada e alocada" : "recusada"}.`,
       );
@@ -183,10 +199,20 @@ export function AnalisarSolicitacaoModal({
         <fieldset disabled={enviando} className="space-y-4">
           {modo === "APROVAR" ? (
             <>
+              {!solicitacao.dataHoraRetornoPrevista && (
+                <Input
+                  label="Retorno previsto para alocação"
+                  type="datetime-local"
+                  required
+                  min={inicio ? dataLocalParaInput(inicio) : undefined}
+                  value={retornoInformado}
+                  onChange={(event) => setRetornoInformado(event.target.value)}
+                  helperText="Informe até quando o veículo e o motorista estarão reservados."
+                />
+              )}
               {!janelaValida && (
                 <p role="alert" className="text-sm text-rose-700">
-                  A aprovação exige saída e retorno previstos válidos. Esta solicitação não possui
-                  um intervalo válido.
+                  A aprovação exige uma saída futura e um retorno posterior à saída.
                 </p>
               )}
               {!atual ? (
@@ -215,12 +241,12 @@ export function AnalisarSolicitacaoModal({
                     value={motoristaId}
                     onChange={(e) => setMotoristaId(e.target.value)}
                     placeholder="Selecione o motorista"
-                    options={atual.motoristas.map((m) => ({
+                    options={motoristasDisponiveis.map((m) => ({
                       value: m.id,
                       label: m.usuario?.nome ?? `Motorista sem usuário vinculado (${m.cpf})`,
                     }))}
                   />
-                  {(!atual.veiculos.length || !atual.motoristas.length) && (
+                  {(!atual.veiculos.length || !motoristasDisponiveis.length) && (
                     <p className="text-sm text-amber-800">
                       Não há veículo ou motorista disponível com CNH válida até o retorno previsto.
                     </p>

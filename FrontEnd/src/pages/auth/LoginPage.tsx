@@ -49,7 +49,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#F8FAFC] font-sans text-slate-900">
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#F6F7F9] font-sans text-slate-900">
       {/* Lado Esquerdo: Fotografia Real da Frota FSPH */}
       <div className="relative hidden md:block md:w-1/2 lg:w-7/12 min-h-screen bg-slate-900 overflow-hidden select-none">
         <img
@@ -57,55 +57,52 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
           alt="Frota de Veículos FSPH"
           className="w-full h-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent flex items-end p-10 lg:p-14">
-          <div className="text-white max-w-md">
-            <span className="px-3 py-1 rounded-full bg-blue-600/30 border border-blue-400/40 text-blue-300 text-xs font-bold uppercase tracking-wider inline-block mb-3">
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/25 to-transparent flex items-end p-10 lg:p-14">
+          <div className="text-white max-w-md border-l-2 border-white/40 pl-4">
+            <span className="font-mono text-xs font-semibold uppercase tracking-widest text-slate-300 block mb-1">
               ROTA · FSPH
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Gestão de Frota e SVO
-            </h2>
-            <p className="text-sm text-slate-300 mt-1 font-medium">
-              Fundação de Saúde Parreiras Horta
-            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Gestão de Frota e SVO</h2>
+            <p className="text-sm text-slate-300 mt-1">Fundação de Saúde Parreiras Horta</p>
           </div>
         </div>
       </div>
 
-      {/* Lado Direito: Card Limpo e Direto de Login */}
-      <div className="flex-1 min-h-screen flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-[#F8FAFC]">
-        <div className="w-full max-w-[420px] bg-white rounded-3xl p-8 sm:p-10 shadow-xl shadow-slate-200/50 border border-slate-200/80 flex flex-col items-center text-center">
-          {/* Logo Oficial ROTA */}
-          <div className="mb-6 flex flex-col items-center justify-center">
-            <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200/90 p-2.5 flex items-center justify-center shadow-md shadow-blue-500/10 mb-3 ring-4 ring-blue-50/70">
+      {/* Lado Direito: Formulário Institucional de Acesso */}
+      <div className="flex-1 min-h-screen flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-[#F6F7F9]">
+        <div className="w-full max-w-[400px] bg-white rounded-xl p-7 sm:p-9 border border-slate-200 shadow-xs flex flex-col">
+          {/* Identificação Institucional ROTA */}
+          <div className="mb-6 flex items-center gap-3 pb-5 border-b border-slate-200">
+            <div className="w-11 h-11 rounded-lg bg-slate-50 border border-slate-200 p-2 flex items-center justify-center shrink-0">
               <img src={rotaSymbol} alt="Rota FSPH" className="w-full h-full object-contain" />
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-2xl font-black tracking-tight text-slate-900 leading-none">
-                ROTA
-              </span>
-              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
-                FSPH
-              </span>
+            <div className="text-left">
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg font-extrabold tracking-tight text-slate-900 leading-none">
+                  ROTA
+                </span>
+                <span className="font-mono text-xs font-semibold text-slate-500">· FSPH</span>
+              </div>
+              <span className="block text-xs text-slate-500 mt-1">Gestão de Frota e SVO</span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase mt-1">
-              Gestão de Frota e SVO
-            </span>
           </div>
 
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 mb-6">
+          <h1 className="text-lg font-bold tracking-tight text-slate-900 mb-5 text-left">
             Acessar o sistema
           </h1>
 
           {/* Alerta de Erro */}
           {errorMessage && (
-            <div className="w-full mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2 text-rose-700 text-xs text-left animate-in fade-in duration-200">
+            <div
+              role="alert"
+              className="w-full mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2 text-rose-800 text-xs text-left"
+            >
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{errorMessage}</span>
             </div>
           )}
 
-          {/* Formulário Limpo */}
+          {/* Formulário */}
           <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-4 text-left">
             <Input
               label="E-mail"
@@ -127,12 +124,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
               autoComplete="current-password"
             />
 
-            <div className="pt-2">
+            <div className="pt-1">
               <Button
                 type="submit"
                 variant="primary"
                 size="lg"
-                className="w-full py-3.5 text-sm font-bold rounded-2xl shadow-md bg-slate-900 hover:bg-black text-white"
+                className="w-full"
                 isLoading={isSubmitting}
               >
                 Acessar
@@ -141,11 +138,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
           </form>
 
           {/* Link para recuperação de conta */}
-          <div className="mt-8 pt-4">
+          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
             <button
               type="button"
               onClick={onNavigateToForgot}
-              className="text-xs text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
+              className="text-xs text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             >
               Está com problemas para acessar o sistema?
             </button>

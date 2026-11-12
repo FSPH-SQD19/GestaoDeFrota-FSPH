@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   usuarioFindUnique: vi.fn(),
   findMany: vi.fn(),
+  findUnique: vi.fn(),
+  update: vi.fn(),
   count: vi.fn(),
   groupBy: vi.fn(),
   create: vi.fn(),
@@ -16,11 +18,14 @@ vi.mock("../../../src/lib/prisma", () => ({
     usuario: { findUnique: mocks.usuarioFindUnique },
     solicitacaoViagem: {
       findMany: mocks.findMany,
+      findUnique: mocks.findUnique,
+      update: mocks.update,
       count: mocks.count,
       groupBy: mocks.groupBy,
       create: mocks.create,
     },
     auditoriaSistema: { create: mocks.auditoriaCreate },
+    notificacao: { createMany: vi.fn() },
     $queryRaw: mocks.queryRaw,
     $transaction: mocks.transaction,
   },
@@ -32,6 +37,8 @@ import {
   anoDoProtocolo,
   criarSolicitacao,
   criarSolicitacaoSchema,
+  cancelarSolicitacao,
+  cancelarSolicitacaoSchema,
   formatarProtocolo,
   listarSolicitacoes,
   listarSolicitacoesSchema,
@@ -336,7 +343,14 @@ describe("listarSolicitacoes", () => {
       pageSize: 10,
       total: 21,
       totalPages: 3,
-      porStatus: { PENDENTE: 4, APROVADA: 2, EM_TRANSITO: 0, CONCLUIDA: 0, RECUSADA: 0 },
+      porStatus: {
+        PENDENTE: 4,
+        APROVADA: 2,
+        EM_TRANSITO: 0,
+        CONCLUIDA: 0,
+        RECUSADA: 0,
+        CANCELADA: 0,
+      },
     });
     expect(resultado.data[0]).toMatchObject({
       protocolo: "SV-2026-0042",
@@ -441,5 +455,220 @@ describe("protocolo", () => {
   it("completa com zeros até 4 dígitos sem truncar números maiores", () => {
     expect(formatarProtocolo(2026, 7)).toBe("SV-2026-0007");
     expect(formatarProtocolo(2026, 12345)).toBe("SV-2026-12345");
+  });
+});
+
+describe("cancelarSolicitacaoSchema", () => {
+  it("valida justificativa válida aplicando trim", () => {
+    const res = cancelarSolicitacaoSchema.parse({
+      motivoCancelamento: "  Cancelamento pelo solicitante  ",
+    });
+    expect(res.motivoCancelamento).toBe("Cancelamento pelo solicitante");
+  });
+
+  it("rejeita justificativa curta com menos de 3 caracteres", () => {
+    expect(() => cancelarSolicitacaoSchema.parse({ motivoCancelamento: "ab" })).toThrow();
+  });
+
+  it("rejeita justificativa longa com mais de 500 caracteres", () => {
+    expect(() =>
+      cancelarSolicitacaoSchema.parse({ motivoCancelamento: "a".repeat(501) }),
+    ).toThrow();
+  });
+});
+
+describe("cancelarSolicitacao", () => {
+  const solicitacaoPendente = {
+    ...registro,
+    status: "PENDENTE",
+    solicitanteId: usuarioId,
+    veiculoAlocadoId: null,
+    motoristaAlocadoId: null,
+    motoristaAlocado: null,
+  };
+
+  const solicitacaoAprovada = {
+    ...registro,
+    status: "APROVADA",
+    solicitanteId: usuarioId,
+    veiculoAlocadoId: "00000000-0000-4000-8000-0000000000c1",
+    motoristaAlocadoId: "00000000-0000-4000-8000-0000000000d1",
+    motoristaAlocado: { usuarioId: "00000000-0000-4000-8000-0000000000e1" },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) =>
+      callback(prisma),
+    );
+  });
+
+  it("permite ao solicitante cancelar sua própria solicitação PENDENTE", async () => {
+    mocks.findUnique.mockResolvedValue(solicitacaoPendente);
+    mocks.transaction.mockImplementation(async (callback: any) => {
+      return callback({
+        $queryRaw: mocks.queryRaw,
+        solicitacaoViagem: {
+          findUnique: mocks.findUnique,
+          update: vi.fn().mockResolvedValue({
+            ...solicitacaoPendente,
+            status: "CANCELADA",
+            motivoCancelamento: "Reunião desmarcada",
+            veiculoAlocadoId: null,
+            motoristaAlocadoId: null,
+            solicitante: { nome: "Marina Costa" },
+            veiculoAlocado: null,
+            motoristaAlocado: null,
+          }),
+        },
+        auditoriaSistema: { create: mocks.auditoriaCreate },
+        notificacao: { createMany: vi.fn() },
+      });
+    });
+
+    const res = await cancelarSolicitacao(
+      solicitacaoPendente.id,
+      { motivoCancelamento: "Reunião desmarcada" },
+      solicitante,
+    );
+
+    expect(res.status).toBe("CANCELADA");
+    expect(res.motivoCancelamento).toBe("Reunião desmarcada");
+    expect(mocks.auditoriaCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          acao: "CANCELAR",
+          registroId: solicitacaoPendente.id,
+          dadosNovos: expect.objectContaining({
+            status: "CANCELADA",
+            statusAnterior: "PENDENTE",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("permite ao GESTOR cancelar solicitação APROVADA liberando veiculo e motorista", async () => {
+    mocks.findUnique.mockResolvedValue(solicitacaoAprovada);
+    mocks.transaction.mockImplementation(async (callback: any) => {
+      return callback({
+        $queryRaw: mocks.queryRaw,
+        solicitacaoViagem: {
+          findUnique: mocks.findUnique,
+          update: vi.fn().mockResolvedValue({
+            ...solicitacaoAprovada,
+            status: "CANCELADA",
+            motivoCancelamento: "Viatura retida para manutenção emergencial",
+            veiculoAlocadoId: null,
+            motoristaAlocadoId: null,
+            solicitante: { nome: "Marina Costa" },
+            veiculoAlocado: null,
+            motoristaAlocado: null,
+          }),
+        },
+        auditoriaSistema: { create: mocks.auditoriaCreate },
+        notificacao: { createMany: vi.fn() },
+      });
+    });
+
+    const res = await cancelarSolicitacao(
+      solicitacaoAprovada.id,
+      { motivoCancelamento: "Viatura retida para manutenção emergencial" },
+      gestor,
+    );
+
+    expect(res.status).toBe("CANCELADA");
+    expect(res.veiculoAlocado).toBeNull();
+    expect(res.motoristaAlocado).toBeNull();
+  });
+
+  it("rejeita id com formato inválido (não-UUID)", async () => {
+    await expect(
+      cancelarSolicitacao("id-invalido", { motivoCancelamento: "Motivo teste" }, solicitante),
+    ).rejects.toThrow(HttpError);
+  });
+
+  it("lança 404 quando solicitação não for encontrada", async () => {
+    mocks.findUnique.mockResolvedValue(null);
+    await expect(
+      cancelarSolicitacao(
+        "00000000-0000-4000-8000-000000000099",
+        { motivoCancelamento: "Motivo teste" },
+        solicitante,
+      ),
+    ).rejects.toThrow(HttpError);
+  });
+
+  it("lança 403 quando outro solicitante tenta cancelar solicitação alheia", async () => {
+    mocks.findUnique.mockResolvedValue(solicitacaoPendente);
+    const outroSolicitante = {
+      id: "00000000-0000-4000-8000-000000000999",
+      perfis: ["SOLICITANTE"],
+    };
+    await expect(
+      cancelarSolicitacao(
+        solicitacaoPendente.id,
+        { motivoCancelamento: "Motivo teste" },
+        outroSolicitante,
+      ),
+    ).rejects.toThrow(HttpError);
+  });
+
+  it("lança 409 quando solicitação já está EM_TRANSITO", async () => {
+    mocks.findUnique.mockResolvedValue({ ...solicitacaoPendente, status: "EM_TRANSITO" });
+    await expect(
+      cancelarSolicitacao(solicitacaoPendente.id, { motivoCancelamento: "Motivo teste" }, gestor),
+    ).rejects.toThrow(HttpError);
+  });
+
+  it("lança 409 quando solicitação já está CONCLUIDA", async () => {
+    mocks.findUnique.mockResolvedValue({ ...solicitacaoPendente, status: "CONCLUIDA" });
+    await expect(
+      cancelarSolicitacao(solicitacaoPendente.id, { motivoCancelamento: "Motivo teste" }, gestor),
+    ).rejects.toThrow(HttpError);
+  });
+
+  it("lança 409 quando solicitação já está CANCELADA", async () => {
+    mocks.findUnique.mockResolvedValue({ ...solicitacaoPendente, status: "CANCELADA" });
+    await expect(
+      cancelarSolicitacao(solicitacaoPendente.id, { motivoCancelamento: "Motivo teste" }, gestor),
+    ).rejects.toThrow(HttpError);
+  });
+
+  it("impede solicitante de cancelar solicitação aprovada", async () => {
+    mocks.findUnique.mockResolvedValue(solicitacaoAprovada);
+    await expect(
+      cancelarSolicitacao(
+        solicitacaoAprovada.id,
+        { motivoCancelamento: "Motivo teste" },
+        solicitante,
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("consulta o estado após adquirir o bloqueio e rejeita viagem iniciada enquanto aguardava", async () => {
+    let liberarBloqueio!: () => void;
+    mocks.queryRaw.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          liberarBloqueio = resolve;
+        }),
+    );
+    mocks.findUnique.mockResolvedValue({ ...solicitacaoAprovada, status: "EM_TRANSITO" });
+
+    const cancelamento = cancelarSolicitacao(
+      solicitacaoAprovada.id,
+      { motivoCancelamento: "Motivo teste" },
+      gestor,
+    );
+    expect(mocks.queryRaw).toHaveBeenCalledOnce();
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+    liberarBloqueio();
+
+    await expect(cancelamento).rejects.toMatchObject({ statusCode: 409 });
+    expect(mocks.findUnique).toHaveBeenCalledOnce();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.auditoriaCreate).not.toHaveBeenCalled();
   });
 });

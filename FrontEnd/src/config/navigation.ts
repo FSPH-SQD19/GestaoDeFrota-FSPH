@@ -1,6 +1,7 @@
 import type React from "react";
 import {
   LayoutGrid,
+  CalendarDays,
   Car,
   Users,
   ClipboardList,
@@ -8,6 +9,8 @@ import {
   UserCheck,
   PhoneCall,
   Route,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import type { UserRole } from "../types/auth";
 
@@ -18,14 +21,19 @@ import type { UserRole } from "../types/auth";
  */
 
 export type TabId =
+  | "rastreamento"
   | "dashboard"
   | "solicitacoes"
+  | "agenda"
   | "viagens"
+  | "coletasSvo"
   | "veiculos"
+  | "avarias"
   | "motoristas"
   | "svo"
   | "relatorios"
-  | "usuarios";
+  | "usuarios"
+  | "auditoria";
 
 export interface NavItem {
   id: TabId;
@@ -64,15 +72,39 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Route,
         roles: ["MOTORISTA"],
       },
+      {
+        id: "coletasSvo",
+        label: () => "Coletas SVO",
+        icon: PhoneCall,
+        roles: ["MOTORISTA"],
+      },
     ],
   },
   {
     title: "OPERAÇÃO DA FROTA",
     items: [
       {
+        id: "rastreamento",
+        label: () => "Mapa e operação",
+        icon: Route,
+        roles: ["ADMIN", "GESTOR", "SVO"],
+      },
+      {
+        id: "agenda",
+        label: () => "Agenda da Frota",
+        icon: CalendarDays,
+        roles: ["ADMIN", "GESTOR"],
+      },
+      {
         id: "veiculos",
         label: () => "Veículos",
         icon: Car,
+        roles: ["ADMIN", "GESTOR"],
+      },
+      {
+        id: "avarias",
+        label: () => "Avarias",
+        icon: AlertTriangle,
         roles: ["ADMIN", "GESTOR"],
       },
       {
@@ -104,12 +136,18 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: UserCheck,
         roles: ["ADMIN"],
       },
+      {
+        id: "auditoria",
+        label: () => "Trilha de Auditoria",
+        icon: ShieldCheck,
+        roles: ["ADMIN"],
+      },
     ],
   },
 ];
 
 /** Tela aberta após o login, por perfil. */
-export const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
+const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
   ADMIN: "dashboard",
   GESTOR: "dashboard",
   SVO: "svo",

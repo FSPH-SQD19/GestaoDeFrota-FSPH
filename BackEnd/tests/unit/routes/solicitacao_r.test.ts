@@ -12,6 +12,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 const mocks = vi.hoisted(() => ({
   usuarioFindUnique: vi.fn(),
   findMany: vi.fn(),
+  findUnique: vi.fn(),
+  update: vi.fn(),
   findFirst: vi.fn(),
   count: vi.fn(),
   groupBy: vi.fn(),
@@ -26,12 +28,15 @@ vi.mock("../../../src/lib/prisma", () => ({
     usuario: { findUnique: mocks.usuarioFindUnique },
     solicitacaoViagem: {
       findMany: mocks.findMany,
+      findUnique: mocks.findUnique,
+      update: mocks.update,
       findFirst: mocks.findFirst,
       count: mocks.count,
       groupBy: mocks.groupBy,
       create: mocks.create,
     },
     auditoriaSistema: { create: mocks.auditoriaCreate },
+    notificacao: { createMany: vi.fn() },
     $queryRaw: mocks.queryRaw,
     $transaction: mocks.transaction,
   },
@@ -87,12 +92,12 @@ type Corpo = {
   [chave: string]: unknown;
 };
 
-type Opcoes = { perfis?: string[]; body?: unknown };
+type Opcoes = { perfis?: string[]; body?: unknown; method?: string };
 
-async function chamar(caminho: string, { perfis, body }: Opcoes = {}) {
+async function chamar(caminho: string, { perfis, body, method }: Opcoes = {}) {
   const temCorpo = body !== undefined;
   const resposta = await fetch(`${baseUrl}/api/v1/solicitacoes${caminho}`, {
-    method: temCorpo ? "POST" : "GET",
+    method: method ?? (temCorpo ? "POST" : "GET"),
     headers: {
       ...(temCorpo && { "content-type": "application/json" }),
       ...(perfis && {
@@ -192,7 +197,14 @@ describe("GET /api/v1/solicitacoes", () => {
       pageSize: 10,
       total: 1,
       totalPages: 1,
-      porStatus: { PENDENTE: 1, APROVADA: 0, EM_TRANSITO: 0, CONCLUIDA: 0, RECUSADA: 0 },
+      porStatus: {
+        PENDENTE: 1,
+        APROVADA: 0,
+        EM_TRANSITO: 0,
+        CONCLUIDA: 0,
+        RECUSADA: 0,
+        CANCELADA: 0,
+      },
     });
     expect(resposta.json.data?.[0]).toMatchObject({
       protocolo: "SV-2026-0001",
@@ -331,5 +343,82 @@ describe("POST /api/v1/solicitacoes", () => {
       message: "O sistema não conseguiu concluir a operação. Tente novamente em alguns instantes.",
       errors: [],
     });
+  });
+});
+
+describe("PATCH /api/v1/solicitacoes/:id/cancelar", () => {
+  const solicitacaoId = "00000000-0000-4000-8000-0000000000a1";
+
+  beforeEach(() => {
+    mocks.findUnique.mockResolvedValue({
+      ...registro,
+      status: "PENDENTE",
+      solicitanteId: usuarioId,
+      veiculoAlocadoId: null,
+      motoristaAlocadoId: null,
+      motoristaAlocado: null,
+    });
+    mocks.update.mockResolvedValue({
+      ...registro,
+      status: "CANCELADA",
+      motivoCancelamento: "Reunião cancelada pelo cliente",
+      veiculoAlocadoId: null,
+      motoristaAlocadoId: null,
+      solicitante: { nome: "Marina Costa" },
+      veiculoAlocado: null,
+      motoristaAlocado: null,
+    });
+  });
+
+  it("exige autenticação", async () => {
+    const resposta = await chamar(`/${solicitacaoId}/cancelar`, {
+      method: "PATCH",
+      body: { motivoCancelamento: "Reunião cancelada pelo cliente" },
+    });
+
+    expect(resposta.status).toBe(401);
+  });
+
+  it("retorna 403 para perfis sem acesso como MOTORISTA", async () => {
+    const resposta = await chamar(`/${solicitacaoId}/cancelar`, {
+      method: "PATCH",
+      perfis: ["MOTORISTA"],
+      body: { motivoCancelamento: "Reunião cancelada pelo cliente" },
+    });
+
+    expect(resposta.status).toBe(403);
+  });
+
+  it("cancela solicitação com sucesso para SOLICITANTE dono da viagem", async () => {
+    const resposta = await chamar(`/${solicitacaoId}/cancelar`, {
+      method: "PATCH",
+      perfis: ["SOLICITANTE"],
+      body: { motivoCancelamento: "Reunião cancelada pelo cliente" },
+    });
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.json.mensagem).toBe("Solicitação cancelada com sucesso.");
+    expect((resposta.json.dados as Record<string, unknown>)?.status).toBe("CANCELADA");
+  });
+
+  it("cancela solicitação com sucesso para GESTOR", async () => {
+    const resposta = await chamar(`/${solicitacaoId}/cancelar`, {
+      method: "PATCH",
+      perfis: ["GESTOR"],
+      body: { motivoCancelamento: "Ordem de serviço cancelada pela diretoria" },
+    });
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.json.mensagem).toBe("Solicitação cancelada com sucesso.");
+  });
+
+  it("retorna 400 quando o motivo de cancelamento é inválido ou ausente", async () => {
+    const resposta = await chamar(`/${solicitacaoId}/cancelar`, {
+      method: "PATCH",
+      perfis: ["SOLICITANTE"],
+      body: { motivoCancelamento: "oi" },
+    });
+
+    expect(resposta.status).toBe(400);
   });
 });

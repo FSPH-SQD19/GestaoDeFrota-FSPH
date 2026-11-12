@@ -1,12 +1,9 @@
-import "dotenv/config";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Prisma } from "@prisma/client";
-import { createPrismaClient } from "../src/lib/prisma";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/service/password_s";
 
-const prisma = createPrismaClient(process.env.DATABASE_URL || "");
 const namespace = "frota-demo-v1";
 function id(key: string) {
   const hex = createHash("sha256").update(`${namespace}:${key}`).digest("hex");
@@ -26,12 +23,26 @@ const accounts = [
   id: id(`usuario:${account.key}`),
 }));
 
-async function main() {
+export async function popularDemonstracao(prisma: PrismaClient) {
   if (process.env.NODE_ENV === "production")
     throw new Error("O seed de demonstração é exclusivo de desenvolvimento/homologação.");
   const destination = new URL(process.env.DATABASE_URL || "");
   const database = `${destination.hostname}${destination.pathname}`;
   console.log(`Banco de demonstração: ${database}`);
+  const totalVeiculos = Number(process.env.SEED_DEMO_VEICULOS ?? "7");
+  if (!Number.isInteger(totalVeiculos) || totalVeiculos < 7 || totalVeiculos > 99) {
+    throw new Error("SEED_DEMO_VEICULOS deve ser um inteiro entre 7 e 99.");
+  }
+  const today =
+    process.env.SEED_DEMO_DATE ||
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const anchor = new Date(`${today}T12:00:00-03:00`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(today) ||
+    !Number.isFinite(anchor.getTime()) ||
+    anchor.toISOString().slice(0, 10) !== today
+  )
+    throw new Error("SEED_DEMO_DATE inválida; use AAAA-MM-DD.");
   const credentialsPath = resolve(__dirname, "../.runtime/demo-access.json");
   let password: string;
   if (existsSync(credentialsPath)) {
@@ -74,12 +85,6 @@ async function main() {
     );
   }
   const hashes = await Promise.all(accounts.map(() => hashPassword(password)));
-  const today =
-    process.env.SEED_DEMO_DATE ||
-    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-  const anchor = new Date(`${today}T12:00:00-03:00`);
-  if (!Number.isFinite(anchor.getTime()))
-    throw new Error("SEED_DEMO_DATE inválida; use AAAA-MM-DD.");
   const day = (offset: number, hour = 9) => {
     const date = new Date(anchor);
     date.setUTCDate(date.getUTCDate() + offset);
@@ -172,27 +177,30 @@ async function main() {
           status: "DISPONIVEL",
           odometroAtual: 29000,
         },
-        {
-          modelo: "Volkswagen Gol Inativo DEMO",
-          tipoFrota: "ADMINISTRATIVA",
-          status: "DISPONIVEL",
-          odometroAtual: 92000,
-        },
       ];
+      while (vehicles.length < totalVeiculos) {
+        const numero = vehicles.length + 1;
+        vehicles.push({
+          modelo: `Veículo adicional DEMO ${numero}`,
+          tipoFrota: numero % 2 ? "ADMINISTRATIVA" : "SVO",
+          status: "DISPONIVEL",
+          odometroAtual: 30000 + numero * 1000,
+        });
+      }
       for (const [i, data] of vehicles.entries()) {
+        const locado = i === 2 || i === 6 || (i >= 7 && i % 2 === 0);
         await tx.veiculo.upsert({
           where: { id: vehicle(i) },
           update: {},
           create: {
             id: vehicle(i),
-            placa: `DMO${i + 1}A0${i + 1}`,
+            placa: i < 7 ? `DMO${i + 1}A0${i + 1}` : `DMO0B${String(i + 1).padStart(2, "0")}`,
             ...data,
             ano: 2021 + (i % 4),
-            propriedade: i === 2 ? "LOCADO" : "PROPRIO",
-            fornecedorId: i === 2 ? vendor(0) : null,
+            propriedade: locado ? "LOCADO" : "PROPRIO",
+            fornecedorId: locado ? vendor(0) : null,
             capacidadeMaxima: i === 3 ? 12 : 4,
             combustivel: i >= 3 && i <= 5 ? "DIESEL" : "FLEX",
-            ativo: i !== 7,
             criadoEm: day(-90),
           },
         });
@@ -203,7 +211,7 @@ async function main() {
             id: id(`documento:${i}`),
             veiculoId: vehicle(i),
             tipoDocumento: "CRLV",
-            dataVencimento: day(i === 3 ? -5 : 60 + i * 15),
+            dataVencimento: day(i === 3 ? -5 : i === 1 ? 10 : i === 6 ? 20 : 60 + i * 15),
             status: i === 3 ? "VENCIDO" : "VIGENTE",
           },
         });
@@ -211,24 +219,24 @@ async function main() {
       const drivers = [
         {
           key: "motorista",
-          cpf: "11144477735",
+          cpf: "00000000001",
           numeroCnh: "90000000001",
           status: "OCUPADO",
-          telefone: "(79) 90000-0001",
+          telefone: "(00) 90000-0001",
         },
         {
           key: "motorista.svo",
-          cpf: "52998224725",
+          cpf: "00000000002",
           numeroCnh: "90000000002",
           status: "OCUPADO",
-          telefone: "(79) 90000-0002",
+          telefone: "(00) 90000-0002",
         },
         {
           key: "motorista.reserva",
-          cpf: "12345678909",
+          cpf: "00000000003",
           numeroCnh: "90000000003",
           status: "DISPONIVEL",
-          telefone: "(79) 90000-0003",
+          telefone: "(00) 90000-0003",
         },
       ];
       for (const [i, data] of drivers.entries())
@@ -242,7 +250,7 @@ async function main() {
             numeroCnh: data.numeroCnh,
             status: data.status,
             categoriaCnh: "D",
-            validadeCnh: day(730),
+            validadeCnh: day(i === 2 ? 15 : 730),
             telefone: data.telefone,
           },
         });
@@ -314,7 +322,7 @@ async function main() {
           },
         });
         if (completed || inProgress) {
-          const km = inProgress ? 38300 : (vehicleIndex === 2 ? 50000 : 40000) + i * 150;
+          const km = inProgress ? 38400 : (vehicleIndex === 2 ? 50000 : 40000) + i * 150;
           await tx.execucaoViagem.create({
             data: {
               id: id(`execucao:${i}`),
@@ -374,6 +382,7 @@ async function main() {
         await tx.chamadoSvo.create({
           data: {
             id: callId,
+            criadoEm: day(i === 3 ? 0 : -2, 7),
             numeroProtocolo: await nextProtocol("SVO"),
             atendenteId: user("svo"),
             nomeFalecido: `Pessoa fictícia DEMO ${i + 1}`,
@@ -389,8 +398,10 @@ async function main() {
               chamadoId: callId,
               veiculoId: vehicle(i + 1),
               motoristaId: driver(1),
-              status: i === 3 ? "EM_ANDAMENTO" : "CONCLUIDA",
+              status: i === 3 ? "EM_DESLOCAMENTO" : "ENTREGUE_SVO",
               dataHoraSaida: day(i === 3 ? 0 : -2, 8),
+              dataHoraChegadaLocal: i === 3 ? null : day(-2, 9),
+              dataHoraEntregaSvo: i === 3 ? null : day(-2, 10),
               numeroDeclaracaoObito: `DEMO-${year}-${i}`,
             },
           });
@@ -413,7 +424,7 @@ async function main() {
         update: {},
         create: {
           id: id("multa:1"),
-          autoInfracao: "SE-2026-901",
+          autoInfracao: "DEMO-MULTA-001",
           veiculoId: vehicle(0),
           motoristaId: driver(0),
           dataHora: day(-5, 14),
@@ -421,8 +432,8 @@ async function main() {
           pontos: 4,
           valor: new Prisma.Decimal("130.16"),
           descricao: "Excesso de velocidade em até 20%",
-          local: "Av. Beira Mar, Aracaju/SE",
-          orgaoEmissor: "SMTT Aracaju",
+          local: "Via fictícia DEMO 01 — Aracaju/SE",
+          orgaoEmissor: "Órgão municipal DEMO",
           status: "PENDENTE",
           dataVencimento: day(20, 0),
         },
@@ -432,7 +443,7 @@ async function main() {
         update: {},
         create: {
           id: id("multa:2"),
-          autoInfracao: "BR-2026-442",
+          autoInfracao: "DEMO-MULTA-002",
           veiculoId: vehicle(1),
           motoristaId: driver(1),
           dataHora: day(-15, 9),
@@ -440,8 +451,8 @@ async function main() {
           pontos: 5,
           valor: new Prisma.Decimal("195.23"),
           descricao: "Ultrapassagem em linha contínua",
-          local: "BR-101, Km 82, Nossa Senhora do Socorro/SE",
-          orgaoEmissor: "PRF",
+          local: "Rodovia fictícia DEMO 02 — Sergipe",
+          orgaoEmissor: "Órgão rodoviário DEMO",
           status: "PAGA",
           dataVencimento: day(-1, 0),
           dataPagamento: day(-2, 16),
@@ -463,16 +474,7 @@ async function main() {
     { maxWait: 15_000, timeout: 120_000 },
   );
   console.log(
-    "Demonstração criada: 7 usuários, 5 perfis, 3 motoristas, 8 veículos, 3 fornecedores, 12 viagens, 10 abastecimentos, 4 manutenções e 7 chamados SVO.",
+    `Cenários DEMO verificados: 7 usuários, 5 perfis, 3 motoristas, ${totalVeiculos} veículos previstos, 3 fornecedores, 12 viagens, 10 abastecimentos, 4 manutenções, 2 multas e 7 chamados SVO.`,
   );
   console.log(`Acessos e senha: ${credentialsPath} (ignorado pelo Git).`);
 }
-main()
-  .catch((error: unknown) => {
-    console.error(
-      "Falha no seed de demonstração:",
-      error instanceof Error ? error.message : "erro desconhecido",
-    );
-    process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());

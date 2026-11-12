@@ -9,7 +9,7 @@ import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cach
 
 export const TIPOS_FROTA = ["ADMINISTRATIVA", "SVO"] as const;
 export const STATUS_VEICULO = ["DISPONIVEL", "EM_VIAGEM", "MANUTENCAO", "DESINFECCAO"] as const;
-export const PROPRIEDADES = ["PROPRIO", "LOCADO"] as const;
+const PROPRIEDADES = ["PROPRIO", "LOCADO"] as const;
 
 export type TipoFrota = (typeof TIPOS_FROTA)[number];
 export type StatusVeiculo = (typeof STATUS_VEICULO)[number];
@@ -30,6 +30,8 @@ const placaSchema = z
 const anoMaximo = () => new Date().getFullYear() + 1;
 
 const camposVeiculo = {
+  sedeId: z.uuid().nullable().optional(),
+  foraDeSede: z.boolean().optional(),
   placa: placaSchema,
   modelo: z
     .string({ error: "Modelo é obrigatório." })
@@ -56,6 +58,16 @@ const camposVeiculo = {
     .number({ error: "Informe a quilometragem exibida no odômetro." })
     .min(0, "Odômetro não pode ser negativo.")
     .max(99999999.99, "Odômetro inválido."),
+  kmProximaRevisao: z
+    .number({ error: "Informe a quilometragem da próxima revisão." })
+    .positive("A quilometragem da revisão deve ser maior que zero.")
+    .max(99999999.99, "Quilometragem da revisão inválida.")
+    .refine(
+      (valor) => new Prisma.Decimal(valor).decimalPlaces() <= 2,
+      "Use no máximo 2 casas decimais.",
+    )
+    .nullable()
+    .optional(),
   status: z.enum(STATUS_VEICULO, { error: "Selecione uma situação válida para o veículo." }),
 };
 
@@ -88,11 +100,13 @@ export const criarVeiculoSchema = z
   });
 
 export const listarVeiculosSchema = z.object({
+  sede: z.union([z.uuid(), z.enum(["SEM_SEDE", "FORA_DE_SEDE"])]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   tipoFrota: z.enum(TIPOS_FROTA).optional(),
   status: z.enum(STATUS_VEICULO).optional(),
   propriedade: z.enum(PROPRIEDADES).optional(),
+  fornecedorId: camposVeiculo.fornecedorId.optional(),
   ativo: z
     .enum(["true", "false"])
     .default("true")
@@ -105,20 +119,35 @@ export type ListarVeiculosFiltros = z.infer<typeof listarVeiculosSchema>;
 
 // Servico
 
-export type VeiculoResposta = Omit<Veiculo, "odometroAtual"> & { odometroAtual: number };
+export type VeiculoResposta = Omit<Veiculo, "odometroAtual" | "kmProximaRevisao"> & {
+  odometroAtual: number;
+  kmProximaRevisao: number | null;
+};
 
 export function serializarVeiculo(veiculo: Veiculo): VeiculoResposta {
-  return { ...veiculo, odometroAtual: Number(veiculo.odometroAtual) };
+  return {
+    ...veiculo,
+    odometroAtual: Number(veiculo.odometroAtual),
+    kmProximaRevisao: veiculo.kmProximaRevisao == null ? null : Number(veiculo.kmProximaRevisao),
+  };
 }
 
 export async function listarVeiculos(filtros: ListarVeiculosFiltros) {
-  const { page, pageSize, tipoFrota, status, propriedade, ativo, busca } = filtros;
+  const { page, pageSize, tipoFrota, status, propriedade, fornecedorId, ativo, busca } = filtros;
 
   const where: Prisma.VeiculoWhereInput = {
     ativo,
+    ...(filtros.sede === "SEM_SEDE"
+      ? { sedeId: null, foraDeSede: false }
+      : filtros.sede === "FORA_DE_SEDE"
+        ? { foraDeSede: true }
+        : filtros.sede
+          ? { sedeId: filtros.sede }
+          : {}),
     ...(tipoFrota ? { tipoFrota } : {}),
     ...(status ? { status } : {}),
     ...(propriedade ? { propriedade } : {}),
+    ...(fornecedorId ? { fornecedorId } : {}),
     ...(busca
       ? {
           OR: [
@@ -132,6 +161,7 @@ export async function listarVeiculos(filtros: ListarVeiculosFiltros) {
   const [veiculos, total] = await Promise.all([
     prisma.veiculo.findMany({
       where,
+      include: { sede: true },
       orderBy: [{ placa: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -168,7 +198,18 @@ export async function criarVeiculo(input: CriarVeiculoInput, usuarioId: string) 
 
   let veiculo: Veiculo;
   try {
-    veiculo = await prisma.veiculo.create({ data: input });
+    veiculo =
+      input.sedeId || input.foraDeSede
+        ? await prisma.$transaction(async (tx) => {
+            await validarSede(tx, input.sedeId, input.foraDeSede);
+            const criado = await tx.veiculo.create({
+              data: { ...input, sedeAtualizadaEm: new Date() },
+              include: { sede: true },
+            });
+            await auditarSede(tx, criado, null, usuarioId);
+            return criado;
+          })
+        : await prisma.veiculo.create({ data: input });
   } catch (error) {
     // Caso tenha duas requisicoes com a mesma placa
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -271,10 +312,41 @@ export async function atualizarVeiculo(
   let veiculo: Veiculo;
 
   try {
-    veiculo = await prisma.veiculo.update({
-      where: { id },
-      data: dadosAtualizados,
-    });
+    veiculo =
+      input.sedeId !== undefined || input.foraDeSede !== undefined
+        ? await prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT id FROM veiculos WHERE id = ${id}::uuid FOR UPDATE`;
+            const anterior = await tx.veiculo.findUniqueOrThrow({
+              where: { id },
+              include: { sede: true },
+            });
+            const sedeId =
+              input.sedeId !== undefined
+                ? input.sedeId
+                : input.foraDeSede === true
+                  ? null
+                  : anterior.sedeId;
+            const foraDeSede = input.foraDeSede ?? (input.sedeId ? false : anterior.foraDeSede);
+            await validarSede(tx, sedeId, foraDeSede, anterior.sedeId);
+            const mudou = sedeId !== anterior.sedeId || foraDeSede !== anterior.foraDeSede;
+            const atualizado = await tx.veiculo.update({
+              where: { id },
+              data: {
+                ...dadosAtualizados,
+                sedeId,
+                foraDeSede,
+                ...(mudou ? { sedeAtualizadaEm: new Date() } : {}),
+              },
+              include: { sede: true },
+            });
+            if (mudou) await auditarSede(tx, atualizado, anterior, usuarioId);
+            return atualizado;
+          })
+        : await prisma.veiculo.update({
+            where: { id },
+            data: dadosAtualizados,
+            include: { sede: true },
+          });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw erroPlacaDuplicada();
@@ -300,4 +372,45 @@ export async function atualizarVeiculo(
     console.error("Falha ao registrar auditoria do veículo", veiculo.id, erro);
   }
   return resposta;
+}
+
+async function validarSede(
+  tx: Prisma.TransactionClient,
+  sedeId?: string | null,
+  foraDeSede?: boolean,
+  anterior?: string | null,
+) {
+  if (sedeId && foraDeSede)
+    throw new HttpError(422, "Um veículo fora de sede não pode ter uma sede selecionada.");
+  if (sedeId) {
+    const sede = await tx.sede.findUnique({ where: { id: sedeId } });
+    if (!sede || (!sede.ativo && sedeId !== anterior))
+      throw new HttpError(422, "Selecione uma sede ativa.");
+  }
+}
+async function auditarSede(
+  tx: Prisma.TransactionClient,
+  novo: Veiculo & { sede: { nome: string } | null },
+  anterior: (Veiculo & { sede: { nome: string } | null }) | null,
+  usuarioId: string,
+) {
+  const local = (v: typeof anterior) => ({
+    sedeId: v?.sedeId ?? null,
+    nome: v?.sede?.nome ?? null,
+    foraDeSede: v?.foraDeSede ?? false,
+  });
+  await tx.auditoriaSistema.create({
+    data: {
+      usuarioId,
+      acao: "ALTERAR_SEDE",
+      tabelaAfetada: "veiculos",
+      registroId: novo.id,
+      dadosNovos: {
+        veiculo: { id: novo.id, placa: novo.placa },
+        sedeAnterior: local(anterior),
+        novaSede: local(novo),
+        horario: novo.sedeAtualizadaEm!.toISOString(),
+      },
+    },
+  });
 }

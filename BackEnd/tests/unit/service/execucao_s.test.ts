@@ -7,7 +7,11 @@ const tx = vi.hoisted(() => ({
   motorista: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   veiculo: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   execucaoViagem: { create: vi.fn(), update: vi.fn() },
+  avariaViagem: { findUnique: vi.fn(), create: vi.fn() },
+  avariaHistorico: { create: vi.fn() },
   auditoriaSistema: { create: vi.fn() },
+  usuario: { findMany: vi.fn() },
+  notificacao: { createMany: vi.fn() },
 }));
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: { $transaction: async (fn: (client: typeof tx) => unknown) => fn(tx) },
@@ -63,6 +67,9 @@ beforeEach(() => {
   });
   tx.execucaoViagem.create.mockResolvedValue(saida);
   tx.execucaoViagem.update.mockResolvedValue(retorno);
+  tx.avariaViagem.findUnique.mockResolvedValue(null);
+  tx.avariaViagem.create.mockResolvedValue({ id: "avaria-1" });
+  tx.avariaHistorico.create.mockResolvedValue({});
 });
 function emTransito() {
   tx.motorista.findUniqueOrThrow.mockResolvedValue({
@@ -82,6 +89,19 @@ function emTransito() {
   });
 }
 describe("execução de viagens", () => {
+  it.each([saida, retorno])(
+    "impede execução paralela ao diário quando o PWA está ativo",
+    async (dados) => {
+      vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+      await expect(executarViagem(id, id, dados)).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Use a área do motorista para iniciar ou concluir esta viagem.",
+      });
+      expect(tx.$queryRaw).not.toHaveBeenCalled();
+      expect(tx.execucaoViagem.create).not.toHaveBeenCalled();
+      expect(tx.execucaoViagem.update).not.toHaveBeenCalled();
+    },
+  );
   it("inicia e registra checklist, horário e status", async () => {
     expect(await executarViagem(id, id, saida)).toMatchObject({ status: "EM_TRANSITO" });
     expect(tx.execucaoViagem.create).toHaveBeenCalledWith({
@@ -126,6 +146,64 @@ describe("execução de viagens", () => {
     });
   });
 
+  it("registra avaria uma única vez e bloqueia o veículo até a avaliação", async () => {
+    emTransito();
+    tx.execucaoViagem.update.mockResolvedValue({ ...retorno, id: "execucao-1" });
+    const retornoComAvaria = {
+      ...retorno,
+      checklistRetorno: {
+        ...retorno.checklistRetorno,
+        semOcorrencias: false,
+        ocorrencias: "Avaria na porta lateral",
+      },
+    };
+
+    await executarViagem(id, id, retornoComAvaria);
+
+    expect(tx.avariaViagem.create).toHaveBeenCalledWith({
+      data: {
+        solicitacaoId: id,
+        execucaoId: "execucao-1",
+        veiculoId: id,
+        registradaPorId: id,
+        descricao: "Avaria na porta lateral",
+        situacao: "PENDENTE",
+      },
+    });
+    expect(tx.veiculo.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { odometroAtual: 120, status: "MANUTENCAO" },
+    });
+    expect(tx.avariaHistorico.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        avariaId: "avaria-1",
+        autorId: id,
+        situacaoNova: "PENDENTE",
+      }),
+    });
+  });
+
+  it("reaproveita a conclusão e a avaria quando a mesma solicitação é repetida", async () => {
+    const dataHoraFim = new Date("2026-11-12T12:00:00.000Z");
+    tx.solicitacaoViagem.findUnique.mockResolvedValue({
+      ...viagem,
+      status: "CONCLUIDA",
+      execucao: {
+        id: "execucao-1",
+        kmInicial: new Prisma.Decimal(100),
+        kmFinal: new Prisma.Decimal(120),
+        dataHoraFim,
+        checklistRetorno: retorno.checklistRetorno,
+      },
+    });
+
+    const resposta = await executarViagem(id, id, retorno);
+
+    expect(resposta).toMatchObject({ id: "execucao-1", status: "CONCLUIDA" });
+    expect(tx.execucaoViagem.update).not.toHaveBeenCalled();
+    expect(tx.avariaViagem.create).not.toHaveBeenCalled();
+  });
+
   it("rejeita km final menor sem alterar registros", async () => {
     emTransito();
     await expect(executarViagem(id, id, { ...retorno, kmFinal: 99 })).rejects.toMatchObject({
@@ -160,5 +238,52 @@ describe("execução de viagens", () => {
     }
     expect(concluirViagemSchema.safeParse({ kmFinal: 120 }).success).toBe(false);
     expect(iniciarViagemSchema.safeParse({ ...saida, checklistSaida: null }).success).toBe(false);
+  });
+});
+
+describe("revisão preventiva ao encerrar a viagem", () => {
+  it.each([
+    [9000, "REVISAO_PREVENTIVA_PROXIMA"],
+    [10000, "REVISAO_PREVENTIVA_VENCIDA"],
+    [11000, "REVISAO_PREVENTIVA_VENCIDA"],
+  ])("notifica a gestão ao retornar com %s km", async (kmFinal, tipo) => {
+    emTransito();
+    tx.veiculo.findUniqueOrThrow.mockResolvedValue({
+      id,
+      placa: "ABC1234",
+      ativo: true,
+      status: "EM_VIAGEM",
+      odometroAtual: new Prisma.Decimal(8000),
+      kmProximaRevisao: new Prisma.Decimal(10000),
+    });
+    tx.usuario.findMany.mockResolvedValue([{ id }]);
+    tx.notificacao.createMany.mockResolvedValue({ count: 1 });
+    await executarViagem(id, id, { ...retorno, kmFinal });
+    expect(tx.notificacao.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ tipo, referenciaId: id })],
+      skipDuplicates: true,
+    });
+    expect(tx.veiculo.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { odometroAtual: kmFinal, status: "DISPONIVEL" },
+    });
+  });
+  it("propaga falha de notificação para impedir a confirmação parcial da transação", async () => {
+    emTransito();
+    tx.veiculo.findUniqueOrThrow.mockResolvedValue({
+      id,
+      placa: "ABC1234",
+      ativo: true,
+      status: "EM_VIAGEM",
+      odometroAtual: new Prisma.Decimal(8000),
+      kmProximaRevisao: new Prisma.Decimal(10000),
+    });
+    tx.usuario.findMany.mockResolvedValue([{ id }]);
+    tx.notificacao.createMany.mockRejectedValueOnce(new Error("Falha ao notificar"));
+    await expect(executarViagem(id, id, { ...retorno, kmFinal: 10000 })).rejects.toThrow(
+      "Falha ao notificar",
+    );
+    expect(tx.solicitacaoViagem.update).not.toHaveBeenCalled();
+    expect(tx.auditoriaSistema.create).not.toHaveBeenCalled();
   });
 });

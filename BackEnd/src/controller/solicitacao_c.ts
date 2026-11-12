@@ -13,9 +13,13 @@ import {
   listarSolicitacoes,
   listarMinhasViagens,
   listarSolicitacoesSchema,
+  cancelarSolicitacao,
+  cancelarSolicitacaoSchema,
 } from "../service/solicitacao_s";
 import {
   aprovarSolicitacao,
+  reagendarSolicitacao,
+  reagendarSolicitacaoSchema,
   recusarSolicitacao,
   aprovarSolicitacaoSchema,
   recusarSolicitacaoSchema,
@@ -71,6 +75,11 @@ export async function aprovarSolicitacaoController(req: Request, res: Response) 
   });
 }
 
+export async function reagendarSolicitacaoController(req: Request, res: Response) {
+  const dados = validar(reagendarSolicitacaoSchema, req.body ?? {});
+  res.json(await reagendarSolicitacao(String(req.params.id), dados, usuarioAutenticado(res).id));
+}
+
 export async function recusarSolicitacaoController(req: Request, res: Response) {
   const dados = validar(recusarSolicitacaoSchema, req.body ?? {});
 
@@ -82,6 +91,20 @@ export async function recusarSolicitacaoController(req: Request, res: Response) 
 
   return res.status(200).json({
     mensagem: "Solicitação recusada com sucesso.",
+    dados: solicitacao,
+  });
+}
+
+export async function cancelarSolicitacaoController(req: Request, res: Response) {
+  const dados = validar(cancelarSolicitacaoSchema, req.body ?? {});
+  const solicitacao = await cancelarSolicitacao(
+    String(req.params.id),
+    dados,
+    usuarioAutenticado(res),
+  );
+
+  return res.status(200).json({
+    mensagem: "Solicitação cancelada com sucesso.",
     dados: solicitacao,
   });
 }

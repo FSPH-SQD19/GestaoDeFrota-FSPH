@@ -1,9 +1,10 @@
-import axios, { type Method } from "axios";
+import axios, { type Method, type ResponseType } from "axios";
 import { api } from "../services/api";
 
 interface ApiRequestOptions {
   method?: Method;
   data?: unknown;
+  responseType?: ResponseType;
 }
 
 export function respostaDeErro(
@@ -55,6 +56,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       url: `/api/v1${path.startsWith("/") ? path : `/${path}`}`,
       method: options.method ?? "GET",
       data: options.data,
+      ...(options.responseType ? { responseType: options.responseType } : {}),
     });
     return response.data;
   } catch (error) {

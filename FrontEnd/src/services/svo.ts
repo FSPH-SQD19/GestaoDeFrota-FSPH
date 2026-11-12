@@ -42,9 +42,21 @@ export interface ChamadoSvo {
   enderecoOcorrencia: string | null;
   relatoOcorrencia: string | null;
   statusTriagem: StatusTriagem;
+  criadoEm?: string | null;
   justificativaTriagem?: string | null;
   atendente?: { id: string; nome: string } | null;
   ordemColeta?: OrdemColetaSvo | null;
+}
+
+export interface MinhaColetaSvo extends OrdemColetaSvo {
+  chamado: {
+    id: string;
+    numeroProtocolo: string | null;
+    nomeFalecido: string | null;
+    enderecoOcorrencia: string | null;
+    criadoEm: string | null;
+    statusTriagem: StatusTriagem;
+  };
 }
 
 export interface ViaturaSvo {
@@ -100,6 +112,8 @@ export interface IndicadoresSvo {
   coletasEmAndamento: number;
   viaturasDisponiveis: number;
   totalViaturas: number;
+  tempoMedioChegadaLocalMinutos: number | null;
+  tempoMedioEntregaSvoMinutos: number | null;
 }
 
 export interface PaginaChamadosSvo {
@@ -122,6 +136,8 @@ const respostaIndicadoresSvoSchema = z
     coletasEmAndamento: z.number().int().nonnegative(),
     viaturasDisponiveis: z.number().int().nonnegative(),
     totalViaturas: z.number().int().nonnegative(),
+    tempoMedioChegadaLocalMinutos: z.number().nonnegative().nullable(),
+    tempoMedioEntregaSvoMinutos: z.number().nonnegative().nullable(),
   })
   .passthrough();
 
@@ -169,6 +185,7 @@ const chamadoSvoSchema = z
     enderecoOcorrencia: z.string().nullable(),
     relatoOcorrencia: z.string().nullable(),
     statusTriagem: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]),
+    criadoEm: z.iso.datetime({ offset: true }).nullable().optional(),
     justificativaTriagem: z.string().nullable().optional(),
     atendente: z.object({ id: z.string(), nome: z.string() }).nullable().optional(),
     ordemColeta: ordemColetaSvoSchema.nullable().optional(),
@@ -274,9 +291,47 @@ export function extrairErroSvo(
   return respostaDeErro(erro, padrao);
 }
 
+const minhaColetaSvoSchema = ordemColetaSvoSchema
+  .extend({
+    chamado: z
+      .object({
+        id: z.string(),
+        numeroProtocolo: z.string().nullable(),
+        nomeFalecido: z.string().nullable(),
+        enderecoOcorrencia: z.string().nullable(),
+        criadoEm: z.iso.datetime({ offset: true }).nullable(),
+        statusTriagem: z.enum(["EM_ANALISE", "APROVADO", "RECUSADO"]),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
 export async function obterIndicadoresSvo(): Promise<IndicadoresSvo> {
   const { data } = await api.get<unknown>(`${BASE}/indicadores`);
   return validarRespostaSvo(respostaIndicadoresSvoSchema, data, "indicadores");
+}
+
+const paginaMinhasColetasSvoSchema = paginaSvoSchema(minhaColetaSvoSchema);
+const STATUS_COLETA_ATIVA = ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"];
+
+export async function obterMinhasColetasSvo(): Promise<MinhaColetaSvo[]> {
+  const consultar = async (page: number) => {
+    const { data } = await api.get<unknown>(`${BASE}/ordens-coleta/minhas`, {
+      params: { page, pageSize: 100, ativas: "true" },
+    });
+    const pagina = validarRespostaSvo(paginaMinhasColetasSvoSchema, data, "minhas-coletas");
+    if (pagina.meta.page !== page || pagina.meta.pageSize !== 100) {
+      throw new Error("Não foi possível carregar todas as coletas SVO. Tente novamente.");
+    }
+    return pagina;
+  };
+  const primeira = await consultar(1);
+  const ordens = new Map(primeira.data.map((ordem) => [ordem.id, ordem]));
+  for (let page = 2; page <= primeira.meta.totalPages; page += 1) {
+    const pagina = await consultar(page);
+    for (const ordem of pagina.data) ordens.set(ordem.id, ordem);
+  }
+  return [...ordens.values()].filter((ordem) => STATUS_COLETA_ATIVA.includes(ordem.status));
 }
 
 export async function obterChamadosSvo(params?: {
@@ -325,13 +380,6 @@ export async function criarOrdemColetaSvo(
     chamadoId: id,
     ...input,
   });
-  return data;
-}
-
-export async function concluirColetaSvo(id: string): Promise<OrdemColetaSvo> {
-  const { data } = await api.patch<OrdemColetaSvo>(
-    `${BASE}/chamados/${encodeURIComponent(id)}/concluir`,
-  );
   return data;
 }
 
@@ -398,4 +446,31 @@ export async function obterEscalasEmAndamentoSvo(): Promise<EscalaSvo[]> {
   }
 
   return [...escalasPorId.values()];
+}
+
+export interface RemanejamentoSvo {
+  id: string;
+  criadoEm: string;
+  usuario: { nome: string } | null;
+  dadosNovos: {
+    motivo: string;
+    anterior: { placa?: string; condutor?: string };
+    atual: { placa?: string; condutor?: string };
+  };
+}
+export async function obterRemanejamentosSvo(id: string): Promise<RemanejamentoSvo[]> {
+  const { data } = await api.get<RemanejamentoSvo[]>(
+    `${BASE}/ordens-coleta/${encodeURIComponent(id)}/remanejamentos`,
+  );
+  return data;
+}
+export async function remanejarOrdemSvo(
+  id: string,
+  input: { veiculoId: string; motoristaId: string; motivo: string },
+): Promise<OrdemColetaSvo> {
+  const { data } = await api.patch<OrdemColetaSvo>(
+    `${BASE}/ordens-coleta/${encodeURIComponent(id)}/remanejamento`,
+    input,
+  );
+  return data;
 }
