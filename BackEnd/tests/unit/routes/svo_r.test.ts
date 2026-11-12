@@ -16,7 +16,6 @@ vi.mock("../../../src/service/svo_s", async (importOriginal) => ({
   listarMinhasOrdensSvo: vi.fn(async () => ({ data: [], meta: { total: 0 } })),
   indicadoresSvo: vi.fn(async () => ({ total: 0 })),
   listarChamadosSvo: vi.fn(async () => ({ data: [], meta: { total: 0 } })),
-  listarMinhasColetasSvo: vi.fn(async () => []),
   listarViaturasSvo: vi.fn(async () => []),
   listarMotoristasSvoDisponiveis: vi.fn(async () => []),
   registrarChamadoSvo: vi.fn(async () => ({ id: "chamado" })),

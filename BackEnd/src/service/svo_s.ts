@@ -335,37 +335,6 @@ export async function indicadoresSvo() {
   };
 }
 
-const incluirMinhasColetas = {
-  chamado: {
-    select: {
-      id: true,
-      numeroProtocolo: true,
-      nomeFalecido: true,
-      enderecoOcorrencia: true,
-      criadoEm: true,
-      statusTriagem: true,
-    },
-  },
-  veiculo: {
-    select: {
-      id: true,
-      placa: true,
-      modelo: true,
-      status: true,
-      capacidadeMaxima: true,
-    },
-  },
-} satisfies Prisma.OrdemColetaSvoInclude;
-
-export async function listarMinhasColetasSvo(usuarioId: string) {
-  const motoristaId = await motoristaAtivoDoUsuario(usuarioId);
-  return prisma.ordemColetaSvo.findMany({
-    where: { motoristaId, status: { in: [...STATUS_ORDEM_ATIVA] } },
-    include: incluirMinhasColetas,
-    orderBy: [{ chamado: { criadoEm: "asc" } }, { id: "asc" }],
-  });
-}
-
 export async function listarChamadosSvo(filtros: z.infer<typeof listarChamadosSchema>) {
   const where = construirWhereChamados(filtros);
   const [registros, total] = await Promise.all([

@@ -34,7 +34,7 @@ export async function bloquearSaida(tx: Tx, motoristaId: string, veiculoId: stri
   for (const key of [`motorista:${motoristaId}`, `veiculo:${veiculoId}`].sort())
     await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
 }
-export async function motoristaDoUsuario(usuario: UsuarioAutenticado) {
+async function motoristaDoUsuario(usuario: UsuarioAutenticado) {
   const motorista = await prisma.motorista.findUnique({ where: { usuarioId: usuario.id } });
   if (!motorista?.ativo) throw new HttpError(403, "Motorista ativo não encontrado.");
   return motorista;

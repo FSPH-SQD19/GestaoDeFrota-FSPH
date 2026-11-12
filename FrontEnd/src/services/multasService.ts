@@ -2,30 +2,9 @@ import { api } from "./api";
 import type {
   AtualizarMultaPayload,
   CriarMultaPayload,
-  ListarMultasResponse,
   Multa,
   ResumoMultasMotorista,
 } from "../types/multa";
-
-export async function listarMultasApi(params?: {
-  page?: number;
-  pageSize?: number;
-  busca?: string;
-  veiculoId?: string;
-  motoristaId?: string;
-  status?: string;
-  gravidade?: string;
-  dataInicio?: string;
-  dataFim?: string;
-}): Promise<ListarMultasResponse> {
-  const { data } = await api.get<ListarMultasResponse>("/api/v1/multas", { params });
-  return data;
-}
-
-export async function obterMultaApi(id: string): Promise<Multa> {
-  const { data } = await api.get<Multa>(`/api/v1/multas/${encodeURIComponent(id)}`);
-  return data;
-}
 
 export async function criarMultaApi(payload: CriarMultaPayload): Promise<Multa> {
   const { data } = await api.post<Multa>("/api/v1/multas", payload);

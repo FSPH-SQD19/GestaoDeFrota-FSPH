@@ -139,7 +139,7 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 /** Tela aberta após o login, por perfil. */
-export const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
+const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
   ADMIN: "dashboard",
   GESTOR: "dashboard",
   SVO: "svo",

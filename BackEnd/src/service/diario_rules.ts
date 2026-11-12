@@ -3,14 +3,6 @@ export const coordenadasSchema = z.tuple([
   z.number().min(-180).max(180),
   z.number().min(-90).max(90),
 ]);
-export const itensChecklist = [
-  "pneus",
-  "iluminacao",
-  "freios",
-  "fluidos",
-  "equipamentos",
-  "limpeza",
-] as const;
 const item = z
   .object({
     estado: z.enum(["CONFORME", "PROBLEMA"]),
@@ -28,7 +20,7 @@ export const checklistSchema = z.object({
     limpeza: item,
   }),
 });
-export const kmSchema = z
+const kmSchema = z
   .number()
   .min(0)
   .max(99999999.99)

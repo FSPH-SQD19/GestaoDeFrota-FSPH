@@ -383,13 +383,6 @@ export async function criarOrdemColetaSvo(
   return data;
 }
 
-export async function concluirColetaSvo(id: string): Promise<OrdemColetaSvo> {
-  const { data } = await api.patch<OrdemColetaSvo>(
-    `${BASE}/chamados/${encodeURIComponent(id)}/concluir`,
-  );
-  return data;
-}
-
 export async function avancarEtapaColetaSvo(
   id: string,
   status: EtapaColetaSvo,

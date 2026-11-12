@@ -1,13 +1,13 @@
-import { Prisma, type MultaInfracao } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 import { registrarAuditoria } from "./auditoria_s";
 
-export const GRAVIDADES_MULTA = ["LEVE", "MEDIA", "GRAVE", "GRAVISSIMA"] as const;
-export const STATUS_MULTA = ["PENDENTE", "PAGA", "EM_RECURSO"] as const;
+const GRAVIDADES_MULTA = ["LEVE", "MEDIA", "GRAVE", "GRAVISSIMA"] as const;
+const STATUS_MULTA = ["PENDENTE", "PAGA", "EM_RECURSO"] as const;
 
-export const PONTOS_POR_GRAVIDADE: Record<(typeof GRAVIDADES_MULTA)[number], number> = {
+const PONTOS_POR_GRAVIDADE: Record<(typeof GRAVIDADES_MULTA)[number], number> = {
   LEVE: 3,
   MEDIA: 4,
   GRAVE: 5,
@@ -82,11 +82,9 @@ export type ListarMultasFiltros = z.infer<typeof listarMultasSchema>;
 export type CriarMultaInput = z.infer<typeof criarMultaSchema>;
 export type AtualizarMultaInput = z.infer<typeof atualizarMultaSchema>;
 
-export type MultaSerializada = Omit<MultaInfracao, "valor"> & {
-  valor: number;
-};
-
-export function serializarMulta(multa: MultaInfracao): MultaSerializada {
+function serializarMulta<T extends { valor: Prisma.Decimal }>(
+  multa: T,
+): Omit<T, "valor"> & { valor: number } {
   return {
     ...multa,
     valor: Number(multa.valor),
@@ -157,10 +155,7 @@ export async function listarMultas(filtros: ListarMultasFiltros) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return {
-    data: multas.map((m) => ({
-      ...m,
-      valor: Number(m.valor),
-    })),
+    data: multas.map(serializarMulta),
     meta: {
       total,
       totalPages,
@@ -197,10 +192,7 @@ export async function obterMultaPorId(id: string) {
     throw new HttpError(404, "Multa ou infração não encontrada.");
   }
 
-  return {
-    ...multa,
-    valor: Number(multa.valor),
-  };
+  return serializarMulta(multa);
 }
 
 export async function criarMulta(dados: CriarMultaInput, usuarioId?: string | null) {
@@ -287,10 +279,7 @@ export async function criarMulta(dados: CriarMultaInput, usuarioId?: string | nu
     },
   });
 
-  return {
-    ...novaMulta,
-    valor: Number(novaMulta.valor),
-  };
+  return serializarMulta(novaMulta);
 }
 
 export async function atualizarMulta(
@@ -342,10 +331,7 @@ export async function atualizarMulta(
     },
   });
 
-  return {
-    ...multaAtualizada,
-    valor: Number(multaAtualizada.valor),
-  };
+  return serializarMulta(multaAtualizada);
 }
 
 export async function obterResumoMultasMotorista(motoristaId: string) {
@@ -376,8 +362,7 @@ export async function obterResumoMultasMotorista(motoristaId: string) {
     valorTotal += valorNum;
 
     return {
-      ...m,
-      valor: valorNum,
+      ...serializarMulta(m),
       pontosAtivos: pontosValidos ? m.pontos : 0,
       expirada,
     };

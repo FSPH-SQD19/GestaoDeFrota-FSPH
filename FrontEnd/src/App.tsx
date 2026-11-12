@@ -199,7 +199,7 @@ const AppContent: React.FC = () => {
   );
 };
 
-export function App() {
+function App() {
   return (
     <AuthProvider>
       <AppContent />
