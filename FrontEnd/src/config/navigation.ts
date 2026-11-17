@@ -10,6 +10,7 @@ import {
   PhoneCall,
   Route,
   ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import type { UserRole } from "../types/auth";
 
@@ -20,12 +21,14 @@ import type { UserRole } from "../types/auth";
  */
 
 export type TabId =
+  | "rastreamento"
   | "dashboard"
   | "solicitacoes"
   | "agenda"
   | "viagens"
   | "coletasSvo"
   | "veiculos"
+  | "avarias"
   | "motoristas"
   | "svo"
   | "relatorios"
@@ -81,6 +84,12 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "OPERAÇÃO DA FROTA",
     items: [
       {
+        id: "rastreamento",
+        label: () => "Mapa e operação",
+        icon: Route,
+        roles: ["ADMIN", "GESTOR", "SVO"],
+      },
+      {
         id: "agenda",
         label: () => "Agenda da Frota",
         icon: CalendarDays,
@@ -90,6 +99,12 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "veiculos",
         label: () => "Veículos",
         icon: Car,
+        roles: ["ADMIN", "GESTOR"],
+      },
+      {
+        id: "avarias",
+        label: () => "Avarias",
+        icon: AlertTriangle,
         roles: ["ADMIN", "GESTOR"],
       },
       {
@@ -132,7 +147,7 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 /** Tela aberta após o login, por perfil. */
-export const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
+const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
   ADMIN: "dashboard",
   GESTOR: "dashboard",
   SVO: "svo",

@@ -17,7 +17,7 @@ import {
 
 export { invalidarCacheSincronizacaoNotificacoes };
 
-export const TIPOS_NOTIFICACAO = [
+const TIPOS_NOTIFICACAO = [
   "SOLICITACAO_URGENTE",
   "VIAGEM_APROVADA",
   "VIAGEM_REAGENDADA",
@@ -130,7 +130,7 @@ async function executarComRetentativa<T>(operacao: () => Promise<T>): Promise<T>
   throw ultimoErro;
 }
 
-export function serializarNotificacao(registro: Notificacao): NotificacaoResposta {
+function serializarNotificacao(registro: Notificacao): NotificacaoResposta {
   return {
     id: registro.id,
     tipo: registro.tipo,

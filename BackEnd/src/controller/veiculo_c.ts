@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { prisma } from "../lib/prisma";
+import { serializarVeiculo } from "../service/veiculo_s";
 import { validar } from "../lib/validar";
 import type { Request, Response } from "express";
 import { usuarioAutenticado } from "../middleware/http_m";
@@ -34,4 +37,11 @@ export async function atualizarVeiculoController(req: Request, res: Response) {
   const veiculo = await atualizarVeiculo(id, dados, usuarioAutenticado(res).id);
 
   return res.status(200).json(veiculo);
+}
+
+export async function detalharVeiculoController(req: Request, res: Response) {
+  const id = validar(z.uuid(), req.params.id);
+  const veiculo = await prisma.veiculo.findUnique({ where: { id }, include: { sede: true } });
+  if (!veiculo) throw new HttpError(404, "Veículo não encontrado.");
+  return res.json(serializarVeiculo(veiculo));
 }

@@ -26,6 +26,9 @@ test("motorista inicia e conclui a viagem pelos endpoints de solicitações", as
   };
   const chamadas: string[] = [];
   let rejeitarInicio = true;
+  await page.route("**/api/v1/motorista/config", (route) =>
+    route.fulfill({ json: { enabled: false } }),
+  );
   await page.route("**/api/v1/auth/sessao", (route) =>
     route.fulfill({
       json: {

@@ -5,7 +5,7 @@ import { type UsuarioAutenticado } from "../middleware/http_m";
 import { HttpError } from "../lib/http_error";
 import { notificarSolicitacaoUrgente, notificarSolicitacaoCancelada } from "./notificacao_s";
 
-export const STATUS_SOLICITACAO = [
+const STATUS_SOLICITACAO = [
   "PENDENTE",
   "APROVADA",
   "EM_TRANSITO",
@@ -13,8 +13,8 @@ export const STATUS_SOLICITACAO = [
   "RECUSADA",
   "CANCELADA",
 ] as const;
-export const URGENCIAS = ["NORMAL", "URGENTE"] as const;
-export const TIPOS_TRANSPORTE = [
+const URGENCIAS = ["NORMAL", "URGENTE"] as const;
+const TIPOS_TRANSPORTE = [
   "PASSAGEIROS",
   "MATERIAL_BIOLOGICO",
   "DOCUMENTOS_INSUMOS",
@@ -22,11 +22,11 @@ export const TIPOS_TRANSPORTE = [
 ] as const;
 
 export type StatusSolicitacao = (typeof STATUS_SOLICITACAO)[number];
-export const PERFIS_GESTAO = ["ADMIN", "GESTOR"];
+const PERFIS_GESTAO = ["ADMIN", "GESTOR"];
 const TIPOS_SEM_PASSAGEIRO: readonly string[] = ["MATERIAL_BIOLOGICO", "DOCUMENTOS_INSUMOS"];
 
-export const MAX_PASSAGEIROS = 15;
-export const TOLERANCIA_SAIDA_MS = 3 * 60 * 1000;
+const MAX_PASSAGEIROS = 15;
+const TOLERANCIA_SAIDA_MS = 3 * 60 * 1000;
 
 const PREFIXO_PROTOCOLO = "SV";
 const FUSO_PROTOCOLO = "America/Maceio";
@@ -154,7 +154,7 @@ type SolicitacaoComRelacoes = Prisma.SolicitacaoViagemGetPayload<{
   include: typeof incluirRelacoes;
 }>;
 
-export function serializarSolicitacao(registro: SolicitacaoComRelacoes) {
+function serializarSolicitacao(registro: SolicitacaoComRelacoes) {
   const { solicitante, veiculoAlocado, motoristaAlocado, ...dados } = registro;
   return {
     ...dados,
@@ -189,7 +189,7 @@ async function gerarProtocolo(tx: Prisma.TransactionClient, agora: Date): Promis
   return formatarProtocolo(ano, Number(contador.ultimo_valor));
 }
 
-export function podeVerTodas(usuario: UsuarioAutenticado): boolean {
+function podeVerTodas(usuario: UsuarioAutenticado): boolean {
   return usuario.perfis.some((perfil) => PERFIS_GESTAO.includes(perfil));
 }
 

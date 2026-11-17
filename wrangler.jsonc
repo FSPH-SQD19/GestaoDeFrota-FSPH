@@ -22,6 +22,7 @@
   "env": {
     "hml": {
       "name": "gestao-frota-hml",
+      "triggers": { "crons": ["0 6 * * *"] },
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
@@ -45,6 +46,7 @@
       },
       "vars": {
         "NODE_ENV": "production",
+        "DRIVER_PWA_ENABLED": "false",
         "JWT_ISSUER": "fsph-frota-api-hml",
         "JWT_AUDIENCE": "fsph-frota-web-hml",
       },

@@ -8,7 +8,7 @@ import {
 import { usuarioAutenticado } from "../middleware/http_m";
 import { HttpError } from "../lib/http_error";
 
-export async function listarMotoristasController(req: Request, res: Response) {
+export async function listarMotoristasController(_req: Request, res: Response) {
   const motoristas = await listarMotoristas();
   return res.status(200).json(motoristas);
 }

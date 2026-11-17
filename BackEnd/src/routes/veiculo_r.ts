@@ -1,6 +1,7 @@
 import { authenticate, requireRole } from "../middleware/http_m";
 import { Router } from "express";
 import {
+  detalharVeiculoController,
   atualizarVeiculoController,
   criarVeiculoController,
   listarVeiculosController,
@@ -18,6 +19,7 @@ router.get("/", listarVeiculosController);
 router.post("/", criarVeiculoController);
 router.get("/:id/documentos", listarDocumentosVeiculoController);
 router.post("/:id/documentos", criarDocumentoVeiculoController);
+router.get("/:id", detalharVeiculoController);
 router.patch("/:id", atualizarVeiculoController);
 
 export default router;

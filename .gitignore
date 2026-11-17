@@ -23,3 +23,6 @@ Thumbs.db
 .idea/
 
 .wrangler/
+
+# OSRM regional datasets
+infra/osrm/data/

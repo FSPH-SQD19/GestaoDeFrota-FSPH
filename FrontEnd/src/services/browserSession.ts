@@ -3,6 +3,69 @@ export const BROWSER_SESSION_KEY = "@fsph_frota_session_activity";
 const CHANGE_EVENT = "frota-session-change";
 type BrowserSession = { status: "active" | "pending" | "ended"; lastActivity: number };
 let fallback: BrowserSession | null = null;
+const SAIDA_SESSION_KEY = "@fsph_frota_saida_session";
+export function confirmarSaidaSessao(userId: string, saidaId: string, expiraEm: string) {
+  const expiresAt = Date.parse(expiraEm);
+  if (!Number.isFinite(expiresAt)) return;
+  try {
+    localStorage.setItem(
+      SAIDA_SESSION_KEY,
+      JSON.stringify({ userId, saidaId, expiresAt, confirmedAt: Date.now() }),
+    );
+  } catch {
+    /* unavailable */
+  }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+export function usuarioSaidaOffline(): string | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(SAIDA_SESSION_KEY) || "null");
+    return value && Date.now() < value.expiresAt ? value.userId : null;
+  } catch {
+    return null;
+  }
+}
+export function limparSaidaSessao() {
+  try {
+    localStorage.removeItem(SAIDA_SESSION_KEY);
+  } catch {
+    /* unavailable */
+  }
+}
+function saidaDeadline() {
+  try {
+    const value = JSON.parse(localStorage.getItem(SAIDA_SESSION_KEY) || "null");
+    return typeof value?.expiresAt === "number" ? value.expiresAt : Infinity;
+  } catch {
+    return Infinity;
+  }
+}
+function saidaSessionRemaining() {
+  if (document.visibilityState !== "visible") return 0;
+  try {
+    const value = JSON.parse(localStorage.getItem(SAIDA_SESSION_KEY) || "null") as {
+      expiresAt: number;
+      confirmedAt: number;
+      visible?: boolean;
+    } | null;
+    if (
+      !value ||
+      value.visible === false ||
+      !Number.isFinite(value.expiresAt) ||
+      !Number.isFinite(value.confirmedAt)
+    )
+      return 0;
+    return Math.max(
+      0,
+      Math.min(
+        value.expiresAt - Date.now(),
+        navigator.onLine ? value.confirmedAt + 120000 - Date.now() : Infinity,
+      ),
+    );
+  } catch {
+    return 0;
+  }
+}
 
 export function readBrowserSession(): BrowserSession | null {
   try {
@@ -33,12 +96,16 @@ export function startBrowserSession() {
   save({ status: "active", lastActivity: Date.now() });
 }
 export function markBrowserLogout(pending: boolean) {
+  limparSaidaSessao();
   save({ status: pending ? "pending" : "ended", lastActivity: Date.now() });
 }
 export function browserSessionExpired() {
   const value = readBrowserSession();
   return (
-    !!value && (value.status !== "active" || Date.now() - value.lastActivity >= IDLE_TIMEOUT_MS)
+    Date.now() >= saidaDeadline() ||
+    (!!value &&
+      (value.status !== "active" ||
+        (Date.now() - value.lastActivity >= IDLE_TIMEOUT_MS && saidaSessionRemaining() <= 0)))
   );
 }
 
@@ -56,7 +123,13 @@ export function watchBrowserSession(onExpire: () => void, onEnded: () => void) {
       else onEnded();
       return;
     }
-    const remaining = value ? IDLE_TIMEOUT_MS - (Date.now() - value.lastActivity) : IDLE_TIMEOUT_MS;
+    const remaining = Math.min(
+      saidaDeadline() - Date.now(),
+      Math.max(
+        value ? IDLE_TIMEOUT_MS - (Date.now() - value.lastActivity) : IDLE_TIMEOUT_MS,
+        saidaSessionRemaining(),
+      ),
+    );
     if (remaining <= 0) {
       stopped = true;
       onExpire();
@@ -72,6 +145,18 @@ export function watchBrowserSession(onExpire: () => void, onEnded: () => void) {
   };
   const visibility = () => {
     if (document.visibilityState === "visible") activity();
+    else {
+      try {
+        const raw = localStorage.getItem(SAIDA_SESSION_KEY);
+        if (raw) {
+          const value = JSON.parse(raw);
+          localStorage.setItem(SAIDA_SESSION_KEY, JSON.stringify({ ...value, visible: false }));
+        }
+      } catch {
+        /* unavailable */
+      }
+      check();
+    }
   };
   const storage = (event: StorageEvent) => {
     if (event.key === BROWSER_SESSION_KEY || event.key === null) check();

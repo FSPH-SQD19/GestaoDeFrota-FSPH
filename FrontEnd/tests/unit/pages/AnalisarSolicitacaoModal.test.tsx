@@ -5,6 +5,8 @@ import { apiRequest } from "../../../src/lib/api";
 import { AnalisarSolicitacaoModal } from "../../../src/pages/solicitacoes/AnalisarSolicitacaoModal";
 import type { SolicitacaoViagem } from "../../../src/types/solicitacao";
 vi.mock("../../../src/lib/api", () => ({ apiRequest: vi.fn() }));
+const saidaFutura = new Date(Date.now() + 48 * 60 * 60 * 1000);
+const retornoFuturo = new Date(saidaFutura.getTime() + 10 * 60 * 60 * 1000);
 const solicitacao: SolicitacaoViagem = {
   id: "s1",
   protocolo: "SV-TESTE",
@@ -12,8 +14,8 @@ const solicitacao: SolicitacaoViagem = {
   setorOrigem: "LACEN",
   origem: "Sede",
   destino: "Hospital",
-  dataHoraPretendida: "2026-11-10T08:00:00-03:00",
-  dataHoraRetornoPrevista: "2026-11-11T01:00:00Z",
+  dataHoraPretendida: saidaFutura.toISOString(),
+  dataHoraRetornoPrevista: retornoFuturo.toISOString(),
   quantidadePassageiros: 3,
   tipoTransporte: "PASSAGEIROS",
   urgencia: "NORMAL",
@@ -35,7 +37,7 @@ const motorista = {
   cpf: "12345678909",
   ativo: true,
   status: "DISPONIVEL",
-  validadeCnh: "2026-11-10T00:00:00Z",
+  validadeCnh: "2099-11-10T00:00:00Z",
   usuario: { nome: "Condutor válido" },
 };
 beforeEach(() => {
@@ -117,10 +119,35 @@ describe("AnalisarSolicitacaoModal", () => {
     });
     expect(concluir).toHaveBeenCalledWith("Solicitação SV-TESTE aprovada e alocada.");
   });
-  it("não permite aprovar solicitações sem retorno previsto", () => {
+  it("permite informar retorno para aprovar solicitação sem intervalo completo", async () => {
+    const user = userEvent.setup();
     renderModal("APROVAR", { ...solicitacao, dataHoraRetornoPrevista: null });
     expect(screen.getByRole("button", { name: "Confirmar aprovação" })).toBeDisabled();
-    expect(screen.getByRole("alert")).toHaveTextContent("intervalo válido");
+    const retorno = new Date(saidaFutura.getTime() + 12 * 60 * 60 * 1000);
+    const retornoLocal = new Date(retorno.getTime() - retorno.getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 16);
+    fireEvent.change(screen.getByLabelText(/Retorno previsto para alocação/), {
+      target: { value: retornoLocal },
+    });
+    await selecionar(user);
+    await user.click(screen.getByRole("button", { name: "Confirmar aprovação" }));
+    expect(apiRequest).toHaveBeenLastCalledWith("/solicitacoes/s1/aprovar", {
+      method: "PATCH",
+      data: {
+        veiculoId: "v2",
+        motoristaId: "m1",
+        dataHoraRetornoPrevista: new Date(retornoLocal).toISOString(),
+      },
+    });
+  });
+  it("bloqueia aprovação quando a saída da solicitação já passou", () => {
+    renderModal("APROVAR", {
+      ...solicitacao,
+      dataHoraPretendida: new Date(Date.now() - 60_000).toISOString(),
+    });
+    expect(screen.getByRole("button", { name: "Confirmar aprovação" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("exige uma saída futura");
   });
   it("recusa sem carregar recursos e envia o motivo normalizado", async () => {
     const user = userEvent.setup();

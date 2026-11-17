@@ -4,6 +4,7 @@ export default defineConfig({
   cacheDir: "../node_modules/.cache/vitest/backend",
   test: {
     environment: "node",
+    env: { DRIVER_PWA_ENABLED: "false" },
     include: ["tests/unit/**/*.test.ts"],
     clearMocks: true,
     restoreMocks: true,

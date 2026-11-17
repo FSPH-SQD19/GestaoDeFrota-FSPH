@@ -227,6 +227,7 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
       },
     }),
   );
+  await page.route("**/api/v1/sedes", (route) => route.fulfill({ json: { data: [] } }));
   let consultas = 0;
   await page.route("**/api/v1/veiculos/veiculo-teste/documentos", (route) => {
     consultas++;
@@ -278,6 +279,9 @@ test("veículos abre alertas, repete consulta com falha e ignora documentos anti
   await page.getByRole("button", { name: "Veículos", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Gestão da Frota de Veículos" })).toBeVisible();
   await expect(page.getByText("Próprio", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("table").getByText("Sede não informada", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Ver documentos do veículo ABC1234" }).click();
   await expect(page.getByRole("alert")).toHaveText("Falha ao consultar documentos.");
   await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
@@ -467,6 +471,12 @@ for (const cancelar of [false, true]) {
         motorista.status = "DISPONIVEL";
         return route.fulfill({ json: chamado.ordemColeta });
       }
+      if (
+        caminho === "/api/v1/svo/ordens-coleta/ordem-teste/remanejamentos" &&
+        request.method() === "GET"
+      ) {
+        return route.fulfill({ json: [] });
+      }
       if (caminho.endsWith("/desinfeccao")) {
         acoes.push("desinfetar");
         viatura.status = "DISPONIVEL";
@@ -522,6 +532,8 @@ for (const cancelar of [false, true]) {
       await expect(page.getByText("03/11/2026, 08:00", { exact: true })).toBeVisible();
       await expect(page.getByText("03/11/2026, 08:30", { exact: true })).toBeVisible();
       await expect(page.getByText("03/11/2026, 09:30", { exact: true })).toBeVisible();
+      await expect(page.getByText("Histórico de remanejamentos", { exact: true })).toBeVisible();
+      await expect(page.getByText("Nenhuma troca registrada.", { exact: true })).toBeVisible();
       await page
         .getByRole("button", { name: "Fechar", exact: true })
         .filter({ hasText: "Fechar" })
@@ -550,6 +562,9 @@ test("motorista vê coletas SVO atribuídas e avança a etapa no celular", async
   const erros: string[] = [];
   page.on("pageerror", (erro) => erros.push(erro.message));
   await sessao(page, "MOTORISTA");
+  await page.route("**/api/v1/motorista/config", (route) =>
+    route.fulfill({ json: { enabled: false } }),
+  );
   const ordem = {
     id: "ordem-motorista",
     chamadoId: "chamado-motorista",

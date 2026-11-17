@@ -5,7 +5,7 @@ import type {
   IniciarViagemInput,
 } from "../../types/solicitacao";
 
-export const ODOMETRO_MAXIMO = 99_999_999.99;
+const ODOMETRO_MAXIMO = 99_999_999.99;
 
 export type ChaveItemSaida = Exclude<
   keyof ChecklistSaidaPayload,

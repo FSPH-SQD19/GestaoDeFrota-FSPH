@@ -6,10 +6,10 @@ import { registrarAuditoria } from "./auditoria_s";
 import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 
 export const TIPOS_DOCUMENTO = ["CRLV", "IPVA", "SEGURO", "VISTORIA"] as const;
-export const SITUACOES_DOCUMENTO = ["VIGENTE", "PROXIMO_VENCIMENTO", "VENCIDO"] as const;
+const SITUACOES_DOCUMENTO = ["VIGENTE", "PROXIMO_VENCIMENTO", "VENCIDO"] as const;
 
 // RB01/RF010-DOC: avisar a partir de três meses antes do vencimento.
-export const DIAS_ALERTA_VENCIMENTO = 90;
+const DIAS_ALERTA_VENCIMENTO = 90;
 
 const FUSO = "America/Sao_Paulo";
 const UM_DIA_MS = 24 * 60 * 60 * 1000;

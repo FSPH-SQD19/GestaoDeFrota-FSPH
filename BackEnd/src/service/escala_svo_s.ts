@@ -5,10 +5,10 @@ import { HttpError } from "../lib/http_error";
 import { dataDoBanco, dataLocal } from "./documento_veiculo_s";
 
 // S19FROTA-249 (RF014-SVO / RN-SVO-002): escalas e plantões do SVO.
-export const SITUACOES_ESCALA = ["AGENDADA", "EM_ANDAMENTO", "SUSPENSA", "ENCERRADA"] as const;
+const SITUACOES_ESCALA = ["AGENDADA", "EM_ANDAMENTO", "SUSPENSA", "ENCERRADA"] as const;
 export type SituacaoEscala = (typeof SITUACOES_ESCALA)[number];
 
-export const DURACAO_MAXIMA_TURNO_HORAS = 24;
+const DURACAO_MAXIMA_TURNO_HORAS = 24;
 const HORA_MS = 60 * 60 * 1000;
 
 // Validacao

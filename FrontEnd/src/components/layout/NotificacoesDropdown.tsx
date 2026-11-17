@@ -20,7 +20,7 @@ import {
 } from "../../services/notificacoesService";
 import type { NotificacaoItem } from "../../types/notificacao";
 
-export const INTERVALO_POLLING_NOTIFICACOES_MS = 30_000;
+const INTERVALO_POLLING_NOTIFICACOES_MS = 30_000;
 const LIMITE_PADRAO_NOTIFICACOES = 25;
 
 type FiltroNotificacoes = "TODAS" | "NAO_LIDAS";

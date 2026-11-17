@@ -98,6 +98,23 @@ describe("MinhasColetasSvoPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("bloqueia novo avanço até receber a etapa atualizada do servidor", async () => {
+    let resolver!: (ordens: MinhaColetaSvo[]) => void;
+    const atualizacao = new Promise<MinhaColetaSvo[]>((resolve) => {
+      resolver = resolve;
+    });
+    mocks.obterMinhasColetasSvo.mockResolvedValueOnce([coleta]).mockReturnValueOnce(atualizacao);
+    const user = userEvent.setup();
+    render(<MinhasColetasSvoPage />);
+    await user.click(await screen.findByRole("button", { name: "Registrar saída" }));
+    expect(screen.getByRole("button", { name: "Registrar saída" })).toBeDisabled();
+    expect(mocks.avancarEtapaColetaSvo).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolver([{ ...coleta, status: "EM_DESLOCAMENTO" }]);
+    });
+    expect(await screen.findByRole("button", { name: "Registrar chegada ao local" })).toBeEnabled();
+  });
+
   it("atualiza as coletas em segundo plano sem esconder a lista", async () => {
     vi.useFakeTimers({ toFake: ["setInterval"] });
     mocks.obterMinhasColetasSvo

@@ -22,6 +22,7 @@ export const Modal: React.FC<ModalProps> = ({
   size = "md",
 }) => {
   useEffect(() => {
+    const overflowAnterior = document.body.style.overflow;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -32,7 +33,7 @@ export const Modal: React.FC<ModalProps> = ({
       window.addEventListener("keydown", handleKeyDown);
     }
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = overflowAnterior;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);

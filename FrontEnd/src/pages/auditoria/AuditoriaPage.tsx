@@ -29,6 +29,7 @@ const TABELAS_AFETADAS_OPTIONS = [
 
 const ACOES_OPTIONS = [
   { value: "TODAS", label: "Todas as ações" },
+  { value: "ALTERAR_SEDE", label: "Altera\u00e7\u00e3o de sede (ALTERAR_SEDE)" },
   { value: "CRIAR", label: "Criação (CRIAR)" },
   { value: "ATUALIZAR", label: "Atualização (ATUALIZAR)" },
   { value: "EXCLUIR", label: "Exclusão (EXCLUIR)" },

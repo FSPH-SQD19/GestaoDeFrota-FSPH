@@ -44,18 +44,6 @@ export interface Multa {
   } | null;
 }
 
-export interface ListarMultasResponse {
-  data: Multa[];
-  meta: {
-    total: number;
-    totalPages: number;
-    page: number;
-    pageSize: number;
-    valorTotal: number;
-    totalPontos: number;
-  };
-}
-
 export interface ResumoMultasMotorista {
   totalMultas: number;
   totalPontos: number;

@@ -16,6 +16,10 @@ A abertura é persistida em `ChamadoSvo.criadoEm`. A migração recupera registr
 
 Parâmetros opcionais: `page` (padrão 1), `pageSize` (padrão 10, máximo 100), `status` (AGUARDANDO_DESPACHO, EM_ANDAMENTO, EM_DESLOCAMENTO, NO_LOCAL, ENTREGUE_SVO, CONCLUIDA ou CANCELADA). Sem status, lista o histórico completo. Ordenação por abertura decrescente e id para desempate. Exemplo: `/api/v1/svo/ordens-coleta/minhas?status=NO_LOCAL&page=1&pageSize=10`.
 
-Esta subtask implementa indicadores e listagem. A autorização MOTORISTA para avanço de etapas e a interface mobile não são alteradas.
+`ativas=true` restringe a listagem às ordens AGUARDANDO_DESPACHO, EM_ANDAMENTO, EM_DESLOCAMENTO e NO_LOCAL antes da paginação. O celular usa esse filtro e percorre todas as páginas. A viatura inclui também status e capacidadeMaxima. Chamados legados com criadoEm nulo continuam visíveis, com SLA desconhecido.
+
+MOTORISTA pode avançar somente suas próprias ordens em `PATCH /api/v1/svo/ordens-coleta/:id/etapa`: EM_DESLOCAMENTO → NO_LOCAL → ENTREGUE_SVO. O servidor registra os horários e exige a sequência; ADMIN/SVO também podem operar pela central. A interface bloqueia novo avanço enquanto atualiza a etapa confirmada.
+
+A central SVO, o Dashboard, os cards gerais de SLA dos Relatórios e o celular consultam atualizações a cada 15 segundos com a página visível e ao retornar à página. O relógio de chamados abertos atualiza a cada segundo. Não há conexão push; a propagação entre dispositivos depende da próxima consulta e da conexão de rede.
 
 O Dashboard reutiliza o mesmo cálculo em `svo.slaMedioRespostaMinutos`, medindo abertura do chamado até chegada ao local. O seed demo registra abertura anterior aos horários das coletas.

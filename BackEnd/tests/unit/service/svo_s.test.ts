@@ -24,12 +24,17 @@ const mocks = vi.hoisted(() => ({
   motoristaFindUnique: vi.fn(),
   motoristaUpdate: vi.fn(),
   motoristaUpdateMany: vi.fn(),
+  viagemFindFirst: vi.fn(),
+  desinfeccaoCount: vi.fn(),
   desinfeccaoCreate: vi.fn(),
   desinfeccaoUpdateMany: vi.fn(),
   auditoriaFindMany: vi.fn(),
   auditoriaCreate: vi.fn(),
   queryRaw: vi.fn(),
   transaction: vi.fn(),
+  saidaAtiva: vi.fn(),
+  conflitoAdministrativo: vi.fn(),
+  saidaVinculo: vi.fn(),
 }));
 
 vi.mock("../../../src/lib/prisma", () => ({
@@ -77,6 +82,8 @@ vi.mock("../../../src/lib/prisma", () => ({
 }));
 
 import {
+  remanejarOrdemColetaSvo,
+  remanejarOrdemSchema,
   avancarEtapaColetaSvo,
   cancelarOrdemColetaSvo,
   concluirColetaSvo,
@@ -88,7 +95,6 @@ import {
   listarMinhasOrdensSvoSchema,
   listarChamadosSchema,
   listarChamadosSvo,
-  listarMinhasColetasSvo,
   realizarTriagemSvo,
   registrarChamadoSvo,
   triagemSchema,
@@ -114,6 +120,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
           updateMany: mocks.chamadoUpdateMany,
         },
         ordemColetaSvo: {
+          findUnique: mocks.ordemFindUnique,
           count: mocks.ordemCount,
           findMany: mocks.ordemFindMany,
           findFirst: mocks.ordemFindFirst,
@@ -130,15 +137,130 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
           update: mocks.motoristaUpdate,
           updateMany: mocks.motoristaUpdateMany,
         },
+        solicitacaoViagem: {
+          findFirst: (args: { where: Record<string, unknown> }) =>
+            "motoristaAlocadoId" in args.where
+              ? mocks.conflitoAdministrativo(args)
+              : mocks.viagemFindFirst(args),
+        },
         desinfeccaoSvo: {
+          count: mocks.desinfeccaoCount,
           create: mocks.desinfeccaoCreate,
           updateMany: mocks.desinfeccaoUpdateMany,
         },
         auditoriaSistema: {
           create: mocks.auditoriaCreate,
         },
+        saidaOperacional: { findFirst: mocks.saidaAtiva },
+        saidaOrdem: { findUnique: mocks.saidaVinculo },
       }),
     );
+  });
+
+  describe("remanejamento", () => {
+    const destino = "00000000-0000-4000-8000-000000000021";
+    const input = { veiculoId: destino, motivo: "Pane na viatura" };
+    beforeEach(() => {
+      mocks.ordemFindUnique.mockResolvedValue({
+        id: "ordem",
+        chamadoId,
+        veiculoId,
+        motoristaId,
+        status: "NO_LOCAL",
+        veiculo: { placa: "ANTIGA" },
+        motorista: { usuario: { nome: "Condutor" } },
+      });
+      mocks.veiculoFindUnique.mockResolvedValue({
+        id: destino,
+        tipoFrota: "SVO",
+        ativo: true,
+        status: "DISPONIVEL",
+        capacidadeMaxima: 2,
+        placa: "NOVA",
+      });
+      mocks.motoristaFindUnique.mockResolvedValue({
+        id: motoristaId,
+        ativo: true,
+        status: "OCUPADO",
+        validadeCnh: new Date("2099-01-01"),
+        usuario: { nome: "Condutor" },
+      });
+      mocks.ordemFindMany.mockResolvedValue([]);
+      mocks.ordemCount.mockResolvedValue(0);
+      mocks.ordemUpdate.mockResolvedValue({
+        id: "ordem",
+        veiculoId: destino,
+        motoristaId,
+        status: "NO_LOCAL",
+      });
+    });
+    it("exige motivo e algum recurso", () => {
+      expect(remanejarOrdemSchema.safeParse({ ...input, motivo: " " }).success).toBe(false);
+      expect(remanejarOrdemSchema.safeParse({ motivo: "Pane" }).success).toBe(false);
+    });
+    it("troca apenas alocação e registra os recursos anteriores", async () => {
+      await remanejarOrdemColetaSvo("ordem", input, usuarioId);
+      expect(mocks.ordemUpdate).toHaveBeenCalledWith({
+        where: { id: "ordem" },
+        data: { veiculoId: destino, motoristaId },
+      });
+      expect(mocks.desinfeccaoCreate).toHaveBeenCalled();
+      expect(mocks.auditoriaCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            usuarioId,
+            acao: "REMANEJAR_ORDEM",
+            dadosNovos: expect.objectContaining({
+              motivo: input.motivo,
+              anterior: expect.objectContaining({ veiculoId }),
+            }),
+          }),
+        }),
+      );
+    });
+    it.each(["AGUARDANDO_DESPACHO", "ENTREGUE_SVO", "CANCELADA"])(
+      "rejeita etapa %s",
+      async (status) => {
+        mocks.ordemFindUnique.mockResolvedValue({ chamadoId, veiculoId, motoristaId, status });
+        await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+          "Remanejamento permitido",
+        );
+        expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+      },
+    );
+    it("rejeita desinfecção sem alterar alocação", async () => {
+      mocks.veiculoFindUnique.mockResolvedValue({
+        ativo: true,
+        tipoFrota: "SVO",
+        status: "DESINFECCAO",
+      });
+      await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+        "desinfecção",
+      );
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+    });
+    it("respeita capacidade e as demais ordens", async () => {
+      mocks.ordemFindMany.mockResolvedValue([
+        { veiculoId: destino, motoristaId },
+        { veiculoId: destino, motoristaId },
+      ]);
+      await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+        "Capacidade",
+      );
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+    });
+    it("preserva ocupação da viatura de origem se há outras ordens", async () => {
+      mocks.ordemCount.mockResolvedValue(1);
+      await remanejarOrdemColetaSvo("ordem", input, usuarioId);
+      expect(mocks.desinfeccaoCreate).not.toHaveBeenCalled();
+    });
+    it("impede condutor em outra viatura", async () => {
+      mocks.ordemFindMany.mockResolvedValue([{ veiculoId, motoristaId }]);
+      await expect(remanejarOrdemColetaSvo("ordem", input, usuarioId)).rejects.toThrow(
+        "Condutor indisponível",
+      );
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+    });
   });
 
   it("valida schema de criação e exige justificativa ao recusar triagem", () => {
@@ -505,6 +627,54 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     expect(mocks.auditoriaCreate).toHaveBeenCalledOnce();
   });
 
+  it("aguarda despacho no PWA e reserva o motorista até o início da saída", async () => {
+    vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+    prepararEmissao();
+    await emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId }, usuarioId);
+    expect(mocks.ordemCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: "AGUARDANDO_DESPACHO", dataHoraSaida: null }),
+    });
+    expect(mocks.veiculoUpdate).not.toHaveBeenCalled();
+    expect(mocks.motoristaUpdate).toHaveBeenCalledWith({
+      where: { id: motoristaId },
+      data: { status: "OCUPADO" },
+    });
+    expect(mocks.auditoriaCreate).toHaveBeenCalledOnce();
+  });
+
+  it.each(["EM_DESLOCAMENTO", "NO_LOCAL", "ENTREGUE_SVO", "CANCELADA"] as const)(
+    "impede a central de alterar uma ordem vinculada ao diário para %s",
+    async (status) => {
+      vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+      mocks.ordemFindUnique.mockResolvedValue({ chamadoId });
+      mocks.chamadoFindUnique.mockResolvedValue({
+        id: chamadoId,
+        ordemColeta: { id: "ordem", veiculoId, motoristaId, status: "AGUARDANDO_DESPACHO" },
+      });
+      mocks.saidaVinculo.mockResolvedValue({ saidaId: "saida" });
+      await expect(
+        status === "CANCELADA"
+          ? cancelarOrdemColetaSvo("ordem", usuarioId)
+          : avancarEtapaColetaSvo("ordem", status, usuarioId),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mocks.ordemUpdate).not.toHaveBeenCalled();
+      expect(mocks.auditoriaCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["saidaAtiva", "conflitoAdministrativo"] as const)(
+    "impede despacho SVO no PWA quando há %s",
+    async (conflito) => {
+      vi.stubEnv("DRIVER_PWA_ENABLED", "true");
+      prepararEmissao();
+      mocks[conflito].mockResolvedValue({ id: "ocupado" });
+      await expect(
+        emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId }, usuarioId),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mocks.ordemCreate).not.toHaveBeenCalled();
+    },
+  );
+
   it("reserva a viatura sem registrar saída ao criar uma ordem por etapas", async () => {
     prepararEmissao();
     await emitirOrdemColetaSvo(chamadoId, { veiculoId, motoristaId }, usuarioId);
@@ -566,26 +736,6 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     expect(mocks.veiculoUpdateMany).not.toHaveBeenCalled();
     expect(mocks.motoristaUpdateMany).not.toHaveBeenCalled();
     expect(mocks.desinfeccaoCreate).not.toHaveBeenCalled();
-  });
-
-  it("lista somente as coletas ativas do motorista logado", async () => {
-    mocks.motoristaFindUnique.mockResolvedValue({ id: motoristaId, ativo: true });
-    mocks.ordemFindMany.mockResolvedValue([{ id: "ordem-ativa", motoristaId }]);
-    await expect(listarMinhasColetasSvo(usuarioId)).resolves.toEqual([
-      { id: "ordem-ativa", motoristaId },
-    ]);
-    expect(mocks.motoristaFindUnique).toHaveBeenCalledWith({
-      where: { usuarioId },
-      select: { id: true, ativo: true },
-    });
-    expect(mocks.ordemFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          motoristaId,
-          status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"] },
-        },
-      }),
-    );
   });
 
   it("impede o motorista de avançar ordem de outro condutor", async () => {
@@ -679,8 +829,33 @@ describe("SLA e ordens do motorista SVO", () => {
       { page: 0 },
       { pageSize: 101 },
       { status: "INVALIDO" },
+      { ativas: "INVALIDO" },
     ]) {
       expect(listarMinhasOrdensSvoSchema.safeParse(query).success).toBe(false);
     }
+  });
+
+  it("filtra ordens ativas antes de paginar e inclui os campos da viatura usados no celular", async () => {
+    mocks.ordemFindMany.mockResolvedValue([]);
+    mocks.ordemCount.mockResolvedValue(0);
+    await listarMinhasOrdensSvo(usuarioId, listarMinhasOrdensSvoSchema.parse({ ativas: "true" }));
+    const where = {
+      motorista: { is: { usuarioId, ativo: true } },
+      AND: {
+        status: { in: ["AGUARDANDO_DESPACHO", "EM_ANDAMENTO", "EM_DESLOCAMENTO", "NO_LOCAL"] },
+      },
+    };
+    expect(mocks.ordemFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where,
+        include: {
+          chamado: true,
+          veiculo: {
+            select: { id: true, placa: true, modelo: true, status: true, capacidadeMaxima: true },
+          },
+        },
+      }),
+    );
+    expect(mocks.ordemCount).toHaveBeenLastCalledWith({ where });
   });
 });

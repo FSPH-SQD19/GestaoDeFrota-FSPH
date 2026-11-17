@@ -498,7 +498,9 @@ describe("cancelarSolicitacao", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => callback(prisma));
+    mocks.transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) =>
+      callback(prisma),
+    );
   });
 
   it("permite ao solicitante cancelar sua própria solicitação PENDENTE", async () => {
@@ -635,17 +637,31 @@ describe("cancelarSolicitacao", () => {
 
   it("impede solicitante de cancelar solicitação aprovada", async () => {
     mocks.findUnique.mockResolvedValue(solicitacaoAprovada);
-    await expect(cancelarSolicitacao(solicitacaoAprovada.id, { motivoCancelamento: "Motivo teste" }, solicitante))
-      .rejects.toMatchObject({ statusCode: 409 });
+    await expect(
+      cancelarSolicitacao(
+        solicitacaoAprovada.id,
+        { motivoCancelamento: "Motivo teste" },
+        solicitante,
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("consulta o estado após adquirir o bloqueio e rejeita viagem iniciada enquanto aguardava", async () => {
     let liberarBloqueio!: () => void;
-    mocks.queryRaw.mockImplementationOnce(() => new Promise<void>((resolve) => { liberarBloqueio = resolve; }));
+    mocks.queryRaw.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          liberarBloqueio = resolve;
+        }),
+    );
     mocks.findUnique.mockResolvedValue({ ...solicitacaoAprovada, status: "EM_TRANSITO" });
 
-    const cancelamento = cancelarSolicitacao(solicitacaoAprovada.id, { motivoCancelamento: "Motivo teste" }, gestor);
+    const cancelamento = cancelarSolicitacao(
+      solicitacaoAprovada.id,
+      { motivoCancelamento: "Motivo teste" },
+      gestor,
+    );
     expect(mocks.queryRaw).toHaveBeenCalledOnce();
     expect(mocks.findUnique).not.toHaveBeenCalled();
     liberarBloqueio();

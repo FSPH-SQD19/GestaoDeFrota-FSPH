@@ -86,7 +86,7 @@ export function issueCsrf(req: Request, res: Response) {
   return res.json({ csrfToken: nonce });
 }
 
-export const protectRequests: RequestHandler = (req, res, next) => {
+export const protectRequests: RequestHandler = (req, _res, next) => {
   const origin = req.headers.origin;
   if (origin && !allowedOrigins().includes(origin)) {
     return next(

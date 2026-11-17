@@ -51,6 +51,7 @@ beforeEach(() => {
         }
         return veiculo;
       }
+      if (path === "/sedes") return { data: [] };
       if (path === "/fornecedores") return { total: 1, dados: [locadora] };
       if (String(path).includes("/documentos")) {
         return { data: [], resumo: { tiposSemRegistro: ["CRLV", "IPVA", "SEGURO", "VISTORIA"] } };
@@ -72,6 +73,35 @@ beforeEach(() => {
     });
 });
 describe("VeiculosPage", () => {
+  it("filtra sem sede e fora de sede pela API", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("ABC1234");
+    await user.selectOptions(screen.getByLabelText("Filtrar por sede"), "SEM_SEDE");
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(expect.stringContaining("sede=SEM_SEDE"), {}),
+    );
+    await user.selectOptions(screen.getByLabelText("Filtrar por sede"), "FORA_DE_SEDE");
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(expect.stringContaining("sede=FORA_DE_SEDE"), {}),
+    );
+  });
+  it("edita a sede exibindo o status operacional", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("ABC1234");
+    await user.click(screen.getByRole("button", { name: "Detalhes / Editar sede" }));
+    expect(screen.getByText("Status operacional: Dispon\u00edvel")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Sede atual"), "FORA_DE_SEDE");
+    await user.click(screen.getByRole("button", { name: "Salvar sede" }));
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith("/veiculos/v1", {
+        method: "PATCH",
+        data: { sedeId: null, foraDeSede: true },
+      }),
+    );
+  });
+
   it("abre documentos pelo veículo e permite repetir a consulta após erro", async () => {
     const user = userEvent.setup();
     renderPage();
@@ -215,6 +245,8 @@ describe("VeiculosPage", () => {
       expect.objectContaining({
         method: "POST",
         data: {
+          sedeId: null,
+          foraDeSede: false,
           placa: "ABC1234",
           modelo: "Modelo válido",
           tipoFrota: "ADMINISTRATIVA",
