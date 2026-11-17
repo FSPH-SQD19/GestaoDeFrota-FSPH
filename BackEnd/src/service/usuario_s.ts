@@ -8,7 +8,7 @@ import { validarNovaSenha } from "./senha_s";
 import { invalidarCacheSincronizacaoNotificacoes } from "./notificacao_sync_cache";
 import { normalizarTelefone } from "./telefone_s";
 
-const PERFIS_USUARIO = ["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"] as const;
+const PERFIS_USUARIO = ["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE", "EXTERNO"] as const;
 
 const usuarioSelect = {
   id: true,
@@ -231,6 +231,12 @@ export async function criarUsuario(input: CriarUsuarioInput, usuarioResponsavelI
       "O perfil MOTORISTA deve ser atribuído pelo cadastro da Gestão de Motoristas.",
     );
   }
+  if (new Set(input.perfis).has("EXTERNO") && new Set(input.perfis).size > 1) {
+    throw new HttpError(
+      400,
+      "O perfil EXTERNO é isolado e não pode ser combinado com perfis internos.",
+    );
+  }
 
   const senha = validarNovaSenha(input.senha, "senha");
   const telefone = normalizarTelefone(input.telefone);
@@ -317,6 +323,21 @@ export async function atualizarUsuario(
       throw new HttpError(
         400,
         "O perfil MOTORISTA só pode ser atribuído ou removido pela Gestão de Motoristas.",
+      );
+    }
+    const externoAtual = atual.perfis.some((vinculo) => vinculo.perfil.nome === "EXTERNO");
+    const perfisUnicos = new Set(input.perfis);
+    const externoSolicitado = perfisUnicos.has("EXTERNO");
+    if (externoSolicitado && perfisUnicos.size > 1) {
+      throw new HttpError(
+        400,
+        "O perfil EXTERNO é isolado e não pode ser combinado com perfis internos.",
+      );
+    }
+    if (externoAtual !== externoSolicitado) {
+      throw new HttpError(
+        400,
+        "Contas do perfil EXTERNO possuem escopo isolado e não podem ser convertidas em perfis internos.",
       );
     }
   }

@@ -9,6 +9,7 @@ const perfis = [
   { nome: "MOTORISTA", descricao: "Motorista da frota" },
   { nome: "SVO", descricao: "Atendente do Serviço de Verificação de Óbitos" },
   { nome: "SOLICITANTE", descricao: "Solicitante de transporte institucional" },
+  { nome: "EXTERNO", descricao: "Solicitante externo do portal SVO" },
 ];
 
 function mostrarBancoDestino() {
