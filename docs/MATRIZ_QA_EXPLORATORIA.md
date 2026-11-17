@@ -6,7 +6,7 @@
 
 Matriz de preparação para a auditoria exploratória e regressão da plataforma ROTA. Organiza os cenários por módulo, perfil e risco e define o resultado esperado e a evidência necessária para cada execução.
 
-**Estado desta entrega:** matriz criada em 17/11/2026. Os cenários abaixo ainda não foram executados como exploração contra uma aplicação/API integrada. Referências a testes automatizados indicam cobertura no repositório; elas não comprovam resultado desta execução nem substituem teste E2E integrado. Nenhum bug foi declarado.
+**Estado desta entrega:** matriz revisada em 17/11/2026 após incorporar `master` (`b882fd5`) no merge `f11b359`. Inclui os módulos de PWA/diário do motorista, avarias, sedes e remanejamento SVO presentes na base atual. Os cenários abaixo ainda não foram executados como exploração contra uma aplicação/API integrada desta base. Referências a testes automatizados indicam cobertura no repositório; elas não comprovam resultado desta execução nem substituem teste E2E integrado. Nenhum bug foi declarado.
 
 ## Risco e registro de execução
 
@@ -52,20 +52,39 @@ Cada evidência deve identificar: ID do cenário, data/hora e fuso, ambiente/ver
 | SVO-03 | Capacidade / despacho | SVO, ADMIN | Crítico | Emitir ordens até a capacidade máxima; exceder capacidade e concorrer por última vaga; despachar motorista/viatura indisponível. | Capacidade não é ultrapassada nem sob concorrência; despacho exige recursos elegíveis e não deixa reserva parcial. | `BackEnd/tests/unit/service/svo_s.test.ts`; `svo_fluxo_r.test.ts`; E2E mockado | Pendente |
 | SVO-04 | Coleta / sanitização | MOTORISTA, SVO | Crítico | Avançar saída → local → entrega; tentar pular/retroceder etapa e consultar ordem alheia; concluir última coleta. | Apenas próxima etapa permitida é registrada com horário/autoria; veículo entra em desinfecção ao fim da operação. | `FrontEnd/tests/e2e/dashboard-svo.spec.ts`; `BackEnd/tests/unit/routes/svo_fluxo_r.test.ts` | Pendente |
 | SVO-05 | Desinfecção / liberação | SVO, ADMIN | Crítico | Tentar reusar viatura antes de confirmar desinfecção; confirmar mais de uma vez ou após estado incompatível. | Viatura permanece indisponível até procedimento válido; liberação ocorre uma vez e gera trilha de auditoria/notificação. | E2E SVO mockado; `BackEnd/tests/unit/service/svo_s.test.ts` | Pendente |
-| SVO-06 | Solicitação externa | Usuário externo, SVO | Alto | Após integração, enviar solicitação externa válida/inválida, repetir envio, consultar protocolo e acompanhar tratamento até ordem. | Contrato de autenticação/identificação, validação, deduplicação, privacidade e transição para fila interna são definidos e funcionam ponta a ponta. | Integração externa ainda não identificada nesta preparação | Bloqueado até integração; registrar ambiente/contrato quando disponível |
+| SVO-06 | Remanejamento de coleta | ADMIN, SVO | Alto | Remanejar viatura/motorista em ordem elegível; tentar recurso ocupado, mudança parcial, payload inválido e reenvio concorrente. | Mudança é atômica, respeita capacidade e disponibilidade, preserva histórico/autoria e não duplica o remanejamento. | Testes de rotas/serviço SVO; E2E direto de remanejamento não localizado | Pendente |
+| SVO-07 | Solicitação externa | Usuário externo, SVO | Alto | Após integração do perfil externo, enviar solicitação sintética válida/inválida, repetir envio, consultar protocolo e acompanhar tratamento até ordem. | Contrato de autenticação/identificação, validação, deduplicação, privacidade e transição para fila interna são definidos e funcionam ponta a ponta. | Perfil externo não consta entre os cinco perfis da branch atual | Bloqueado até integração; registrar ambiente/contrato quando disponível |
+
+### PWA e diário do motorista
+
+| ID | Módulo | Perfil | Risco | Cenário / pré-condição | Resultado esperado | Automação existente | Execução / evidência |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| PWA-01 | Diário / feature flag | MOTORISTA, ADMIN, GESTOR, SVO | Alto | Validar `DRIVER_PWA_ENABLED=false` e `true`; alternar operação administrativa e SVO entre fluxo legado e diário. | Flag desativada mantém fluxo legado; ativa encaminha operações ao diário e impede atualizações legadas conflitantes sem perder atribuições ou horários. | `FrontEnd/tests/e2e/motorista.spec.ts`; `driver-all-trips.spec.ts`; `driver-svo.spec.ts` (mockados) | Pendente |
+| PWA-02 | Saída / checklist / hodômetro | MOTORISTA | Crítico | Iniciar viagem com checklist completo; tentar pneus, iluminação ou freios não conformes sem observação; testar odômetro inválido e regressivo no retorno. | Falha crítica bloqueia saída; problemas exigem descrição; saída/retorno persistem uma vez e odômetro não regride em relação à viagem, veículo ou abastecimento. | `BackEnd/tests/unit/service/diario_s.test.ts`; E2E motorista mockado | Pendente |
+| PWA-03 | Operação offline / sincronização | MOTORISTA | Alto | Após confirmar saída online, ficar offline, registrar comandos, reconectar e reenviar UUIDs; trocar usuário e abrir pendências da sessão anterior. | Operação autorizada continua localmente; sincronização ordenada é idempotente; dados pendentes permanecem isolados por usuário e itens rejeitados permitem correção. | `FrontEnd/tests/e2e/motorista.spec.ts`; `pwa-install.spec.ts`; testes de serviço do diário | Pendente |
+| PWA-04 | GPS / rastreamento | MOTORISTA, ADMIN, GESTOR, SVO | Alto | Negar permissão GPS, operar sem coordenadas, suspender/ocultar PWA e abrir central como cada papel autorizado. | Ausência de GPS não impede operação manual; captura respeita visibilidade e autorização; posições e mapas não são expostos a SOLICITANTE nem a usuários sem sessão. | E2E de central do motorista mockado; testes unitários do diário | Pendente |
+
+### Avarias e sedes
+
+| ID | Módulo | Perfil | Risco | Cenário / pré-condição | Resultado esperado | Automação existente | Execução / evidência |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| AVA-01 | Avarias / decisão | ADMIN, GESTOR | Alto | Analisar avaria pendente com justificativa curta/ausente, repetir a decisão, ou liberar veículo em viagem/com outra avaria pendente/manutenção aberta. | Entrada inválida e liberação insegura são recusadas; decisão repetida é idempotente ou retorna conflito sem duplicar efeitos. | `BackEnd/tests/unit/service/avaria_s.test.ts`; `FrontEnd/tests/unit/pages/AvariasPage.test.tsx` | Pendente |
+| AVA-02 | Avarias / manutenção corretiva | ADMIN, GESTOR | Alto | Encaminhar avaria para manutenção; consultar histórico e veículo; simular disputa de análise para o mesmo veículo. | Avaria, manutenção, bloqueio do veículo, histórico e auditoria ficam consistentes na transação; segunda decisão não cria manutenção duplicada. | `BackEnd/tests/unit/service/avaria_s.test.ts`; sem E2E dedicado localizado | Pendente |
+| SEDE-01 | Sedes / base operacional | ADMIN, GESTOR | Médio | Listar sedes; ADMIN cadastra, desativa e tenta duplicidade ignorando maiúsculas/espaços; GESTOR tenta alterar cadastro. | Listagem permitida; mutação restrita a ADMIN; nomes duplicados recebem 409 sem registro parcial. | `BackEnd/tests/unit/service/sede_veiculo.test.ts`; sem E2E dedicado localizado | Pendente |
 
 ## Ordem recomendada de execução
 
-1. Preparar ambiente de QA com banco isolado, build/commit identificados e perfis/cadastros sintéticos para os cinco papéis.
-2. Executar primeiro AUT/RBAC, FRO-02/FRO-03 e SVO-02–SVO-05 por criticidade; interromper a exploração de dados reais se houver exposição sanitária.
-3. Executar os fluxos funcionais VIA, MAN, DOC, NOT e REL por perfil, incluindo entradas inválidas e recuperação após indisponibilidade.
-4. Repetir cenários concorrentes, coletar evidência sanitizada e conferir o Jira antes de abrir cada bug.
-5. Após integração externa, retirar o estado bloqueado de SVO-06 e executar o contrato ponta a ponta.
+1. Preparar ambiente de QA com banco isolado, build/commit identificados e dados sintéticos para os cinco perfis atuais (`ADMIN`, `GESTOR`, `SOLICITANTE`, `MOTORISTA`, `SVO`). Não semear dados antes de confirmar o destino do banco.
+2. Executar primeiro AUT/RBAC, FRO-02/FRO-03, SVO-02–SVO-06 e PWA-02/PWA-04 por criticidade; interromper a exploração de dados reais se houver exposição sanitária.
+3. Executar VIA, MAN, DOC, NOT, REL, AVA e SEDE por perfil, incluindo entradas inválidas e recuperação após indisponibilidade.
+4. Repetir cenários concorrentes e de sincronização, coletar evidência sanitizada e conferir o Jira antes de abrir cada bug.
+5. A branch atual não contém o perfil externo; após sua integração, retirar o estado bloqueado de SVO-07 e executar o fluxo ponta a ponta.
 
 ## Referências do repositório
 
 - Regras e escopo: [PROJETO.md](PROJETO.md), [FRONTEND.md](FRONTEND.md), [BACKEND.md](BACKEND.md) e [svo-sla.md](svo-sla.md).
 - Execução dos testes: [TESTES.md](TESTES.md).
 - E2E Playwright: `FrontEnd/tests/e2e/`.
+- PWA/diário e limites de execução: [MOTORISTA_PWA.md](MOTORISTA_PWA.md).
 - Rotas/API: `BackEnd/src/routes/` e `BackEnd/src/middleware/RBAC_m.ts`.
 - Itens informados como contexto (acesso Jira indisponível nesta execução): [S19FROTA-224](https://residenciasoftware.atlassian.net/browse/S19FROTA-224) e [S19FROTA-202](https://residenciasoftware.atlassian.net/browse/S19FROTA-202).
