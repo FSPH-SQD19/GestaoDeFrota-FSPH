@@ -7,6 +7,7 @@
 - Serviços: Docker local; API em `127.0.0.1:3000`, interface Vite de QA em `127.0.0.1:4173`
 - Banco: desenvolvimento local; somente contas/dados sintéticos
 - Automação: `FrontEnd/tests/e2e/docker/seguranca.spec.ts`
+- Execução final consolidada: 3 testes aprovados em 17/11/2026, após o cooldown da conta sintética.
 
 ## Resultados reproduzidos
 
@@ -19,7 +20,7 @@
 | IDOR de cancelamento | ADMIN cria solicitação sintética própria; SOLICITANTE não a vê na lista e tenta cancelar com CSRF válido. ADMIN cancela a fixture ao final. | Consulta não revela o ID; tentativa de cancelamento retorna 403; limpeza retorna 200. |
 | CSRF e origem | SOLICITANTE autenticado tenta POST sem CSRF; GET de CSRF envia `Origin: https://atacante.example`. | Ambos retornam 403. |
 
-A execução integral anterior da especificação mostrou 5 testes aprovados. Na repetição posterior, os cenários sem sessão, RBAC, isolamento e IDOR/limpeza passaram; o último cenário não conseguiu autenticar SOLICITANTE porque o limite real do ambiente retornou `Muitas tentativas. Tente novamente em 15 minutos.`. O middleware configura limite de 10 tentativas por conta e janela de 15 minutos. As execuções repetidas de QA consumiram essa cota; isso não foi declarado defeito do produto. Consolidei os cenários que usavam SOLICITANTE em um único login para reduzir tentativas. A versão consolidada passou em `test:types` e lint, mas ainda precisa de uma execução E2E completa depois que a janela do limitador expirar.
+A execução integral anterior da especificação mostrou 5 testes aprovados. Uma repetição posterior atingiu o limite real de login do ambiente (`Muitas tentativas. Tente novamente em 15 minutos.`), com limite de 10 tentativas por conta e janela de 15 minutos. As execuções repetidas de QA consumiram essa cota; não foi declarado defeito do produto nem removido o limitador do banco. Consolidei cenários que usavam SOLICITANTE para reduzir logins; após o cooldown, a versão consolidada passou integralmente: **3 testes aprovados**. `test:types`, lint e `git diff --check` também passaram.
 
 ## Escopo ainda pendente
 
