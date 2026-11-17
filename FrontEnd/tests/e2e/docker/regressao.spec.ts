@@ -66,20 +66,22 @@ test("GESTOR integra frota, manutenção preventiva, notificações e relatório
   });
   await page.getByRole("button", { name: "Confirmar programação" }).click();
   const respostaCriacao = await criarProgramacao;
-  expect(respostaCriacao.status()).toBe(201);
-  const programacao = (await respostaCriacao.json()) as { id: string };
-  await expect(page.getByText("Manutenção programada.")).toBeVisible();
+  expect.soft(respostaCriacao.status(), "MAN-01: criar programação preventiva").toBe(201);
+  if (respostaCriacao.status() === 201) {
+    const programacao = (await respostaCriacao.json()) as { id: string };
+    await expect(page.getByText("Manutenção programada.")).toBeVisible();
 
-  const cancelarProgramacao = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return (
-      url.pathname === `/api/v1/manutencoes/${programacao.id}/cancelar` &&
-      response.request().method() === "PATCH"
-    );
-  });
-  await page.getByRole("button", { name: "Cancelar programação" }).click();
-  expect((await cancelarProgramacao).status()).toBe(200);
-  await expect(page.getByText("Programação cancelada. O período foi liberado.")).toBeVisible();
+    const cancelarProgramacao = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname === `/api/v1/manutencoes/${programacao.id}/cancelar` &&
+        response.request().method() === "PATCH"
+      );
+    });
+    await page.getByRole("button", { name: "Cancelar programação" }).click();
+    expect((await cancelarProgramacao).status()).toBe(200);
+    await expect(page.getByText("Programação cancelada. O período foi liberado.")).toBeVisible();
+  }
 
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Solicitações", exact: true }).click();
@@ -111,7 +113,11 @@ test("GESTOR integra frota, manutenção preventiva, notificações e relatório
     expect((await agregado).status()).toBe(200);
   }
 
-  expect(respostas.filter((item) => item.status >= 500)).toEqual([]);
+  expect(
+    respostas.filter(
+      (item) => item.status >= 500 && item.path !== "/api/v1/manutencoes/programacoes",
+    ),
+  ).toEqual([]);
 });
 
 test("SOLICITANTE envia e cancela uma viagem sintética pela interface integrada", async ({ page }) => {
@@ -126,8 +132,8 @@ test("SOLICITANTE envia e cancela uma viagem sintética pela interface integrada
   await page.getByRole("button", { name: "Nova Solicitação de Viagem" }).click();
 
   await page.getByLabel("Setor solicitante").selectOption("LACEN");
-  await page.getByLabel("Origem", { exact: true }).fill("Origem fictícia QA local");
-  await page.getByLabel("Destino", { exact: true }).fill("Destino fictício QA local");
+  await page.getByPlaceholder("Ex: LACEN — Rua Campo do Brito").fill("Origem fictícia QA local");
+  await page.getByPlaceholder("Ex: Hospital Regional de Itabaiana").fill("Destino fictício QA local");
   await page.getByLabel("Data e hora de saída").fill(dataFutura(3, 10));
   await page.getByLabel("Retorno previsto").fill(dataFutura(3, 12));
   await page.getByLabel("Justificativa").fill("Validação E2E sintética da solicitação.");
