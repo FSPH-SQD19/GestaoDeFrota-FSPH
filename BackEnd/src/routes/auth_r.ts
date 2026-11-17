@@ -1,11 +1,7 @@
 import { Router } from "express";
 import { revokeSession } from "../service/session_s";
 import { issueCsrf, cookieOptions, sessionCookieName } from "../middleware/session_http";
-import {
-  limitExternalSignup,
-  limitLogin,
-  limitPasswordChange,
-} from "../middleware/login_limit";
+import { limitExternalSignup, limitLogin, limitPasswordChange } from "../middleware/login_limit";
 import { loginController } from "../controller/auth_c";
 import {
   cadastrarUsuarioExternoController,

@@ -62,7 +62,8 @@ export const MENSAGEM_PUBLICA_POR_STATUS: Readonly<Record<StatusSolicitacaoExter
     "Triagem concluída pela equipe do SVO. Solicitação encaminhada para deliberação da gestão.",
   APROVADA:
     "Solicitação aprovada pela gestão e integrada à central operacional do SVO para atendimento.",
-  RECUSADA: "Solicitação não autorizada. Confira o motivo informado no acompanhamento do protocolo.",
+  RECUSADA:
+    "Solicitação não autorizada. Confira o motivo informado no acompanhamento do protocolo.",
 };
 
 export function obterTransicoesPermitidasSolicitacaoExterna(
@@ -91,10 +92,7 @@ export function validarTransicaoStatusSolicitacaoExterna(
   }
 
   if (!podeTransicionarSolicitacaoExterna(statusAtual, statusNovo)) {
-    throw new HttpError(
-      409,
-      `Transição de status inválida de ${statusAtual} para ${statusNovo}.`,
-    );
+    throw new HttpError(409, `Transição de status inválida de ${statusAtual} para ${statusNovo}.`);
   }
 
   const isExterno = perfisAutor.includes("EXTERNO");
@@ -286,7 +284,8 @@ export function serializarSolicitacaoExternaPublica(registro: SolicitacaoExterna
     id: registro.id,
     protocolo: registro.protocolo,
     status,
-    mensagemStatus: MENSAGEM_PUBLICA_POR_STATUS[status] ?? MENSAGEM_PUBLICA_POR_STATUS.AGUARDANDO_TRIAGEM,
+    mensagemStatus:
+      MENSAGEM_PUBLICA_POR_STATUS[status] ?? MENSAGEM_PUBLICA_POR_STATUS.AGUARDANDO_TRIAGEM,
     nomeContato: registro.nomeContato,
     telefoneContato: registro.telefoneContato,
     tipoSolicitante: registro.tipoSolicitante,
@@ -501,8 +500,7 @@ export async function transicionarSolicitacaoExternaSvo(
           ? `Solicitação recusada: ${parsed.motivoRecusa}`
           : MENSAGEM_PUBLICA_POR_STATUS[parsed.statusNovo];
 
-    const observacaoInterna =
-      parsed.observacaoTriagem ?? parsed.justificativaDecisao ?? null;
+    const observacaoInterna = parsed.observacaoTriagem ?? parsed.justificativaDecisao ?? null;
 
     const atualizados = await tx.solicitacaoExternaSvo.updateMany({
       where: {

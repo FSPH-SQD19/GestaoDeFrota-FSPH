@@ -164,10 +164,7 @@ describe("S19FROTA-280 — Serviço de cadastro e isolamento de usuário EXTERNO
     ).toThrow("Você não tem permissão para consultar ou alterar dados de outro solicitante.");
 
     expect(() =>
-      garantirIsolamentoExterno(
-        { id: externoA.id, perfis: ["EXTERNO", "ADMIN"] },
-        externoA.id,
-      ),
+      garantirIsolamentoExterno({ id: externoA.id, perfis: ["EXTERNO", "ADMIN"] }, externoA.id),
     ).toThrow("O perfil EXTERNO é isolado e não pode ser combinado com perfis internos.");
 
     expect(() => garantirIsolamentoExterno(null, externoA.id)).toThrow(

@@ -136,8 +136,7 @@ function criarRegistroMock(
         acao: "SOLICITACAO_CRIADA",
         statusAnterior: null,
         statusNovo: "AGUARDANDO_TRIAGEM",
-        mensagemPublica:
-          "Solicitação recebida e aguardando análise da equipe de triagem do SVO.",
+        mensagemPublica: "Solicitação recebida e aguardando análise da equipe de triagem do SVO.",
         observacaoInterna: "Anotação restrita à equipe interna",
         criadoEm: agoraFixo,
       },
@@ -486,9 +485,7 @@ describe("S19FROTA-279 — Modelagem, estados, protocolo e auditoria de Solicita
       expect(publica.historico[0]).not.toHaveProperty("observacaoInterna");
 
       expect(interna.observacaoTriagem).toBe("Detalhe interno sigiloso da triagem");
-      expect(interna.historico[0].observacaoInterna).toBe(
-        "Anotação restrita à equipe interna",
-      );
+      expect(interna.historico[0].observacaoInterna).toBe("Anotação restrita à equipe interna");
     });
   });
 });
