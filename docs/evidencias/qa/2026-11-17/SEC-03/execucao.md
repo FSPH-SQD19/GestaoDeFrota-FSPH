@@ -8,6 +8,7 @@
 - Banco: desenvolvimento local; somente contas/dados sintéticos
 - Automação: `FrontEnd/tests/e2e/docker/seguranca.spec.ts`
 - Execução final consolidada: 3 testes aprovados em 17/11/2026, após o cooldown da conta sintética.
+- Retomada após acesso ao Docker: 3/3 testes aprovados novamente.
 
 ## Resultados reproduzidos
 
@@ -31,4 +32,4 @@ A execução integral anterior da especificação mostrou 5 testes aprovados. Um
 - RBAC-04: conteúdo sanitário, exportação, busca e localização; foi verificada a barreira de entrada do endpoint de chamados, sem inspecionar dados sanitários.
 - Concorrência/dupla alocação e falhas/timeout da API permanecem para suas tarefas/cenários dedicados.
 
-Não foi identificado bug nesta rodada de segurança; respostas 401/403 e restrição da listagem corresponderam ao esperado. Os achados Docker de login e manutenção continuam registrados em E2E-02 e seguem sem deduplicação Jira porque o projeto está inacessível nesta sessão.
+Não foi identificado bug reproduzível nesta rodada de segurança; respostas 401/403 e restrição da listagem corresponderam ao esperado nos cenários executados. Os achados das execuções E2E foram deduplicados e registrados em [S19FROTA-290](https://residenciasoftware.atlassian.net/browse/S19FROTA-290) e [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291).

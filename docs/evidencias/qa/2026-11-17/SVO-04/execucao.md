@@ -9,6 +9,7 @@
 - Perfil: SVO
 - Automação: `FrontEnd/tests/e2e/docker/svo-regressao.spec.ts`
 - Resultado final: 3/3 testes E2E aprovados em uma execução completa.
+- Retomada após acesso ao Docker: 3/3 testes aprovados novamente.
 
 ## Cenários executados
 
@@ -31,4 +32,4 @@ A primeira execução do cenário telefônico falhou apenas porque o teste usava
 - Não testei acesso de ADMIN à triagem, exposição de conteúdo sanitário em auditoria/relatórios/exportação, chamada telefônica externa nem atendimento por usuário externo.
 - Não testei indisponibilidade/CNH vencida nem motorista tentando avançar ordem alheia. Os cenários de despacho verificaram capacidade, concorrência, sequência, bloqueio e liberação sanitária com uma viatura e um motorista elegíveis do banco local.
 - Remanejamento SVO permanece pendente para SVO-06; solicitação externa segue bloqueada até a integração do perfil.
-- Não foi encontrado bug reproduzível nesta rodada; nenhum ticket Jira foi aberto. O projeto Jira permanece inacessível nesta sessão.
+- Não foi encontrado bug reproduzível nesta rodada SVO. Os achados de outras áreas foram registrados separadamente como [S19FROTA-290](https://residenciasoftware.atlassian.net/browse/S19FROTA-290) e [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291).
