@@ -2,6 +2,8 @@
 
 [Índice da documentação](README.md)
 
+Para cenários exploratórios e regressão ponta a ponta por perfil, consulte a [Matriz de QA](MATRIZ_QA_EXPLORATORIA.md). A matriz registra quais cenários estão pendentes de execução e quais testes automatizados existentes servem apenas como referência.
+
 O projeto usa Vitest para os testes dos dois workspaces, Testing Library com jsdom para os componentes React e Oxlint para a análise estática. As dependências são instaladas pelo `package-lock.json` da raiz e compartilhadas no `node_modules` central.
 
 Use uma versão de Node compatível com `engines` do `package.json`: linha 22 a partir de 22.12, linha 24 ou versão 26 em diante.
