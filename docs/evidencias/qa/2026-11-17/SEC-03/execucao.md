@@ -12,14 +12,14 @@
 
 ## Resultados reproduzidos
 
-| Cenário | Execução | Resultado |
-| --- | --- | --- |
-| Autenticação sem sessão | GET em sete rotas protegidas (`/auth/sessao`, veículos, solicitações, manutenção, notificações, relatório e SVO). | Todas 401. |
-| Token inválido | GET `/api/v1/auth/sessao` com `Authorization: Bearer token-invalido`. | 401. |
-| Matriz RBAC por perfil | GESTOR/ADMIN, SOLICITANTE, MOTORISTA e SVO consultam rotas de frota, viagens, manutenção, relatórios e SVO; notificações consultadas nos cinco perfis. | Status esperados confirmados: rotas restritas 403, rotas permitidas 200. Sem 5xx. |
-| Isolamento de lista | SOLICITANTE consulta `/api/v1/solicitacoes`; cada registro retornado tem `solicitanteId` igual ao ID da sessão. | Passou com registros sintéticos existentes. |
-| IDOR de cancelamento | ADMIN cria solicitação sintética própria; SOLICITANTE não a vê na lista e tenta cancelar com CSRF válido. ADMIN cancela a fixture ao final. | Consulta não revela o ID; tentativa de cancelamento retorna 403; limpeza retorna 200. |
-| CSRF e origem | SOLICITANTE autenticado tenta POST sem CSRF; GET de CSRF envia `Origin: https://atacante.example`. | Ambos retornam 403. |
+| Cenário                 | Execução                                                                                                                                               | Resultado                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Autenticação sem sessão | GET em sete rotas protegidas (`/auth/sessao`, veículos, solicitações, manutenção, notificações, relatório e SVO).                                      | Todas 401.                                                                            |
+| Token inválido          | GET `/api/v1/auth/sessao` com `Authorization: Bearer token-invalido`.                                                                                  | 401.                                                                                  |
+| Matriz RBAC por perfil  | GESTOR/ADMIN, SOLICITANTE, MOTORISTA e SVO consultam rotas de frota, viagens, manutenção, relatórios e SVO; notificações consultadas nos cinco perfis. | Status esperados confirmados: rotas restritas 403, rotas permitidas 200. Sem 5xx.     |
+| Isolamento de lista     | SOLICITANTE consulta `/api/v1/solicitacoes`; cada registro retornado tem `solicitanteId` igual ao ID da sessão.                                        | Passou com registros sintéticos existentes.                                           |
+| IDOR de cancelamento    | ADMIN cria solicitação sintética própria; SOLICITANTE não a vê na lista e tenta cancelar com CSRF válido. ADMIN cancela a fixture ao final.            | Consulta não revela o ID; tentativa de cancelamento retorna 403; limpeza retorna 200. |
+| CSRF e origem           | SOLICITANTE autenticado tenta POST sem CSRF; GET de CSRF envia `Origin: https://atacante.example`.                                                     | Ambos retornam 403.                                                                   |
 
 A execução integral anterior da especificação mostrou 5 testes aprovados. Uma repetição posterior atingiu o limite real de login do ambiente (`Muitas tentativas. Tente novamente em 15 minutos.`), com limite de 10 tentativas por conta e janela de 15 minutos. As execuções repetidas de QA consumiram essa cota; não foi declarado defeito do produto nem removido o limitador do banco. Consolidei cenários que usavam SOLICITANTE para reduzir logins; após o cooldown, a versão consolidada passou integralmente: **3 testes aprovados**. `test:types`, lint e `git diff --check` também passaram.
 

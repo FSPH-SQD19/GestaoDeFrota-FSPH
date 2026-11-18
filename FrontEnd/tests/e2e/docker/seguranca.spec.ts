@@ -103,7 +103,9 @@ test("RBAC da API respeita os perfis na leitura de módulos", async ({ browser }
   }
 });
 
-test("SOLICITANTE só acessa as próprias solicitações e mutações protegidas exigem CSRF", async ({ browser }) => {
+test("SOLICITANTE só acessa as próprias solicitações e mutações protegidas exigem CSRF", async ({
+  browser,
+}) => {
   const admin = await sessaoDoPerfil(browser, "ADMIN");
   const solicitante = await sessaoDoPerfil(browser, "SOLICITANTE");
   let solicitacaoAlheiaId: string | undefined;
@@ -145,7 +147,9 @@ test("SOLICITANTE só acessa as próprias solicitações e mutações protegidas
     expect(criada.status(), "ADMIN cria fixture sintética").toBe(201);
     solicitacaoAlheiaId = ((await criada.json()) as { id: string }).id;
 
-    const listaSolicitante = await solicitante.context.request.get(`${api}/solicitacoes?pageSize=100`);
+    const listaSolicitante = await solicitante.context.request.get(
+      `${api}/solicitacoes?pageSize=100`,
+    );
     expect(listaSolicitante.status()).toBe(200);
     const itens = (await listaSolicitante.json()) as {
       data: { id: string; solicitanteId: string }[];

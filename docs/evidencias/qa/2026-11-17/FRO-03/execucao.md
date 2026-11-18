@@ -17,8 +17,8 @@
 4. Enviar simultaneamente as duas aprovações usando o mesmo veículo e motorista.
 5. Consultar os registros e cancelar ambas as fixtures para liberar os recursos.
 
-| Resultado esperado | Resultado obtido | Status |
-| --- | --- | --- |
+| Resultado esperado                                                                                         | Resultado obtido                                                                                                                                                                                               | Status |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | Apenas uma aprovação é aceita; a segunda operação recebe conflito; nenhum recurso fica alocado duas vezes. | Uma resposta 200 e uma resposta 409. A consulta confirmou uma solicitação `APROVADA` e outra `PENDENTE`, com veículo e motorista associados somente à aprovada. As duas fixtures foram canceladas com sucesso. | PASSOU |
 
 Na primeira tentativa, a janela de 60 dias não encontrou motorista disponível com CNH válida e o teste foi pulado sem mutar dados. A janela foi ajustada para 10 dias, encontrou uma fixture elegível e concluiu a disputa com sucesso. Nomes, documentos e identificadores foram omitidos.

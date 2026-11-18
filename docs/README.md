@@ -12,7 +12,7 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 | [Front-end](FRONTEND.md)                  | Organização das telas, componentes, perfis e padrões de interface.  |
 | [Back-end](BACKEND.md)                    | Organização da API, autenticação, endpoints e regras de veículos.   |
 | [Testes](TESTES.md)                       | Como criar e executar testes, lint e cobertura.                     |
-| [Matriz de QA](MATRIZ_QA_EXPLORATORIA.md) | Cenários exploratórios e regressão E2E por módulo, perfil e risco. |
+| [Matriz de QA](MATRIZ_QA_EXPLORATORIA.md) | Cenários exploratórios e regressão E2E por módulo, perfil e risco.  |
 | [CI](CI.md)                               | Verificações nos PRs e comentário automático do bot.                |
 | [GitHub](GITHUB.md)                       | Fluxo da equipe: branch, commit, PR e merge na `master`.            |
 | [Identidade visual](IDENTIDADE_VISUAL.md) | Marca ROTA, cores, tipografia, arquivos e aplicações.               |
