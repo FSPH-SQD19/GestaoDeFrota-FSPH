@@ -2,47 +2,46 @@
 
 ## Resumo executivo
 
-- Execução e retomada: 17/11/2026, Docker local e PostgreSQL de desenvolvimento, branch `doc_Qa`; evidências originais a partir do commit `8886e2f` e retestes exploratórios contra os serviços Docker iniciados nesta sessão.
-- A matriz contém 34 cenários por módulo, perfil e risco: **4 passaram**, **12 foram parciais**, **2 falharam**, **15 seguem pendentes** e **1 está bloqueado pela integração do usuário externo**. Cobertura executada em algum nível: 18/34 (53%). Parcial não significa aprovação integral do cenário.
-- Foram reproduzidos dois defeitos de severidade **Alta** que bloqueiam fluxos do build Docker ou manutenção preventiva. A concorrência de alocação administrativa e a capacidade concorrente SVO passaram; seguem sem cobertura suficiente a exposição sanitária indireta, motorista tentando operar ordem alheia e resiliência geral.
-- Na retomada, regressão SVO: 3/3 passou; segurança/RBAC: 3/3 passou; dupla alocação administrativa: 1/1 passou; regressão geral: 1 passou e 1 falhou no defeito conhecido MAN-01. A consulta direta ao frontend Docker repetiu `200 text/html` em GET de auth e `405` no POST de login.
-- Nenhuma correção foi aplicada aos dois defeitos. Portanto, não houve reteste pós-correção.
+- Execução: 17–19/11/2026, Docker local e PostgreSQL de desenvolvimento, branch `doc_Qa`; retestes feitos sobre `16c06db` mais alterações locais ainda não commitadas.
+- A matriz contém 34 cenários por módulo, perfil e risco: **4 passaram**, **14 foram parciais**, **nenhum permanece reproduzivelmente falhando após os retestes**, **15 seguem pendentes** e **1 está bloqueado pela integração do usuário externo**. Cobertura executada em algum nível: 18/34 (53%). Parcial não significa aprovação integral do cenário.
+- A falha de login Docker foi corrigida no Nginx e passou no novo E2E contra o container publicado. A incompatibilidade de status da manutenção foi corrigida por nova migração e agendamento/cancelamento passaram em E2E. A concorrência administrativa e a capacidade concorrente SVO também passaram. Permanecem riscos sanitários indiretos, motorista operando ordem alheia e resiliência geral.
+- Após rebuild dos dois serviços, os 10 cenários E2E Docker passaram em lotes contra as imagens novas: Nginx/login, GESTOR/SOLICITANTE, dupla alocação, SVO e RBAC/isolamento. O container backend novo contém a migração e está ligado a um banco com 24 migrações aplicadas. A suíte unitária completa passou: backend **877/877**, frontend **235/235**; o frontend foi limitado a quatro workers após timeouts de UI sob carga paralela. Builds, lint e tipos passaram. [Evidência do rebuild e reteste](evidencias/qa/2026-11-19/Docker-Rebuild/execucao.md).
+- S19FROTA-290 e a parte reproduzida de S19FROTA-291 passaram retestes no working tree. O código e as migrações ainda não foram commitados; os dois Bugs permanecem no Jira para revisão/commit e o 291 ainda requer cenários negativos e de ciclo completo.
 
-## Defeitos reproduzidos e ainda abertos
+## Defeitos identificados e estado de reteste
 
 | ID local | Severidade | Módulo | Passos mínimos | Esperado | Obtido | Evidência / Jira |
 | --- | --- | --- | --- | --- | --- | --- |
-| QA-2026-11-17-01 | Alta | Frontend Docker / autenticação | Abrir `http://127.0.0.1:5173` e observar as chamadas do login. | `/api/v1/auth/*` é encaminhado à API e o formulário autentica. | GET de sessão/CSRF retorna `200 text/html` do fallback SPA; POST login retorna `405 text/html`; usuário permanece na tela de login. | [E2E-02](evidencias/qa/2026-11-17/E2E-02/execucao.md); Bug [S19FROTA-290](https://residenciasoftware.atlassian.net/browse/S19FROTA-290), reteste pendente de correção. |
-| QA-2026-11-17-02 | Alta | Manutenção preventiva | Entrar como GESTOR; Veículos → programar manutenção de DMO2A02; selecionar janela futura sem conflito; confirmar. | POST `/api/v1/manutencoes/programacoes` retorna 201 e persiste a programação. | Resposta 500; SQLSTATE `23514`, constraint `manutencoes_status_check` rejeita `PROGRAMADA`, embora a rotina preventiva grave esse estado. Reproduzido duas vezes. | [E2E-02](evidencias/qa/2026-11-17/E2E-02/execucao.md); Bug [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291), reteste pendente de correção. |
+| QA-2026-11-17-01 | Alta | Frontend Docker / autenticação | Abrir `http://127.0.0.1:5173` e observar as chamadas do login. | `/api/v1/auth/*` é encaminhado à API e o formulário autentica. | Reprodução inicial: GET de sessão/CSRF devolveu `200 text/html` e POST login `405`. Após proxy `/api/` no Nginx, novo E2E no container real: sessão `401 application/json`, CSRF `200 application/json`, login `200 application/json` e menu autenticado visível. | Reprodução inicial [E2E-02](evidencias/qa/2026-11-17/E2E-02/execucao.md); reteste passou [S19FROTA-290/reteste](evidencias/qa/2026-11-18/S19FROTA-290/reteste.md); Bug [S19FROTA-290](https://residenciasoftware.atlassian.net/browse/S19FROTA-290). |
+| QA-2026-11-17-02 | Alta | Manutenção preventiva | Entrar como GESTOR; Veículos → programar manutenção de DMO2A02; selecionar janela futura sem conflito; confirmar, tentar sobreposição/inversão e cancelar. | Criar 201; rejeitar janela invertida com 400 e sobreposição com 409; cancelar com 200. | Falha original reproduzida duas vezes: HTTP 500, SQLSTATE `23514`, constraint rejeita `PROGRAMADA`. Após a migração `20261118120000_manutencao_status_programada_cancelada`, criação/cancelamento passaram; inversão retornou 400 e sobreposição 409. Reagendamento, conclusão e veículo ocupado ainda pendentes. | [E2E-02](evidencias/qa/2026-11-17/E2E-02/execucao.md); [reteste 18/11](evidencias/qa/2026-11-18/S19FROTA-291/reteste.md); Bug [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291). |
 
-Em 17/11/2026, as assinaturas das duas falhas foram pesquisadas no projeto Jira com JQL e não foram encontrados Bugs preexistentes correspondentes. Foram abertos [S19FROTA-290](https://residenciasoftware.atlassian.net/browse/S19FROTA-290) e [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291), vinculados às tarefas funcionais [S19FROTA-201](https://residenciasoftware.atlassian.net/browse/S19FROTA-201) e [S19FROTA-268](https://residenciasoftware.atlassian.net/browse/S19FROTA-268), além da subtarefa de QA [S19FROTA-278](https://residenciasoftware.atlassian.net/browse/S19FROTA-278). Nenhuma correção foi aplicada; os retestes permanecem pendentes.
+Em 17/11/2026, as assinaturas foram pesquisadas no Jira e não foram encontrados Bugs preexistentes correspondentes. [S19FROTA-290](https://residenciasoftware.atlassian.net/browse/S19FROTA-290) passou no reteste de 18/11; o trabalho está em [S19FROTA-292](https://residenciasoftware.atlassian.net/browse/S19FROTA-292), com subtarefas de configuração, E2E e reteste. [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291) também passou o reteste de agendamento/cancelamento após migração, mas continua aberto para completar o ciclo MAN-01 e finalizar revisão/commit.
 
 ## Cobertura executada
 
 | Área | Resultado desta rodada | Risco residual |
 | --- | --- | --- |
-| Autenticação / RBAC | Sem sessão e bearer inválido retornaram 401; perfis foram testados contra endpoints de leitura; mutação autenticada sem CSRF e origem externa retornaram 403. | Login no frontend Docker falha. Credencial inválida/429, logout/replay e sessão expirada pendentes. |
+| Autenticação / RBAC | Sem sessão e bearer inválido retornaram 401; perfis foram testados contra endpoints de leitura; mutação sem CSRF e origem externa retornaram 403. Login no frontend Docker passou após correção e reteste 1/1. | Credencial inválida/429, logout/replay e sessão expirada pendentes. |
 | Isolamento de dados | SOLICITANTE só recebeu solicitações próprias; não viu nem cancelou solicitação sintética de outro usuário; tentativa de IDOR retornou 403 e fixture foi limpa. | IDOR entre motoristas, consulta de ordem alheia e auditoria ainda pendentes. |
 | Frota / viagens | Listagem integrada 200; SOLICITANTE criou/cancelou solicitação (201/200); disputa paralela por veículo e motorista teve 1 aprovação 200 e 1 conflito 409; fixtures limpas. | Validações negativas, documentos, ciclos completos de aprovação/reagendamento e operação de motorista pendentes. |
-| Manutenção | Fluxo de programação preventiva reproduziu 500 duas vezes antes e novamente na regressão retomada. | Correção e ciclo reagendar/cancelar/concluir aguardam reteste. Bug [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291). |
+| Manutenção | Programação/cancelamento integrados passaram após ampliar a constraint SQL aos estados usados pelo serviço. | Reagendamento, conclusão, janela conflitante, payload inválido e veículo ocupado pendentes. Bug [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291); [reteste](evidencias/qa/2026-11-18/S19FROTA-291/reteste.md). |
 | Notificações / relatórios | Leitura de notificações e três agregados de relatório respondeu 200. | Marcação, IDOR, filtros negativos e exportação pendentes. |
 | SVO | Cadastro telefônico sintético e validação incompleta; capacidade concorrente com apenas uma reserva vencedora; sequência de etapas, bloqueio sanitário, liberação e rejeição de liberação duplicada. | Perfis ADMIN/MOTORISTA, exposição sanitária, auditoria/exportação, CNH vencida e remanejamento pendentes. |
 | Solicitação externa | Não executada. | Bloqueada até integração do perfil/contrato externo. |
 
-### Riscos críticos ainda sem cobertura suficiente
+### Riscos ainda sem cobertura suficiente
 
 - Exposição de dados sanitários em busca, auditoria, exportações e relatórios; o acesso de GESTOR ao endpoint `/svo/chamados` foi negado, mas não percorri os canais indiretos.
 - Autorização do MOTORISTA sobre ordem atribuída a outro condutor e inspeção de dados sanitários por canais indiretos.
 - Resiliência geral a indisponibilidade/timeout e idempotência após repetição de POST.
-- Autorização do MOTORISTA sobre ordem atribuída a outro condutor.
 
 ## Revalidação de correções
 
-Não havia correções aplicadas aos defeitos QA-01/02 nesta branch durante a retomada. A falha de manutenção e o roteamento/login Docker foram reproduzidos novamente; isso confirma que continuam abertos, mas não é reteste pós-correção.
+S19FROTA-290 foi corrigido em `FrontEnd/nginx.conf`; após rebuild e recriação dos dois containers, o E2E de proxy/login passou. S19FROTA-291 foi corrigido por nova migração que inclui `PROGRAMADA` e `CANCELADA` na constraint. A imagem backend nova contém essa migração; o container atualizado iniciou e `prisma migrate status` confirmou 24/24. No novo Docker, passaram criação/cancelamento, janela invertida (400), sobreposição (409), RBAC, dupla alocação e SVO. `npm test` passou 877/877 no backend e 235/235 no frontend; builds/lint/tipos passaram. Alterações continuam locais e não commitadas. O ciclo completo MAN-01 ainda não está aprovado.
 
 ## Recomendação para homologação
 
-Não homologar o pacote Docker enquanto o login do frontend publicado falhar. Corrigir e retestar também a constraint de manutenção preventiva antes de liberar esse módulo. Os Bugs [S19FROTA-290](https://residenciasoftware.atlassian.net/browse/S19FROTA-290) e [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291) já foram deduplicados e abertos. Após as correções, repetir os E2E associados e atualizar este relatório com versão/commit, resultado e evidência de reteste. Priorizar também os riscos sanitários indiretos e a autorização do motorista.
+Os fluxos corrigidos passaram nos retestes locais contra os containers recriados das imagens novas em 19/11. As alterações ainda precisam ser commitadas e incluídas no build que seguirá para homologação; reaplicar migrações em ambiente controlado. Completar reagendamento, conclusão e veículo ocupado em MAN-01. Priorizar também os riscos sanitários indiretos, autorização do motorista e fluxo externo SVO, ainda bloqueado pela integração.
 
 ## Referências
 
@@ -51,4 +50,7 @@ Não homologar o pacote Docker enquanto o login do frontend publicado falhar. Co
 - [Evidências de segurança](evidencias/qa/2026-11-17/SEC-03/execucao.md)
 - [Evidências SVO](evidencias/qa/2026-11-17/SVO-04/execucao.md)
 - [Evidência de dupla alocação](evidencias/qa/2026-11-17/FRO-03/execucao.md)
+- [Reteste S19FROTA-290](evidencias/qa/2026-11-18/S19FROTA-290/reteste.md)
+- [Reteste S19FROTA-291](evidencias/qa/2026-11-18/S19FROTA-291/reteste.md)
+- [Regressão completa E2E Docker](evidencias/qa/2026-11-18/E2E-Docker/execucao.md)
 - [S19FROTA-224](https://residenciasoftware.atlassian.net/browse/S19FROTA-224) e [S19FROTA-202](https://residenciasoftware.atlassian.net/browse/S19FROTA-202)

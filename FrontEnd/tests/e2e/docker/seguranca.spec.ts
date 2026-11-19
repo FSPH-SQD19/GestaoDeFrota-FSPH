@@ -7,6 +7,7 @@ type AcessoDemo = { senha: string; usuarios: { email: string; perfil: Perfil }[]
 
 const api = "http://127.0.0.1:3000/api/v1";
 const relatorioViagens = "/relatorios/viagens?inicio=2026-01-01&fim=2026-12-31";
+const frontendBaseURL = process.env.ROTA_QA_BASE_URL ?? "http://127.0.0.1:4173";
 
 function acessosDemo(): AcessoDemo {
   const caminho = process.env.ROTA_QA_DEMO_ACCESS
@@ -16,7 +17,7 @@ function acessosDemo(): AcessoDemo {
 }
 
 async function sessaoDoPerfil(browser: Browser, perfil: Perfil) {
-  const context = await browser.newContext({ baseURL: "http://127.0.0.1:4173" });
+  const context = await browser.newContext({ baseURL: frontendBaseURL });
   const page = await context.newPage();
   const acessos = acessosDemo();
   const usuario = acessos.usuarios.find((item) => item.perfil === perfil);
