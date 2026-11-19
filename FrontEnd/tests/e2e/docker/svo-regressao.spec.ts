@@ -167,6 +167,7 @@ test("SVO limita capacidade concorrente e não deixa despacho parcial", async ({
   if (!viatura || !motorista) return;
 
   const ordensCriadas: Ordem[] = [];
+  let chamadoSemOrdem: Chamado | undefined;
   try {
     for (let indice = 0; indice < viatura.capacidadeMaxima - 1; indice += 1) {
       const chamado = await criarChamadoAprovado(page, `cap-${Date.now()}-${indice}`);
@@ -201,6 +202,7 @@ test("SVO limita capacidade concorrente e não deixa despacho parcial", async ({
     for (const resposta of [respostaA, respostaB]) {
       if (resposta.status() === 201) ordensCriadas.push((await resposta.json()) as Ordem);
     }
+    chamadoSemOrdem = respostaA.status() === 201 ? chamadoB : chamadoA;
 
     const inventarioAtualizado = await inventario(page);
     const viaturaAtualizada = inventarioAtualizado.viaturas.find((item) => item.id === viatura.id);
@@ -209,6 +211,24 @@ test("SVO limita capacidade concorrente e não deixa despacho parcial", async ({
     for (const ordem of ordensCriadas) {
       const cancelamento = await mutacao(page, "patch", `/svo/ordens-coleta/${ordem.id}/cancelar`);
       expect(cancelamento.status(), "limpeza da reserva sintética").toBe(200);
+    }
+    if (chamadoSemOrdem) {
+      const despachoDeLimpeza = await mutacao(page, "post", "/svo/ordens-coleta", {
+        chamadoId: chamadoSemOrdem.id,
+        veiculoId: viatura.id,
+        motoristaId: motorista.id,
+      });
+      expect(
+        despachoDeLimpeza.status(),
+        "associar a fixture perdedora a uma ordem cancelável",
+      ).toBe(201);
+      const ordemDeLimpeza = (await despachoDeLimpeza.json()) as Ordem;
+      const cancelamento = await mutacao(
+        page,
+        "patch",
+        `/svo/ordens-coleta/${ordemDeLimpeza.id}/cancelar`,
+      );
+      expect(cancelamento.status(), "limpar fixture perdedora da disputa").toBe(200);
     }
   }
 });
@@ -265,4 +285,18 @@ test("SVO valida despacho, etapas da coleta e bloqueio sanitário até desinfec�
   expect(((await liberar.json()) as Viatura).status).toBe("DISPONIVEL");
   const repetirLiberacao = await mutacao(page, "patch", `/svo/viaturas/${viatura.id}/desinfeccao`);
   expect(repetirLiberacao.status()).toBe(409);
+
+  const despachoAposLiberacao = await mutacao(page, "post", "/svo/ordens-coleta", {
+    chamadoId: chamadoBloqueado.id,
+    veiculoId: viatura.id,
+    motoristaId: motorista.id,
+  });
+  expect(despachoAposLiberacao.status(), "limpeza do chamado bloqueado sintético").toBe(201);
+  const ordemBloqueada = (await despachoAposLiberacao.json()) as Ordem;
+  const cancelarOrdemBloqueada = await mutacao(
+    page,
+    "patch",
+    `/svo/ordens-coleta/${ordemBloqueada.id}/cancelar`,
+  );
+  expect(cancelarOrdemBloqueada.status()).toBe(200);
 });
