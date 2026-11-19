@@ -97,4 +97,51 @@ describe("SolicitacoesExternasSvoPage", () => {
     expect(screen.getByText("Aprovada").parentElement?.className).toContain("emerald");
     expect(screen.getByText("Recusada").parentElement?.className).toContain("rose");
   });
+
+  it("exibe parecer da triagem, histórico e vínculo com ChamadoSvo", async () => {
+    const user = userEvent.setup();
+    mocks.listar.mockResolvedValue({
+      data: [
+        {
+          ...solicitacao,
+          relatoTriagem: "Óbito compatível com critérios de atendimento.",
+          chamadoSvoId: "chamado-svo-1",
+          chamadoSvoProtocolo: "SVO-2026-0041",
+          historico: [
+            {
+              statusNovo: "AGUARDANDO_GESTOR",
+              statusAnterior: "AGUARDANDO_TRIAGEM",
+              autorNome: "Atendente SVO",
+              criadoEm: "2026-11-19T12:30:00.000Z",
+            },
+          ],
+        },
+      ],
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
+
+    render(<SolicitacoesExternasSvoPage />);
+    expect(
+      await screen.findByText("Óbito compatível com critérios de atendimento."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Chamado SVO: SVO-2026-0041")).toBeInTheDocument();
+    await user.click(screen.getByText("Histórico (1)"));
+    expect(
+      screen.getByText("Histórico (1)").closest("details"),
+    ).toHaveAttribute("open");
+
+    await user.click(screen.getByRole("button", { name: "Aprovar" }));
+    expect(
+      screen.getByRole("dialog", { name: "Aprovar solicitação SE-SVO-2026-0001" }),
+    ).toBeInTheDocument();
+  });
+
+  it("exige justificativa antes de confirmar uma recusa", async () => {
+    const user = userEvent.setup();
+    render(<SolicitacoesExternasSvoPage />);
+    await user.click(await screen.findByRole("button", { name: "Recusar" }));
+    await user.click(screen.getByRole("button", { name: "Confirmar recusa" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("pelo menos 3 caracteres");
+    expect(mocks.recusar).not.toHaveBeenCalled();
+  });
 });

@@ -30,7 +30,7 @@ export interface SolicitacaoExternaSvo {
   justificativa?: string | null;
   chamadoSvoId?: string | null;
   chamadoSvoProtocolo?: string | null;
-  criadoEm: string;
+  criadoEm?: string | null;
   triadaEm?: string | null;
   decididaEm?: string | null;
   historico?: HistoricoSolicitacaoExternaSvo[];
@@ -61,6 +61,16 @@ const statusSchema = z.enum([
   "RECUSADA",
 ]);
 
+const historicoSchema = z
+  .object({
+    statusAnterior: statusSchema.nullable().optional(),
+    statusNovo: statusSchema,
+    justificativa: z.string().nullable().optional(),
+    autorNome: z.string().nullable().optional(),
+    criadoEm: z.string().nullable().optional(),
+  })
+  .passthrough();
+
 const solicitacaoSchema = z
   .object({
     id: z.string(),
@@ -78,6 +88,7 @@ const solicitacaoSchema = z
     criadoEm: z.string().nullable().optional(),
     triadaEm: z.string().nullable().optional(),
     decididaEm: z.string().nullable().optional(),
+    historico: z.array(historicoSchema).optional(),
   })
   .passthrough();
 

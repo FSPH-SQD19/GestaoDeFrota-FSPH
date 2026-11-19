@@ -198,9 +198,50 @@ export function SolicitacoesExternasSvoPage() {
                     {item.localOcorrencia || item.enderecoOcorrencia || "Local não informado"}
                   </p>
                   {item.relatoTriagem && (
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{item.relatoTriagem}</p>
+                    <div className="mt-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        Parecer da triagem
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-sm text-slate-600">{item.relatoTriagem}</p>
+                    </div>
                   )}
                   <p className="mt-2 text-xs text-slate-400">Triada em {formatarData(item.triadaEm)}</p>
+                  {item.chamadoSvoId && (
+                    <p className="mt-1 text-xs font-mono text-slate-500">
+                      Chamado SVO: {item.chamadoSvoProtocolo || item.chamadoSvoId}
+                    </p>
+                  )}
+                  {item.historico && item.historico.length > 0 && (
+                    <details className="mt-2 text-xs text-slate-600">
+                      <summary className="cursor-pointer font-semibold text-slate-700">
+                        Histórico ({item.historico.length})
+                      </summary>
+                      <ol className="mt-2 space-y-1.5 border-l border-slate-200 pl-3">
+                        {item.historico.map((evento, indice) => (
+                          <li key={`${evento.criadoEm ?? indice}-${evento.statusNovo}`}>
+                            <span className="font-semibold text-slate-700">
+                              {STATUS_LABEL[evento.statusNovo]}
+                            </span>
+                            {evento.statusAnterior && (
+                              <span className="text-slate-400">
+                                {" "}
+                                · de {STATUS_LABEL[evento.statusAnterior]}
+                              </span>
+                            )}
+                            {evento.autorNome && (
+                              <span className="text-slate-500"> · {evento.autorNome}</span>
+                            )}
+                            {evento.criadoEm && (
+                              <span className="text-slate-400"> · {formatarData(evento.criadoEm)}</span>
+                            )}
+                            {evento.justificativa && (
+                              <span className="block text-slate-600">{evento.justificativa}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  )}
                 </div>
                 {item.status === "AGUARDANDO_GESTOR" && (
                   <div className="flex flex-wrap items-start gap-2">
@@ -259,6 +300,19 @@ export function SolicitacoesExternasSvoPage() {
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
               <p className="font-semibold text-slate-900">{selecionada.nomeSolicitante || "Solicitante externo"}</p>
               <p className="mt-1 text-slate-600">{selecionada.localOcorrencia || selecionada.enderecoOcorrencia || "Local não informado"}</p>
+              {selecionada.relatoTriagem && (
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Parecer da triagem
+                  </p>
+                  <p className="mt-1 text-slate-700">{selecionada.relatoTriagem}</p>
+                </div>
+              )}
+              {selecionada.chamadoSvoId && (
+                <p className="mt-3 text-xs font-mono text-slate-500">
+                  Chamado SVO: {selecionada.chamadoSvoProtocolo || selecionada.chamadoSvoId}
+                </p>
+              )}
             </div>
             {modo === "aprovar" ? (
               <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
