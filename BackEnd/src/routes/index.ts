@@ -36,8 +36,11 @@ import {
   encerrarEscalaSvoController,
   listarEscalasSvoController,
 } from "../controller/escala_svo_c";
+import solicitacaoExternaRoutes from "./solicitacao_externa_r";
+import svoRoutes from "./svo_r";
 
 const router = Router();
+router.use("/api/v1/svo/solicitacoes-externas", solicitacaoExternaRoutes);
 router.use("/api/v1", diarioRoutes);
 const abastecimento = Router();
 const manutencoes = Router();
@@ -90,6 +93,10 @@ escalasSvo.get("/", listarEscalasSvoController);
 escalasSvo.post("/", criarEscalaSvoController);
 escalasSvo.patch("/:id/encerrar", encerrarEscalaSvoController);
 
+//solicitacoes externas
+
+router.use("/api/v1/svo", svoRoutes);
+
 router.use("/api/v1/svo/escalas", escalasSvo);
 
 router.use("/notificacoes", notificacaoRoutes);
@@ -99,5 +106,6 @@ router.use("/api/v1/multas", multaRoutes);
 
 router.use("/auditoria", auditoriaRoutes);
 router.use("/api/v1/auditoria", auditoriaRoutes);
+
 
 export default router;
