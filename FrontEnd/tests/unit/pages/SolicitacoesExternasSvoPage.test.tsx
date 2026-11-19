@@ -11,9 +11,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../src/services/solicitacoesExternasSvoService", async (importOriginal) => {
-  const real = await importOriginal<
-    typeof import("../../../src/services/solicitacoesExternasSvoService")
-  >();
+  const real =
+    await importOriginal<typeof import("../../../src/services/solicitacoesExternasSvoService")>();
   return {
     ...real,
     listarSolicitacoesExternasSvoGestor: mocks.listar,
@@ -76,9 +75,7 @@ describe("SolicitacoesExternasSvoPage", () => {
     await user.click(await screen.findByRole("button", { name: "Aprovar" }));
     await user.click(screen.getByRole("button", { name: "Confirmar aprovação" }));
 
-    await waitFor(() =>
-      expect(screen.queryByText("SE-SVO-2026-0001")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByText("SE-SVO-2026-0001")).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
   });
 
@@ -126,9 +123,7 @@ describe("SolicitacoesExternasSvoPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Chamado SVO: SVO-2026-0041")).toBeInTheDocument();
     await user.click(screen.getByText("Histórico (1)"));
-    expect(
-      screen.getByText("Histórico (1)").closest("details"),
-    ).toHaveAttribute("open");
+    expect(screen.getByText("Histórico (1)").closest("details")).toHaveAttribute("open");
 
     await user.click(screen.getByRole("button", { name: "Aprovar" }));
     expect(

@@ -109,9 +109,7 @@ export async function listarSolicitacoesExternasSvoGestor(
   pageSize = 20,
 ): Promise<PaginaSolicitacoesExternasSvo> {
   try {
-    const response = await api.get<unknown>(
-      `${BASE}/gestor?page=${page}&pageSize=${pageSize}`,
-    );
+    const response = await api.get<unknown>(`${BASE}/gestor?page=${page}&pageSize=${pageSize}`);
     const parsed = paginaSchema.safeParse(response.data);
     if (!parsed.success) {
       throw new Error(
@@ -140,10 +138,11 @@ async function decidirSolicitacaoExternaSvo(
         headers: chaveIdempotencia ? { "Idempotency-Key": chaveIdempotencia } : undefined,
       },
     );
-    if (response.data && typeof response.data === "object") return response.data as {
-      dados?: SolicitacaoExternaSvo;
-      mensagem?: string;
-    };
+    if (response.data && typeof response.data === "object")
+      return response.data as {
+        dados?: SolicitacaoExternaSvo;
+        mensagem?: string;
+      };
     throw new Error("O back-end confirmou uma resposta inválida da decisão.");
   } catch (error) {
     throw new Error(respostaDeErro(error, "Não foi possível registrar a decisão."));

@@ -89,9 +89,7 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
 
     expect(screen.getByRole("button", { name: /dashboard/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Solicitações", exact: true })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /solicitações externas svo/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /solicitações externas svo/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /veículos/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /motoristas/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /relatórios/i })).toBeInTheDocument();
