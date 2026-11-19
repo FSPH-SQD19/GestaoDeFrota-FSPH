@@ -20,12 +20,12 @@
 
 ## Resultado
 
-| Verificação | Esperado | Obtido |
-| --- | --- | --- |
-| GET `/api/v1/auth/sessao` sem autenticação | Resposta JSON `401` da API | JSON `401`; não retorna HTML do SPA |
-| GET `/api/v1/auth/csrf` | Resposta JSON `200` da API | JSON `200` |
-| POST `/api/v1/auth/login` | Resposta JSON `200` e autenticação | JSON `200`; menu da conta ficou visível |
-| GET de rota SPA desconhecida | `200 text/html` do fallback frontend | `200 text/html` |
-| E2E no frontend Docker real | Passar | **1/1 passou** |
+| Verificação                                | Esperado                             | Obtido                                  |
+| ------------------------------------------ | ------------------------------------ | --------------------------------------- |
+| GET `/api/v1/auth/sessao` sem autenticação | Resposta JSON `401` da API           | JSON `401`; não retorna HTML do SPA     |
+| GET `/api/v1/auth/csrf`                    | Resposta JSON `200` da API           | JSON `200`                              |
+| POST `/api/v1/auth/login`                  | Resposta JSON `200` e autenticação   | JSON `200`; menu da conta ficou visível |
+| GET de rota SPA desconhecida               | `200 text/html` do fallback frontend | `200 text/html`                         |
+| E2E no frontend Docker real                | Passar                               | **1/1 passou**                          |
 
 Credenciais, cookies e token CSRF foram usados pelo teste, sem serem registrados na evidência. A correção cobre o login no pacote Docker; os outros bugs QA permanecem independentes.

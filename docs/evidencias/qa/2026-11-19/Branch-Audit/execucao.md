@@ -12,14 +12,14 @@
 
 ## Resultados
 
-| Camada | Execução | Resultado |
-| --- | --- | --- |
-| Backend unitário | `npm test --workspace=backend` (incluído em `npm test`) | 49 arquivos, 877/877 testes passaram |
-| Frontend unitário | `npm test --workspace=frontend` (incluído em `npm test`) | 38 arquivos, 235/235 testes passaram |
-| Build e lint | `npm run build`; `npm run lint` | Passaram; Vite emite somente aviso não bloqueante de chunks acima de 500 kB |
-| E2E UI desktop e mobile | `npm run test:e2e --workspace=frontend -- --workers=1` | 38/38 passaram; APIs simuladas, não classificar como integração backend |
-| E2E Docker integrado | `ROTA_QA_BASE_URL=http://127.0.0.1:5173 npm exec -- playwright test --config playwright.docker.config.ts` | 10/10 passaram: proxy/login, regressão GESTOR/SOLICITANTE, dupla alocação, SVO, API sem sessão, RBAC, isolamento e CSRF |
-| Banco/migration | `docker compose exec -T backend npx prisma migrate status` | 24 migrations; schema atualizado; migration `20261118120000_manutencao_status_programada_cancelada` já presente na imagem/backend do ambiente testado |
+| Camada                  | Execução                                                                                                  | Resultado                                                                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend unitário        | `npm test --workspace=backend` (incluído em `npm test`)                                                   | 49 arquivos, 877/877 testes passaram                                                                                                                  |
+| Frontend unitário       | `npm test --workspace=frontend` (incluído em `npm test`)                                                  | 38 arquivos, 235/235 testes passaram                                                                                                                  |
+| Build e lint            | `npm run build`; `npm run lint`                                                                           | Passaram; Vite emite somente aviso não bloqueante de chunks acima de 500 kB                                                                           |
+| E2E UI desktop e mobile | `npm run test:e2e --workspace=frontend -- --workers=1`                                                    | 38/38 passaram; APIs simuladas, não classificar como integração backend                                                                               |
+| E2E Docker integrado    | `ROTA_QA_BASE_URL=http://127.0.0.1:5173 npm exec -- playwright test --config playwright.docker.config.ts` | 10/10 passaram: proxy/login, regressão GESTOR/SOLICITANTE, dupla alocação, SVO, API sem sessão, RBAC, isolamento e CSRF                               |
+| Banco/migration         | `docker compose exec -T backend npx prisma migrate status`                                                | 24 migrations; schema atualizado; migration `20261118120000_manutencao_status_programada_cancelada` já presente na imagem/backend do ambiente testado |
 
 ## Correção da suíte Playwright padrão
 

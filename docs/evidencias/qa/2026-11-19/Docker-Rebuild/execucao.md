@@ -14,13 +14,13 @@
 
 Todos os 10 cenários Docker passaram em lotes contra os dois containers atualizados:
 
-| Área | Cenários | Resultado |
-| --- | --- | --- |
-| Proxy, sessão, CSRF e login | Nginx | 1/1 passou |
-| Frota / manutenção / relatórios e solicitação de viagem | GESTOR e SOLICITANTE | 2/2 passaram; manutenção também verificou janela invertida `400`, sobreposição `409`, criar `201` e cancelar `200` |
-| Dupla alocação | ADMIN | 1/1 passou; uma aprovação `200` e um conflito `409` |
-| SVO | Telefonema, capacidade, despacho, etapas e desinfecção | 3/3 passaram |
-| Segurança | API sem sessão, RBAC dos cinco perfis, isolamento e CSRF | 3/3 passaram |
+| Área                                                    | Cenários                                                 | Resultado                                                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Proxy, sessão, CSRF e login                             | Nginx                                                    | 1/1 passou                                                                                                         |
+| Frota / manutenção / relatórios e solicitação de viagem | GESTOR e SOLICITANTE                                     | 2/2 passaram; manutenção também verificou janela invertida `400`, sobreposição `409`, criar `201` e cancelar `200` |
+| Dupla alocação                                          | ADMIN                                                    | 1/1 passou; uma aprovação `200` e um conflito `409`                                                                |
+| SVO                                                     | Telefonema, capacidade, despacho, etapas e desinfecção   | 3/3 passaram                                                                                                       |
+| Segurança                                               | API sem sessão, RBAC dos cinco perfis, isolamento e CSRF | 3/3 passaram                                                                                                       |
 
 Na primeira partida do backend recém-recriado, um teste abriu a SPA antes de a API terminar de responder e outro login não carregou a sessão. Ambos passaram nas novas tentativas após o backend aquecer. Para evitar essa corrida em futuras execuções, `playwright.docker.config.ts` agora aguarda a rota de CSRF da stack externa ficar disponível antes de iniciar os testes.
 

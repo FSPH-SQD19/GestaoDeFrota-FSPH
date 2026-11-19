@@ -2,8 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const frontendDocker =
-  process.env.ROTA_QA_DOCKER_FRONTEND_URL ?? "http://127.0.0.1:5173";
+const frontendDocker = process.env.ROTA_QA_DOCKER_FRONTEND_URL ?? "http://127.0.0.1:5173";
 const api = new URL("/api/v1", frontendDocker).toString();
 
 type AcessoDemo = {
@@ -21,7 +20,9 @@ function acessoDemo(): AcessoDemo {
 function respostaDaApi(page: Page, rota: string, metodo: string) {
   return page.waitForResponse((response) => {
     const url = new URL(response.url());
-    return url.pathname === `${new URL(api).pathname}${rota}` && response.request().method() === metodo;
+    return (
+      url.pathname === `${new URL(api).pathname}${rota}` && response.request().method() === metodo
+    );
   });
 }
 

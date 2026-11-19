@@ -22,13 +22,13 @@ A constraint `manutencoes_status_check` permitia apenas `ABERTA` e `CONCLUIDA`, 
 
 ## Resultado
 
-| Verificação | Esperado | Obtido |
-| --- | --- | --- |
-| Criar programação preventiva | `POST /api/v1/manutencoes/programacoes` retorna 201 | Passou; a programação foi criada e a interface confirmou o sucesso |
-| Intervalo invertido | Enviar início posterior ao fim | HTTP 400, sem persistência |
-| Janela já programada | Criar uma programação sobrepondo a fixture ativa | HTTP 409, sem segunda programação |
-| Cancelar a programação | `PATCH /api/v1/manutencoes/{id}/cancelar` retorna 200 e libera a janela | Passou; a interface confirmou o cancelamento |
-| Regressão integrada adjacente | Solicitações, notificações e três agregados de relatório continuam acessíveis | Passou no mesmo fluxo E2E |
-| Playwright | Teste GESTOR sem falhas | **1/1 passou**; fluxo testado em 7,0 s |
+| Verificação                   | Esperado                                                                      | Obtido                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Criar programação preventiva  | `POST /api/v1/manutencoes/programacoes` retorna 201                           | Passou; a programação foi criada e a interface confirmou o sucesso |
+| Intervalo invertido           | Enviar início posterior ao fim                                                | HTTP 400, sem persistência                                         |
+| Janela já programada          | Criar uma programação sobrepondo a fixture ativa                              | HTTP 409, sem segunda programação                                  |
+| Cancelar a programação        | `PATCH /api/v1/manutencoes/{id}/cancelar` retorna 200 e libera a janela       | Passou; a interface confirmou o cancelamento                       |
+| Regressão integrada adjacente | Solicitações, notificações e três agregados de relatório continuam acessíveis | Passou no mesmo fluxo E2E                                          |
+| Playwright                    | Teste GESTOR sem falhas                                                       | **1/1 passou**; fluxo testado em 7,0 s                             |
 
 **Atualização de 19/11/2026:** o usuário refez o build Docker. As novas imagens foram verificadas e os containers frontend/backend recriados; a migração consta na imagem backend e `prisma migrate status` confirmou 24 migrações com schema em dia. O reteste E2E da manutenção passou nos containers novos, incluindo criação (201), cancelamento (200), intervalo invertido (400) e sobreposição (409). Evidência consolidada: [reteste após rebuild](../../2026-11-19/Docker-Rebuild/execucao.md). A observação anterior sobre `npm ci` descreve apenas a tentativa de build de 18/11 e está superada. Nesta revisão posterior, `docker compose ps` não conseguiu consultar o daemon pela pipe do Docker Desktop (acesso negado); os resultados registrados correspondem à execução concluída após recriar os containers. Não foram registrados credenciais, cookies ou tokens. Reagendamento, conclusão e veículo ocupado continuam pendentes em MAN-01.
