@@ -49,10 +49,10 @@ test("GESTOR integra frota, manutenção preventiva, notificações e relatório
   await page.getByRole("button", { name: "Veículos", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Gestão da Frota de Veículos" })).toBeVisible();
   await expect(page.getByText("DMO2A02", { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "Programação preventiva do veículo DMO2A02" })
-    .click();
-  await expect(page.getByRole("heading", { name: "Programar manutenção preventiva" })).toBeVisible();
+  await page.getByRole("button", { name: "Programação preventiva do veículo DMO2A02" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Programar manutenção preventiva" }),
+  ).toBeVisible();
 
   await page.getByLabel("Início").fill(dataFutura(20, 8));
   await page.getByLabel("Fim").fill(dataFutura(20, 9));
@@ -60,8 +60,7 @@ test("GESTOR integra frota, manutenção preventiva, notificações e relatório
   const criarProgramacao = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return (
-      url.pathname === "/api/v1/manutencoes/programacoes" &&
-      response.request().method() === "POST"
+      url.pathname === "/api/v1/manutencoes/programacoes" && response.request().method() === "POST"
     );
   });
   await page.getByRole("button", { name: "Confirmar programação" }).click();
@@ -114,9 +113,9 @@ test("GESTOR integra frota, manutenção preventiva, notificações e relatório
 
   await page.getByRole("button", { name: "Notificações" }).click();
   await expect(page.getByRole("dialog", { name: "Central de notificações" })).toBeVisible();
-  expect(respostas.some((item) => item.path === "/api/v1/notificacoes" && item.status === 200)).toBe(
-    true,
-  );
+  expect(
+    respostas.some((item) => item.path === "/api/v1/notificacoes" && item.status === 200),
+  ).toBe(true);
 
   await page.getByRole("button", { name: "Relatórios", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Olá, Gestor!" })).toBeVisible();
@@ -140,7 +139,9 @@ test("GESTOR integra frota, manutenção preventiva, notificações e relatório
   ).toEqual([]);
 });
 
-test("SOLICITANTE envia e cancela uma viagem sintética pela interface integrada", async ({ page }) => {
+test("SOLICITANTE envia e cancela uma viagem sintética pela interface integrada", async ({
+  page,
+}) => {
   const respostas: { path: string; status: number }[] = [];
   page.on("response", (response) => {
     const url = new URL(response.url());
@@ -153,7 +154,9 @@ test("SOLICITANTE envia e cancela uma viagem sintética pela interface integrada
 
   await page.getByLabel("Setor solicitante").selectOption("LACEN");
   await page.getByPlaceholder("Ex: LACEN — Rua Campo do Brito").fill("Origem fictícia QA local");
-  await page.getByPlaceholder("Ex: Hospital Regional de Itabaiana").fill("Destino fictício QA local");
+  await page
+    .getByPlaceholder("Ex: Hospital Regional de Itabaiana")
+    .fill("Destino fictício QA local");
   await page.getByLabel("Data e hora de saída").fill(dataFutura(3, 10));
   await page.getByLabel("Retorno previsto").fill(dataFutura(3, 12));
   await page.getByLabel("Justificativa").fill("Validação E2E sintética da solicitação.");

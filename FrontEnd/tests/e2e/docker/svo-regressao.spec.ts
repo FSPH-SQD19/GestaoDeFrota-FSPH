@@ -87,7 +87,10 @@ async function limparChamadosSinteticosPendentes(page: Page) {
   expect(resposta.status(), "consultar fixtures SVO sintéticas").toBe(200);
   const chamados = (await resposta.json()) as { data: Chamado[] };
   for (const chamado of chamados.data) {
-    if (chamado.nomeFalecido?.startsWith("Pessoa sintética QA") && chamado.statusTriagem === "EM_ANALISE") {
+    if (
+      chamado.nomeFalecido?.startsWith("Pessoa sintética QA") &&
+      chamado.statusTriagem === "EM_ANALISE"
+    ) {
       const limpeza = await mutacao(page, "patch", `/svo/chamados/${chamado.id}/triagem`, {
         decisao: "RECUSAR",
         justificativa: "Limpeza de fixture sintética QA local.",
@@ -110,7 +113,9 @@ test("SVO recebe ligação telefônica sintética e bloqueia triagem inválida",
     .getByPlaceholder("Rua, número, bairro e município")
     .fill(`Local fictício QA ${sufixo}`);
   await page
-    .getByPlaceholder("Registre as circunstâncias do óbito, telefone de retorno e informações da ligação.")
+    .getByPlaceholder(
+      "Registre as circunstâncias do óbito, telefone de retorno e informações da ligação.",
+    )
     .fill("Ligação fictícia para teste automatizado, sem pessoa ou ocorrência real.");
 
   const respostaCriacaoPromise = page.waitForResponse((response) => {
@@ -122,7 +127,9 @@ test("SVO recebe ligação telefônica sintética e bloqueia triagem inválida",
   expect(respostaCriacao.status()).toBe(201);
   const chamado = (await respostaCriacao.json()) as Chamado;
   await expect(
-    page.locator('[role="status"]').filter({ hasText: "registrado com sucesso e incluído na fila" }),
+    page
+      .locator('[role="status"]')
+      .filter({ hasText: "registrado com sucesso e incluído na fila" }),
   ).toBeVisible();
   await expect(page.locator("article").filter({ hasText: nomeSintetico })).toBeVisible();
 
@@ -142,7 +149,7 @@ test("SVO recebe ligação telefônica sintética e bloqueia triagem inválida",
     justificativa: "Triagem sintética rejeitada no teste QA.",
   });
   expect(recusaValida.status()).toBe(200);
-  expect((await recusaValida.json() as Chamado).statusTriagem).toBe("RECUSADO");
+  expect(((await recusaValida.json()) as Chamado).statusTriagem).toBe("RECUSADO");
 });
 
 test("SVO limita capacidade concorrente e não deixa despacho parcial", async ({ page }) => {
@@ -206,11 +213,14 @@ test("SVO limita capacidade concorrente e não deixa despacho parcial", async ({
   }
 });
 
-test("SVO valida despacho, etapas da coleta e bloqueio sanitário até desinfecção", async ({ page }) => {
+test("SVO valida despacho, etapas da coleta e bloqueio sanitário até desinfecção", async ({
+  page,
+}) => {
   await entrarComoSvo(page);
   const { viaturas, motoristas } = await inventario(page);
   const viatura = viaturas.find(
-    (item) => item.status === "DISPONIVEL" && item.ocupacaoAtual === 0 && item.capacidadeMaxima >= 1,
+    (item) =>
+      item.status === "DISPONIVEL" && item.ocupacaoAtual === 0 && item.capacidadeMaxima >= 1,
   );
   const motorista = motoristas.find((item) => item.status === "DISPONIVEL");
   test.skip(!viatura || !motorista, "Fixture local sem viatura vazia e motorista SVO disponíveis.");
