@@ -124,7 +124,10 @@ describe("criarSolicitacaoExternaSchema", () => {
     { campo: "nome ausente", dados: { ...entrada, contatoNome: undefined } },
     { campo: "nome curto", dados: { ...entrada, contatoNome: "A" } },
     { campo: "telefone inválido", dados: { ...entrada, contatoTelefone: "123" } },
-    { campo: "telefone com DDD inválido", dados: { ...entrada, contatoTelefone: "(00) 99999-0000" } },
+    {
+      campo: "telefone com DDD inválido",
+      dados: { ...entrada, contatoTelefone: "(00) 99999-0000" },
+    },
     { campo: "e-mail inválido", dados: { ...entrada, contatoEmail: "maria" } },
     { campo: "endereço curto", dados: { ...entrada, enderecoOcorrencia: "Rua" } },
     { campo: "relato curto", dados: { ...entrada, relatoOcorrencia: "curto" } },
@@ -136,7 +139,9 @@ describe("criarSolicitacaoExternaSchema", () => {
 
 describe("outros schemas", () => {
   it("complemento exige texto com tamanho mínimo e máximo", () => {
-    expect(complementarSolicitacaoExternaSchema.safeParse({ complemento: "ok" }).success).toBe(false);
+    expect(complementarSolicitacaoExternaSchema.safeParse({ complemento: "ok" }).success).toBe(
+      false,
+    );
     expect(
       complementarSolicitacaoExternaSchema.safeParse({ complemento: "x".repeat(2001) }).success,
     ).toBe(false);
@@ -409,27 +414,27 @@ describe("complementarSolicitacaoExterna", () => {
   it("retorna 404 para solicitação de outra pessoa", async () => {
     mocks.findFirst.mockResolvedValue(null);
 
-    expect((await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode).toBe(
-      404,
-    );
+    expect(
+      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode,
+    ).toBe(404);
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("retorna 422 quando a solicitação não está aguardando complementação", async () => {
     mocks.findFirst.mockResolvedValue({ id: solicitacaoId, estado: "AGUARDANDO_GESTOR" });
 
-    expect((await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode).toBe(
-      422,
-    );
+    expect(
+      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode,
+    ).toBe(422);
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("retorna 409 quando outra requisição já alterou o estado", async () => {
     mocks.updateMany.mockResolvedValue({ count: 0 });
 
-    expect((await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode).toBe(
-      409,
-    );
+    expect(
+      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode,
+    ).toBe(409);
     expect(mocks.historicoCreate).not.toHaveBeenCalled();
   });
 });
