@@ -29,6 +29,7 @@ REGRAS DE CLASSIFICAÇÃO:
    - Quando faltarem informações essenciais de identificação, local da ocorrência ou circunstâncias preliminares, exigindo complementação antes da decisão.
 
 REGRAS DE IMPLEMENTAÇÃO NO BACK-END (`svo_s.ts`):
+
 - Toda recusa na triagem exige justificativa obrigatória validada via Zod (`superRefine`).
 - Toda decisão de triagem gera registro na trilha de auditoria (`auditoria_sistema`).
 ```

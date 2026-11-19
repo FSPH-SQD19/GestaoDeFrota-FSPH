@@ -8,13 +8,13 @@ Em conformidade com os critérios **1.2 (Documentação de Engenharia de Prompt)
 
 ## 1. Matriz de Rastreabilidade e Evolução dos Prompts
 
-| ID         | Domínio / Finalidade                                  | Arquivo                                                                          | Histórico de Versões       | Sprints Cobertas | Técnicas de Prompt Engineering Aplicadas                          |
-| :--------- | :---------------------------------------------------- | :------------------------------------------------------------------------------- | :------------------------: | :--------------: | :---------------------------------------------------------------- |
-| **PRM-01** | Arquitetura em Camadas, Concorrência & Schema Prisma  | [`01-arquitetura-e-modelagem.md`](./01-arquitetura-e-modelagem.md)               | `v1.0` → `v2.1` → `v3.0`   |   Sprints 1–11   | Role Prompting, Schema-First, Negative Constraints, Optimistic Lock |
-| **PRM-02** | Regras Sanitárias SVO, Capacidade, Remanejamento & SLA| [`02-regras-negocio-e-svo.md`](./02-regras-negocio-e-svo.md)                     | `v1.0` → `v3.0` → `v4.0`   |   Sprints 3–11   | Guardrails Sanitários, Few-Shot, State Machine Specification      |
-| **PRM-03** | Qualidade, Testes (Vitest/Playwright), CSRF & RBAC    | [`03-qualidade-testes-e-seguranca.md`](./03-qualidade-testes-e-seguranca.md)     | `v1.2` → `v2.2` → `v3.5`   |   Sprints 4–11   | Zero-Warning `oxlint`, Security Constraints, E2E Regression Matrix|
-| **PRM-04** | Massa Sintética Determinística & Auditoria LGPD       | [`04-massa-dados-sinteticos-lgpd.md`](./04-massa-dados-sinteticos-lgpd.md)       | `v1.1` → `v2.0` → `v3.0`   |   Sprints 2–10   | Synthetic Data Generation, Recursive PII Masking (`sanitizarLgpd`)|
-| **PRM-05** | PWA Motorista Offline, OSRM/PostGIS, Avarias & PDF    | [`05-pwa-motorista-osrm-e-governanca.md`](./05-pwa-motorista-osrm-e-governanca.md)| `v1.0` → `v2.0`            |   Sprints 6–11   | Offline-First Specification, Geospatial PostGIS/OSRM, Reporting   |
+| ID         | Domínio / Finalidade                                   | Arquivo                                                                            |   Histórico de Versões   | Sprints Cobertas | Técnicas de Prompt Engineering Aplicadas                            |
+| :--------- | :----------------------------------------------------- | :--------------------------------------------------------------------------------- | :----------------------: | :--------------: | :------------------------------------------------------------------ |
+| **PRM-01** | Arquitetura em Camadas, Concorrência & Schema Prisma   | [`01-arquitetura-e-modelagem.md`](./01-arquitetura-e-modelagem.md)                 | `v1.0` → `v2.1` → `v3.0` |   Sprints 1–11   | Role Prompting, Schema-First, Negative Constraints, Optimistic Lock |
+| **PRM-02** | Regras Sanitárias SVO, Capacidade, Remanejamento & SLA | [`02-regras-negocio-e-svo.md`](./02-regras-negocio-e-svo.md)                       | `v1.0` → `v3.0` → `v4.0` |   Sprints 3–11   | Guardrails Sanitários, Few-Shot, State Machine Specification        |
+| **PRM-03** | Qualidade, Testes (Vitest/Playwright), CSRF & RBAC     | [`03-qualidade-testes-e-seguranca.md`](./03-qualidade-testes-e-seguranca.md)       | `v1.2` → `v2.2` → `v3.5` |   Sprints 4–11   | Zero-Warning `oxlint`, Security Constraints, E2E Regression Matrix  |
+| **PRM-04** | Massa Sintética Determinística & Auditoria LGPD        | [`04-massa-dados-sinteticos-lgpd.md`](./04-massa-dados-sinteticos-lgpd.md)         | `v1.1` → `v2.0` → `v3.0` |   Sprints 2–10   | Synthetic Data Generation, Recursive PII Masking (`sanitizarLgpd`)  |
+| **PRM-05** | PWA Motorista Offline, OSRM/PostGIS, Avarias & PDF     | [`05-pwa-motorista-osrm-e-governanca.md`](./05-pwa-motorista-osrm-e-governanca.md) |     `v1.0` → `v2.0`      |   Sprints 6–11   | Offline-First Specification, Geospatial PostGIS/OSRM, Reporting     |
 
 ---
 

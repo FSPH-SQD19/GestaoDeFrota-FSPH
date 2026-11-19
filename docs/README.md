@@ -4,23 +4,23 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 
 ## Guias
 
-| Documento                                                 | Conteúdo                                                                          |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| [Início](INICIO.md)                                       | Comandos npm e divisão das pastas.                                                |
-| [Projeto](PROJETO.md)                                     | Contexto, escopo, regras de negócio, tecnologias, equipe e licença.               |
-| [Ambiente](AMBIENTE.md)                                   | Node.js, variáveis de ambiente, banco, migrations e Docker.                       |
-| [Front-end](FRONTEND.md)                                  | Organização das telas, componentes, perfis e padrões de interface.                |
-| [Back-end](BACKEND.md)                                    | Organização da API, autenticação, endpoints e regras de veículos.                 |
-| [PWA dos motoristas](MOTORISTA_PWA.md)                    | Operação mobile, diário de bordo, OSRM, fila offline e homologação.               |
-| [Testes](TESTES.md)                                       | Como criar e executar testes, lint e cobertura.                                   |
-| [Matriz de QA](MATRIZ_QA_EXPLORATORIA.md)                 | Cenários exploratórios e regressão E2E por módulo, perfil e risco.                |
-| [Relatório de Regressão QA](RELATORIO_QA_REGRESSAO_2026-11-17.md) | Consolidação da execução E2E e evidências de homologação.                 |
-| [CI](CI.md)                                               | Verificações nos PRs e comentário automático do bot.                              |
-| [GitHub](GITHUB.md)                                       | Fluxo da equipe: branch, commit, PR e merge na `master`.                          |
-| [Identidade visual](IDENTIDADE_VISUAL.md)                 | Marca ROTA, cores, tipografia, arquivos e aplicações.                             |
-| [Engenharia de Prompt e IA](IA_E_ENGENHARIA_DE_PROMPT.md) | Governança de IA, limites, viabilidade econômica e arquitetura híbrida (Takeoff). |
-| [Prompts que Falharam](PROMPTS_QUE_FALHARAM.md)           | Relatório de 1 página com análise de falhas, causas raiz e correções de prompts.  |
-| [Acervo de Prompts](../prompts/README.md)                 | Repositório versionado (`PRM-01` a `PRM-05`) e rastreabilidade dos prompts.       |
+| Documento                                                         | Conteúdo                                                                          |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Início](INICIO.md)                                               | Comandos npm e divisão das pastas.                                                |
+| [Projeto](PROJETO.md)                                             | Contexto, escopo, regras de negócio, tecnologias, equipe e licença.               |
+| [Ambiente](AMBIENTE.md)                                           | Node.js, variáveis de ambiente, banco, migrations e Docker.                       |
+| [Front-end](FRONTEND.md)                                          | Organização das telas, componentes, perfis e padrões de interface.                |
+| [Back-end](BACKEND.md)                                            | Organização da API, autenticação, endpoints e regras de veículos.                 |
+| [PWA dos motoristas](MOTORISTA_PWA.md)                            | Operação mobile, diário de bordo, OSRM, fila offline e homologação.               |
+| [Testes](TESTES.md)                                               | Como criar e executar testes, lint e cobertura.                                   |
+| [Matriz de QA](MATRIZ_QA_EXPLORATORIA.md)                         | Cenários exploratórios e regressão E2E por módulo, perfil e risco.                |
+| [Relatório de Regressão QA](RELATORIO_QA_REGRESSAO_2026-11-17.md) | Consolidação da execução E2E e evidências de homologação.                         |
+| [CI](CI.md)                                                       | Verificações nos PRs e comentário automático do bot.                              |
+| [GitHub](GITHUB.md)                                               | Fluxo da equipe: branch, commit, PR e merge na `master`.                          |
+| [Identidade visual](IDENTIDADE_VISUAL.md)                         | Marca ROTA, cores, tipografia, arquivos e aplicações.                             |
+| [Engenharia de Prompt e IA](IA_E_ENGENHARIA_DE_PROMPT.md)         | Governança de IA, limites, viabilidade econômica e arquitetura híbrida (Takeoff). |
+| [Prompts que Falharam](PROMPTS_QUE_FALHARAM.md)                   | Relatório de 1 página com análise de falhas, causas raiz e correções de prompts.  |
+| [Acervo de Prompts](../prompts/README.md)                         | Repositório versionado (`PRM-01` a `PRM-05`) e rastreabilidade dos prompts.       |
 
 ## Por onde começar
 

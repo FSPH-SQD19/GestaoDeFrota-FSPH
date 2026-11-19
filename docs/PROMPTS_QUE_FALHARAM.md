@@ -12,7 +12,7 @@
 - **Falha Observada no Output da IA:**
   O modelo priorizou a "economia de combustível" e gerou uma lógica que: **(1)** permitia despachar viaturas com status `DESINFECCAO`; **(2)** agrupava até 6 coletas simultâneas na mesma viatura (violando o limite físico do baú isotérmico da viatura SVO, que comporta no máximo **4 urnas**); e **(3)** não bloqueava chamados ainda `EM_ANALISE` ou `RECUSADO` (casos de competência do IML).
 - **Como Foi Ajustado (Prompt Engineering & Guardrails):**
-  Aplicamos **Restrições Negativas Explícitas (*Negative Constraints*)** e especificação de máquina de estados no prompt (`PRM-02 v3.5`): exigimos verificação determinística `veiculo.tipoFrota === "SVO"`, bloqueio de status `DESINFECCAO | MANUTENCAO | INATIVO`, contagem transacional de ordens ativas `< veiculo.capacidadeMaxima` (4) e transição automática para `DESINFECCAO` ao concluir a última entrega no SVO.
+  Aplicamos **Restrições Negativas Explícitas (_Negative Constraints_)** e especificação de máquina de estados no prompt (`PRM-02 v3.5`): exigimos verificação determinística `veiculo.tipoFrota === "SVO"`, bloqueio de status `DESINFECCAO | MANUTENCAO | INATIVO`, contagem transacional de ordens ativas `< veiculo.capacidadeMaxima` (4) e transição automática para `DESINFECCAO` ao concluir a última entrega no SVO.
 - **Como a Equipe Validou o Output:**
   Criamos testes unitários e de fluxo HTTP (`BackEnd/tests/unit/service/svo_s.test.ts` e `svo_fluxo_r.test.ts`) além do cenário E2E `SVO-04` ([`docs/evidencias/qa/2026-11-17/SVO-04/execucao.md`](evidencias/qa/2026-11-17/SVO-04/execucao.md)), comprovando o bloqueio `400/409` ao tentar alocar viatura em desinfecção ou acima da capacidade e a liberação somente após confirmar a higienização.
 
@@ -23,7 +23,7 @@
 - **Prompt Inicial que Falhou:**
   > _"Implemente a aprovação de solicitação de viagem e o cancelamento em `aprovacao_s.ts` e `solicitacao_s.ts`. Verifique com `findFirst` se o veículo e o motorista estão livres no horário e depois faça `update`."_
 - **Falha Observada no Output da IA:**
-  A IA gerou um padrão clássico *Check-Then-Act* fora de isolamento transacional: quando duas requisições concorrentes chegavam no mesmo milissegundo (ex.: dois gestores aprovando viagens para o mesmo veículo ou motorista, ou cancelamento concorrente ao início da viagem), ambas passavam pelo `findFirst` antes do `update`, resultando em **dupla alocação do mesmo recurso**.
+  A IA gerou um padrão clássico _Check-Then-Act_ fora de isolamento transacional: quando duas requisições concorrentes chegavam no mesmo milissegundo (ex.: dois gestores aprovando viagens para o mesmo veículo ou motorista, ou cancelamento concorrente ao início da viagem), ambas passavam pelo `findFirst` antes do `update`, resultando em **dupla alocação do mesmo recurso**.
 - **Como Foi Ajustado (Prompt Engineering & Guardrails):**
   Evoluímos o prompt `PRM-01` para a versão `v3.0`, exigindo: _"Envolva toda decisão de alocação, reagendamento, reserva preventiva ou cancelamento em `prisma.$transaction`, utilizando lock pessimista (`SELECT ... FOR UPDATE`) ou atualização condicional atômica (`updateMany` validando `status` atual e `versao`) e lançando `HttpError(409)` se `count !== 1`"_.
 - **Como a Equipe Validou o Output:**
@@ -36,7 +36,7 @@
 - **Prompt Inicial que Falhou:**
   > _"Atualize o componente `NotificacoesDropdown.tsx` e os modais de cadastro para buscar os dados da API e limpar o estado de erro sempre que as props mudarem."_
 - **Falha Observada no Output da IA:**
-  O modelo invocou `setState` de forma síncrona na raiz de um `useEffect` sem guarda de requisição em voo (*in-flight request*), disparando erro bloqueante no pipeline (`oxlint --deny-warnings`) e criando condição de corrida na UI quando o usuário trocava filtros rapidamente.
+  O modelo invocou `setState` de forma síncrona na raiz de um `useEffect` sem guarda de requisição em voo (_in-flight request_), disparando erro bloqueante no pipeline (`oxlint --deny-warnings`) e criando condição de corrida na UI quando o usuário trocava filtros rapidamente.
 - **Como Foi Ajustado (Prompt Engineering & Guardrails):**
   Incluímos no prompt `PRM-03 v3.0` a restrição: _"O código deve passar com 0 warnings em `oxlint --deny-warnings`. Nunca invoque `setState` síncrono no topo de `useEffect`; derive estados de carregamento por chave de revisão/sessão ou controle respostas obsoletas com flag `mounted` / ref de requisição"_.
 - **Como a Equipe Validou o Output:**

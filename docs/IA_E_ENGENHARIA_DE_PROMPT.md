@@ -24,11 +24,11 @@ flowchart TD
 
 ### 1.1 Modelos e Ferramentas de IA Utilizados no Ciclo de Engenharia
 
-| Ferramenta / Modelo | Papel no Desenvolvimento do Projeto ROTA | Impacto Técnico Mensurável |
-| :--- | :--- | :--- |
-| **Google Gemini / Antigravity** | Arquitetura full-stack, modelagem Prisma/PostGIS, trilha de auditoria LGPD, fluxos de cancelamento e suítes Vitest. | Aceleração da entrega de módulos complexos com 100% de cobertura nos novos serviços. |
-| **Anthropic Claude & OpenAI GPT / Codex** | Refinamento de regras de concorrência, revisão de PRs, geração de massa sintética (`seed-demo.ts`) e PWA do motorista. | Identificação preventiva de condições de corrida (*race conditions*) em alocações e reservas. |
-| **GitHub Copilot** | Autocompletar contextual em TypeScript, componentes React/Tailwind e tipagens de contratos de API. | Padronização de código e redução de boilerplate entre os 10 integrantes da squad. |
+| Ferramenta / Modelo                       | Papel no Desenvolvimento do Projeto ROTA                                                                               | Impacto Técnico Mensurável                                                                    |
+| :---------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| **Google Gemini / Antigravity**           | Arquitetura full-stack, modelagem Prisma/PostGIS, trilha de auditoria LGPD, fluxos de cancelamento e suítes Vitest.    | Aceleração da entrega de módulos complexos com 100% de cobertura nos novos serviços.          |
+| **Anthropic Claude & OpenAI GPT / Codex** | Refinamento de regras de concorrência, revisão de PRs, geração de massa sintética (`seed-demo.ts`) e PWA do motorista. | Identificação preventiva de condições de corrida (_race conditions_) em alocações e reservas. |
+| **GitHub Copilot**                        | Autocompletar contextual em TypeScript, componentes React/Tailwind e tipagens de contratos de API.                     | Padronização de código e redução de boilerplate entre os 10 integrantes da squad.             |
 
 ---
 
@@ -64,14 +64,14 @@ Cenário avaliado para a FSPH: assistente consultivo para apoiar o atendente na 
   - **Total:** **3.000 chamadas/mês** (~100 chamadas/dia).
 - **Consumo médio por chamada:** `500 tokens de entrada` (system prompt + relato/dados) e `200 tokens de saída` (JSON estruturado).
 
-| Métrica | Fórmula / Cálculo Mensal | Volume Mensal | Custo Mensal (USD) | Custo Mensal Estimado (BRL)* |
-| :--- | :--- | :---: | :---: | :---: |
-| **Tokens de Entrada (Input)** | $3.000 \times 500\text{ tokens}$ | $1.500.000\text{ tokens}$ | $\text{US\$ } 0,15$ | $\text{R\$ } 0,87$ |
-| **Tokens de Saída (Output)** | $3.000 \times 200\text{ tokens}$ | $600.000\text{ tokens}$ | $\text{US\$ } 0,24$ | $\text{R\$ } 1,39$ |
-| **Custo por Chamada Individual** | $(500 \times 0,10 + 200 \times 0,40) / 10^6$ | $700\text{ tokens/req}$ | $\text{US\$ } 0,00013$ | $\text{R\$ } 0,00075$ |
-| **Total Mensal (FSPH Inteira)** | $\text{Input} + \text{Output}$ | **$2,1\text{ milhões de tokens}$** | **$\text{US\$ } 0,39 / \text{mês}$** | **$\approx \text{R\$ } 2,26 / \text{mês}$** |
+| Métrica                          | Fórmula / Cálculo Mensal                     |           Volume Mensal            |          Custo Mensal (USD)          |        Custo Mensal Estimado (BRL)*         |
+| :------------------------------- | :------------------------------------------- | :--------------------------------: | :----------------------------------: | :-----------------------------------------: |
+| **Tokens de Entrada (Input)**    | $3.000 \times 500\text{ tokens}$             |     $1.500.000\text{ tokens}$      |         $\text{US\$ } 0,15$          |             $\text{R\$ } 0,87$              |
+| **Tokens de Saída (Output)**     | $3.000 \times 200\text{ tokens}$             |      $600.000\text{ tokens}$       |         $\text{US\$ } 0,24$          |             $\text{R\$ } 1,39$              |
+| **Custo por Chamada Individual** | $(500 \times 0,10 + 200 \times 0,40) / 10^6$ |      $700\text{ tokens/req}$       |        $\text{US\$ } 0,00013$        |            $\text{R\$ } 0,00075$            |
+| **Total Mensal (FSPH Inteira)**  | $\text{Input} + \text{Output}$               | **$2,1\text{ milhões de tokens}$** | **$\text{US\$ } 0,39 / \text{mês}$** | **$\approx \text{R\$ } 2,26 / \text{mês}$** |
 
-*\*Cotação de referência: $\text{US\$ } 1,00 = \text{R\$ } 5,80$.*
+_\*Cotação de referência: $\text{US\$ } 1,00 = \text{R\$ } 5,80$._
 
 ### 3.2 Trade-offs de Custo x Qualidade e Viabilidade em Escala Pública
 
