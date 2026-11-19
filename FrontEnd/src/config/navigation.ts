@@ -24,6 +24,7 @@ export type TabId =
   | "rastreamento"
   | "dashboard"
   | "solicitacoes"
+  | "solicitacoesExternasSvo"
   | "agenda"
   | "viagens"
   | "coletasSvo"
@@ -65,6 +66,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: (roles) => (isGestao(roles) ? "Solicitações" : "Minhas Solicitações"),
         icon: ClipboardList,
         roles: ["ADMIN", "GESTOR", "SOLICITANTE"],
+      },
+      {
+        id: "solicitacoesExternasSvo",
+        label: () => "Solicitações Externas SVO",
+        icon: PhoneCall,
+        roles: ["GESTOR", "ADMIN"],
       },
       {
         id: "viagens",

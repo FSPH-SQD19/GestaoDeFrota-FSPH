@@ -14,6 +14,11 @@ const CentralOperacional = lazy(() => import("./features/motorista/CentralOperac
 const SvoPage = lazy(() =>
   import("./pages/svo/SvoPage").then((module) => ({ default: module.SvoPage })),
 );
+const SolicitacoesExternasSvoPage = lazy(() =>
+  import("./pages/solicitacoes/SolicitacoesExternasSvoPage").then((module) => ({
+    default: module.SolicitacoesExternasSvoPage,
+  })),
+);
 
 const DashboardPage = lazy(() =>
   import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })),
@@ -189,6 +194,7 @@ const AppContent: React.FC = () => {
             {currentTab === "motoristas" && <MotoristasPage />}
 
             {currentTab === "solicitacoes" && <SolicitacoesPage />}
+            {currentTab === "solicitacoesExternasSvo" && <SolicitacoesExternasSvoPage />}
             {currentTab === "agenda" && <AgendaPage />}
 
             {currentTab === "svo" && <SvoPage />}
