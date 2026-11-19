@@ -147,14 +147,16 @@ describe("controle de acesso", () => {
   it("exige autenticação em todas as rotas", async () => {
     expect((await chamar(base)).status).toBe(401);
     expect((await chamar(`${base}/${solicitacaoId}`)).status).toBe(401);
-    expect((await chamar(base, { body: corpo, cabecalhos: { "idempotency-key": chave } })).status).toBe(
-      401,
-    );
     expect(
-      (await chamar(`${base}/${solicitacaoId}/complementacao`, {
-        metodo: "PATCH",
-        body: { complemento: "Mais detalhes." },
-      })).status,
+      (await chamar(base, { body: corpo, cabecalhos: { "idempotency-key": chave } })).status,
+    ).toBe(401);
+    expect(
+      (
+        await chamar(`${base}/${solicitacaoId}/complementacao`, {
+          metodo: "PATCH",
+          body: { complemento: "Mais detalhes." },
+        })
+      ).status,
     ).toBe(401);
   });
 
@@ -249,7 +251,12 @@ describe("POST /api/v1/svo/solicitacoes-externas", () => {
   it("retorna 400 com os campos inválidos", async () => {
     const resposta = await chamar(base, {
       perfis: ["EXTERNO"],
-      body: { contatoNome: "A", contatoTelefone: "123", enderecoOcorrencia: "R", relatoOcorrencia: "x" },
+      body: {
+        contatoNome: "A",
+        contatoTelefone: "123",
+        enderecoOcorrencia: "R",
+        relatoOcorrencia: "x",
+      },
       cabecalhos: { "idempotency-key": chave },
     });
 

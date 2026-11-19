@@ -105,5 +105,4 @@ router.use("/api/v1/multas", multaRoutes);
 router.use("/auditoria", auditoriaRoutes);
 router.use("/api/v1/auditoria", auditoriaRoutes);
 
-
 export default router;

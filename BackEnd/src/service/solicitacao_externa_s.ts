@@ -66,9 +66,7 @@ export const complementarSolicitacaoExternaSchema = z.object({
 export const listarSolicitacoesExternasSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
-  estado: z
-    .enum(ESTADOS_SOLICITACAO_EXTERNA, { error: "Estado inválido." })
-    .optional(),
+  estado: z.enum(ESTADOS_SOLICITACAO_EXTERNA, { error: "Estado inválido." }).optional(),
 });
 
 export const solicitacaoExternaIdSchema = z.object({
@@ -147,15 +145,19 @@ export type SolicitacaoExternaDetalhe = SolicitacaoExternaResumo & {
 export function serializarResumoSolicitacaoExterna(
   registro: SolicitacaoExternaSvo,
 ): SolicitacaoExternaResumo {
-  const padrao = MENSAGENS_PUBLICAS[registro.estado as EstadoSolicitacaoExterna] ?? MENSAGEM_GENERICA;
+  const padrao =
+    MENSAGENS_PUBLICAS[registro.estado as EstadoSolicitacaoExterna] ?? MENSAGEM_GENERICA;
   const usaTextoDoAtendimento =
-    ESTADOS_COM_TEXTO_DO_ATENDIMENTO.includes(registro.estado) && !!registro.mensagemParaSolicitante;
+    ESTADOS_COM_TEXTO_DO_ATENDIMENTO.includes(registro.estado) &&
+    !!registro.mensagemParaSolicitante;
 
   return {
     id: registro.id,
     protocolo: registro.protocolo,
     situacao: padrao.situacao,
-    mensagem: usaTextoDoAtendimento ? (registro.mensagemParaSolicitante as string) : padrao.mensagem,
+    mensagem: usaTextoDoAtendimento
+      ? (registro.mensagemParaSolicitante as string)
+      : padrao.mensagem,
     permiteComplementar: registro.estado === ESTADO_COMPLEMENTACAO,
     criadoEm: registro.criadoEm,
     atualizadoEm: registro.atualizadoEm,
@@ -259,7 +261,10 @@ export async function criarSolicitacaoExterna(
       return registro;
     });
 
-    return { solicitacao: serializarSolicitacaoExterna({ ...criada, historico: [] }), criada: true };
+    return {
+      solicitacao: serializarSolicitacaoExterna({ ...criada, historico: [] }),
+      criada: true,
+    };
   } catch (erro) {
     // Duas requisições simultâneas com a mesma chave: a segunda cai aqui.
     if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002") {
