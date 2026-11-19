@@ -163,7 +163,7 @@ test("encerra a sessão após 30 minutos de inatividade no navegador", async ({ 
   });
   await page.evaluate(() => localStorage.removeItem("@fsph_frota_session_activity"));
   await page.reload();
-  await expect(page.getByRole("navigation", { name: "Navegação do motorista" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Minhas Viagens" })).toBeVisible();
   await page.clock.fastForward(30 * 60 * 1000);
   await expect(page.getByRole("heading", { name: "Acessar o sistema" })).toBeVisible();
   await expect.poll(() => logoutCalls).toBe(1);
