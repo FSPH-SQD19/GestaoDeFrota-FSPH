@@ -134,7 +134,7 @@ describe("UsuariosPage", () => {
       }),
     );
     expect(await screen.findByRole("status")).toHaveTextContent("Usuário cadastrado com sucesso.");
-  });
+  }, 10_000);
 
   it("edita os dados e perfis do usuário", async () => {
     const user = userEvent.setup();

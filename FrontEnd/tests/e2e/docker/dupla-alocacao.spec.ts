@@ -83,10 +83,22 @@ test("ADMIN não aprova duas viagens concorrentes com o mesmo veículo e motoris
     (item) =>
       item.ativo && item.status === "DISPONIVEL" && item.validadeCnh.slice(0, 10) >= fimLocal,
   );
-  const veiculo = veiculosDisponiveis[0];
+  let veiculo: Veiculo | undefined;
+  for (const candidato of veiculosDisponiveis) {
+    const respostaDocumentos = await page.request.get(`${api}/veiculos/${candidato.id}/documentos`);
+    expect(respostaDocumentos.status(), "consultar documentação da fixture").toBe(200);
+    const documentos = (await respostaDocumentos.json()) as {
+      data: { atual: boolean; dataVencimento: string }[];
+    };
+    const documentosDuranteViagem = documentos.data.filter((documento) => documento.atual);
+    if (documentosDuranteViagem.every((documento) => documento.dataVencimento >= fimLocal)) {
+      veiculo = candidato;
+      break;
+    }
+  }
   const motorista = motoristasDisponiveis[0];
   console.log(
-    `Fixtures elegíveis: veículos ${veiculosDisponiveis.length}; motoristas ${motoristasDisponiveis.length}; motoristas ativos ${motoristas.filter((item) => item.ativo).length}; status de motoristas ${JSON.stringify(motoristas.reduce<Record<string, number>>((contagem, item) => ({ ...contagem, [item.status]: (contagem[item.status] ?? 0) + 1 }), {}))}.`,
+    `Fixtures elegíveis: veículos ${veiculosDisponiveis.length}; veículos com documentos válidos até o retorno ${Number(Boolean(veiculo))}; motoristas ${motoristasDisponiveis.length}; motoristas ativos ${motoristas.filter((item) => item.ativo).length}; status de motoristas ${JSON.stringify(motoristas.reduce<Record<string, number>>((contagem, item) => ({ ...contagem, [item.status]: (contagem[item.status] ?? 0) + 1 }), {}))}.`,
   );
   test.skip(
     !veiculo || !motorista,
@@ -124,6 +136,7 @@ test("ADMIN não aprova duas viagens concorrentes com o mesmo veículo e motoris
       });
     const respostas = await Promise.all(idsCriados.map(aprovar));
     const status = respostas.map((resposta) => resposta.status());
+    console.log(`Respostas HTTP das aprovações concorrentes: ${status.join(", ")}.`);
 
     expect(status.filter((valor) => valor === 200)).toHaveLength(1);
     expect(status.filter((valor) => valor === 409)).toHaveLength(1);

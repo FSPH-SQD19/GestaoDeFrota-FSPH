@@ -67,8 +67,28 @@ test("GESTOR integra frota, manutenção preventiva, notificações e relatório
   const respostaCriacao = await criarProgramacao;
   expect.soft(respostaCriacao.status(), "MAN-01: criar programação preventiva").toBe(201);
   if (respostaCriacao.status() === 201) {
-    const programacao = (await respostaCriacao.json()) as { id: string };
+    const programacao = (await respostaCriacao.json()) as { id: string; veiculoId: string };
     await expect(page.getByText("Manutenção programada.")).toBeVisible();
+
+    const csrfResponse = await page.request.get("/api/v1/auth/csrf");
+    expect(csrfResponse.status()).toBe(200);
+    const { csrfToken } = (await csrfResponse.json()) as { csrfToken: string };
+    const headers = { "x-csrf-token": csrfToken };
+    const inicio = new Date(dataFutura(20, 8)).toISOString();
+    const fim = new Date(dataFutura(20, 9)).toISOString();
+    const payload = { veiculoId: programacao.veiculoId, inicioPrevisto: inicio, fimPrevisto: fim };
+
+    const janelaInvertida = await page.request.post("/api/v1/manutencoes/programacoes", {
+      headers,
+      data: { ...payload, inicioPrevisto: fim, fimPrevisto: inicio },
+    });
+    expect(janelaInvertida.status(), "MAN-01: intervalo invertido é rejeitado").toBe(400);
+
+    const janelaConflitante = await page.request.post("/api/v1/manutencoes/programacoes", {
+      headers,
+      data: payload,
+    });
+    expect(janelaConflitante.status(), "MAN-01: sobreposição é rejeitada").toBe(409);
 
     const cancelarProgramacao = page.waitForResponse((response) => {
       const url = new URL(response.url());

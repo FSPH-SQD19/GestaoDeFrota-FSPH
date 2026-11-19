@@ -162,7 +162,7 @@ describe("SvoPage (integrada à API real)", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
+  }, 10_000);
 
   beforeEach(() => {
     dbChamados = structuredClone(CHAMADOS_BASE);

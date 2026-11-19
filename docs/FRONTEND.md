@@ -214,7 +214,7 @@ npm run check
 
 O repositório utiliza verificação estrita de TypeScript (`tsc -b`). Não deixe variáveis ou importações não utilizadas no código (`noUnusedLocals`). Não comite arquivos `.env` ou credenciais.
 
-Veja [Testes](TESTES.md) para os exemplos de componentes e [GitHub](GITHUB.md) para o fluxo de PR da equipe.
+Os exemplos de componentes ficam em `FrontEnd/tests`; consulte [GitHub](GITHUB.md) para o fluxo de PR da equipe.
 
 ## Relatórios
 
