@@ -2,11 +2,11 @@
 
 ## Resumo executivo
 
-- Execução: 17–19/11/2026, Docker local e PostgreSQL de desenvolvimento, branch `doc_Qa`; retestes feitos sobre `16c06db` mais alterações locais ainda não commitadas.
-- A matriz contém 34 cenários por módulo, perfil e risco: **4 passaram**, **14 foram parciais**, **nenhum permanece reproduzivelmente falhando após os retestes**, **15 seguem pendentes** e **1 está bloqueado pela integração do usuário externo**. Cobertura executada em algum nível: 18/34 (53%). Parcial não significa aprovação integral do cenário.
+- Execução: 17–19/11/2026, Docker local e PostgreSQL de desenvolvimento, branch `doc_Qa` no checkout `aa84e51`; os retestes integrados foram feitos após rebuild dos containers. Os ajustes do runner e da documentação desta rodada permanecem locais e não commitados.
+- A matriz contém 34 cenários por módulo, perfil e risco: **4 passaram**, **20 foram parciais**, **nenhum permanece reproduzivelmente falhando após os retestes**, **9 seguem pendentes** e **1 está bloqueado pela integração externa SVO**. Cobertura executada em algum nível: 24/34 (71%). Parcial não significa aprovação integral do cenário.
 - A falha de login Docker foi corrigida no Nginx e passou no novo E2E contra o container publicado. A incompatibilidade de status da manutenção foi corrigida por nova migração e agendamento/cancelamento passaram em E2E. A concorrência administrativa e a capacidade concorrente SVO também passaram. Permanecem riscos sanitários indiretos, motorista operando ordem alheia e resiliência geral.
-- Após rebuild dos dois serviços, os 10 cenários E2E Docker passaram em lotes contra as imagens novas: Nginx/login, GESTOR/SOLICITANTE, dupla alocação, SVO e RBAC/isolamento. O container backend novo contém a migração e está ligado a um banco com 24 migrações aplicadas. A suíte unitária completa passou: backend **877/877**, frontend **235/235**; o frontend foi limitado a quatro workers após timeouts de UI sob carga paralela. Builds, lint e tipos passaram. [Evidência do rebuild e reteste](evidencias/qa/2026-11-19/Docker-Rebuild/execucao.md).
-- S19FROTA-290 e a parte reproduzida de S19FROTA-291 passaram retestes no working tree. O código e as migrações ainda não foram commitados; os dois Bugs permanecem no Jira para revisão/commit e o 291 ainda requer cenários negativos e de ciclo completo.
+- Após rebuild dos dois serviços, os 10 cenários E2E Docker passaram contra as imagens novas. A suíte de UI padrão passou **38/38** em Chromium desktop e mobile com API simulada, depois de isolar o preview de um servidor antigo que era reutilizado na porta 4173; a configuração padrão agora exclui specs Docker e não reutiliza servidores implicitamente. A suíte unitária passou: backend **877/877**, frontend **235/235**. Builds, lint e tipos passaram. [Evidência da auditoria da branch](evidencias/qa/2026-11-19/Branch-Audit/execucao.md).
+- S19FROTA-290 e o defeito original de S19FROTA-291 passaram retestes Docker em 19/11; o primeiro corrigiu roteamento/login e o segundo passou criação/cancelamento e negativos de intervalo. Os bugs referem-se às falhas originais, enquanto a cobertura restante de ciclo completo MAN-01 continua em S19FROTA-272.
 
 ## Defeitos identificados e estado de reteste
 
@@ -21,13 +21,13 @@ Em 17/11/2026, as assinaturas foram pesquisadas no Jira e não foram encontrados
 
 | Área | Resultado desta rodada | Risco residual |
 | --- | --- | --- |
-| Autenticação / RBAC | Sem sessão e bearer inválido retornaram 401; perfis foram testados contra endpoints de leitura; mutação sem CSRF e origem externa retornaram 403. Login no frontend Docker passou após correção e reteste 1/1. | Credencial inválida/429, logout/replay e sessão expirada pendentes. |
+| Autenticação / RBAC | Sem sessão e bearer inválido retornaram 401; perfis foram testados contra endpoints de leitura; mutação sem CSRF e origem externa retornaram 403. Login Docker e expiração de inatividade no E2E UI passaram. | Credencial inválida/429 integrada à API, replay de cookie/token e expiração do cookie ainda pendentes. |
 | Isolamento de dados | SOLICITANTE só recebeu solicitações próprias; não viu nem cancelou solicitação sintética de outro usuário; tentativa de IDOR retornou 403 e fixture foi limpa. | IDOR entre motoristas, consulta de ordem alheia e auditoria ainda pendentes. |
-| Frota / viagens | Listagem integrada 200; SOLICITANTE criou/cancelou solicitação (201/200); disputa paralela por veículo e motorista teve 1 aprovação 200 e 1 conflito 409; fixtures limpas. | Validações negativas, documentos, ciclos completos de aprovação/reagendamento e operação de motorista pendentes. |
+| Frota / viagens | Listagem integrada 200; SOLICITANTE criou/cancelou solicitação (201/200); disputa paralela por veículo e motorista teve 1 aprovação 200 e 1 conflito 409; UI de motorista percorreu início/checklist/retorno com API simulada. | Validações negativas, documentos e operação integrada do motorista ainda pendentes. |
 | Manutenção | Programação/cancelamento integrados passaram após ampliar a constraint SQL aos estados usados pelo serviço. | Reagendamento, conclusão, janela conflitante, payload inválido e veículo ocupado pendentes. Bug [S19FROTA-291](https://residenciasoftware.atlassian.net/browse/S19FROTA-291); [reteste](evidencias/qa/2026-11-18/S19FROTA-291/reteste.md). |
 | Notificações / relatórios | Leitura de notificações e três agregados de relatório respondeu 200. | Marcação, IDOR, filtros negativos e exportação pendentes. |
 | SVO | Cadastro telefônico sintético e validação incompleta; capacidade concorrente com apenas uma reserva vencedora; sequência de etapas, bloqueio sanitário, liberação e rejeição de liberação duplicada. | Perfis ADMIN/MOTORISTA, exposição sanitária, auditoria/exportação, CNH vencida e remanejamento pendentes. |
-| Solicitação externa | Não executada. | Bloqueada até integração do perfil/contrato externo. |
+| Solicitação externa | Não executada nesta auditoria; ticket 273 foi excluído do escopo solicitado. | Depende da integração de perfil/contrato externo. |
 
 ### Riscos ainda sem cobertura suficiente
 
