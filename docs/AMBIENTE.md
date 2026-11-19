@@ -138,7 +138,7 @@ Para manutenção periódica, remova registros expirados de `auth_sessoes` e `au
 | Falha no login da API           | Usuário ativo, hash bcrypt, migrations e acesso ao arquivo local da chave; veja [Back-end](BACKEND.md). |
 | Erro ao gerar Prisma no Windows | Pare a API antes de regenerar o cliente para liberar os arquivos em uso.                                |
 
-Consulte [Front-end](FRONTEND.md) para entender as telas. Os testes usam mocks do banco e podem ser executados sem conexão ao Neon ou Docker; veja [Testes](TESTES.md).
+Consulte [Front-end](FRONTEND.md) para entender as telas. Os testes unitários usam mocks do banco e podem ser executados sem conexão ao Neon ou Docker; execute `npm test` pela raiz.
 
 ## Dados de demonstração
 

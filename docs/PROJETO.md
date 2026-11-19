@@ -174,7 +174,6 @@ A lista de guias, a ordem de leitura e o padrão dos documentos estão no [índi
 - [Ambiente, banco e Docker](AMBIENTE.md)
 - [Desenvolvimento front-end](FRONTEND.md)
 - [Desenvolvimento back-end e API](BACKEND.md)
-- [Testes, lint e cobertura](TESTES.md)
 - [CI e comentário nos PRs](CI.md)
 - [Branches, commits e pull requests](GITHUB.md)
 - [Identidade visual](IDENTIDADE_VISUAL.md)

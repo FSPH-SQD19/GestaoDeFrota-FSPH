@@ -39,7 +39,7 @@ Se uma etapa falhar, o comentário indica a falha e marca as etapas seguintes co
 
 Após enviar o workflow e os arquivos necessários do projeto para a branch do PR, abra a aba **Checks** do PR ou a aba **Actions** do repositório. Se uma etapa falhar, abra seus logs, corrija a causa e envie um novo commit para executar novamente.
 
-Para formatar arquivos localmente, execute `npm run format`. Para reproduzir as verificações da CI, execute `npm ci`, `npx playwright install --with-deps chromium`, `npm run check` e `npm run test:e2e` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux. Consulte o [guia dos testes de interface](TESTES.md#testes-de-interface-com-playwright) para abrir o relatório e investigar traces.
+Para formatar arquivos localmente, execute `npm run format`. Para reproduzir as verificações da CI, execute `npm ci`, `npx playwright install --with-deps chromium`, `npm run check` e `npm run test:e2e` na raiz. O ambiente local pode usar outro sistema operacional; o CI executa em Linux. Abra o relatório com `npm run test:e2e:report` e consulte os traces de falhas gerados pelo Playwright.
 
 ## Exigir a verificação antes do merge
 

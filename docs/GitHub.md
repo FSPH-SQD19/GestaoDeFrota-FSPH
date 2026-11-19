@@ -49,7 +49,7 @@ git status
 git diff
 ```
 
-O `check` executa lint, testes e build dos dois projetos. Os detalhes estão no [guia de testes](TESTES.md).
+O `check` executa lint, testes e build dos dois projetos.
 
 Se estiver tudo certo, prepare os arquivos e faça o commit:
 

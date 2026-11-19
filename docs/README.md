@@ -11,8 +11,6 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 | [Ambiente](AMBIENTE.md)                   | Node.js, variáveis de ambiente, banco, migrations e Docker.         |
 | [Front-end](FRONTEND.md)                  | Organização das telas, componentes, perfis e padrões de interface.  |
 | [Back-end](BACKEND.md)                    | Organização da API, autenticação, endpoints e regras de veículos.   |
-| [Testes](TESTES.md)                       | Como criar e executar testes, lint e cobertura.                     |
-| [Matriz de QA](MATRIZ_QA_EXPLORATORIA.md) | Cenários exploratórios e regressão E2E por módulo, perfil e risco.  |
 | [CI](CI.md)                               | Verificações nos PRs e comentário automático do bot.                |
 | [GitHub](GITHUB.md)                       | Fluxo da equipe: branch, commit, PR e merge na `master`.            |
 | [Identidade visual](IDENTIDADE_VISUAL.md) | Marca ROTA, cores, tipografia, arquivos e aplicações.               |
@@ -20,7 +18,7 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 ## Por onde começar
 
 - **Rodar o projeto:** leia [Início](INICIO.md); configure [Ambiente](AMBIENTE.md) para configurar o banco e a API.
-- **Implementar uma tarefa:** consulte [Front-end](FRONTEND.md) ou [Back-end](BACKEND.md), depois [Testes](TESTES.md).
+- **Implementar uma tarefa:** consulte [Front-end](FRONTEND.md) ou [Back-end](BACKEND.md) e as verificações automatizadas da CI.
 - **Enviar uma alteração:** siga [GitHub](GITHUB.md) e acompanhe o [CI](CI.md).
 - **Entender o produto:** leia [Projeto](PROJETO.md).
 
