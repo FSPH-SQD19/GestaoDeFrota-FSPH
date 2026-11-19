@@ -170,6 +170,9 @@ const ROLES_POR_TAB = new Map<TabId, UserRole[]>(
 );
 
 export function podeAcessar(tab: TabId, roles: UserRole[]): boolean {
+  if (tab === "solicitacoesExternasSvo" && import.meta.env.VITE_PAINEL_GESTOR_SVO !== "true") {
+    return false;
+  }
   const permitidos = ROLES_POR_TAB.get(tab);
   return !!permitidos && roles.some((r) => permitidos.includes(r));
 }

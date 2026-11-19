@@ -88,8 +88,10 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     renderSidebarWithRole("GESTOR");
 
     expect(screen.getByRole("button", { name: /dashboard/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Solicitações", exact: true })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /solicitações externas svo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Solicitações" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /solicitações externas svo/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /veículos/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /motoristas/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /relatórios/i })).toBeInTheDocument();
@@ -104,5 +106,19 @@ describe("Navegação e Sidebar por perfil (RBAC)", () => {
     expect(screen.getByRole("button", { name: /trilha de auditoria/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /usuários/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /dashboard/i })).toBeInTheDocument();
+  });
+
+  it("libera o painel externo habilitado apenas para a gestão", () => {
+    vi.stubEnv("VITE_PAINEL_GESTOR_SVO", "true");
+    try {
+      renderSidebarWithRole("GESTOR");
+      expect(
+        screen.getByRole("button", { name: /solicitações externas svo/i }),
+      ).toBeInTheDocument();
+      expect(podeAcessar("solicitacoesExternasSvo", ["ADMIN"])).toBe(true);
+      expect(podeAcessar("solicitacoesExternasSvo", ["SVO"])).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

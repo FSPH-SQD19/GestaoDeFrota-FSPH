@@ -43,9 +43,13 @@ export function SolicitacoesExternasSvoPage() {
   const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<SolicitacaoExternaSvo[]>([]);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
-  const [carregando, setCarregando] = useState(true);
+  const [consultaConcluida, setConsultaConcluida] = useState<{
+    pagina: number;
+    reload: number;
+  } | null>(null);
   const [erro, setErro] = useState("");
   const [reload, setReload] = useState(0);
+  const carregando = consultaConcluida?.pagina !== pagina || consultaConcluida.reload !== reload;
   const [selecionada, setSelecionada] = useState<SolicitacaoExternaSvo | null>(null);
   const [modo, setModo] = useState<"aprovar" | "recusar" | null>(null);
   const [justificativa, setJustificativa] = useState("");
@@ -57,7 +61,6 @@ export function SolicitacoesExternasSvoPage() {
 
   useEffect(() => {
     let ativo = true;
-    setCarregando(true);
     void listarSolicitacoesExternasSvoGestor(pagina, 20)
       .then((resposta) => {
         if (!ativo) return;
@@ -75,7 +78,7 @@ export function SolicitacoesExternasSvoPage() {
           setErro(error instanceof Error ? error.message : "Não foi possível carregar a fila.");
       })
       .finally(() => {
-        if (ativo) setCarregando(false);
+        if (ativo) setConsultaConcluida({ pagina, reload });
       });
     return () => {
       ativo = false;
