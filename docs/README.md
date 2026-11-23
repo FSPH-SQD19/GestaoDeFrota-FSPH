@@ -21,6 +21,7 @@ Guias do Sistema de Gestão de Frota e SVO da FSPH. Comece pelo documento que co
 | [Engenharia de Prompt e IA](IA_E_ENGENHARIA_DE_PROMPT.md)         | Governança de IA, limites, viabilidade econômica e arquitetura híbrida (Takeoff). |
 | [Prompts que Falharam](PROMPTS_QUE_FALHARAM.md)                   | Relatório de 1 página com análise de falhas, causas raiz e correções de prompts.  |
 | [Acervo de Prompts](../prompts/README.md)                         | Repositório versionado (`PRM-01` a `PRM-05`) e rastreabilidade dos prompts.       |
+| [Roteiro do Pitch Final (10 min)](ROTEIRO_PITCH_10MIN.md)         | Roteiro estruturado por escrito da apresentação final (Critérios 2.1 a 2.4).      |
 
 ## Por onde começar
 

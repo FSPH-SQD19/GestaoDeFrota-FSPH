@@ -6,7 +6,7 @@ A documentação completa está organizada em [`docs/README.md`](docs/README.md)
 
 ---
 
-## 🏆 Índice Rápido — Entrega Final Takeoff (Critérios 1.1 a 1.5)
+## 🏆 Índice Rápido — Entrega Final Takeoff (Critérios 1.1 a 2.4)
 
 Para facilitar a avaliação da banca examinadora, todos os entregáveis técnicos exigidos na rubrica da **Entrega Final** estão indexados abaixo:
 
@@ -17,6 +17,7 @@ Para facilitar a avaliação da banca examinadora, todos os entregáveis técnic
 | **1.3 Guia de Implantação e Variáveis de Ambiente** | Seção [Implantação e Ambiente](#-guia-de-implantação-e-variáveis-de-ambiente-critério-13) e [`docs/AMBIENTE.md`](docs/AMBIENTE.md) | Passo a passo para recriar o ambiente local, Docker e HML, configuração de variáveis `.env`, chaves e serviços geoespaciais/IA.                              |
 | **1.4 Repositório de Prompts com Rastreabilidade**  | [`prompts/README.md`](prompts/README.md) (`PRM-01` a `PRM-05`)                                                                     | Acervo versionado de prompts (`v1.0` → `v4.0`) com histórico de modificações auditável via `git log -p -- prompts/`.                                         |
 | **1.5 Exemplos de Prompts que Falharam (1 pág.)**   | [`docs/PROMPTS_QUE_FALHARAM.md`](docs/PROMPTS_QUE_FALHARAM.md)                                                                     | Relatório executivo (1 página) com casos reais de prompts que falharam, análise de causa raiz, ajustes de prompt e validação via testes.                     |
+| **2.1 a 2.4 Roteiro do Pitch Final (10 min)**       | [`docs/ROTEIRO_PITCH_10MIN.md`](docs/ROTEIRO_PITCH_10MIN.md)                                                                       | Roteiro cronometrado por escrito da apresentação de 10 minutos cobrindo todos os elementos dos itens 2.1, 2.2, 2.3 e 2.4.                                    |
 
 ---
 
