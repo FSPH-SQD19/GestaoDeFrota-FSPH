@@ -4,6 +4,10 @@ import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
 import type { UsuarioAutenticado } from "../middleware/http_m";
 
+// Fluxo interno das solicitações externas do SVO: triagem da atendente (S19FROTA-283)
+// e decisão do gestor com conversão em ChamadoSvo (S19FROTA-285).
+// Estados e histórico seguem o portal do solicitante (S19FROTA-281).
+
 const TABELA = "solicitacoes_externas_svo";
 
 export type EstadoSolicitacaoExterna =
@@ -28,6 +32,8 @@ export const filaTriagemSchema = z.object({
   ...paginacao,
 });
 
+export const filaGestorSchema = z.object(paginacao);
+
 export const justificativaSchema = z
   .string({ error: "Descreva a justificativa." })
   .trim()
@@ -43,7 +49,7 @@ export const triagemExternaSchema = z
   })
   .strict()
   .superRefine((valor, ctx) => {
-    // No Mega Zord 4 o superRefine roda mesmo com campos inválidos
+    // No Zod 4 o superRefine roda mesmo com campos inválidos: conferir o tipo antes.
     if (typeof valor?.decisao !== "string" || valor.decisao === "ENCAMINHAR") return;
     if (typeof valor.justificativa !== "string") {
       ctx.addIssue({
@@ -57,8 +63,20 @@ export const triagemExternaSchema = z
     }
   });
 
+export const aprovarExternaSchema = z
+  .object({ justificativa: justificativaSchema.optional() })
+  .strict();
+export const recusarExternaSchema = z.object({ justificativa: justificativaSchema }).strict();
+
+export const chaveIdempotenciaSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_.:-]{8,100}$/, "Chave de idempotência inválida.")
+  .optional();
+
 export const incluirHistorico = {
   historico: { orderBy: { criadoEm: "asc" as const } },
+  chamadoSvo: { select: { id: true, numeroProtocolo: true } },
 } satisfies Prisma.SolicitacaoExternaSvoInclude;
 
 export type SolicitacaoComHistorico = Prisma.SolicitacaoExternaSvoGetPayload<{
@@ -71,6 +89,7 @@ async function nomesUsuarios(cliente: Cliente, registros: SolicitacaoComHistoric
   const ids = new Set<string>();
   for (const registro of registros) {
     if (registro.atendenteTriagemId) ids.add(registro.atendenteTriagemId);
+    if (registro.gestorDecisaoId) ids.add(registro.gestorDecisaoId);
     for (const item of registro.historico) if (item.autorId) ids.add(item.autorId);
   }
   if (ids.size === 0) return new Map<string, string>();
@@ -106,8 +125,12 @@ export function serializarSolicitacaoInterna(
     relatoTriagem: ultimoConteudo(registro, ["ENCAMINHAMENTO"]),
     justificativa: ultimoConteudo(registro, ["RECUSA_TRIAGEM", "RECUSA_GESTOR"]),
     atendenteTriagem: pessoa(registro.atendenteTriagemId),
+    gestorDecisao: pessoa(registro.gestorDecisaoId),
+    chamadoSvoId: registro.chamadoSvoId,
+    chamadoSvoProtocolo: registro.chamadoSvo?.numeroProtocolo ?? null,
     criadoEm: registro.criadoEm,
     triadaEm: registro.triadaEm,
+    decididaEm: registro.decididaEm,
     atualizadoEm: registro.atualizadoEm,
     historico: registro.historico.map((item) => ({
       tipo: item.tipo,
@@ -147,11 +170,21 @@ export async function listarSolicitacoesExternasInternas(
   };
 }
 
-// Fila da atendente - mais antigas primeiro.
+// Fila da atendente: mais antigas primeiro.
 export function listarFilaTriagemExterna(filtros: z.infer<typeof filaTriagemSchema>) {
   return listarSolicitacoesExternasInternas(
     { estado: filtros.estado },
     [{ criadoEm: "asc" }, { id: "asc" }],
+    filtros.page,
+    filtros.pageSize,
+  );
+}
+
+// Fila do gestor: somente o que já foi triado e encaminhado.
+export function listarFilaGestorExterna(filtros: z.infer<typeof filaGestorSchema>) {
+  return listarSolicitacoesExternasInternas(
+    { estado: "AGUARDANDO_GESTOR" },
+    [{ triadaEm: "asc" }, { id: "asc" }],
     filtros.page,
     filtros.pageSize,
   );
@@ -272,6 +305,7 @@ export async function triarSolicitacaoExterna(
         criadoEm: agora,
       },
     });
+    // Sem texto livre na auditoria (LGPD); o conteúdo fica no histórico.
     await tx.auditoriaSistema.create({
       data: {
         usuarioId: usuario.id,
@@ -292,5 +326,138 @@ export async function triarSolicitacaoExterna(
     });
     const [dados] = await serializarLista(tx, [registro]);
     return { dados, mensagem: regra.mensagem };
+  });
+}
+
+export async function decidirSolicitacaoExterna(
+  id: string,
+  decisao: "APROVAR" | "RECUSAR",
+  justificativa: string | undefined,
+  usuario: UsuarioAutenticado,
+  chaveIdempotencia?: string,
+  agora: Date = new Date(),
+) {
+  const estadoFinal: EstadoSolicitacaoExterna = decisao === "APROVAR" ? "APROVADA" : "RECUSADA";
+
+  return transacionarFluxoExterno(async (tx) => {
+    // Serializa decisões simultâneas sobre a mesma solicitação.
+    await tx.$queryRaw`SELECT id FROM solicitacoes_externas_svo WHERE id = ${id}::uuid FOR UPDATE`;
+    const atual = await tx.solicitacaoExternaSvo.findUnique({
+      where: { id },
+      include: incluirHistorico,
+    });
+    if (!atual) throw new HttpError(404, "Solicitação externa não encontrada.");
+
+    // Reenvio da mesma decisão (mesma chave e mesmo gestor): devolve o resultado já gravado.
+    if (
+      chaveIdempotencia &&
+      atual.chaveIdempotenciaDecisao === chaveIdempotencia &&
+      atual.gestorDecisaoId === usuario.id &&
+      atual.estado === estadoFinal
+    ) {
+      const [dados] = await serializarLista(tx, [atual]);
+      return { dados, mensagem: "Decisão já registrada anteriormente." };
+    }
+
+    if (atual.estado === "AGUARDANDO_TRIAGEM" || atual.estado === "AGUARDANDO_COMPLEMENTACAO") {
+      throw new HttpError(409, "A solicitação ainda não foi triada pela atendente do SVO.");
+    }
+    if (atual.estado !== "AGUARDANDO_GESTOR") {
+      throw new HttpError(409, `A solicitação já foi decidida (${atual.estado}).`);
+    }
+    if (atual.atendenteTriagemId === usuario.id || atual.solicitanteId === usuario.id) {
+      throw new HttpError(
+        403,
+        "A decisão precisa ser tomada por um gestor diferente de quem abriu ou triou a solicitação.",
+      );
+    }
+
+    let chamadoSvoId: string | null = null;
+    if (decisao === "APROVAR") {
+      // Entra no fluxo operacional já aprovado na triagem e sem ordem de coleta (sem despacho
+      // automático). criadoEm herda a abertura da solicitação para o SLA contar desde o pedido.
+      const chamado = await tx.chamadoSvo.create({
+        data: {
+          numeroProtocolo: atual.protocolo,
+          atendenteId: atual.atendenteTriagemId,
+          enderecoOcorrencia: atual.enderecoOcorrencia,
+          relatoOcorrencia: atual.relatoOcorrencia,
+          statusTriagem: "APROVADO",
+          origem: "EXTERNA",
+          criadoEm: atual.criadoEm,
+        },
+        select: { id: true, numeroProtocolo: true },
+      });
+      chamadoSvoId = chamado.id;
+      await tx.auditoriaSistema.create({
+        data: {
+          usuarioId: usuario.id,
+          acao: "CRIAR",
+          tabelaAfetada: "chamados_svo",
+          registroId: chamado.id,
+          dadosNovos: {
+            numeroProtocolo: chamado.numeroProtocolo,
+            statusTriagem: "APROVADO",
+            origem: "EXTERNA",
+            solicitacaoExternaId: id,
+          },
+        },
+      });
+    }
+
+    // O portal mostra a mensagem padrão do estado; a justificativa fica no histórico interno.
+    const resultado = await tx.solicitacaoExternaSvo.updateMany({
+      where: { id, estado: "AGUARDANDO_GESTOR" },
+      data: {
+        estado: estadoFinal,
+        mensagemParaSolicitante: null,
+        gestorDecisaoId: usuario.id,
+        decididaEm: agora,
+        chaveIdempotenciaDecisao: chaveIdempotencia ?? null,
+        ...(chamadoSvoId ? { chamadoSvoId } : {}),
+      },
+    });
+    if (resultado.count === 0) {
+      throw new HttpError(409, "A solicitação já foi decidida por outro gestor.");
+    }
+
+    await tx.solicitacaoExternaSvoHistorico.create({
+      data: {
+        solicitacaoId: id,
+        tipo: decisao === "APROVAR" ? "APROVACAO" : "RECUSA_GESTOR",
+        estadoAnterior: "AGUARDANDO_GESTOR",
+        estadoNovo: estadoFinal,
+        autorId: usuario.id,
+        conteudo: justificativa ?? null,
+        criadoEm: agora,
+      },
+    });
+    await tx.auditoriaSistema.create({
+      data: {
+        usuarioId: usuario.id,
+        acao: decisao === "APROVAR" ? "GESTOR_APROVAR" : "GESTOR_RECUSAR",
+        tabelaAfetada: TABELA,
+        registroId: id,
+        dadosNovos: {
+          protocolo: atual.protocolo,
+          estadoAnterior: "AGUARDANDO_GESTOR",
+          estadoNovo: estadoFinal,
+          chamadoSvoId,
+        },
+      },
+    });
+
+    const registro = await tx.solicitacaoExternaSvo.findUniqueOrThrow({
+      where: { id },
+      include: incluirHistorico,
+    });
+    const [dados] = await serializarLista(tx, [registro]);
+    return {
+      dados,
+      mensagem:
+        decisao === "APROVAR"
+          ? `Solicitação aprovada. Chamado SVO ${atual.protocolo} criado e aguardando ordem de coleta.`
+          : "Solicitação recusada.",
+    };
   });
 }

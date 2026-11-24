@@ -4,6 +4,12 @@ import { validar } from "../lib/validar";
 import { HttpError } from "../lib/http_error";
 import { usuarioAutenticado } from "../middleware/http_m";
 import {
+  aprovarExternaSchema,
+  chaveIdempotenciaSchema,
+  decidirSolicitacaoExterna,
+  filaGestorSchema,
+  listarFilaGestorExterna,
+  recusarExternaSchema,
   filaTriagemSchema,
   listarFilaTriagemExterna,
   obterSolicitacaoExternaTriagem,
@@ -21,6 +27,10 @@ function validarId(id: string | undefined): string {
   return id;
 }
 
+function chaveIdempotencia(req: Request) {
+  return validar(chaveIdempotenciaSchema, req.get("Idempotency-Key") || undefined);
+}
+
 export async function listarFilaTriagemExternaController(req: Request, res: Response) {
   return res.json(await listarFilaTriagemExterna(validar(filaTriagemSchema, req.query)));
 }
@@ -36,6 +46,38 @@ export async function triarSolicitacaoExternaController(req: Request, res: Respo
       id,
       validar(triagemExternaSchema, req.body ?? {}),
       usuarioAutenticado(res),
+    ),
+  );
+}
+
+export async function listarFilaGestorExternaController(req: Request, res: Response) {
+  return res.json(await listarFilaGestorExterna(validar(filaGestorSchema, req.query)));
+}
+
+export async function aprovarSolicitacaoExternaController(req: Request, res: Response) {
+  const id = validarId(req.params.id as string);
+  const { justificativa } = validar(aprovarExternaSchema, req.body ?? {});
+  return res.json(
+    await decidirSolicitacaoExterna(
+      id,
+      "APROVAR",
+      justificativa,
+      usuarioAutenticado(res),
+      chaveIdempotencia(req),
+    ),
+  );
+}
+
+export async function recusarSolicitacaoExternaController(req: Request, res: Response) {
+  const id = validarId(req.params.id as string);
+  const { justificativa } = validar(recusarExternaSchema, req.body ?? {});
+  return res.json(
+    await decidirSolicitacaoExterna(
+      id,
+      "RECUSAR",
+      justificativa,
+      usuarioAutenticado(res),
+      chaveIdempotencia(req),
     ),
   );
 }
