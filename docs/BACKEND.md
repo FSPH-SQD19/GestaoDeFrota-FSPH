@@ -317,6 +317,19 @@ Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatur
 
 A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
 
+### Triagem de solicitações externas do SVO
+
+A atendente analisa as solicitações abertas pelo portal externo (S19FROTA-281) antes de qualquer decisão do gestor. As rotas ficam em `/api/v1/solicitacoes-externas-svo` e exigem perfil `SVO` ou `ADMIN`; os demais recebem `403`.
+
+- `GET /triagem`: fila paginada (`page`, `pageSize` até 100), das mais antigas para as mais recentes. Por padrão traz `AGUARDANDO_TRIAGEM`; `?estado=AGUARDANDO_COMPLEMENTACAO` lista as que aguardam retorno do solicitante. Resposta `{ data, meta }`.
+- `GET /triagem/:id`: dados da solicitação e histórico completo (criação, complementos, triagem), com o nome de cada autor. `404` inexistente.
+- `PATCH /:id/triagem`: `{ decisao, justificativa? }`. Resposta `{ dados, mensagem }`.
+  - `SOLICITAR_COMPLEMENTACAO` (justificativa obrigatória): vai para `AGUARDANDO_COMPLEMENTACAO` e o texto aparece no portal como o pedido ao solicitante.
+  - `RECUSAR` (justificativa obrigatória): vai para `RECUSADA`, também a partir de `AGUARDANDO_COMPLEMENTACAO`. O portal mostra a mensagem padrão de recusa; a justificativa fica só no histórico interno.
+  - `ENCAMINHAR` (justificativa opcional, vira o relato para o gestor): vai para `AGUARDANDO_GESTOR` e registra `atendenteTriagemId` e `triadaEm`. Só essas solicitações chegam ao gestor.
+
+Erros: `400` validação (não existe decisão de aprovar na triagem), `403` quando a atendente tenta triar uma solicitação aberta por ela mesma, `409` para decisão incompatível com o estado atual ou atualização simultânea. Estado, histórico e auditoria são gravados na mesma transação; a auditoria guarda apenas protocolo e estados, sem texto livre. A migration cria a tabela no formato usado pelo portal, incluindo a sequence do protocolo `EXT-AAAA-NNNNNN`, e o banco reforça por `CHECK` os estados válidos, a mensagem obrigatória ao pedir complementação e o registro da triagem antes do gestor.
+
 ### Abastecimentos e Cartão Rede Prime
 
 Atende a S19FROTA-242. O Cartão Corporativo Rede Prime vale em vários postos credenciados, sem fornecedor fixo por CNPJ: o campo opcional `postoCredenciado` (texto até 150 caracteres; vazio ou só espaços vira `null`) registra o posto, e `fornecedorId` continua opcional.
