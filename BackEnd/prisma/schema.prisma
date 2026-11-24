@@ -30,6 +30,8 @@ model Usuario {
   avariasAnalisadas  AvariaViagem[] @relation("AvariaAnalisadaPor")
   historicosAvaria   AvariaHistorico[]
 
+  solicitacoesExternas SolicitacaoExternaSvo[]
+
   @@index([ativo])
   @@index([setor])
   @@map("usuarios")
@@ -571,4 +573,46 @@ model MultaInfracao {
   @@index([status])
   @@index([dataHora])
   @@map("multas_infracoes")
+}
+
+model SolicitacaoExternaSvo {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  protocolo               String    @unique @db.VarChar(20)
+  solicitanteId           String    @map("solicitante_id") @db.Uuid
+  chaveIdempotencia       String    @map("chave_idempotencia") @db.Uuid
+  estado                  String    @default("AGUARDANDO_TRIAGEM") @db.VarChar(30)
+  contatoNome             String    @map("contato_nome") @db.VarChar(150)
+  contatoTelefone         String    @map("contato_telefone") @db.VarChar(11)
+  contatoEmail            String?   @map("contato_email") @db.VarChar(150)
+  enderecoOcorrencia      String    @map("endereco_ocorrencia") @db.VarChar(300)
+  relatoOcorrencia        String    @map("relato_ocorrencia") @db.VarChar(2000)
+  mensagemParaSolicitante String?   @map("mensagem_solicitante") @db.VarChar(500)
+  atendenteTriagemId      String?   @map("atendente_triagem_id") @db.Uuid
+  triadaEm                DateTime? @map("triada_em")
+  criadoEm                DateTime  @default(now()) @map("criado_em")
+  atualizadoEm            DateTime  @default(now()) @updatedAt @map("atualizado_em")
+
+  solicitante Usuario                          @relation(fields: [solicitanteId], references: [id])
+  historico   SolicitacaoExternaSvoHistorico[]
+
+  @@unique([solicitanteId, chaveIdempotencia], map: "sol_ext_svo_solicitante_chave_key")
+  @@index([solicitanteId, criadoEm])
+  @@index([estado, criadoEm])
+  @@map("solicitacoes_externas_svo")
+}
+
+model SolicitacaoExternaSvoHistorico {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitacaoId  String   @map("solicitacao_id") @db.Uuid
+  tipo           String   @db.VarChar(20)
+  estadoAnterior String?  @map("estado_anterior") @db.VarChar(30)
+  estadoNovo     String   @map("estado_novo") @db.VarChar(30)
+  autorId        String?  @map("autor_id") @db.Uuid
+  conteudo       String?  @db.VarChar(2000)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  solicitacao SolicitacaoExternaSvo @relation(fields: [solicitacaoId], references: [id])
+
+  @@index([solicitacaoId, criadoEm], map: "sol_ext_svo_hist_solicitacao_criado_idx")
+  @@map("solicitacoes_externas_svo_historico")
 }
