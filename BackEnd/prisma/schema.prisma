@@ -318,10 +318,12 @@ model ChamadoSvo {
   localizacaoGeo     Unsupported("geometry(Point, 4326)")? @map("localizacao_geo")
   relatoOcorrencia   String?                               @map("relato_ocorrencia")
   statusTriagem      String                                @default("EM_ANALISE") @map("status_triagem") @db.VarChar(30)
+  origem             String                                @default("TELEFONE") @db.VarChar(20)
   criadoEm           DateTime?                             @default(now()) @map("criado_em")
 
-  atendente   Usuario?        @relation(fields: [atendenteId], references: [id])
-  ordemColeta OrdemColetaSvo?
+  atendente          Usuario?               @relation(fields: [atendenteId], references: [id])
+  ordemColeta        OrdemColetaSvo?
+  solicitacaoExterna SolicitacaoExternaSvo?
 
   @@index([atendenteId])
   @@index([statusTriagem])
@@ -576,23 +578,28 @@ model MultaInfracao {
 }
 
 model SolicitacaoExternaSvo {
-  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  protocolo               String    @unique @db.VarChar(20)
-  solicitanteId           String    @map("solicitante_id") @db.Uuid
-  chaveIdempotencia       String    @map("chave_idempotencia") @db.Uuid
-  estado                  String    @default("AGUARDANDO_TRIAGEM") @db.VarChar(30)
-  contatoNome             String    @map("contato_nome") @db.VarChar(150)
-  contatoTelefone         String    @map("contato_telefone") @db.VarChar(11)
-  contatoEmail            String?   @map("contato_email") @db.VarChar(150)
-  enderecoOcorrencia      String    @map("endereco_ocorrencia") @db.VarChar(300)
-  relatoOcorrencia        String    @map("relato_ocorrencia") @db.VarChar(2000)
-  mensagemParaSolicitante String?   @map("mensagem_solicitante") @db.VarChar(500)
-  atendenteTriagemId      String?   @map("atendente_triagem_id") @db.Uuid
-  triadaEm                DateTime? @map("triada_em")
-  criadoEm                DateTime  @default(now()) @map("criado_em")
-  atualizadoEm            DateTime  @default(now()) @updatedAt @map("atualizado_em")
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  protocolo                String    @unique @db.VarChar(20)
+  solicitanteId            String    @map("solicitante_id") @db.Uuid
+  chaveIdempotencia        String    @map("chave_idempotencia") @db.Uuid
+  estado                   String    @default("AGUARDANDO_TRIAGEM") @db.VarChar(30)
+  contatoNome              String    @map("contato_nome") @db.VarChar(150)
+  contatoTelefone          String    @map("contato_telefone") @db.VarChar(11)
+  contatoEmail             String?   @map("contato_email") @db.VarChar(150)
+  enderecoOcorrencia       String    @map("endereco_ocorrencia") @db.VarChar(300)
+  relatoOcorrencia         String    @map("relato_ocorrencia") @db.VarChar(2000)
+  mensagemParaSolicitante  String?   @map("mensagem_solicitante") @db.VarChar(500)
+  atendenteTriagemId       String?   @map("atendente_triagem_id") @db.Uuid
+  triadaEm                 DateTime? @map("triada_em")
+  gestorDecisaoId          String?   @map("gestor_decisao_id") @db.Uuid
+  decididaEm               DateTime? @map("decidida_em")
+  chaveIdempotenciaDecisao String?   @map("chave_idempotencia_decisao") @db.VarChar(100)
+  chamadoSvoId             String?   @unique @map("chamado_svo_id") @db.Uuid
+  criadoEm                 DateTime  @default(now()) @map("criado_em")
+  atualizadoEm             DateTime  @default(now()) @updatedAt @map("atualizado_em")
 
   solicitante Usuario                          @relation(fields: [solicitanteId], references: [id])
+  chamadoSvo  ChamadoSvo?                      @relation(fields: [chamadoSvoId], references: [id], onDelete: Restrict)
   historico   SolicitacaoExternaSvoHistorico[]
 
   @@unique([solicitanteId, chaveIdempotencia], map: "sol_ext_svo_solicitante_chave_key")
