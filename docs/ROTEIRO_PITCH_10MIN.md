@@ -1,229 +1,196 @@
-# Roteiro Oficial de Apresentação e Gravação do Pitch (10 Minutos)
+# Roteiro Cinematográfico do Pitch de 10 Minutos — Projeto ROTA (Squad 19)
 
-> **Fundação de Saúde Parreiras Horta (FSPH) · Squad 19 — Projeto ROTA**  
-> **Entrega Final — Takeoff (Porto Digital & Unit)**  
-> **Conceito Narrativo:** *"Cold Open de Alto Risco + O Dia de Vitor (Viagens Institucionais & SVO) + Demo Split-Screen (Web Gestor + PWA Motorista) + Tese 'Forjado com IA, Runtime Zero-Alucinação'"*  
-> _Roteiro estruturado segundo aSegundo Parte do documento oficial da Entrega Final, cobrindo explicitamente todos os subitens dos critérios **2.1**, **2.2**, **2.3** e **2.4** (5,0 pontos)._
-
----
-
-## ⏱️ Cronograma Executivo dos 10 Minutos (Mapeado à Rubrica Oficial)
-
-| Slide | Minutagem | Duração | Item Oficial do Documento (Rubrica) | Técnica de Pitch Aplicada |
-| :---: | :---: | :---: | :--- | :--- |
-| **01** | `00:00 – 00:40` | `40 s` | **2.1.a** A problemática e a oportunidade de IA | **Cold Open de Alto Risco:** 08h15 na mesa de Vitor (4 canais simultâneos: Coleta de Sangue HEMOSE, Amostras LACEN, Diretoria e Chamado SVO). |
-| **02** | `00:40 – 01:25` | `45 s` | **2.1.b / 2.1.c** Ferramentas utilizadas + Serviços de IA e impactos no desenvolvimento | **Tese de Engenharia:** *"Forjado com IA, Runtime Determinístico"* (Stack + Acervo `/prompts` `PRM-01` a `PRM-05` + 4 ferramentas de IA). |
-| **03** | `01:25 – 02:10` | `45 s` | **2.1.d** Diferenciais da solução | **Bento Grid de 5 Pilares:** Viagens Institucionais sem conflito, Conservação/Avarias, Biossegurança SVO, PWA Offline-First e Auditoria LGPD. |
-| **04–05** | `02:10 – 04:15` | `2m 05s` | **2.1.e** Demonstração da Solução (Live Demo / Vídeo) | **Split-Screen Storyboard (Web Vitor + Celular PWA Fábio):** Ato 1 (Viagens Institucionais & Frota), Ato 2 (SVO & Biossegurança), Ato 3 (Auditoria LGPD). |
-| **06** | `04:15 – 05:20` | `1m 05s` | **2.2.a** Estimativas de custo do uso de IA (chamada / token / usuário) | **Slide de Número Gigante:** `R$ 0,00/mês` no core determinístico vs. `US$ 0,00013/chamada` (`~R$ 2,26/mês` para 3.000 chamadas na FSPH). |
-| **07** | `05:20 – 06:10` | `50 s` | **2.2.b / 2.2.c** Trade-offs de custo x qualidade + Viabilidade econômica em escala de produção | **Comparativo Arquitetural:** Por que OSRM/PostGIS determinístico bate LLM em runtime em latência, precisão e viabilidade licitatória no setor público. |
-| **08** | `06:10 – 07:00` | `50 s` | **2.3.a / 2.3.c** *"E se a IA falhasse?"* + O que a equipe deixou de fazer porque a IA não era confiável o suficiente | **Matriz de Fronteira Ética e Resiliência:** Queda de provedores LLM = 0 impacto; 4 decisões humanas inegociáveis (Viagens prioritárias, SVO vs. IML, 4 urnas, LGPD). |
-| **09** | `07:00 – 08:30` | `1m 30s` | **2.3.b / 2.3.d** Processo de garantia de qualidade dos outputs de IA + Superações e aprendizados | **Funil de 4 Barreiras CI + "Como Domamos a IA":** `tsc`, `oxlint 0 warnings`, `1.110+ testes` e os 3 prompts que falharam (`PRM-01`, `PRM-02`, `PRM-03`) e foram corrigidos. |
-| **10** | `08:30 – 09:15` | `45 s` | **2.4.a** Evoluções futuras pensadas pela equipe que não foram implementadas | **Roadmap Pós-MVP:** Guia de Tráfego QR Code, Signature Pad em tela, Detecção de Anomalia Km/L (Cartão Prime) e Heatmap Epidemiológico. |
-| **11** | `09:15 – 10:00` | `45 s` | **2.4.b** Apresentação dos membros da equipe e responsabilidades de cada membro | **Grid de Engenharia do Squad 19:** Os 10 integrantes organizados por domínio de responsabilidade + Call-to-Action final. |
+> **Fundação de Saúde Parreiras Horta (FSPH) · Squad 19 — Entrega Final Takeoff**  
+> **Conceito Central:** *"Na próxima solicitação, o caderno fica fechado."*  
+> _Um pitch com narrativa humana, visual minimalista de alto impacto (zero paredão de texto nos slides) e cobertura integral de todos os critérios da Entrega Final (**2.1**, **2.2**, **2.3** e **2.4**)._
 
 ---
 
-## 🎬 2.1 Problemática, Solução Proposta e Demonstração (`00:00 – 04:15` · 2,5 pontos)
+## 🧭 Visão Geral da Coreografia (O Que Aparece na Tela vs. O Que Você Fala)
 
-### 🔹 [Item 2.1.a do Documento] A problemática e a oportunidade de IA (resumo do problema e valor gerado)
-- **Minutagem:** `00:00 – 00:40` (Slide 01 — Estética "Callback" Papel Pautado `#F3EFE6` transicionando para Dark Editorial `#0F1C22`)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.1.A · PROBLEMÁTICA E OPORTUNIDADE DE IA]`
-  - À esquerda (memória visual da 1ª apresentação em papel pautado): **"08h15 na mesa de Vitor (Gestor de Frota da FSPH)"** com os 4 canais caóticos simultâneos:
-    1. 📞 **Telefone:** *"Vitor, tem carro pra levar a equipe da Diretoria às 09h?"*
-    2. 💬 **WhatsApp:** *"Fábio já saiu com os insumos do Almoxarifado?"*
-    3. 📧 **E-mail HEMOSE / LACEN:** *"Precisamos de veículo para coleta externa de sangue e transporte de amostras biológicas no interior."*
-    4. 🚨 **Plantão SVO:** *"Chamado urgente de remoção de óbito natural — qual viatura está livre e higienizada?"*
-  - À direita (Dark Editorial `#0F1C22`): **O Valor Gerado pelo ROTA** — Centralização das viagens institucionais e da logística do SVO com conflito zero de agenda, conservação preventiva da frota e engenharia acelerada por IA.
-- **Fala Exata do Apresentador:**
-  > *"Imaginem que são 8h15 da manhã na mesa do **Vitor**, gestor de frota da **Fundação de Saúde Parreiras Horta (FSPH)**, em Sergipe. Ao mesmo tempo, o telefone toca pedindo carro para uma viagem institucional da Diretoria; chega um WhatsApp cobrando insumos do Almoxarifado; entra um e-mail do **HEMOSE e do LACEN** solicitando veículo para campanha de coleta de sangue e transporte de amostras biológicas; e o plantão do **SVO** aciona uma viatura para remoção de óbito natural.*  
-  > *Na primeira apresentação, mostramos que Vitor gerenciava tudo isso no papel, na memória e no WhatsApp — sob risco constante de alocar o mesmo motorista para duas viagens, despachar um veículo com CNH, CRLV ou revisão vencida, ou perder o controle do SLA e da higienização das viaturas do SVO.*  
-  > *Hoje, o **Squad 19** apresenta o **ROTA** em produção: nós usamos a **Inteligência Artificial como alavanca de engenharia de software** para transformar o caos de 4 canais desconectados em uma plataforma única, testada e à prova de falhas operacionais."*
+> **Regra de Ouro Visual:** Nenhum slide tem parágrafos longos. O slide mostra **1 impacto visual por vez** (3 horários na tela, o caderno fechando, o sistema real dividido entre o computador do Vitor e o celular do Fábio, 2 números gigantes de custo, 4 cadeados éticos). **A densidade técnica vai na sua voz.**
 
----
-
-### 🔹 [Itens 2.1.b e 2.1.c do Documento] Ferramentas utilizadas + Serviços de IA utilizados e impactos no desenvolvimento
-- **Minutagem:** `00:40 – 01:25` (Slide 02 — Dark Editorial `#0F1C22`)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.1.B & 2.1.C · STACK TECNOLÓGICA, SERVIÇOS DE IA E IMPACTO]`
-  - **Coluna 1 — Ferramentas e Stack da Solução:**
-    - **Front-End & PWA Mobile:** React 19, TypeScript, Vite 8, Tailwind CSS 4, Leaflet, Service Workers + IndexedDB.
-    - **Back-End & Domínio:** Node.js, Express 5, Prisma ORM 6, Zod, Autenticação `HttpOnly` + CSRF + Rate Limiting.
-    - **Dados & Geoespacial:** Neon PostgreSQL + PostGIS + Motor de Rotas OSRM em Docker.
-    - **Qualidade & DevOps:** Vitest, Testing Library, Playwright E2E, Oxlint, GitHub Actions, Jira/Confluence.
-  - **Coluna 2 — Serviços de IA e Impactos Mensuráveis no Desenvolvimento (`/prompts`):**
-    - **Google Gemini (2.5 Pro / Antigravity):** Arquitetura em camadas, schema Prisma/PostGIS (`PRM-01`), máquina de estados de viagens e SVO (`PRM-02`), Trilha de Auditoria LGPD (`PRM-04`) e suítes Vitest.
-    - **Anthropic Claude (3.7 / 4 Sonnet):** Revisão de locks transacionais (`FOR UPDATE`), gerador de massa sintética determinística (`seed-demo.ts` — `PRM-03`) e fluxos React.
-    - **OpenAI GPT-4o / Codex + GitHub Copilot:** PWA offline-first com sincronização IndexedDB/OSRM (`PRM-05`) e padronização de código entre os 10 desenvolvedores.
-    - **Impacto Real:** **20+ migrations**, **+1.110 testes automatizados** (`915 Back-End + 235 Front-End + E2E`) e acervo versionado em `/prompts` no GitHub.
-- **Fala Exata do Apresentador:**
-  > *"Para construir o ROTA, combinamos uma stack moderna — **React 19, TypeScript e PWA Offline-First** na ponta do usuário e do motorista; **Node.js, Express 5 e Prisma 6** no Back-End; e **PostgreSQL com PostGIS e motor OSRM** para cálculo real de rotas.*  
-  > *No ciclo de engenharia, orquestramos quatro serviços de IA com papéis bem definidos e rastreados na pasta `/prompts` do nosso repositório: **Google Gemini e Antigravity** na modelagem de dados, regras de estado e auditoria LGPD; **Claude Sonnet** na revisão de concorrência transacional e geração de dados sintéticos determinísticos; **OpenAI GPT/Codex** na fila offline do PWA; e **GitHub Copilot** na padronização diária.*  
-  > *O impacto no desenvolvimento foi extraordinário: saímos do zero para um sistema com mais de 20 migrations e mais de **1.110 testes automatizados** passando no pipeline."*
+| Tela | Tempo | O Que Aparece no Slide (Mínimo Texto, Máximo Impacto) | Critério Coberto na Fala |
+| :---: | :---: | :--- | :--- |
+| **01** | `00:00 – 00:55` | **`10:00 HEMOSE` · `14:00 LACEN` · `03:15 SVO`** → O caderno de papel pautado se fecha e revela o cockpit escuro do **ROTA**. | **2.1.a** Problemática real da FSPH (Vitor + SVO) e valor gerado. |
+| **02** | `00:55 – 01:45` | **Diagrama Limpo em 3 Camadas** (`Web Vitor + PWA Fábio` ↔ `Node/Prisma/PostGIS/OSRM` ↔ `Forjado com 4 IAs` + **`1.110+ Testes`**). | **2.1.b & 2.1.c** Ferramentas utilizadas, serviços de IA e impacto no desenvolvimento. |
+| **03** | `01:45 – 02:25` | **5 Cartões Visuais Curtos (Máx. 6 palavras por cartão):** *Viagens sem conflito · Avaria → Manutenção · Frota SVO Isolada (4 urnas/Desinfecção) · PWA Offline-First · Auditoria LGPD*. | **2.1.d** Diferenciais da solução. |
+| **04** | `02:25 – 04:20` | **DEMO SPLIT-SCREEN DENTRO DO SLIDE:** Esquerda = **MacBook do Vitor** (Dashboard + Viagens Institucionais + Manutenção + Auditoria) · Direita = **Celular PWA do Fábio** (Rota OSRM + Checklist de Avaria + Entrega SVO). | **2.1.e** Demonstração da solução funcionando ponta a ponta. |
+| **05** | `04:20 – 05:25` | **2 Números Gigantes + Slider Interativo:** **`R$ 0,00/mês`** (Core atual) vs. **`R$ 2,26/mês`** (`US$ 0,00013/chamada` para 3.000 chamadas). Arrastando para 10x (Escala Estadual) → **`R$ 22,60/mês`**. | **2.2.a, 2.2.b & 2.2.c** Custo por chamada/token/usuário, trade-offs e viabilidade em escala. |
+| **06** | `05:25 – 06:45` | **Botão "Simular Apagão de IA e 4G"** (Tudo continua `ONLINE`) + **Os 4 Cadeados Humanos** (*Prioridade de Viagens do Vitor · Triagem SVO vs. IML · 4 Urnas/Desinfecção · Dados Reais LGPD*). | **2.3.a & 2.3.c** *"E se a IA falhasse?"* + O que não delegamos à IA por não ser confiável. |
+| **07** | `06:45 – 08:25` | **O Funil de 4 Barreiras (`0 warnings` + `1.110+ testes`)** + **Toggle Interativo "3 Vezes em que a IA Errou e Como Domamos"** (`PRM-01`, `PRM-02`, `PRM-03`). | **2.3.b & 2.3.d** Garantia de qualidade dos outputs de IA + Superações e aprendizados. |
+| **08** | `08:25 – 09:10` | **4 Mockups Visuais do Pós-MVP:** *Anomalia Km/L (Cartão Prime) · Guia com QR Code · Assinatura na Tela do Celular · Mapa de Calor PostGIS*. | **2.4.a** Evoluções futuras pensadas pela equipe. |
+| **09** | `09:10 – 10:00` | **Os 10 Engenheiros do Squad 19** organizados em 4 células visuais com a entrega de cada um + Frase final de efeito. | **2.4.b** Apresentação da equipe e responsabilidades individuais. |
 
 ---
 
-### 🔹 [Item 2.1.d do Documento] Diferenciais da solução
-- **Minutagem:** `01:25 – 02:10` (Slide 03 — Bento Grid com 5 Cards)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.1.D · DIFERENCIAIS TÉCNICOS E OPERACIONAIS DA SOLUÇÃO]`
-  - **Bento Card 1 (Destaque Principal — O Dia a Dia de Vitor):** **Gestão Inteligente de Viagens Institucionais** — Fluxo `PENDENTE → APROVADA → EM ANDAMENTO → CONCLUÍDA`, bloqueio automático contra choque de horário de motorista/veículo e cancelamento formal auditado com liberação imediata do recurso.
-  - **Bento Card 2:** **Conservação Ativa da Frota e Avarias** — Checklist de saída/retorno do motorista que abre chamado de avaria automaticamente, reserva de horário de manutenção preventiva e alertas de CNH, CRLV e revisão por km.
-  - **Bento Card 3:** **Segregação Estrita e Biossegurança SVO** — Frotas administrativa e SVO 100% isoladas; limite físico de 4 urnas por viatura; transição automática para `DESINFECCAO` ao fim da coleta e Portal Externo (`SVOE`) com triagem humana.
-  - **Bento Card 4:** **PWA Mobile Offline-First para o Motorista (Fábio)** — Diário de bordo no celular com mapa OSRM, captura de GPS PostGIS e fila em IndexedDB que funciona mesmo sem 4G na estrada.
-  - **Bento Card 5:** **Governança Pública, Relatórios CSV/PDF e Auditoria LGPD** — Trilha de auditoria imutável (`AuditLog`) com sanitização recursiva de dados sensíveis (`******`) e exportação oficial de relatórios.
-- **Fala Exata do Apresentador:**
-  > *"E o que torna o ROTA único para a FSPH? São 5 diferenciais práticos:*  
-  > *Primeiro, a **Gestão de Viagens Institucionais sem conflito**: Vitor aprova solicitações de qualquer setor com validação automática de disponibilidade de veículo e motorista, e se uma viagem for cancelada com justificativa formal, os recursos voltam a ficar livres no mesmo segundo.*  
-  > *Segundo, a **Conservação Integrada da Frota**: quando o motorista Fábio aponta um problema no checklist de retorno, o sistema abre automaticamente um registro de avaria para Vitor programar a manutenção preventiva com reserva de horário.*  
-  > *Terceiro, a **Segregação e Biossegurança do SVO**: um carro administrativo nunca é misturado com viatura de remoção; o sistema trava o limite de 4 urnas e coloca a viatura automaticamente em `DESINFECCAO` após a entrega.*  
-  > *Quarto, o **PWA Mobile Offline-First** no celular do motorista com rotas OSRM e fila IndexedDB para áreas sem sinal.*  
-  > *E quinto, **Governança Pública completa** com relatórios oficiais em CSV e PDF e Trilha de Auditoria LGPD."*
+## 🎙️ Roteiro Completo de Fala (Mantendo o Tom Cinematográfico do Início ao Fim)
 
 ---
 
-### 🔹 [Item 2.1.e do Documento] Demonstração da Solução (`02:10 – 04:15`)
-- **Formato Visual de Alto Impacto:** **Split-Screen (Tela Dividida)** — Do lado esquerdo (70% da tela), o **Painel Web do Gestor Vitor**; do lado direito (30% da tela, em moldura mobile), o **PWA do Motorista Fábio**.
-- **Roteiro de Cenas e Fala da Demo (2 minutos e 05 segundos):**
-  1. **Cena 1 — O Cockpit de Vitor e as Viagens Institucionais (`02:10 – 02:55`):**
-     - **Na Tela:** Abrir o **Dashboard Executivo** mostrando a faixa compacta com os **7 KPIs** e os **3 gráficos analíticos acima da dobra** (*Status da Frota*, *Solicitações por Status* e *Consumo/Rodagem no Mês*), além dos alertas de CNH/documentos a vencer. Em seguida, ir para **Solicitações de Viagem**: aprovar uma viagem institucional para o interior alocando Fábio e um veículo disponível (mostrando que o sistema impede conflito de horário) e demonstrar o **Cancelamento Formal com motivo obrigatório**, liberando imediatamente o veículo.
-     - **Fala:** *"Vamos ver isso funcionando na prática. Aqui no topo do Dashboard de Vitor, ele enxerga de imediato os 7 indicadores da fundação e os 3 gráficos analíticos sem precisar rolar a página, além dos alertas de documentos e CNH a vencer. Quando entra uma solicitação de viagem institucional — por exemplo, transporte de insumos ou coleta do HEMOSE — Vitor aprova alocando o motorista Fábio e o veículo livre. O sistema bloqueia qualquer choque de agenda. E se o setor precisar cancelar a viagem antes da saída, o ROTA exige motivo formal, grava na auditoria e libera o carro e o motorista instantaneamente."*
-  2. **Cena 2 — Do Celular de Fábio (PWA) para a Gestão de Avarias e Manutenção de Vitor (`02:55 – 03:25`):**
-     - **Na Tela:** Na janela mobile do **PWA do Motorista (Fábio)**, mostrar o início e conclusão da viagem com rota OSRM e o preenchimento do **Checklist de Retorno** reportando uma avaria. Na tela Web de Vitor, mostrar a avaria recém-aberta e a **Programação de Manutenção Preventiva** reservando a janela de horário da oficina.
-     - **Fala:** *"Na ponta direita, vemos o celular do motorista Fábio no nosso PWA: ele visualiza a rota calculada pelo OSRM, registra a saída e, no retorno, preenche o checklist apontando um desgaste no freio. Automaticamente, essa observação vira um chamado na tela de Avarias de Vitor, que já agenda a manutenção preventiva bloqueando o horário daquele veículo para evitar que ele seja escalado."*
-  3. **Cena 3 — Operação Crítica SVO e Biossegurança (`03:25 – 03:55`):**
-     - **Na Tela:** Mostrar a entrada de uma solicitação externa (`SVOE`), a triagem da atendente, os cards de **SLA médio do SVO**, a emissão da Ordem de Coleta respeitando o limite de 4 urnas, o motorista Fábio concluindo a entrega no PWA (*Saída → No Local → Entrega no SVO*) e o status da viatura mudando automaticamente para **`DESINFECCAO`**.
-     - **Fala:** *"Já no módulo do SVO, acompanhamos o SLA em tempo real. Após a triagem humana do chamado, despachamos a viatura respeitando o limite físico de 4 urnas. Quando o motorista confirma a entrega do corpo na sede do SVO pelo celular, observem o status da viatura: ela entra automaticamente em `DESINFECCAO`, ficando bloqueada para novas coletas até a liberação sanitária."*
-  4. **Cena 4 — Fechamento da Demo: Relatórios CSV/PDF e Trilha de Auditoria LGPD (`03:55 – 04:15`):**
-     - **Na Tela:** Mostrar os botões de exportação oficial **CSV/PDF** e abrir a tela de **Trilha de Auditoria**, clicando em **"Ver Payload"** para exibir os campos sensíveis mascarados com `******`.
-     - **Fala:** *"E para fechar o ciclo de controle público, Vitor exporta relatórios gerenciais em CSV ou PDF com um clique, enquanto o Administrador audita cada operação na Trilha de Auditoria, onde senhas, tokens e CPFs são recursivamente mascarados com asteriscos em conformidade com a LGPD."*
+### 🎬 TELA 01 — A Promessa Cumprida: O Caderno Ficou Fechado (`00:00 – 00:55`)
+*(Cobre o item **2.1.a — A problemática e a oportunidade de IA: resumo do problema e valor gerado**)*
+
+* **O que aparece na tela (Visual Minimalista):**
+  - Três relógios/marcos acendem em sequência sobre o fundo de papel pautado da 1ª apresentação:
+    - **`10:00`** — *HEMOSE · Transporte de bolsas de sangue*
+    - **`14:00`** — *LACEN · Amostras epidemiológicas do interior*
+    - **`03:15`** — *SVO · Acionamento urgente de óbito natural*
+  - Uma animação fecha o caderno de papel com a frase da 1ª apresentação (*"Na próxima solicitação, o caderno fica fechado"*) e abre o tema escuro petróleo do **ROTA (`1.110+ testes · Web + PWA Offline`)**.
+
+* **Sua Fala:**
+  > *"Às 10h da manhã, uma caixa térmica com bolsas de sangue precisa sair do **HEMOSE**. Às 14h, amostras epidemiológicas precisam chegar ao **LACEN**. E às 3h15 da madrugada, uma família perde um ente querido em casa e aciona o **SVO**.*  
+  > *Na primeira apresentação, nós mostramos a vocês que toda essa operação crítica do Estado de Sergipe dependia da memória do **Vitor**, de 4 canais de WhatsApp e de um caderno de papel — sob risco constante de choque de horário entre viagens, carros rodando com CNH ou revisão vencida e falta de controle sanitário e de SLA no SVO. E lá nós fizemos uma promessa: **na próxima solicitação, o caderno estaria fechado.***  
+  > *Hoje nós não viemos mostrar um protótipo no Figma. Nós viemos mostrar o **ROTA vivo** — construído com Inteligência Artificial como alavanca de engenharia, blindado por **mais de 1.110 testes automatizados** e operando hoje no computador do Vitor e no celular do motorista Fábio, mesmo sem internet no meio da estrada."*
 
 ---
 
-## 💰 2.2 Análise de Custo e Viabilidade Econômica (`04:15 – 06:10` · 1,0 ponto)
+### ⚙️ TELA 02 — A Máquina por Trás do ROTA: Ferramentas e Engenharia com IA (`00:55 – 01:45`)
+*(Cobre os itens **2.1.b — Ferramentas utilizadas** e **2.1.c — Serviços de IA utilizados e impactos no desenvolvimento**)*
 
-### 🔹 [Item 2.2.a do Documento] Estimativas de custo do uso de IA (custo por chamada / token / usuário)
-- **Minutagem:** `04:15 – 05:20` (Slide 06 — Tipografia de Impacto com Número Gigante + Tabela Matemática)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.2.A · ESTIMATIVAS DE CUSTO POR CHAMADA, TOKEN E USUÁRIO]`
-  - Dois grandes números lado a lado:
-    - **`R$ 0,00 / mês`** — Custo variável de tokens no **Core Operacional em Produção** (Regras determinísticas TypeScript + OSRM/PostGIS self-hosted).
-    - **`US$ 0,00013 / chamada`** (`~R$ 2,26 / mês`) — Custo projetado do **Módulo Consultivo de IA** (Gemini 2.5 Flash / GPT-4o-mini) para toda a operação da FSPH.
-  - Tabela detalhada na base do slide:
-    - **Preço Base do Modelo:** Entrada `US$ 0,10 / 1M tokens` · Saída `US$ 0,40 / 1M tokens`.
-    - **Consumo por Chamada:** `500 tokens in` + `200 tokens out` = `700 tokens` → **`US$ 0,00013 / chamada`** (`R$ 0,00075`).
-    - **Volumetria Mensal FSPH:** `2.100 viagens/operações adm` + `900 chamados SVO` = **`3.000 chamadas/mês`** (`1,5M tokens in` = `US$ 0,15` + `600k tokens out` = `US$ 0,24`) → **`US$ 0,39 / mês` (`~R$ 2,26 / mês`)**.
-    - **Custo por Usuário Ativo (~60 usuários entre gestores, atendentes, motoristas e solicitantes):** **`US$ 0,0065 / usuário / mês`** (`~R$ 0,038` — menos de 4 centavos de real por usuário/mês).
-- **Fala Exata do Apresentador:**
-  > *"Entrando no bloco 2.2, sobre análise de custo e viabilidade econômica: quanto custa operar a inteligência do ROTA na FSPH?*  
-  > *No nosso **core operacional em produção**, o custo mensal de chamadas de LLM é **zero real**, porque todas as travas de conflito de viagem, cálculo de rota e biossegurança foram compiladas em código determinístico.*  
-  > *Mas nós também calculamos na ponta do lápis o custo de um **módulo consultivo de LLM em produção** — usando **Gemini 2.5 Flash** ou **GPT-4o-mini** para pré-triagem assistida e resumo executivo de relatórios para o Vitor:*  
-  > *Cada chamada consome em média **500 tokens de entrada e 200 de saída**, custando **13 centésimos de milésimo de dólar (`US$ 0,00013`) por chamada**.*  
-  > *Para toda a operação da FSPH — somando **2.100 viagens e operações administrativas** e **900 chamados do SVO**, num total de **3.000 chamadas por mês** — o consumo mensal é de 1,5 milhão de tokens de entrada e 600 mil de saída. Isso dá **39 centavos de dólar por mês**, ou **R\$ 2,26 mensais para a fundação inteira** — menos de **4 centavos de real por usuário ativo ao mês**."*
+* **O que aparece na tela (Visual Minimalista):**
+  - Três blocos visuais conectados por linhas luminosas (máximo de 5 palavras por tag):
+    1. **Stack em Produção:** `React 19 + PWA IndexedDB` · `Node.js + Express 5 + Prisma 6` · `PostgreSQL + PostGIS + OSRM Docker`
+    2. **4 Motores de IA na Engenharia (`/prompts`):** `Gemini 2.5 Pro / Antigravity` · `Claude Sonnet` · `OpenAI GPT / Codex` · `GitHub Copilot`
+    3. **Impacto Real (3 Números Grandes):** **`20+ Migrations`** · **`1.110+ Testes`** · **`0 Warnings`**
+
+* **Sua Fala:**
+  > *"Para tirar o ROTA do papel com qualidade industrial, construímos uma arquitetura moderna: **React 19, TypeScript, Tailwind 4 e PWA com IndexedDB** na ponta do Vitor e do motorista; **Node.js, Express 5, Prisma 6 e Zod** no Back-End; e **Neon PostgreSQL com extensão espacial PostGIS e um servidor próprio de rotas OSRM em Docker**.*  
+  > *Durante o desenvolvimento, nós orquestramos quatro serviços de IA, todos versionados e rastreáveis na pasta `/prompts` do nosso GitHub: usamos **Google Gemini e Antigravity** para modelar o banco, a máquina de estados e a auditoria LGPD; **Claude Sonnet** para blindar transações concorrentes e gerar nossa massa de dados determinística; **OpenAI GPT e Codex** para a sincronização offline do PWA; e **GitHub Copilot** para padronizar o código entre os 10 desenvolvedores.*  
+  > *O impacto dessa engenharia aumentada por IA tá nos números: entregamos **mais de 20 migrations** e **1.110 testes automatizados** garantindo cada regra de negócio da FSPH."*
 
 ---
 
-### 🔹 [Itens 2.2.b e 2.2.c do Documento] Trade-offs de custo x qualidade do sistema + Reflexão sobre viabilidade econômica em escala de produção
-- **Minutagem:** `05:20 – 06:10` (Slide 07 — Quadro Comparativo de Trade-offs e Escala Pública)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.2.B & 2.2.C · TRADE-OFFS CUSTO X QUALIDADE E VIABILIDADE EM ESCALA]`
-  - **Card Esquerdo (2.2.b — Trade-off Custo x Qualidade):**
-    - *Abordagem Ingênua (LLM no Runtime Core):* Latência de `1,5s a 3,0s` por clique, custo variável em dólar, risco de não-determinismo na alocação da frota.
-    - *Arquitetura ROTA (IA na Engenharia + Runtime Determinístico + OSRM):* Latência `< 50 ms`, precisão `100% determinística` validada por `1.110+ testes`, custo de API de rotas e regras = `R$ 0,00`.
-  - **Card Direito (2.2.c — Viabilidade Econômica em Escala de Produção Pública):**
-    - Elimina entraves de licitação pública com faturas variáveis internacionais no fluxo crítico.
-    - Se a solução escalar 10x para toda a Secretaria de Estado da Saúde (`30.000 chamadas/mês`), o módulo consultivo de IA custará apenas **`~R$ 22,60/mês`**, rodando em infraestrutura cloud enxuta (PostgreSQL/PostGIS + Node.js).
-- **Fala Exata do Apresentador:**
-  > *"Qual foi o nosso trade-off de custo versus qualidade? Se colocássemos uma LLM comercial no meio do clique em que Vitor aprova uma viagem ou calcula uma rota, adicionaríamos 2 segundos de latência, dependência de API externa e risco de alucinação. Ao usar a IA intensivamente na **engenharia e geração de testes** e adotar o motor open-source **OSRM com PostGIS** para rotas, entregamos qualidade determinística de 100%, resposta abaixo de 50 milissegundos e zero custo por requisição.*  
-  > *Em escala de produção para um órgão público como a FSPH, isso garante viabilidade econômica total: não há surpresa orçamentária em dólar no fluxo crítico e, mesmo que o estado escale o uso em 10 vezes para 30 mil chamadas mensais com apoio consultivo de IA, a fatura de tokens não passaria de **R\$ 23 por mês**."*
+### ✨ TELA 03 — Os 5 Diferenciais que Mudam a Rotina da FSPH (`01:45 – 02:25`)
+*(Cobre o item **2.1.d — Diferenciais da solução**)*
+
+* **O que aparece na tela (Bento Grid Limpo com 5 Cartões Visuais):**
+  1. 🗓️ **Viagens Institucionais sem Conflito** *(Trava de horário + Cancelamento formal)*
+  2. 🔧 **Checklist → Avaria → Manutenção** *(Reserva de janela de oficina + Alertas de CNH/Km)*
+  3. ☣️ **Biossegurança Estrita no SVO** *(Frotas segregadas · Limite 4 urnas · `DESINFECCAO` automática)*
+  4. 📱 **PWA do Motorista Offline-First** *(Rota OSRM + Fila IndexedDB sem 4G)*
+  5. 🛡️ **Auditoria Imutável LGPD & PDF/CSV** *(Mascaramento recursivo `******`)*
+
+* **Sua Fala:**
+  > *"E por que o ROTA é diferente de qualquer planilha ou sistema genérico de frota? Por cinco diferenciais desenhados sob medida para a FSPH:*  
+  > *Primeiro, **Viagens Institucionais sem conflito**: Vitor aprova viagens do HEMOSE, do LACEN e da administração sabendo que o sistema trava qualquer choque de horário, e se uma viagem for cancelada com justificativa formal, o veículo e o motorista voltam a ficar livres no mesmo segundo.*  
+  > *Segundo, **Conservação em ciclo fechado**: o que o motorista aponta no checklist de retorno já abre uma avaria automática para Vitor agendar a manutenção preventiva reservando o horário da oficina.*  
+  > *Terceiro, **Segregação e Biossegurança no SVO**: carro administrativo nunca se mistura com viatura de remoção; o sistema trava o limite físico de 4 urnas e bloqueia a viatura em `DESINFECCAO` assim que a entrega termina.*  
+  > *Quarto, o **PWA Offline-First** no celular do motorista; e quinto, **Auditoria LGPD com relatórios oficiais em CSV e PDF**."*
 
 ---
 
-## 🛡️ 2.3 Limites, Qualidade e Aprendizados (`06:10 – 08:30` · 1,0 ponto)
+### 🖥️📱 TELA 04 — Demonstração Viva em Split-Screen: O Computador do Vitor + O Celular do Fábio (`02:25 – 04:20`)
+*(Cobre o item **2.1.e — Demonstração da Solução**)*
 
-### 🔹 [Itens 2.3.a e 2.3.c do Documento] "E se a IA falhasse?" + O que a equipe deixou de fazer porque a IA não era confiável o suficiente?
-- **Minutagem:** `06:10 – 07:00` (Slide 08 — Matriz de Resiliência & As 4 Fronteiras onde a IA é Proibida de Decidir)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.3.A & 2.3.C · RESILIÊNCIA A FALHAS E LIMITES ÉTICOS/TÉCNICOS DA IA]`
-  - **Bloco Superior (2.3.a — *"E se a IA ou a Rede falhassem?"*):**
-    - **Queda Global de LLMs (OpenAI/Google/Anthropic offline):** **Zero impacto operacional** — Vitor continua aprovando viagens institucionais e despachando o SVO normalmente.
-    - **Queda do Motor OSRM ou do 4G do Motorista:** Fallback geodésico automático (Haversine) no servidor e fila **Offline-First em IndexedDB** no celular de Fábio com sincronização idempotente.
-  - **Bloco Inferior (2.3.c — *"O que deixamos de delegar à IA por não ser confiável o suficiente?"*):**
-    1. 🚫 **Aprovação Autônoma de Viagens Institucionais Prioritárias:** Somente Vitor (Gestor) decide prioridades entre transporte de sangue do HEMOSE, amostras do LACEN e viagens administrativas.
-    2. 🚫 **Triagem Automática SVO vs. IML:** Uma alucinação classificando morte violenta/suspeita como morte natural causaria crime pericial. Triagem humana da Atendente + Gestor é obrigatória.
-    3. 🚫 **Flexibilização de Biossegurança e Manutenção:** IA jamais pode ignorar o limite de 4 urnas, pular a etapa `DESINFECCAO` ou escalar veículo bloqueado em manutenção.
-    4. 🚫 **Exposição de Dados Reais à IA (LGPD):** Zero CPFs, prontuários ou dados reais enviados em prompts; uso exclusivo de geradores sintéticos (`seed-demo.ts`).
-- **Fala Exata do Apresentador:**
-  > *"No bloco 2.3, respondemos primeiro: **E se a IA falhasse?** Se hoje os servidores da OpenAI, da Anthropic e do Google caírem simultaneamente, **nenhuma viagem institucional do Vitor e nenhuma remoção do SVO para**, porque o nosso runtime não é refém de LLM externa. E se o sinal 4G do motorista Fábio cair numa rodovia do interior, o PWA salva cada evento e coordenada GPS no **IndexedDB** do aparelho e sincroniza sem duplicidade quando a rede volta.*  
-  > *Isso se conecta diretamente ao que **nós decidimos NÃO delegar à IA por ela não ser confiável o suficiente em decisões críticas**:*  
-  > *1. Não deixamos a IA aprovar ou priorizar viagens institucionais sozinha — decidir entre uma coleta de sangue do HEMOSE e uma demanda administrativa exige o julgamento humano do Vitor;*  
-  > *2. Não permitimos triagem autônoma entre **SVO e IML**, pois uma única alucinação sobre causa de óbito geraria grave violação legal e pericial;*  
-  > *3. Não permitimos que algoritmos flexibilizem o limite de 4 urnas, o status de `DESINFECCAO` ou o bloqueio de veículos em manutenção;*  
-  > *4. E jamais enviamos dados reais de cidadãos ou servidores para LLMs."*
+* **O que aparece na tela:**
+  - **Dentro do próprio slide**, duas molduras interativas lado a lado:
+    - **À Esquerda (MacBook Pro — Visão do Gestor Vitor):** Navegando em 4 abas rápidas (*1. Dashboard 7 KPIs + 3 Gráficos*, *2. Aprovação e Cancelamento de Viagem Institucional + Manutenção*, *3. Painel SVO + SLA*, *4. Trilha de Auditoria LGPD*).
+    - **À Direita (iPhone — Visão do Motorista Fábio no PWA):** Mostrando em sincronia (*1. Rota OSRM da viagem*, *2. Checklist de retorno reportando avaria no freio*, *3. Etapas da coleta SVO `Saída → No Local → Entrega → DESINFECCAO`*).
+
+* **Sua Fala durante a Demo (1 min 55 s):**
+  - **Passo 1 — O Cockpit do Vitor e as Viagens Institucionais (`02:25 – 03:05`):**
+    > *"Olhem para a tela dividida: à esquerda está o computador do **Vitor**; à direita, o celular do motorista **Fábio**. Assim que Vitor abre o Dashboard, ele enxerga os **7 KPIs** da fundação numa única faixa compacta e os **3 gráficos analíticos acima da dobra** — Status da Frota, Solicitações e Consumo no Mês — além dos alertas de CNH e documentos vencendo em 30 dias.*  
+    > *Quando entra uma solicitação de viagem institucional do HEMOSE, Vitor aprova alocando Fábio e um veículo disponível. Se dois gestores tentarem alocar o mesmo carro no mesmo horário, o banco bloqueia na hora. E se a viagem precisar ser cancelada antes da saída, Vitor registra o motivo formal, a auditoria grava quem cancelou e o carro fica livre imediatamente."*
+  - **Passo 2 — Do Celular do Fábio para a Manutenção Preventiva do Vitor (`03:05 – 03:35`):**
+    > *"Agora olhem para o celular do Fábio à direita: ele recebe a viagem no PWA, segue a rota calculada pelo nosso motor OSRM e, ao voltar para a garagem, marca no checklist de retorno um desgaste no freio. No mesmo instante, essa marcação vira um chamado na tela de Avarias do Vitor, que já programa a manutenção preventiva bloqueando a janela de horário daquele veículo."*
+  - **Passo 3 — A Operação Crítica do SVO e a Desinfecção Automática (`03:35 – 04:00`):**
+    > *"Já no módulo do SVO, Vitor e a atendente acompanham o SLA médio em tempo real. Após a triagem humana de uma solicitação externa, a Ordem de Coleta é despachada respeitando o limite de 4 urnas da viatura. Fábio avança as etapas pelo celular — Saída, No Local e Entrega no SVO — e, no momento da entrega, vejam o status da viatura: ela entra automaticamente em `DESINFECCAO`, impedindo qualquer novo despacho até ser higienizada."*
+  - **Passo 4 — Relatórios CSV/PDF e Trilha de Auditoria LGPD (`04:00 – 04:20`):**
+    > *"E para fechar a governança pública, Vitor exporta relatórios em CSV ou PDF com um clique, enquanto na Trilha de Auditoria cada alteração no sistema fica registrada com senhas, tokens e CPFs mascarados com asteriscos (`******`) em total conformidade com a LGPD."*
 
 ---
 
-### 🔹 [Itens 2.3.b e 2.3.d do Documento] Processo de garantia de qualidade dos outputs de IA + Superações e aprendizados da equipe
-- **Minutagem:** `07:00 – 08:30` (Slide 09 — O Funil de 4 Barreiras CI + "Como Domamos a IA: 3 Prompts que Falharam")
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.3.B & 2.3.D · GARANTIA DE QUALIDADE (QA) E APRENDIZADOS DE ENGENHARIA]`
-  - **Metade Esquerda (2.3.b — Funil de Qualidade com Tolerância Zero no CI):**
-    1. **Compilação Estrita (`tsc --noEmit`):** Proibido `any` ou `@ts-ignore`.
-    2. **Linter Determinístico (`oxlint --deny-warnings`):** `0 warnings` e `0 errors` em 280+ arquivos.
-    3. **Pirâmide de 1.110+ Testes Automatizados:** **915 testes Back-End (Vitest)** + **235 testes Front-End (Testing Library)** + **Suíte E2E Playwright em Docker**.
-    4. **Code Review Humano + Matriz QA Exploratória** por perfil (`ADMIN`, `GESTOR`, `ATENDENTE`, `MOTORISTA`, `SOLICITANTE`).
-  - **Metade Direita (2.3.d — Superações e Aprendizados: Os 3 Prompts que Falharam em `docs/PROMPTS_QUE_FALHARAM.md`):**
-    - ❌ **Falha 1 (`PRM-01 v1.0`):** Prompt genérico unificou carros administrativos do Vitor e viaturas SVO na mesma tabela sem trava sanitária. → ✅ **Correção (`v3.0`):** *Negative Constraints* + segregação estrita `FROTA_ADM` vs `SVO`.
-    - ❌ **Falha 2 (`PRM-02 v1.0`):** IA sugeriu ignorar status `DESINFECCAO` e alocar 6 corpos para "otimizar distância". → ✅ **Correção (`v4.0`):** Máquina de estados com trava hard-coded de 4 urnas e lock transacional `FOR UPDATE` contra condição de corrida.
-    - ❌ **Falha 3 (`PRM-03 v1.0`):** IA gerou seed com `Math.random()`, datas no futuro e CPFs inválidos que quebravam os gráficos do Dashboard de Vitor. → ✅ **Correção (`v3.0`):** PRNG determinístico (`Mulberry32(202619)`) com invariantes matemáticos.
-- **Fala Exata do Apresentador:**
-  > *"Como garantimos a qualidade de cada linha de código gerada com apoio de IA? Nenhum código entrou na `master` sem passar por 4 barreiras automáticas no GitHub Actions: tipagem estrita TypeScript sem `any`, linter **Oxlint com tolerância zero a warnings**, uma bateria de **mais de 1.110 testes automatizados** — sendo 915 no Back-End, 235 no Front-End e testes ponta a ponta com Playwright — além de Code Review humano e Matriz de QA Exploratória.*  
-  > *E o nosso maior aprendizado técnico está documentado no nosso relatório de **Prompts que Falharam**: no início, quando demos prompts abertos, a IA tentou misturar carros administrativos do Vitor com viaturas do SVO, sugeriu pular a desinfecção para 'otimizar rota' e gerou seeds aleatórios com `Math.random()` que quebravam os gráficos analíticos. Nós superamos isso aprendendo que **engenharia de prompt de alto nível é engenharia de restrições**: adicionamos invariantes matemáticos, restrições negativas explícitas (`NÃO FAÇA`), locks transacionais `FOR UPDATE` e geradores determinísticos."*
+### 💰 TELA 05 — A Conta que Fecha: Custo de IA e Viabilidade em Escala Pública (`04:20 – 05:25`)
+*(Cobre os itens **2.2.a — Estimativas de custo por chamada/token/usuário**, **2.2.b — Trade-offs de custo x qualidade** e **2.2.c — Viabilidade econômica em escala de produção**)*
+
+* **O que aparece na tela (Visual Limpo com Slider Interativo):**
+  - Dois números gigantes lado a lado:
+    - **`R$ 0,00 / mês`** *(Core Operacional Determinístico em Produção Hoje)*
+    - **`R$ 2,26 / mês`** *(Módulo Consultivo de IA · `3.000 chamadas/mês` · `US$ 0,00013 / chamada` · `< R$ 0,04 / usuário`)*
+  - Um **Slider Interativo de Escala**: quando você arrasta de **`1x (FSPH: 3.000 chamadas/mês)`** para **`10x (Escala Estadual: 30.000 chamadas/mês)`**, o valor atualiza ao vivo para **`R$ 22,60 / mês`** (`US$ 3,90`).
+
+* **Sua Fala:**
+  > *"Mas quanto custa manter essa inteligência rodando num órgão público como a FSPH?*  
+  > *Aqui está o nosso maior **trade-off de custo versus qualidade**: em vez de colocar uma LLM comercial para decidir cada aprovação de viagem ou pagar caro em APIs de mapas a cada clique — o que traria 2 segundos de lentidão, risco de alucinação e fatura em dólar — nós usamos a IA intensivamente **durante a engenharia** para construir código TypeScript determinístico e subimos nosso próprio motor open-source **OSRM com PostGIS**. Por isso, o custo variável de tokens no core operacional em produção hoje é **zero real (`R$ 0,00`)**, com resposta abaixo de 45 milissegundos e precisão de 100%.*  
+  > *E se a FSPH quiser ativar um módulo consultivo de IA em produção — usando **Gemini 2.5 Flash ou GPT-4o-mini** para pré-triagem textual e resumo executivo de relatórios para o Vitor? Nós fizemos a conta por token, por chamada e por usuário:*  
+  > *Cada chamada consome em média **500 tokens de entrada e 200 de saída**, custando **13 centésimos de milésimo de dólar (`US$ 0,00013`) por chamada**. Para toda a operação da FSPH — **2.100 viagens e operações administrativas mais 900 chamados do SVO**, totalizando **3.000 chamadas por mês** — a conta mensal fecha em **`US$ 0,39`**, ou **R\$ 2,26 por mês para a fundação inteira** — menos de **4 centavos de real por usuário ativo**.*  
+  > *E vejam no simulador: mesmo que o Governo de Sergipe escale o uso em **10 vezes** para 30 mil chamadas mensais em toda a rede estadual, o custo continuará abaixo de **R\$ 23 por mês**. É viabilidade econômica absoluta para o setor público."*
 
 ---
 
-## 🚀 2.4 Evoluções Futuras e Equipe (`08:30 – 10:00` · 0,5 ponto)
+### 🛡️ TELA 06 — "E se a IA Falhasse?" e as 4 Fronteiras onde a IA é Proibida de Decidir (`05:25 – 06:45`)
+*(Cobre os itens **2.3.a — E se a IA falhasse?** e **2.3.c — O que a equipe deixou de fazer porque a IA não era confiável o suficiente?**)*
 
-### 🔹 [Item 2.4.a do Documento] Evoluções futuras pensadas pela equipe que não foram implementadas
-- **Minutagem:** `08:30 – 09:15` (Slide 10 — Roadmap Pós-MVP para a FSPH)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.4.A · EVOLUÇÕES FUTURAS MAPEADAS PARA O PÓS-MVP]`
-  - 4 Cards de Evolução (2 focados na Frota Institucional de Vitor + 2 focados na Operação de Campo/SVO):
-    1. **Detecção Inteligente de Anomalia de Consumo (Km/L — Cartão Prime):** Cruzamento automático entre litros abastecidos e hodômetro das viagens institucionais para alertar Vitor sobre desvios ou falhas mecânicas.
-    2. **Guia Oficial de Tráfego e Ordem de Coleta com QR Code Verificável:** Documento com assinatura criptográfica para conferência instantânea em portarias da FSPH, hospitais e fiscalizações de trânsito.
-    3. **Assinatura Digital em Tela (Signature Pad no PWA):** Coleta de assinatura touch do solicitante/responsável no encerramento da viagem institucional, no checklist de avaria e no termo de recolhimento do SVO.
-    4. **Mapa de Calor Epidemiológico (Heatmap Geoespacial PostGIS):** Painel analítico para a diretoria da FSPH e Secretaria de Saúde visualizarem manchas de acionamento e tempo médio de deslocamento por município de Sergipe.
-- **Fala Exata do Apresentador:**
-  > *"Olhando para o futuro pós-MVP na FSPH, mapeamos quatro evoluções de alto valor:*  
-  > *Para a gestão de frota do Vitor, a **Detecção Inteligente de Anomalias de Consumo (Km/L)**, cruzando dados de abastecimento do Cartão Prime com o hodômetro para alertar desvios ou problemas mecânicos, e a **Guia Oficial de Tráfego com QR Code verificável** para portarias.*  
-  > *Já para a operação de campo no PWA do motorista e no SVO, a **Assinatura Digital em Tela (Signature Pad)** no checklist e nos termos de entrega, além de um **Mapa de Calor Geoespacial** em PostGIS para apoiar a diretoria da FSPH no planejamento logístico e epidemiológico em Sergipe."*
+* **O que aparece na tela:**
+  - No topo, um botão interativo **"⚡ Simular Queda Global de IA + Queda de 4G na Estrada"** que, ao ser clicado, mostra os 3 indicadores verdes:
+    - `Viagens do Vitor & Despacho SVO: 100% ONLINE (Runtime Determinístico)`
+    - `Roteirização: Fallback Geodésico Ativo`
+    - `Celular do Fábio (PWA): Fila Offline IndexedDB Sincronizada`
+  - Abaixo, **4 Cards com Cadeado Vermelho (`DECISÃO HUMANA / TRAVA DETERMINÍSTICA`)**:
+    1. 🔒 **Prioridade de Viagens Institucionais** *(Só Vitor decide entre HEMOSE, LACEN e Administração)*
+    2. 🔒 **Triagem Legal SVO vs. IML** *(Dupla validação humana: Atendente + Gestor)*
+    3. 🔒 **Limite de 4 Urnas & Desinfecção** *(Imutável por heurística)*
+    4. 🔒 **CPFs e Prontuários Reais (LGPD)** *(Zero dados reais enviados a LLMs)*
+
+* **Sua Fala:**
+  > *"A banca nos faz uma pergunta crucial: **E se a IA falhasse?**  
+  > Olhem o que acontece se hoje os servidores da OpenAI, da Anthropic e do Google caírem ao mesmo tempo: **zero minutos de parada na FSPH**. Vitor continua aprovando viagens e despachando o SVO normalmente, porque nenhuma rota crítica depende de LLM externa. E se o sinal 4G do motorista Fábio cair no meio de uma rodovia no interior, o PWA guarda os eventos e o GPS no **IndexedDB** do celular e sincroniza sem duplicar nada assim que o sinal volta.*  
+  > *Essa resiliência nasce das **quatro decisões que nós deixamos de delegar à IA porque ela não é confiável o suficiente quando vidas e leis estão em jogo**:*  
+  > *Primeiro: a IA jamais aprova ou prioriza viagens institucionais sozinha — decidir entre uma coleta urgente de sangue do HEMOSE e uma viagem administrativa exige o julgamento humano do Vitor.*  
+  > *Segundo: jamais permitimos triagem automática entre **SVO e IML**. Se uma IA alucinasse e classificasse um óbito com suspeita de violência como morte natural, causaria um erro pericial e jurídico gravíssimo. Por isso, toda solicitação externa exige validação humana da Atendente e do Gestor.*  
+  > *Terceiro: bloqueamos qualquer tentativa algorítmica de flexibilizar o limite físico de 4 urnas ou pular a desinfecção da viatura.*  
+  > *E quarto: nenhum CPF ou dado real de saúde foi enviado para LLMs — operamos 100% com dados sintéticos."*
 
 ---
 
-### 🔹 [Item 2.4.b do Documento] Apresentação dos membros da equipe e responsabilidades de cada membro
-- **Minutagem:** `09:15 – 10:00` (Slide 11 — O Time de Engenharia do Squad 19 + Encerramento)
-- **O que aparece no Slide:**
-  - Badge no topo: `[RUBRICA 2.4.B · SQUAD 19 — EQUIPE E RESPONSABILIDADES TÉCNICAS]`
-  - Grid com os **10 integrantes do Squad 19** agrupados em 4 células de engenharia, exibindo o nome e a entrega exata de cada membro:
+### 🧪 TELA 07 — Como Garantimos a Qualidade e Domamos 3 Falhas Reais da IA (`06:45 – 08:25`)
+*(Cobre os itens **2.3.b — Processo de garantia de qualidade dos outputs de IA** e **2.3.d — Superações e aprendizados da equipe durante o processo**)*
 
-| Célula de Engenharia | Integrante | Responsabilidades Diretas no Projeto ROTA |
-| :--- | :--- | :--- |
-| **Arquitetura, Governança & Segurança Core** | **Bruno Santana** | Arquitetura Full-Stack, Trilha de Auditoria LGPD, Cancelamento Formal de Viagens, Modelagem/Auth Isolada do Portal Externo SVO, Relatórios CSV/PDF, Otimização do Dashboard Executivo e Engenharia de Prompts. |
-| **Arquitetura, Governança & Segurança Core** | **Kennedhy Santos Reis** | Arquitetura Back-End, Diário Operacional e PWA Offline-First do Motorista com Rotas OSRM/PostGIS, Segurança (`HttpOnly`/CSRF/Rate Limit), Gestão de Avarias e Pipeline CI. |
-| **Gestão de Frota Institucional, Dashboard & Conservação** | **Felipe Morais** | Integração do Dashboard Executivo de Vitor, Programação de Manutenção Preventiva com Reserva de Horário, Remanejamento de Recursos em Andamento, Sede de Veículos e Infra HML. |
-| **Gestão de Frota Institucional, Dashboard & Conservação** | **Danilo Libório** | Módulo de Acompanhamento de Avarias geradas pelo Checklist de Viagem, Regras de Conservação Veicular e Testes Automatizados. |
-| **Gestão de Frota Institucional, Dashboard & Conservação** | **Luiz Mendes** | Desenvolvimento Full-Stack dos Módulos de Frota Institucional, Interfaces de Solicitação de Viagem e Componentes Visuais. |
-| **Operações Administrativas, Abastecimento & Cadastros** | **João Pedro** | Endpoints e Interfaces de Controle Operacional, Gestão de Motoristas, Alertas de Documentos/CNH e Contratos Zod. |
-| **Operações Administrativas, Abastecimento & Cadastros** | **José Matheus** | Módulos de Abastecimento (Cartão Prime), Manutenções, Fornecedores e Integração Front-End/Back-End. |
-| **Portal Externo SVO, Triagem & Qualidade (QA)** | **Anderson Hugo** | Back-End de Solicitações Externas SVO (`SVOE`), Endpoints Operacionais da Frota, Validações de Domínio e Testes de Integração. |
-| **Portal Externo SVO, Triagem & Qualidade (QA)** | **Pedro Henrique** | Painel do Gestor/Atendente para Solicitações Externas SVO, Fluxos de Triagem/Aprovação e Testes de Interface React. |
-| **Portal Externo SVO, Triagem & Qualidade (QA)** | **Lizandra** | Qualidade de Software (QA), Matriz Exploratória por Perfil de Acesso, Evidências de Regressão E2E e Documentação Funcional. |
+* **O que aparece na tela:**
+  - **Esquerda (Funil Visual de 4 Degraus Verdes):**
+    - `1. TypeScript Estrito (Zero any)` → `2. Oxlint (0 Warnings em 280+ arquivos)` → `3. 1.110+ Testes (915 Back + 235 Front + Playwright E2E)` → `4. Code Review + Matriz QA por Perfil`
+  - **Direita (3 Cartões Clicáveis "Antes vs. Depois" dos Prompts que Falharam):**
+    - **Card 1 (`PRM-01`):** ❌ *IA misturou carro do Vitor com viatura SVO* → ✅ *Negative Constraints + Segregação Estrita*
+    - **Card 2 (`PRM-02`):** ❌ *IA tentou alocar 6 corpos / pular desinfecção + Race condition* → ✅ *Trava 4 urnas + Lock `SELECT ... FOR UPDATE`*
+    - **Card 3 (`PRM-03`):** ❌ *`Math.random()` gerou datas impossíveis nos gráficos* → ✅ *Seed Determinístico (`Mulberry32`)*
 
-- **Fala Exata do Apresentador (`09:15 – 10:00`):**
-  > *"Nada disso seria possível sem a execução disciplinada dos **10 integrantes do Squad 19**, organizados em quatro frentes claras:*  
-  > *- Na **Arquitetura, Governança e Segurança Core**, **Bruno Santana** liderou a Trilha de Auditoria LGPD, o cancelamento formal de viagens, a modelagem e autenticação do Portal Externo SVO, relatórios CSV/PDF, otimização do Dashboard e o acervo de prompts; e **Kennedhy Santos Reis** liderou o PWA Offline-First do motorista com OSRM/PostGIS, segurança de sessão `HttpOnly`/CSRF e integração contínua.*  
-  > *- Na **Frota Institucional e Conservação do dia a dia de Vitor**, **Felipe Morais** entregou a integração do Dashboard, manutenção preventiva com reserva de horário e remanejamento; **Danilo Libório** implementou o fluxo de avarias do checklist; e **Luiz Mendes** atuou nos fluxos full-stack de solicitação e frota.*  
-  > *- Nas **Operações Administrativas e Abastecimento**, **João Pedro** estruturou motoristas, documentos e contratos Zod, enquanto **José Matheus** desenvolveu abastecimentos, fornecedores e manutenções.*  
-  > *- E no **Portal Externo SVO e Garantia de Qualidade**, **Anderson Hugo** e **Pedro Henrique** construíram o back-end e o painel de triagem externa, e **Lizandra** conduziu nossa Matriz de QA Exploratória e validação ponta a ponta.*  
-  > *Nós somos o **Squad 19**. Com o **ROTA**, Vitor governa cada viagem da FSPH, Fábio roda com segurança em campo e o SVO atende Sergipe com precisão e respeito. Muito obrigado!"*
+* **Sua Fala:**
+  > *"E como garantimos a qualidade de cada linha de código gerada com apoio de IA? Nós não confiamos cegamente em nenhum output: criamos um funil automático no GitHub Actions com **quatro barreiras implacáveis**: compilação TypeScript estrita sem `any`; linter **Oxlint com tolerância zero a warnings** em mais de 280 arquivos; uma bateria de **mais de 1.110 testes automatizados** — sendo 915 no Back-End com Vitest, 235 no Front-End com Testing Library e testes ponta a ponta em Docker com Playwright — além de Code Review humano e da nossa Matriz de QA Exploratória por perfil.*  
+  > *Foi esse funil que nos ensinou a maior lição do projeto, documentada no nosso relatório de **Prompts que Falharam**: quando demos prompts abertos na versão 1.0, a IA cometeu três erros graves:*  
+  > *1. Tentou unificar os carros administrativos do Vitor e as viaturas do SVO na mesma tabela sem trava sanitária;*  
+  > *2. Sugeriu ignorar o status de `DESINFECCAO` e colocar 6 corpos numa viatura de 4 lugares para 'otimizar rota', além de deixar passar condição de corrida quando dois gestores clicavam juntos;*  
+  > *3. E usou `Math.random()` na massa de testes, gerando viagens que chegavam antes de sair e quebravam os gráficos do Dashboard.*  
+  > *Nós superamos isso aprendendo que **engenharia de prompt é engenharia de restrições**: evoluímos nossos prompts até a versão 4.0 com restrições negativas explícitas, locks transacionais `FOR UPDATE` no PostgreSQL e geradores matemáticos determinísticos."*
+
+---
+
+### 🚀 TELA 08 — O Próximo Horizonte do ROTA (Evoluções Futuras) (`08:25 – 09:10`)
+*(Cobre o item **2.4.a — Evoluções futuras pensadas pela equipe que não foram implementadas**)*
+
+* **O que aparece na tela (4 Cards Visuais com Ícones Grandes):**
+  1. ⛽ **Detector de Anomalia Km/L (Cartão Prime)** *(Alerta automático de desvio ou falha mecânica para Vitor)*
+  2. 📲 **Guia de Tráfego e Ordem de Coleta com QR Code** *(Validação criptográfica rápida em portarias e blitz)*
+  3. ✍️ **Assinatura Digital na Tela do Celular (Signature Pad)** *(No encerramento da viagem, checklist e termo SVO)*
+  4. 🗺️ **Mapa de Calor Geoespacial (Heatmap PostGIS)** *(Inteligência logística e epidemiológica para a Diretoria da FSPH)*
+
+* **Sua Fala:**
+  > *"Olhando para o pós-MVP na FSPH, já desenhamos quatro evoluções futuras:*  
+  > *Para o controle financeiro e mecânico do Vitor, um **Detector Inteligente de Anomalia de Consumo (Km por Litro)** cruzando os abastecimentos do Cartão Prime com o hodômetro das viagens, e a emissão da **Guia Oficial de Tráfego com QR Code verificável** nas portarias.*  
+  > *E para a operação de campo, a **Assinatura Digital direto na tela do celular do Fábio** ao encerrar viagens e coletas, além de um **Mapa de Calor Geoespacial em PostGIS** para apoiar a diretoria da FSPH no planejamento logístico e epidemiológico de Sergipe."*
+
+---
+
+### 👥 TELA 09 — Squad 19: Os 10 Engenheiros por Trás do ROTA (`09:10 – 10:00`)
+*(Cobre o item **2.4.b — Apresentação de membros da equipe e responsabilidades de cada membro**)*
+
+* **O que aparece na tela:**
+  - Os **10 integrantes do Squad 19** em 4 blocos visuais elegantes + A frase de fechamento: *"O caderno ficou fechado. O ROTA está em operação."*
+
+* **Sua Fala Final (`09:10 – 10:00`):**
+  > *"E quem fechou o caderno do Vitor e colocou o ROTA de pé foram os **10 integrantes do Squad 19**, atuando em quatro células:*  
+  > *- Na **Arquitetura, Governança e Segurança Core**: **Bruno Santana**, responsável pela Trilha de Auditoria LGPD, cancelamento formal de viagens, modelagem e autenticação do Portal Externo SVO, relatórios CSV/PDF, otimização do Dashboard e engenharia de prompts; e **Kennedhy Santos Reis**, responsável pelo Diário Operacional, PWA Offline-First com rotas OSRM e PostGIS, segurança `HttpOnly`/CSRF, avarias e pipeline CI.*  
+  > *- No **Cockpit do Vitor e Conservação da Frota**: **Felipe Morais**, na integração do Dashboard, manutenção preventiva com reserva de horário, remanejamento e infraestrutura HML; **Danilo Libório**, no módulo de avarias do checklist e conservação; e **Luiz Mendes**, no desenvolvimento full-stack dos módulos de frota e solicitações.*  
+  > *- Nas **Operações Administrativas e Abastecimento**: **João Pedro**, em motoristas, alertas de documentos/CNH e contratos Zod; e **José Matheus**, nos módulos de abastecimento do Cartão Prime, fornecedores e manutenções.*  
+  > *- E no **Portal Externo SVO e Qualidade (QA)**: **Anderson Hugo** no back-end de solicitações externas, **Pedro Henrique** no painel do gestor e triagem externa, e **Lizandra** liderando nossa Matriz de QA Exploratória e testes E2E.*  
+  > *Nós somos o **Squad 19**. A promessa foi cumprida: o caderno ficou fechado, o Vitor tem o controle de cada viagem institucional e o SVO atende Sergipe com precisão e respeito. Muito obrigado!"*
