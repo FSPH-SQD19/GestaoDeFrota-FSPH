@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { deduplicarNotificacoes } from "../../lib/svoPermissoes";
 import {
   AlertTriangle,
   Bell,
@@ -131,7 +132,7 @@ export const NotificacoesDropdown: React.FC = () => {
         ) {
           return;
         }
-        setNotificacoes(resposta.data);
+        setNotificacoes(deduplicarNotificacoes(resposta.data));
         setNaoLidas(resposta.meta.naoLidas);
         setErroCarregamento(null);
       })
@@ -313,15 +314,23 @@ export const NotificacoesDropdown: React.FC = () => {
     }
   }
 
-  const notificacoesVisiveis = useMemo(
-    () => (filtro === "NAO_LIDAS" ? notificacoes.filter((item) => !item.lida) : notificacoes),
-    [filtro, notificacoes],
-  );
+const notificacoesUnicas = useMemo(
+  () => deduplicarNotificacoes(notificacoes),
+  [notificacoes],
+);
 
-  const naoLidasCarregadas = useMemo(
-    () => notificacoes.filter((item) => !item.lida).length,
-    [notificacoes],
-  );
+const notificacoesVisiveis = useMemo(
+  () =>
+    filtro === "NAO_LIDAS"
+      ? notificacoesUnicas.filter((item) => !item.lida)
+      : notificacoesUnicas,
+  [filtro, notificacoesUnicas],
+);
+
+const naoLidasCarregadas = useMemo(
+  () => notificacoesUnicas.filter((item) => !item.lida).length,
+  [notificacoesUnicas],
+);
   const naoLidasAnterioresOcultas =
     filtro === "TODAS" && !carregando ? Math.max(0, naoLidas - naoLidasCarregadas) : 0;
 

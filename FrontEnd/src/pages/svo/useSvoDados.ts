@@ -14,6 +14,7 @@ import {
   type MotoristaSvo,
   type ViaturaSvo,
 } from "../../services/svo";
+
 const PAGE_SIZE = 10;
 const INDICADORES_VAZIOS: IndicadoresSvo = {
   total: 0,
@@ -28,7 +29,8 @@ const INDICADORES_VAZIOS: IndicadoresSvo = {
   tempoMedioEntregaSvoMinutos: null,
 };
 
-export function useSvoDados() {
+export function useSvoDados(opcoes?: { somenteExterno?: boolean }) {
+  const somenteExterno = Boolean(opcoes?.somenteExterno);
   const revisaoAutomatica = useAtualizacaoAutomatica();
   const [recursos, setRecursos] = useState({
     indicadores: INDICADORES_VAZIOS,
@@ -50,13 +52,12 @@ export function useSvoDados() {
   const [reloadTick, setReloadTick] = useState(0);
 
   const [carregando, setCarregando] = useState(true);
-  const [carregandoEscalas, setCarregandoEscalas] = useState(true);
+  const [carregandoEscalas, setCarregandoEscalas] = useState(!somenteExterno);
 
   const [erroPagina, setErroPagina] = useState("");
   const [erroRecursos, setErroRecursos] = useState("");
   const [erroEscalas, setErroEscalas] = useState("");
 
-  // Carrega chamados paginados e filtrados diretamente da API
   useEffect(() => {
     let cancelado = false;
 
@@ -83,7 +84,7 @@ export function useSvoDados() {
         setErroPagina(
           extrairErroSvo(
             erro,
-            "Não foi possível carregar os chamados do SVO. Verifique sua conexão e tente novamente.",
+            "Não foi possível carregar as solicitações do SVO. Verifique sua conexão e tente novamente.",
           ),
         );
       })
@@ -98,8 +99,12 @@ export function useSvoDados() {
     };
   }, [etapa, busca, page, reloadTick, revisaoAutomatica]);
 
-  // Carrega indicadores, viaturas SVO e motoristas disponíveis
   useEffect(() => {
+    if (somenteExterno) {
+      setErroRecursos("");
+      return;
+    }
+
     let cancelado = false;
 
     Promise.all([obterIndicadoresSvo(), obterViaturasSvo(), obterMotoristasSvo()])
@@ -118,9 +123,15 @@ export function useSvoDados() {
     return () => {
       cancelado = true;
     };
-  }, [reloadTick, revisaoAutomatica]);
+  }, [reloadTick, revisaoAutomatica, somenteExterno]);
 
   useEffect(() => {
+    if (somenteExterno) {
+      setCarregandoEscalas(false);
+      setErroEscalas("");
+      return;
+    }
+
     let cancelado = false;
 
     obterEscalasEmAndamentoSvo()
@@ -140,11 +151,13 @@ export function useSvoDados() {
     return () => {
       cancelado = true;
     };
-  }, [reloadTick]);
+  }, [reloadTick, somenteExterno]);
 
   const dispararRecarregamento = (novaPagina?: number) => {
     setCarregando(true);
-    setCarregandoEscalas(true);
+    if (!somenteExterno) {
+      setCarregandoEscalas(true);
+    }
     if (novaPagina !== undefined) {
       setPage(novaPagina);
     }
@@ -170,10 +183,12 @@ export function useSvoDados() {
     setEtapa("TODOS");
     setPage(1);
   };
+
   const mudarPagina = (pagina: number) => {
     setCarregando(true);
     setPage(Math.max(1, Math.min(totalPages, pagina)));
   };
+
   return {
     indicadores,
     chamados,

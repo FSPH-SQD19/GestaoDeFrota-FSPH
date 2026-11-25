@@ -49,15 +49,44 @@ export const STATUS_CHAMADO_VARIANT: Record<
   CANCELADO: "neutral",
 };
 
-export function classificarChamado(chamado: ChamadoSvo): StatusOperacionalChamado {
+export function classificarChamado(
+  chamado: ChamadoSvo & { statusOperacao?: string | null },
+): StatusOperacionalChamado {
   if (chamado.statusTriagem === "EM_ANALISE") return "EM_ANALISE";
   if (chamado.statusTriagem === "RECUSADO") return "RECUSADO";
-  if (!chamado.ordemColeta) return "AGUARDANDO_ORDEM";
-  if (chamado.ordemColeta.status === "AGUARDANDO_DESPACHO") return "AGUARDANDO_DESPACHO";
-  if (chamado.ordemColeta.status === "NO_LOCAL") return "NO_LOCAL";
-  if (chamado.ordemColeta.status === "CANCELADA") return "CANCELADO";
-  if (["CONCLUIDA", "ENTREGUE_SVO"].includes(chamado.ordemColeta.status)) return "CONCLUIDO";
+
+  const statusOrdem = chamado.ordemColeta?.status ?? chamado.statusOperacao ?? null;
+  if (!statusOrdem) return "AGUARDANDO_ORDEM";
+  if (statusOrdem === "AGUARDANDO_DESPACHO") return "AGUARDANDO_DESPACHO";
+  if (statusOrdem === "NO_LOCAL") return "NO_LOCAL";
+  if (statusOrdem === "CANCELADA") return "CANCELADO";
+  if (["CONCLUIDA", "ENTREGUE_SVO"].includes(statusOrdem)) return "CONCLUIDO";
   return "EM_OPERACAO";
+}
+
+export function rotuloEtapaHistoricoSvo(etapa: string): string {
+  switch (etapa) {
+    case "ENVIADO":
+      return "Solicitação enviada";
+    case "TRIAGEM_APROVADO":
+      return "Triagem aprovada";
+    case "TRIAGEM_RECUSADO":
+      return "Triagem recusada";
+    case "COMPLEMENTACAO":
+      return "Complementação registrada";
+    case "ORDEM_EMITIDA":
+      return "Ordem de coleta emitida";
+    case "ORDEM_EM_DESLOCAMENTO":
+      return "Equipe em deslocamento";
+    case "ORDEM_NO_LOCAL":
+      return "Equipe no local";
+    case "ORDEM_ENTREGUE_SVO":
+      return "Concluído / Entregue ao SVO";
+    case "ORDEM_CANCELADA":
+      return "Ordem cancelada";
+    default:
+      return etapa.replaceAll("_", " ");
+  }
 }
 
 export function proximaEtapaColeta(

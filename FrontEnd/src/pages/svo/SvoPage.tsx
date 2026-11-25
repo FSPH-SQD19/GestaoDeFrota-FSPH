@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertCircle, CheckCircle2, Plus, RefreshCw, X } from "lucide-react";
 import { Button } from "../../components/common";
 import { useAuth } from "../../contexts/auth";
+import { ehSolicitanteExternoSvo } from "../../lib/svoPermissoes";
 import { cn } from "../../lib/utils";
 import {
   avancarEtapaColetaSvo,
@@ -21,11 +22,13 @@ import { TriagemChamadoModal } from "./TriagemChamadoModal";
 import { OrdemColetaModal } from "./OrdemColetaModal";
 import { DetalhesChamadoModal } from "./DetalhesChamadoModal";
 import { proximaEtapaColeta } from "./svoApresentacao";
+
 type ModalSvo = "REGISTRO" | "TRIAGEM" | "ORDEM" | "DETALHE" | null;
 
 export function SvoPage() {
   const { user } = useAuth();
-  const dados = useSvoDados();
+  const somenteExterno = ehSolicitanteExternoSvo(user?.roles);
+  const dados = useSvoDados({ somenteExterno });
   const {
     carregando,
     erroPagina,
@@ -38,6 +41,7 @@ export function SvoPage() {
   const [aviso, setAviso] = useState("");
   const [selecionado, setSelecionado] = useState<ChamadoSvo | null>(null);
   const [modal, setModal] = useState<ModalSvo>(null);
+
   const fecharModal = () => {
     setModal(null);
     setSelecionado(null);
@@ -47,10 +51,12 @@ export function SvoPage() {
     setModal("REGISTRO");
   };
   const abrirTriagem = (chamado: ChamadoSvo) => {
+    if (somenteExterno) return;
     setSelecionado(chamado);
     setModal("TRIAGEM");
   };
   const abrirEmissaoOrdem = (chamado: ChamadoSvo) => {
+    if (somenteExterno) return;
     setSelecionado(chamado);
     setModal("ORDEM");
   };
@@ -63,8 +69,9 @@ export function SvoPage() {
     setAviso(mensagem);
     dispararRecarregamento();
   };
+
   const handleEtapaColeta = async (chamado: ChamadoSvo, cancelar = false) => {
-    if (processandoAcaoId) return;
+    if (somenteExterno || processandoAcaoId) return;
     const ordem = chamado.ordemColeta;
     if (!ordem) return;
     const proxima = proximaEtapaColeta(ordem.status);
@@ -92,7 +99,7 @@ export function SvoPage() {
   };
 
   const handleConcluirDesinfeccao = async (viatura: ViaturaSvo) => {
-    if (processandoAcaoId) return;
+    if (somenteExterno || processandoAcaoId) return;
     setProcessandoAcaoId(viatura.id);
     setErroPagina("");
 
@@ -109,15 +116,23 @@ export function SvoPage() {
     }
   };
 
+  const rotuloAcesso = somenteExterno
+    ? "Solicitante externo"
+    : user?.roles.includes("ADMIN")
+      ? "Administrador"
+      : "Atendente SVO";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[26px]">
-            Central de operações SVO
+            {somenteExterno ? "Minhas solicitações SVO" : "Central de operações SVO"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Chamados, triagem e disponibilidade das viaturas em tempo real.
+            {somenteExterno
+              ? "Registre solicitações e acompanhe o histórico público com data e hora."
+              : "Chamados, triagem e disponibilidade das viaturas em tempo real."}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -125,9 +140,7 @@ export function SvoPage() {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Acesso
             </p>
-            <p className="text-xs font-semibold text-slate-700">
-              {user?.roles.includes("ADMIN") ? "Administrador" : "Atendente SVO"}
-            </p>
+            <p className="text-xs font-semibold text-slate-700">{rotuloAcesso}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -140,7 +153,7 @@ export function SvoPage() {
               Atualizar
             </Button>
             <Button onClick={abrirRegistro} leftIcon={<Plus className="h-4 w-4" />}>
-              Registrar chamado
+              {somenteExterno ? "Nova solicitação" : "Registrar chamado"}
             </Button>
           </div>
         </div>
@@ -183,23 +196,41 @@ export function SvoPage() {
         </div>
       )}
 
-      <IndicadoresSvo indicadores={dados.indicadores} totalViaturas={dados.viaturas.length} />
-      <PlantaoSvo {...dados} />
-      <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
+      {!somenteExterno && (
+        <>
+          <IndicadoresSvo indicadores={dados.indicadores} totalViaturas={dados.viaturas.length} />
+          <PlantaoSvo {...dados} />
+        </>
+      )}
+
+      {somenteExterno ? (
         <FilaChamadosSvo
           {...dados}
+          somenteExterno
           processandoAcaoId={processandoAcaoId}
           abrirTriagem={abrirTriagem}
           abrirEmissaoOrdem={abrirEmissaoOrdem}
           abrirDetalhes={abrirDetalhes}
           handleEtapaColeta={handleEtapaColeta}
         />
-        <FrotaSvo
-          viaturas={dados.viaturas}
-          processandoAcaoId={processandoAcaoId}
-          handleConcluirDesinfeccao={handleConcluirDesinfeccao}
-        />
-      </div>
+      ) : (
+        <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
+          <FilaChamadosSvo
+            {...dados}
+            processandoAcaoId={processandoAcaoId}
+            abrirTriagem={abrirTriagem}
+            abrirEmissaoOrdem={abrirEmissaoOrdem}
+            abrirDetalhes={abrirDetalhes}
+            handleEtapaColeta={handleEtapaColeta}
+          />
+          <FrotaSvo
+            viaturas={dados.viaturas}
+            processandoAcaoId={processandoAcaoId}
+            handleConcluirDesinfeccao={handleConcluirDesinfeccao}
+          />
+        </div>
+      )}
+
       {modal === "REGISTRO" && (
         <RegistrarChamadoModal
           onClose={fecharModal}
@@ -209,7 +240,7 @@ export function SvoPage() {
           }}
         />
       )}
-      {modal === "TRIAGEM" && selecionado && (
+      {!somenteExterno && modal === "TRIAGEM" && selecionado && (
         <TriagemChamadoModal
           key={selecionado.id}
           selecionado={selecionado}
@@ -217,7 +248,7 @@ export function SvoPage() {
           onConcluido={concluirFormulario}
         />
       )}
-      {modal === "ORDEM" && selecionado && (
+      {!somenteExterno && modal === "ORDEM" && selecionado && (
         <OrdemColetaModal
           key={selecionado.id}
           selecionado={selecionado}
@@ -231,6 +262,7 @@ export function SvoPage() {
       )}
       {modal === "DETALHE" && selecionado && (
         <DetalhesChamadoModal
+          somenteExterno={somenteExterno}
           viaturas={dados.viaturas}
           motoristas={dados.motoristas}
           onRemanejado={() => concluirFormulario("Recursos remanejados com sucesso.")}

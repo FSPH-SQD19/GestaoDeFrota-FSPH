@@ -16,7 +16,10 @@ import {
   concluirDesinfeccaoSvoController,
   listarViaturasSvoController,
   listarMotoristasSvoController,
+  obterChamadoSvoController,
+  complementarChamadoSvoController,
 } from "../controller/svo_c";
+
 
 const router = Router();
 router.use(authenticate);
@@ -45,4 +48,8 @@ router.patch("/chamados/:id/triagem", triagemSvoController);
 router.patch("/chamados/:id/concluir", concluirColetaSvoController);
 router.patch("/viaturas/:id/desinfeccao", concluirDesinfeccaoSvoController);
 
+router.get("/chamados", requireRole("ADMIN", "SVO", "SOLICITANTE_EXTERNO"), listarChamadosSvoController);
+router.post("/chamados", requireRole("ADMIN", "SVO", "SOLICITANTE_EXTERNO"), registrarChamadoSvoController);
+router.get("/chamados/:id", requireRole("ADMIN", "SVO", "SOLICITANTE_EXTERNO"), obterChamadoSvoController);
+router.post("/chamados/:id/complementacao", requireRole("ADMIN", "SVO"), complementarChamadoSvoController);
 export default router;

@@ -28,6 +28,9 @@ model Usuario {
   notificacoes Notificacao[]
   avariasRegistradas AvariaViagem[] @relation("AvariaRegistradaPor")
   avariasAnalisadas  AvariaViagem[] @relation("AvariaAnalisadaPor")
+  chamados          ChamadoSvo[] @relation("ChamadoSvoAtendente")
+  chamadosSolicitados ChamadoSvo[] @relation("ChamadoSvoSolicitante")
+  historicosSvo     ChamadoSvoHistorico[]
   historicosAvaria   AvariaHistorico[]
 
   @@index([ativo])
@@ -311,6 +314,7 @@ model ChamadoSvo {
   id                 String                                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   numeroProtocolo    String?                               @unique @map("numero_protocolo") @db.VarChar(20)
   atendenteId        String?                               @map("atendente_id") @db.Uuid
+  solicitanteId      String?                               @map("solicitante_id") @db.Uuid
   nomeFalecido       String?                               @map("nome_falecido") @db.VarChar(150)
   enderecoOcorrencia String?                               @map("endereco_ocorrencia")
   localizacaoGeo     Unsupported("geometry(Point, 4326)")? @map("localizacao_geo")
@@ -318,14 +322,34 @@ model ChamadoSvo {
   statusTriagem      String                                @default("EM_ANALISE") @map("status_triagem") @db.VarChar(30)
   criadoEm           DateTime?                             @default(now()) @map("criado_em")
 
-  atendente   Usuario?        @relation(fields: [atendenteId], references: [id])
+  atendente   Usuario?              @relation("ChamadoSvoAtendente", fields: [atendenteId], references: [id])
+  solicitante Usuario?              @relation("ChamadoSvoSolicitante", fields: [solicitanteId], references: [id])
   ordemColeta OrdemColetaSvo?
+  historico   ChamadoSvoHistorico[]
 
   @@index([atendenteId])
+  @@index([solicitanteId])
   @@index([statusTriagem])
   @@index([criadoEm])
   @@index([localizacaoGeo], type: Gist)
   @@map("chamados_svo")
+}
+
+model ChamadoSvoHistorico {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chamadoId          String   @map("chamado_id") @db.Uuid
+  autorId            String?  @map("autor_id") @db.Uuid
+  etapa              String   @db.VarChar(40)
+  mensagemPublica    String   @map("mensagem_publica") @db.VarChar(300)
+  parecerInterno     String?  @map("parecer_interno") @db.VarChar(500)
+  visivelSolicitante Boolean  @default(true) @map("visivel_solicitante")
+  criadoEm           DateTime @default(now()) @map("criado_em")
+
+  chamado ChamadoSvo @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  autor   Usuario?   @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([chamadoId, criadoEm])
+  @@map("chamados_svo_historico")
 }
 
 model OrdemColetaSvo {
