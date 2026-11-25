@@ -830,9 +830,7 @@ export async function notificarSvoChamadoEnviado(dados: {
 
   try {
     await executarComRetentativa(async () => {
-      const ids = new Set<string>(
-        await listarIdsUsuariosAtivosPorPerfis(["ATENDENTE"]),
-      );
+      const ids = new Set<string>(await listarIdsUsuariosAtivosPorPerfis(["ATENDENTE"]));
       if (dados.atendenteId) {
         ids.add(dados.atendenteId);
       }
@@ -869,7 +867,8 @@ export async function notificarSvoTriagemRealizada(dados: {
       const destinatarios = await listarIdsUsuariosAtivosPorPerfis(["GESTOR", "ADMIN"]);
       if (destinatarios.length === 0) return;
 
-      const rotuloDecisao = dados.decisao === "APROVAR" ? "aprovada na triagem" : "recusada na triagem";
+      const rotuloDecisao =
+        dados.decisao === "APROVAR" ? "aprovada na triagem" : "recusada na triagem";
       await criarNotificacoesEmLote(
         destinatarios.map((destinatarioId) => ({
           usuarioId: destinatarioId,

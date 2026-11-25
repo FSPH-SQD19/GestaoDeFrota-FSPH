@@ -1,7 +1,5 @@
-
 export function ehSolicitanteExternoSvo(roles: readonly string[] = []): boolean {
-  const temPerfilExterno =
-    roles.includes("SOLICITANTE_EXTERNO") || roles.includes("EXTERNO");
+  const temPerfilExterno = roles.includes("SOLICITANTE_EXTERNO") || roles.includes("EXTERNO");
   const temPerfilOperacao =
     roles.includes("ADMIN") || roles.includes("SVO") || roles.includes("GESTOR");
   return temPerfilExterno && !temPerfilOperacao;

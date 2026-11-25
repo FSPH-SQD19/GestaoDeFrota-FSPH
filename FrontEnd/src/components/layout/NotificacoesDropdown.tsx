@@ -314,23 +314,18 @@ export const NotificacoesDropdown: React.FC = () => {
     }
   }
 
-const notificacoesUnicas = useMemo(
-  () => deduplicarNotificacoes(notificacoes),
-  [notificacoes],
-);
+  const notificacoesUnicas = useMemo(() => deduplicarNotificacoes(notificacoes), [notificacoes]);
 
-const notificacoesVisiveis = useMemo(
-  () =>
-    filtro === "NAO_LIDAS"
-      ? notificacoesUnicas.filter((item) => !item.lida)
-      : notificacoesUnicas,
-  [filtro, notificacoesUnicas],
-);
+  const notificacoesVisiveis = useMemo(
+    () =>
+      filtro === "NAO_LIDAS" ? notificacoesUnicas.filter((item) => !item.lida) : notificacoesUnicas,
+    [filtro, notificacoesUnicas],
+  );
 
-const naoLidasCarregadas = useMemo(
-  () => notificacoesUnicas.filter((item) => !item.lida).length,
-  [notificacoesUnicas],
-);
+  const naoLidasCarregadas = useMemo(
+    () => notificacoesUnicas.filter((item) => !item.lida).length,
+    [notificacoesUnicas],
+  );
   const naoLidasAnterioresOcultas =
     filtro === "TODAS" && !carregando ? Math.max(0, naoLidas - naoLidasCarregadas) : 0;
 

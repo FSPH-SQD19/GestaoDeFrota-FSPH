@@ -95,8 +95,6 @@ export async function triagemSvoController(req: Request, res: Response) {
   );
 }
 
-
-
 export async function emitirOrdemSvoController(req: Request, res: Response) {
   const result = await emitirOrdemColetaSvo(
     validarId(req.params.id as string | undefined),

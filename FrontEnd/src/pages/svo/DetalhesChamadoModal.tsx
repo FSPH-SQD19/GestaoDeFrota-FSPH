@@ -102,14 +102,8 @@ export function DetalhesChamadoModal({
 
         {somenteExterno ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Detail
-              label="Protocolo"
-              value={detalhe.numeroProtocolo ?? detalhe.id}
-            />
-            <Detail
-              label="Data de abertura"
-              value={formatarDataHoraColeta(detalhe.criadoEm)}
-            />
+            <Detail label="Protocolo" value={detalhe.numeroProtocolo ?? detalhe.id} />
+            <Detail label="Data de abertura" value={formatarDataHoraColeta(detalhe.criadoEm)} />
           </div>
         ) : (
           <>

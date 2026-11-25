@@ -36,8 +36,7 @@ const PADROES_DADOS_SENSIVEIS = [
 ];
 
 export function ehSolicitanteExternoSomente(perfis: readonly string[]): boolean {
-  const temPerfilExterno =
-    perfis.includes("SOLICITANTE_EXTERNO") || perfis.includes("EXTERNO");
+  const temPerfilExterno = perfis.includes("SOLICITANTE_EXTERNO") || perfis.includes("EXTERNO");
   const temPerfilOperacao =
     perfis.includes("ADMIN") || perfis.includes("SVO") || perfis.includes("GESTOR");
   return temPerfilExterno && !temPerfilOperacao;
