@@ -75,3 +75,18 @@ export const limitPasswordChange: RequestHandler = async (_req, res, next) => {
   }
   next();
 };
+
+export const limitExternalSignup: RequestHandler = async (req, res, next) => {
+  const ip = getWorkerRuntime()?.clientIp || req.ip || req.socket.remoteAddress || "unknown";
+  const ipBlocked = await consume("ext-signup-ip", ip, 10);
+  const email =
+    typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase().slice(0, 254) : "";
+  const emailBlocked = email ? await consume("ext-signup-email", email, 5) : false;
+  if (ipBlocked || emailBlocked) {
+    res.setHeader("Retry-After", String(WINDOW_MS / 1000));
+    return next(
+      new HttpError(429, "Muitas tentativas de cadastro. Tente novamente em 15 minutos."),
+    );
+  }
+  next();
+};

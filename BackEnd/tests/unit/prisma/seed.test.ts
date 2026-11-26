@@ -32,7 +32,7 @@ it("cria e atualiza apenas os perfis de acesso, sem criar usuários de demonstra
 
   await import("../../../prisma/seed");
   await vi.waitFor(() => expect(mocks.$disconnect).toHaveBeenCalledTimes(1));
-  expect(perfis.size).toBe(5);
+  expect(perfis.size).toBe(6);
   const ids = [...perfis.values()].map((row) => row.id);
   const perfil = perfis.get("GESTOR");
   if (!perfil) throw new Error("Perfil não encontrado no teste.");
@@ -41,8 +41,9 @@ it("cria e atualiza apenas os perfis de acesso, sem criar usuários de demonstra
   vi.resetModules();
   await import("../../../prisma/seed");
   await vi.waitFor(() => expect(mocks.$disconnect).toHaveBeenCalledTimes(2));
-  expect(perfis.size).toBe(5);
+  expect(perfis.size).toBe(6);
   expect([...perfis.values()].map((row) => row.id)).toEqual(ids);
   expect(perfis.get("GESTOR")?.descricao).toBe("Gestor da frota");
-  expect(mocks.perfil.upsert).toHaveBeenCalledTimes(10);
+  expect(perfis.get("EXTERNO")?.descricao).toBe("Solicitante externo do portal SVO");
+  expect(mocks.perfil.upsert).toHaveBeenCalledTimes(12);
 });
