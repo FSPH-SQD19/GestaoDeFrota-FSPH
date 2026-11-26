@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => {
     tx: {
       solicitacaoExternaSvo: {
         create: m.create,
+        findUnique: m.findUnique,
         updateMany: m.updateMany,
         findUniqueOrThrow: m.findUniqueOrThrow,
       },
@@ -64,22 +65,42 @@ const agora = new Date("2026-11-17T12:00:00.000Z");
 const entrada = {
   contatoNome: "Maria Souza",
   contatoTelefone: "79999990000",
+  nomeFalecido: "João Souza",
   enderecoOcorrencia: "Rua A, 10, Aracaju",
   relatoOcorrencia: "Relato de teste com detalhes suficientes.",
 };
 
 const registro = {
   id: solicitacaoId,
-  protocolo: "EXT-2026-000001",
+  protocolo: "SVOE-2026-0001",
   solicitanteId: usuarioId,
   chaveIdempotencia: chave,
-  estado: "AGUARDANDO_TRIAGEM",
-  ...entrada,
+  nomeContato: entrada.contatoNome,
+  telefoneContato: entrada.contatoTelefone,
   contatoEmail: null,
-  mensagemParaSolicitante: null,
+  tipoSolicitante: "FAMILIAR",
+  instituicaoSolicitante: null,
+  nomeFalecido: entrada.nomeFalecido,
+  enderecoOcorrencia: entrada.enderecoOcorrencia,
+  municipioOcorrencia: null,
+  pontoReferencia: null,
+  relatoOcorrencia: entrada.relatoOcorrencia,
+  complementacaoSolicitada: null,
+  complementacaoEnviada: null,
+  status: "AGUARDANDO_TRIAGEM",
+  atendenteTriagemId: null,
+  triadaEm: null,
+  observacaoTriagem: null,
+  gestorDecisaoId: null,
+  decididaEm: null,
+  justificativaDecisao: null,
+  motivoRecusa: null,
+  chamadoSvoId: null,
+  versao: 0,
   criadoEm: agora,
   atualizadoEm: agora,
-};
+  historico: [],
+} as unknown as Parameters<typeof serializarSolicitacaoExterna>[0];
 
 async function erroDe(promessa: Promise<unknown>): Promise<HttpError> {
   try {
@@ -94,7 +115,7 @@ async function erroDe(promessa: Promise<unknown>): Promise<HttpError> {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.transaction.mockImplementation(async (callback) => callback(mocks.tx));
-  mocks.queryRaw.mockResolvedValue([{ n: 1 }]);
+  mocks.queryRaw.mockResolvedValue([{ ultimo_valor: 1 }]);
   mocks.findUnique.mockResolvedValue(null);
   mocks.create.mockResolvedValue(registro);
   mocks.historicoCreate.mockResolvedValue({});
@@ -180,7 +201,7 @@ describe("serializarSolicitacaoExterna (resposta pública)", () => {
       "protocolo",
       "situacao",
     ]);
-    expect(publico).not.toHaveProperty("estado");
+    expect(publico).not.toHaveProperty("status");
     expect(publico).not.toHaveProperty("solicitanteId");
     expect(publico).not.toHaveProperty("chaveIdempotencia");
     expect(publico).not.toHaveProperty("mensagemParaSolicitante");
@@ -192,8 +213,14 @@ describe("serializarSolicitacaoExterna (resposta pública)", () => {
     ["AGUARDANDO_GESTOR", "Em análise", false],
     ["APROVADA", "Aprovada", false],
     ["RECUSADA", "Não atendida", false],
-  ])("estado %s vira a situação pública %s", (estado, situacao, permiteComplementar) => {
-    const publico = serializarSolicitacaoExterna({ ...registro, estado, historico: [] });
+  ])("estado %s vira a situação pública %s", (status, situacao, permiteComplementar) => {
+    const publico = serializarSolicitacaoExterna({
+      ...registro,
+      status,
+      complementacaoSolicitada:
+        status === "AGUARDANDO_COMPLEMENTACAO" ? "Informe o ponto de referência." : null,
+      historico: [],
+    } as Parameters<typeof serializarSolicitacaoExterna>[0]);
 
     expect(publico.situacao).toBe(situacao);
     expect(publico.permiteComplementar).toBe(permiteComplementar);
@@ -205,24 +232,28 @@ describe("serializarSolicitacaoExterna (resposta pública)", () => {
     expect(
       serializarSolicitacaoExterna({
         ...registro,
-        estado: "AGUARDANDO_COMPLEMENTACAO",
-        mensagemParaSolicitante: texto,
+        status: "AGUARDANDO_COMPLEMENTACAO",
+        complementacaoSolicitada: texto,
         historico: [],
-      }).mensagem,
+      } as Parameters<typeof serializarSolicitacaoExterna>[0]).mensagem,
     ).toBe(texto);
     expect(
       serializarSolicitacaoExterna({
         ...registro,
-        estado: "AGUARDANDO_GESTOR",
-        mensagemParaSolicitante: texto,
+        status: "AGUARDANDO_GESTOR",
+        complementacaoSolicitada: texto,
         historico: [],
-      }).mensagem,
+      } as Parameters<typeof serializarSolicitacaoExterna>[0]).mensagem,
     ).not.toBe(texto);
   });
 
   it("não quebra com um estado desconhecido", () => {
     expect(
-      serializarSolicitacaoExterna({ ...registro, estado: "NOVO_ESTADO", historico: [] }).situacao,
+      serializarSolicitacaoExterna({
+        ...registro,
+        status: "NOVO_ESTADO",
+        historico: [],
+      } as Parameters<typeof serializarSolicitacaoExterna>[0]).situacao,
     ).toBe("Em andamento");
   });
 });
@@ -232,17 +263,20 @@ describe("criarSolicitacaoExterna", () => {
     const { solicitacao, criada } = await criarSolicitacaoExterna(entrada, usuarioId, chave);
 
     expect(criada).toBe(true);
-    expect(mocks.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        solicitanteId: usuarioId,
-        chaveIdempotencia: chave,
-        estado: "AGUARDANDO_TRIAGEM",
-        protocolo: expect.stringMatching(/^EXT-\d{4}-000001$/),
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          solicitanteId: usuarioId,
+          chaveIdempotencia: chave,
+          status: "AGUARDANDO_TRIAGEM",
+          nomeFalecido: entrada.nomeFalecido,
+          protocolo: expect.stringMatching(/^SVOE-\d{4}-0001$/),
+        }),
       }),
-    });
-    expect(mocks.historicoCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ solicitacaoId, tipo: "CRIACAO", autorId: usuarioId }),
-    });
+    );
+    expect(mocks.create.mock.calls[0]?.[0].data.historico.create).toEqual(
+      expect.objectContaining({ acao: "SOLICITACAO_CRIADA", autorId: usuarioId }),
+    );
     expect(mocks.auditoriaCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         usuarioId,
@@ -251,7 +285,7 @@ describe("criarSolicitacaoExterna", () => {
         registroId: solicitacaoId,
       }),
     });
-    expect(solicitacao.protocolo).toBe("EXT-2026-000001");
+    expect(solicitacao.protocolo).toBe("SVOE-2026-0001");
   });
 
   it("não grava dados pessoais na auditoria", async () => {
@@ -333,7 +367,7 @@ describe("listarSolicitacoesExternas", () => {
 
     expect(mocks.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { solicitanteId: usuarioId, estado: "AGUARDANDO_COMPLEMENTACAO" },
+        where: { solicitanteId: usuarioId, status: "AGUARDANDO_COMPLEMENTACAO" },
       }),
     );
   });
@@ -368,12 +402,20 @@ describe("detalharSolicitacaoExterna", () => {
   it("devolve o detalhe com os complementos enviados", async () => {
     mocks.findFirst.mockResolvedValue({
       ...registro,
-      historico: [{ conteudo: "Ponto de referência: praça.", criadoEm: agora }],
+      historico: [
+        {
+          acao: "COMPLEMENTACAO_ENVIADA",
+          statusAnterior: "AGUARDANDO_COMPLEMENTACAO",
+          statusNovo: "AGUARDANDO_TRIAGEM",
+          mensagemPublica: "Complementação enviada: Ponto de referência: praça.",
+          criadoEm: agora,
+        },
+      ],
     });
 
     const detalhe = await detalharSolicitacaoExterna(solicitacaoId, usuarioId);
 
-    expect(detalhe.protocolo).toBe("EXT-2026-000001");
+    expect(detalhe.protocolo).toBe("SVOE-2026-0001");
     expect(detalhe.complementos).toEqual([
       { conteudo: "Ponto de referência: praça.", enviadoEm: agora },
     ]);
@@ -382,28 +424,65 @@ describe("detalharSolicitacaoExterna", () => {
 
 describe("complementarSolicitacaoExterna", () => {
   const input = { complemento: "O ponto de referência é a praça central." };
+  const usuarioExterno = { id: usuarioId, perfis: ["EXTERNO"] };
 
   beforeEach(() => {
-    mocks.findFirst.mockResolvedValue({ id: solicitacaoId, estado: "AGUARDANDO_COMPLEMENTACAO" });
+    mocks.findUnique.mockResolvedValue({
+      ...registro,
+      status: "AGUARDANDO_COMPLEMENTACAO",
+      versao: 2,
+      historico: [],
+    });
     mocks.updateMany.mockResolvedValue({ count: 1 });
     mocks.findUniqueOrThrow.mockResolvedValue({
       ...registro,
-      historico: [{ conteudo: input.complemento, criadoEm: agora }],
+      status: "AGUARDANDO_TRIAGEM",
+      complementacaoEnviada: input.complemento,
+      historico: [],
     });
   });
 
   it("registra o complemento e devolve a solicitação para a triagem", async () => {
-    const resposta = await complementarSolicitacaoExterna(solicitacaoId, input, usuarioId);
+    mocks.findFirst
+      .mockResolvedValueOnce({
+        id: solicitacaoId,
+        status: "AGUARDANDO_COMPLEMENTACAO",
+        versao: 2,
+      })
+      .mockResolvedValueOnce({
+        ...registro,
+        status: "AGUARDANDO_TRIAGEM",
+        complementacaoEnviada: input.complemento,
+        historico: [
+          {
+            acao: "COMPLEMENTACAO_ENVIADA",
+            statusAnterior: "AGUARDANDO_COMPLEMENTACAO",
+            statusNovo: "AGUARDANDO_TRIAGEM",
+            mensagemPublica: `Complementação enviada: ${input.complemento}`,
+            criadoEm: agora,
+          },
+        ],
+      });
+    const resposta = await complementarSolicitacaoExterna(solicitacaoId, input, usuarioExterno);
 
-    expect(mocks.updateMany).toHaveBeenCalledWith({
-      where: { id: solicitacaoId, solicitanteId: usuarioId, estado: "AGUARDANDO_COMPLEMENTACAO" },
-      data: { estado: "AGUARDANDO_TRIAGEM", mensagemParaSolicitante: null },
-    });
+    expect(mocks.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: solicitacaoId,
+          status: "AGUARDANDO_COMPLEMENTACAO",
+          versao: 2,
+        },
+        data: expect.objectContaining({
+          status: "AGUARDANDO_TRIAGEM",
+          complementacaoEnviada: input.complemento,
+        }),
+      }),
+    );
     expect(mocks.historicoCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        solicitacaoId,
-        tipo: "COMPLEMENTO",
-        conteudo: input.complemento,
+        solicitacaoExternaId: solicitacaoId,
+        acao: "COMPLEMENTACAO_ENVIADA",
+        mensagemPublica: `Complementação enviada: ${input.complemento}`,
         autorId: usuarioId,
       }),
     });
@@ -415,25 +494,33 @@ describe("complementarSolicitacaoExterna", () => {
     mocks.findFirst.mockResolvedValue(null);
 
     expect(
-      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode,
+      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioExterno)))
+        .statusCode,
     ).toBe(404);
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("retorna 422 quando a solicitação não está aguardando complementação", async () => {
-    mocks.findFirst.mockResolvedValue({ id: solicitacaoId, estado: "AGUARDANDO_GESTOR" });
+    mocks.findFirst.mockResolvedValue({ id: solicitacaoId, status: "AGUARDANDO_GESTOR" });
 
     expect(
-      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode,
+      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioExterno)))
+        .statusCode,
     ).toBe(422);
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("retorna 409 quando outra requisição já alterou o estado", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: solicitacaoId,
+      status: "AGUARDANDO_COMPLEMENTACAO",
+      versao: 2,
+    });
     mocks.updateMany.mockResolvedValue({ count: 0 });
 
     expect(
-      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioId))).statusCode,
+      (await erroDe(complementarSolicitacaoExterna(solicitacaoId, input, usuarioExterno)))
+        .statusCode,
     ).toBe(409);
     expect(mocks.historicoCreate).not.toHaveBeenCalled();
   });

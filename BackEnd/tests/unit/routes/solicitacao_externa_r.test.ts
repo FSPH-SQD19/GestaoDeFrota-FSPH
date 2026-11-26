@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => {
     tx: {
       solicitacaoExternaSvo: {
         create: m.create,
+        findUnique: m.findUnique,
         updateMany: m.updateMany,
         findUniqueOrThrow: m.findUniqueOrThrow,
       },
@@ -62,24 +63,34 @@ const base = "/api/v1/svo/solicitacoes-externas";
 const corpo = {
   contatoNome: "Maria Souza",
   contatoTelefone: "(79) 99999-0000",
+  nomeFalecido: "João Souza",
   enderecoOcorrencia: "Rua A, 10, Aracaju",
   relatoOcorrencia: "Relato de teste com detalhes suficientes.",
 };
 
 const registro = {
   id: solicitacaoId,
-  protocolo: "EXT-2026-000001",
+  protocolo: "SVOE-2026-0001",
   solicitanteId: usuarioId,
   chaveIdempotencia: chave,
-  estado: "AGUARDANDO_TRIAGEM",
-  contatoNome: "Maria Souza",
-  contatoTelefone: "79999990000",
+  nomeContato: "Maria Souza",
+  telefoneContato: "79999990000",
   contatoEmail: null,
+  nomeFalecido: corpo.nomeFalecido,
   enderecoOcorrencia: "Rua A, 10, Aracaju",
   relatoOcorrencia: "Relato de teste com detalhes suficientes.",
-  mensagemParaSolicitante: null,
+  status: "AGUARDANDO_TRIAGEM",
+  tipoSolicitante: "FAMILIAR",
+  instituicaoSolicitante: null,
+  municipioOcorrencia: null,
+  pontoReferencia: null,
+  complementacaoSolicitada: null,
+  complementacaoEnviada: null,
+  motivoRecusa: null,
+  versao: 0,
   criadoEm: agora,
   atualizadoEm: agora,
+  historico: [],
 };
 
 type Corpo = {
@@ -134,7 +145,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getAuthConfig).mockReturnValue({ secret, expiresIn: 28800 });
   mocks.transaction.mockImplementation(async (callback) => callback(mocks.tx));
-  mocks.queryRaw.mockResolvedValue([{ n: 1 }]);
+  mocks.queryRaw.mockResolvedValue([{ ultimo_valor: 1 }]);
   mocks.findUnique.mockResolvedValue(null);
   mocks.create.mockResolvedValue(registro);
   mocks.historicoCreate.mockResolvedValue({});
@@ -191,17 +202,20 @@ describe("POST /api/v1/svo/solicitacoes-externas", () => {
     expect(resposta.location).toBe(`${base}/${solicitacaoId}`);
     expect(resposta.json).toMatchObject({
       id: solicitacaoId,
-      protocolo: "EXT-2026-000001",
+      protocolo: "SVOE-2026-0001",
       situacao: "Recebida",
     });
     expect(resposta.json).not.toHaveProperty("estado");
     expect(resposta.json).not.toHaveProperty("solicitanteId");
-    expect(mocks.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        solicitanteId: usuarioId,
-        contatoTelefone: "79999990000",
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          solicitanteId: usuarioId,
+          telefoneContato: "79999990000",
+          nomeFalecido: corpo.nomeFalecido,
+        }),
       }),
-    });
+    );
   });
 
   it("ignora dono e estado forjados no corpo", async () => {
@@ -211,9 +225,11 @@ describe("POST /api/v1/svo/solicitacoes-externas", () => {
       cabecalhos: { "idempotency-key": chave },
     });
 
-    expect(mocks.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ solicitanteId: usuarioId, estado: "AGUARDANDO_TRIAGEM" }),
-    });
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ solicitanteId: usuarioId, status: "AGUARDANDO_TRIAGEM" }),
+      }),
+    );
   });
 
   it("reenvio com a mesma chave devolve 200 sem criar de novo", async () => {
@@ -226,7 +242,7 @@ describe("POST /api/v1/svo/solicitacoes-externas", () => {
     });
 
     expect(resposta.status).toBe(200);
-    expect(resposta.json).toMatchObject({ protocolo: "EXT-2026-000001" });
+    expect(resposta.json).toMatchObject({ protocolo: "SVOE-2026-0001" });
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
@@ -254,6 +270,7 @@ describe("POST /api/v1/svo/solicitacoes-externas", () => {
       body: {
         contatoNome: "A",
         contatoTelefone: "123",
+        nomeFalecido: "A",
         enderecoOcorrencia: "R",
         relatoOcorrencia: "x",
       },
@@ -265,6 +282,7 @@ describe("POST /api/v1/svo/solicitacoes-externas", () => {
       "contatoNome",
       "contatoTelefone",
       "enderecoOcorrencia",
+      "nomeFalecido",
       "relatoOcorrencia",
     ]);
     expect(mocks.create).not.toHaveBeenCalled();
@@ -320,7 +338,7 @@ describe("GET /api/v1/svo/solicitacoes-externas/:id", () => {
     const resposta = await chamar(`${base}/${solicitacaoId}`, { perfis: ["EXTERNO"] });
 
     expect(resposta.status).toBe(200);
-    expect(resposta.json).toMatchObject({ protocolo: "EXT-2026-000001", complementos: [] });
+    expect(resposta.json).toMatchObject({ protocolo: "SVOE-2026-0001", complementos: [] });
     expect(mocks.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: solicitacaoId, solicitanteId: usuarioId } }),
     );
@@ -345,11 +363,37 @@ describe("PATCH /api/v1/svo/solicitacoes-externas/:id/complementacao", () => {
   const corpoComplemento = { complemento: "O ponto de referência é a praça central." };
 
   it("registra o complemento (200)", async () => {
-    mocks.findFirst.mockResolvedValue({ id: solicitacaoId, estado: "AGUARDANDO_COMPLEMENTACAO" });
+    mocks.findFirst
+      .mockResolvedValueOnce({
+        id: solicitacaoId,
+        status: "AGUARDANDO_COMPLEMENTACAO",
+        versao: 2,
+      })
+      .mockResolvedValueOnce({
+        ...registro,
+        status: "AGUARDANDO_TRIAGEM",
+        historico: [
+          {
+            acao: "COMPLEMENTACAO_ENVIADA",
+            statusAnterior: "AGUARDANDO_COMPLEMENTACAO",
+            statusNovo: "AGUARDANDO_TRIAGEM",
+            mensagemPublica: `Complementação enviada: ${corpoComplemento.complemento}`,
+            criadoEm: agora,
+          },
+        ],
+      });
+    mocks.findUnique.mockResolvedValue({
+      ...registro,
+      status: "AGUARDANDO_COMPLEMENTACAO",
+      versao: 2,
+      historico: [],
+    });
     mocks.updateMany.mockResolvedValue({ count: 1 });
     mocks.findUniqueOrThrow.mockResolvedValue({
       ...registro,
-      historico: [{ conteudo: corpoComplemento.complemento, criadoEm: agora }],
+      status: "AGUARDANDO_TRIAGEM",
+      complementacaoEnviada: corpoComplemento.complemento,
+      historico: [],
     });
 
     const resposta = await chamar(caminho, {
@@ -363,7 +407,7 @@ describe("PATCH /api/v1/svo/solicitacoes-externas/:id/complementacao", () => {
   });
 
   it("retorna 422 quando a solicitação não está aguardando complementação", async () => {
-    mocks.findFirst.mockResolvedValue({ id: solicitacaoId, estado: "AGUARDANDO_GESTOR" });
+    mocks.findFirst.mockResolvedValue({ id: solicitacaoId, status: "AGUARDANDO_GESTOR" });
 
     const resposta = await chamar(caminho, {
       perfis: ["EXTERNO"],

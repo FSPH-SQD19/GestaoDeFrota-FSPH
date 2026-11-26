@@ -1,9 +1,13 @@
-import { Prisma, type SolicitacaoExternaSvo } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
-
-// Estados e tipos de histórico
+import { prisma } from "../lib/prisma";
+import type { UsuarioAutenticado } from "../middleware/http_m";
+import { sanitizarLgpd } from "./auditoria_s";
+import {
+  gerarProtocoloSolicitacaoExternaSvo,
+  transicionarSolicitacaoExternaSvo,
+} from "./solicitacao_externa_svo_s";
 
 export const ESTADOS_SOLICITACAO_EXTERNA = [
   "AGUARDANDO_TRIAGEM",
@@ -15,13 +19,9 @@ export const ESTADOS_SOLICITACAO_EXTERNA = [
 
 export type EstadoSolicitacaoExterna = (typeof ESTADOS_SOLICITACAO_EXTERNA)[number];
 
-export const ESTADO_INICIAL: EstadoSolicitacaoExterna = "AGUARDANDO_TRIAGEM";
-export const ESTADO_COMPLEMENTACAO: EstadoSolicitacaoExterna = "AGUARDANDO_COMPLEMENTACAO";
-
-export const TIPO_HISTORICO_CRIACAO = "CRIACAO";
-export const TIPO_HISTORICO_COMPLEMENTO = "COMPLEMENTO";
-
-// Validação
+const ESTADO_INICIAL: EstadoSolicitacaoExterna = "AGUARDANDO_TRIAGEM";
+const ESTADO_COMPLEMENTACAO: EstadoSolicitacaoExterna = "AGUARDANDO_COMPLEMENTACAO";
+const TIPO_HISTORICO_COMPLEMENTO = "COMPLEMENTACAO_ENVIADA";
 
 export function normalizarTelefone(valor: string): string {
   return valor.replace(/\D/g, "");
@@ -40,9 +40,20 @@ export const criarSolicitacaoExternaSchema = z.object({
     .transform(normalizarTelefone)
     .pipe(z.string().regex(TELEFONE_REGEX, "Telefone inválido. Use o formato (79) 99999-0000.")),
   contatoEmail: z
-    .email({ error: "Digite um e-mail válido." })
-    .max(150, "O e-mail deve ter no máximo 150 caracteres.")
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(
+      z
+        .email({ error: "Digite um e-mail válido." })
+        .max(150, "O e-mail deve ter no máximo 150 caracteres."),
+    )
     .optional(),
+  nomeFalecido: z
+    .string({ error: "Informe a identificação do falecido." })
+    .trim()
+    .min(2, "O nome deve ter ao menos 2 caracteres.")
+    .max(150, "O nome deve ter no máximo 150 caracteres."),
   enderecoOcorrencia: z
     .string({ error: "Informe o endereço da ocorrência." })
     .trim()
@@ -52,7 +63,7 @@ export const criarSolicitacaoExternaSchema = z.object({
     .string({ error: "Descreva a ocorrência." })
     .trim()
     .min(10, "A descrição deve ter ao menos 10 caracteres.")
-    .max(2000, "A descrição deve ter no máximo 2000 caracteres."),
+    .max(1000, "A descrição deve ter no máximo 1000 caracteres."),
 });
 
 export const complementarSolicitacaoExternaSchema = z.object({
@@ -60,7 +71,7 @@ export const complementarSolicitacaoExternaSchema = z.object({
     .string({ error: "Informe as informações solicitadas." })
     .trim()
     .min(5, "O complemento deve ter ao menos 5 caracteres.")
-    .max(2000, "O complemento deve ter no máximo 2000 caracteres."),
+    .max(1000, "O complemento deve ter no máximo 1000 caracteres."),
 });
 
 export const listarSolicitacoesExternasSchema = z.object({
@@ -82,8 +93,6 @@ export type ComplementarSolicitacaoExternaInput = z.infer<
   typeof complementarSolicitacaoExternaSchema
 >;
 export type ListarSolicitacoesExternasFiltros = z.infer<typeof listarSolicitacoesExternasSchema>;
-
-// Resposta pública (lista permitida: só sai o que está escrito aqui)
 
 const MENSAGENS_PUBLICAS: Record<EstadoSolicitacaoExterna, { situacao: string; mensagem: string }> =
   {
@@ -115,11 +124,22 @@ const MENSAGEM_GENERICA = {
   mensagem: "Sua solicitação está em andamento.",
 };
 
-// Só nestes estados o texto escrito pelo atendimento (campo público) substitui a mensagem padrão.
-const ESTADOS_COM_TEXTO_DO_ATENDIMENTO: string[] = ["AGUARDANDO_COMPLEMENTACAO", "RECUSADA"];
+const incluirHistorico = {
+  historico: {
+    orderBy: { criadoEm: "asc" as const },
+    select: {
+      acao: true,
+      statusAnterior: true,
+      statusNovo: true,
+      mensagemPublica: true,
+      criadoEm: true,
+    },
+  },
+} satisfies Prisma.SolicitacaoExternaSvoInclude;
 
-type ComplementoRegistro = { conteudo: string | null; criadoEm: Date };
-type RegistroComComplementos = SolicitacaoExternaSvo & { historico: ComplementoRegistro[] };
+type SolicitacaoComHistorico = Prisma.SolicitacaoExternaSvoGetPayload<{
+  include: typeof incluirHistorico;
+}>;
 
 export type SolicitacaoExternaResumo = {
   id: string;
@@ -136,142 +156,136 @@ export type SolicitacaoExternaDetalhe = SolicitacaoExternaResumo & {
     contatoNome: string;
     contatoTelefone: string;
     contatoEmail: string | null;
+    nomeFalecido: string;
     enderecoOcorrencia: string;
     relatoOcorrencia: string;
   };
-  complementos: { conteudo: string | null; enviadoEm: Date }[];
+  complementos: { conteudo: string; enviadoEm: Date }[];
 };
 
-export function serializarResumoSolicitacaoExterna(
-  registro: SolicitacaoExternaSvo,
-): SolicitacaoExternaResumo {
-  const padrao =
-    MENSAGENS_PUBLICAS[registro.estado as EstadoSolicitacaoExterna] ?? MENSAGEM_GENERICA;
-  const usaTextoDoAtendimento =
-    ESTADOS_COM_TEXTO_DO_ATENDIMENTO.includes(registro.estado) &&
-    !!registro.mensagemParaSolicitante;
+function serializarResumo(registro: {
+  id: string;
+  protocolo: string;
+  status: string;
+  complementacaoSolicitada: string | null;
+  motivoRecusa: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}): SolicitacaoExternaResumo {
+  const status = ESTADOS_SOLICITACAO_EXTERNA.includes(registro.status as EstadoSolicitacaoExterna)
+    ? (registro.status as EstadoSolicitacaoExterna)
+    : null;
+  const padrao = status ? MENSAGENS_PUBLICAS[status] : MENSAGEM_GENERICA;
+  const mensagem =
+    status === ESTADO_COMPLEMENTACAO
+      ? (registro.complementacaoSolicitada ?? padrao.mensagem)
+      : padrao.mensagem;
 
   return {
     id: registro.id,
     protocolo: registro.protocolo,
     situacao: padrao.situacao,
-    mensagem: usaTextoDoAtendimento
-      ? (registro.mensagemParaSolicitante as string)
-      : padrao.mensagem,
-    permiteComplementar: registro.estado === ESTADO_COMPLEMENTACAO,
+    mensagem,
+    permiteComplementar: status === ESTADO_COMPLEMENTACAO,
     criadoEm: registro.criadoEm,
     atualizadoEm: registro.atualizadoEm,
   };
 }
 
 export function serializarSolicitacaoExterna(
-  registro: RegistroComComplementos,
+  registro: SolicitacaoComHistorico,
 ): SolicitacaoExternaDetalhe {
   return {
-    ...serializarResumoSolicitacaoExterna(registro),
+    ...serializarResumo(registro),
     dadosEnviados: {
-      contatoNome: registro.contatoNome,
-      contatoTelefone: registro.contatoTelefone,
+      contatoNome: registro.nomeContato,
+      contatoTelefone: registro.telefoneContato,
       contatoEmail: registro.contatoEmail,
+      nomeFalecido: registro.nomeFalecido,
       enderecoOcorrencia: registro.enderecoOcorrencia,
       relatoOcorrencia: registro.relatoOcorrencia,
     },
-    complementos: registro.historico.map((item) => ({
-      conteudo: item.conteudo,
-      enviadoEm: item.criadoEm,
-    })),
+    complementos: registro.historico
+      .filter((item) => item.acao === TIPO_HISTORICO_COMPLEMENTO && item.mensagemPublica)
+      .map((item) => ({
+        conteudo: item.mensagemPublica!.replace(/^Complementação enviada:\s*/, ""),
+        enviadoEm: item.criadoEm,
+      })),
   };
 }
 
-// Serviço
-
-const INCLUIR_COMPLEMENTOS = {
-  historico: {
-    where: { tipo: TIPO_HISTORICO_COMPLEMENTO },
-    orderBy: { criadoEm: "asc" },
-    select: { conteudo: true, criadoEm: true },
-  },
-} satisfies Prisma.SolicitacaoExternaSvoInclude;
-
-function erroNaoEncontrada() {
-  return new HttpError(404, "Solicitação não encontrada.");
-}
-
-async function gerarProtocoloExterno(tx: Prisma.TransactionClient, agora: Date = new Date()) {
-  const linhas = await tx.$queryRaw<
-    { n: bigint }[]
-  >`SELECT nextval('solicitacoes_externas_svo_protocolo_seq') AS n`;
-  const numero = String(linhas[0]?.n ?? 0).padStart(6, "0");
-  return `EXT-${agora.getFullYear()}-${numero}`;
-}
-
-function buscarPorChave(solicitanteId: string, chaveIdempotencia: string) {
+function buscarPorChave(chaveIdempotencia: string) {
   return prisma.solicitacaoExternaSvo.findUnique({
-    where: { solicitanteId_chaveIdempotencia: { solicitanteId, chaveIdempotencia } },
-    include: INCLUIR_COMPLEMENTOS,
+    where: { chaveIdempotencia },
+    include: incluirHistorico,
   });
+}
+
+function responderComExistente(
+  existente: SolicitacaoComHistorico,
+  usuarioId: string,
+): { solicitacao: SolicitacaoExternaDetalhe; criada: false } {
+  if (existente.solicitanteId !== usuarioId) {
+    throw new HttpError(409, "Chave de idempotência já utilizada em outra solicitação.");
+  }
+  return { solicitacao: serializarSolicitacaoExterna(existente), criada: false };
 }
 
 export async function criarSolicitacaoExterna(
   input: CriarSolicitacaoExternaInput,
   usuarioId: string,
   chaveIdempotencia: string,
+  agora: Date = new Date(),
 ): Promise<{ solicitacao: SolicitacaoExternaDetalhe; criada: boolean }> {
-  // Reenvio com a mesma chave devolve a solicitação já criada, sem duplicar.
-  const existente = await buscarPorChave(usuarioId, chaveIdempotencia);
-  if (existente) {
-    return { solicitacao: serializarSolicitacaoExterna(existente), criada: false };
-  }
+  const existente = await buscarPorChave(chaveIdempotencia);
+  if (existente) return responderComExistente(existente, usuarioId);
 
   try {
     const criada = await prisma.$transaction(async (tx) => {
-      const protocolo = await gerarProtocoloExterno(tx);
-
+      const protocolo = await gerarProtocoloSolicitacaoExternaSvo(tx, agora);
       const registro = await tx.solicitacaoExternaSvo.create({
         data: {
           protocolo,
           solicitanteId: usuarioId,
+          nomeContato: input.contatoNome,
+          telefoneContato: input.contatoTelefone,
+          contatoEmail: input.contatoEmail ?? null,
+          nomeFalecido: input.nomeFalecido,
+          enderecoOcorrencia: input.enderecoOcorrencia,
+          relatoOcorrencia: input.relatoOcorrencia,
+          status: ESTADO_INICIAL,
           chaveIdempotencia,
-          estado: ESTADO_INICIAL,
-          ...input,
+          historico: {
+            create: {
+              autorId: usuarioId,
+              perfilAutor: "EXTERNO",
+              acao: "SOLICITACAO_CRIADA",
+              statusAnterior: null,
+              statusNovo: ESTADO_INICIAL,
+              mensagemPublica: MENSAGENS_PUBLICAS[ESTADO_INICIAL].mensagem,
+            },
+          },
         },
+        include: incluirHistorico,
       });
 
-      await tx.solicitacaoExternaSvoHistorico.create({
-        data: {
-          solicitacaoId: registro.id,
-          tipo: TIPO_HISTORICO_CRIACAO,
-          estadoAnterior: null,
-          estadoNovo: ESTADO_INICIAL,
-          autorId: usuarioId,
-        },
-      });
-
-      // A auditoria guarda só o necessário: sem dados pessoais nem texto livre.
       await tx.auditoriaSistema.create({
         data: {
           usuarioId,
           acao: "CRIAR",
           tabelaAfetada: "solicitacoes_externas_svo",
           registroId: registro.id,
-          dadosNovos: { protocolo, estado: ESTADO_INICIAL },
+          dadosNovos: sanitizarLgpd({ protocolo, status: ESTADO_INICIAL }) as Prisma.InputJsonValue,
         },
       });
-
       return registro;
     });
 
-    return {
-      solicitacao: serializarSolicitacaoExterna({ ...criada, historico: [] }),
-      criada: true,
-    };
+    return { solicitacao: serializarSolicitacaoExterna(criada), criada: true };
   } catch (erro) {
-    // Duas requisições simultâneas com a mesma chave: a segunda cai aqui.
     if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002") {
-      const jaCriada = await buscarPorChave(usuarioId, chaveIdempotencia);
-      if (jaCriada) {
-        return { solicitacao: serializarSolicitacaoExterna(jaCriada), criada: false };
-      }
+      const jaCriada = await buscarPorChave(chaveIdempotencia);
+      if (jaCriada) return responderComExistente(jaCriada, usuarioId);
     }
     throw erro;
   }
@@ -282,13 +296,10 @@ export async function listarSolicitacoesExternas(
   usuarioId: string,
 ) {
   const { page, pageSize, estado } = filtros;
-
-  // O escopo por dono é parte da própria consulta, nunca vem do corpo ou da URL.
   const where: Prisma.SolicitacaoExternaSvoWhereInput = {
     solicitanteId: usuarioId,
-    ...(estado ? { estado } : {}),
+    ...(estado ? { status: estado } : {}),
   };
-
   const [registros, total] = await Promise.all([
     prisma.solicitacaoExternaSvo.findMany({
       where,
@@ -298,38 +309,36 @@ export async function listarSolicitacoesExternas(
     }),
     prisma.solicitacaoExternaSvo.count({ where }),
   ]);
-
   return {
-    data: registros.map((registro) => serializarResumoSolicitacaoExterna(registro)),
+    data: registros.map((registro) => serializarResumo(registro)),
     meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
   };
 }
 
+function erroNaoEncontrada() {
+  return new HttpError(404, "Solicitação não encontrada.");
+}
+
 export async function detalharSolicitacaoExterna(id: string, usuarioId: string) {
-  // Solicitação de outra pessoa devolve 404, para não revelar que o protocolo existe.
   const registro = await prisma.solicitacaoExternaSvo.findFirst({
     where: { id, solicitanteId: usuarioId },
-    include: INCLUIR_COMPLEMENTOS,
+    include: incluirHistorico,
   });
-  if (!registro) {
-    throw erroNaoEncontrada();
-  }
+  if (!registro) throw erroNaoEncontrada();
   return serializarSolicitacaoExterna(registro);
 }
 
 export async function complementarSolicitacaoExterna(
   id: string,
   input: ComplementarSolicitacaoExternaInput,
-  usuarioId: string,
+  usuario: UsuarioAutenticado,
 ) {
   const atual = await prisma.solicitacaoExternaSvo.findFirst({
-    where: { id, solicitanteId: usuarioId },
-    select: { id: true, estado: true },
+    where: { id, solicitanteId: usuario.id },
+    select: { id: true, status: true, versao: true },
   });
-  if (!atual) {
-    throw erroNaoEncontrada();
-  }
-  if (atual.estado !== ESTADO_COMPLEMENTACAO) {
+  if (!atual) throw erroNaoEncontrada();
+  if (atual.status !== ESTADO_COMPLEMENTACAO) {
     throw new HttpError(422, "Esta solicitação não está aguardando complementação.", [
       {
         campo: "id",
@@ -338,45 +347,14 @@ export async function complementarSolicitacaoExterna(
     ]);
   }
 
-  const atualizada = await prisma.$transaction(async (tx) => {
-    // A condição de estado no próprio UPDATE impede envio duplo do complemento.
-    const { count } = await tx.solicitacaoExternaSvo.updateMany({
-      where: { id, solicitanteId: usuarioId, estado: ESTADO_COMPLEMENTACAO },
-      data: { estado: ESTADO_INICIAL, mensagemParaSolicitante: null },
-    });
-    if (count === 0) {
-      return null;
-    }
-
-    await tx.solicitacaoExternaSvoHistorico.create({
-      data: {
-        solicitacaoId: id,
-        tipo: TIPO_HISTORICO_COMPLEMENTO,
-        estadoAnterior: ESTADO_COMPLEMENTACAO,
-        estadoNovo: ESTADO_INICIAL,
-        autorId: usuarioId,
-        conteudo: input.complemento,
-      },
-    });
-
-    await tx.auditoriaSistema.create({
-      data: {
-        usuarioId,
-        acao: "COMPLEMENTAR",
-        tabelaAfetada: "solicitacoes_externas_svo",
-        registroId: id,
-        dadosNovos: { estadoAnterior: ESTADO_COMPLEMENTACAO, estadoNovo: ESTADO_INICIAL },
-      },
-    });
-
-    return tx.solicitacaoExternaSvo.findUniqueOrThrow({
-      where: { id },
-      include: INCLUIR_COMPLEMENTOS,
-    });
-  });
-
-  if (!atualizada) {
-    throw new HttpError(409, "A solicitação foi atualizada por outra requisição. Recarregue.");
-  }
-  return serializarSolicitacaoExterna(atualizada);
+  await transicionarSolicitacaoExternaSvo(
+    {
+      solicitacaoId: id,
+      statusNovo: ESTADO_INICIAL,
+      versaoEsperada: atual.versao,
+      complementacaoEnviada: input.complemento,
+    },
+    usuario,
+  );
+  return detalharSolicitacaoExterna(id, usuario.id);
 }

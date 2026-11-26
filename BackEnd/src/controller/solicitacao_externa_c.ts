@@ -53,6 +53,6 @@ export async function detalharSolicitacaoExternaController(req: Request, res: Re
 export async function complementarSolicitacaoExternaController(req: Request, res: Response) {
   const { id } = validar(solicitacaoExternaIdSchema, req.params);
   const dados = validar(complementarSolicitacaoExternaSchema, req.body ?? {});
-  const solicitacao = await complementarSolicitacaoExterna(id, dados, usuarioAutenticado(res).id);
+  const solicitacao = await complementarSolicitacaoExterna(id, dados, usuarioAutenticado(res));
   return res.status(200).json(solicitacao);
 }

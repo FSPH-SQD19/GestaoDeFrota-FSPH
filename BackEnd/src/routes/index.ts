@@ -94,8 +94,8 @@ escalasSvo.patch("/:id/encerrar", encerrarEscalaSvoController);
 
 // solicitacoes externas
 router.use("/api/v1/svo/solicitacoes-externas", solicitacaoExternaRoutes);
-router.use("/api/v1/svo", svoRoutes);
 router.use("/api/v1/svo/escalas", escalasSvo);
+router.use("/api/v1/svo", svoRoutes);
 
 router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
