@@ -494,11 +494,13 @@ export async function transicionarSolicitacaoExternaSvo(
     }
 
     const mensagemPublica =
-      parsed.statusNovo === "AGUARDANDO_COMPLEMENTACAO"
-        ? `Complementação solicitada: ${parsed.complementacaoSolicitada}`
-        : parsed.statusNovo === "RECUSADA"
-          ? `Solicitação recusada: ${parsed.motivoRecusa}`
-          : MENSAGEM_PUBLICA_POR_STATUS[parsed.statusNovo];
+      acaoHistorico === "COMPLEMENTACAO_ENVIADA"
+        ? `Complementação enviada: ${parsed.complementacaoEnviada}`
+        : parsed.statusNovo === "AGUARDANDO_COMPLEMENTACAO"
+          ? `Complementação solicitada: ${parsed.complementacaoSolicitada}`
+          : parsed.statusNovo === "RECUSADA"
+            ? `Solicitação recusada: ${parsed.motivoRecusa}`
+            : MENSAGEM_PUBLICA_POR_STATUS[parsed.statusNovo];
 
     const observacaoInterna = parsed.observacaoTriagem ?? parsed.justificativaDecisao ?? null;
 
