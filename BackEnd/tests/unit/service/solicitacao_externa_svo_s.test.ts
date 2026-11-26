@@ -96,6 +96,7 @@ function criarRegistroMock(
     solicitanteId: usuarioExterno.id,
     nomeContato: "Dr. Carlos Plantonista",
     telefoneContato: "(79) 99999-1234",
+    contatoEmail: null,
     tipoSolicitante: "HOSPITAL_UPA",
     instituicaoSolicitante: "Hospital Regional",
     nomeFalecido: "Paciente Inicial Teste",
