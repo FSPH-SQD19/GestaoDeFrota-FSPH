@@ -6,6 +6,8 @@ export default defineConfig({
     environment: "node",
     env: { DRIVER_PWA_ENABLED: "false" },
     include: ["tests/unit/**/*.test.ts"],
+    maxWorkers: 4,
+    testTimeout: 10000,
     clearMocks: true,
     restoreMocks: true,
     unstubEnvs: true,
