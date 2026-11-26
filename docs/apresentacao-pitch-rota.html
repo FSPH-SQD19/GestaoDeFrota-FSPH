@@ -1,141 +1,185 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ROTA // FSPH — Squad 19 · Pitch Final Takeoff</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg-dark: #091217;
-      --bg-card: #0F1E26;
-      --border-card: #1D3542;
-      --amber: #F59E0B;
-      --emerald: #10B981;
-      --crimson: #F43F5E;
-      --cyan: #38BDF8;
-      --paper: #F4EFE6;
-    }
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: var(--bg-dark);
-      color: #F8FAFC;
-      overflow: hidden;
-      user-select: none;
-    }
-    .font-serif-display {
-      font-family: 'Instrument Serif', Georgia, serif;
-    }
-    .font-mono-tech {
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .font-hand {
-      font-family: 'Caveat', cursive;
-    }
-    .bg-dot-grid {
-      background-color: #091217;
-      background-image: radial-gradient(#1D3542 1px, transparent 1px);
-      background-size: 24px 24px;
-    }
-    .bg-lined-paper {
-      background-color: #F3EFE6;
-      background-image: repeating-linear-gradient(
-        transparent,
-        transparent 31px,
-        #E0D9CC 31px,
-        #E0D9CC 32px
-      );
-    }
-    .bento-card {
-      background: linear-gradient(180deg, rgba(18, 35, 44, 0.92) 0%, rgba(11, 22, 28, 0.96) 100%);
-      border: 1px solid rgba(36, 65, 82, 0.85);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .bento-card:hover {
-      border-color: rgba(245, 158, 11, 0.45);
-      transform: translateY(-2px);
-    }
-    .slide-enter {
-      animation: slideFadeIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    @keyframes slideFadeIn {
-      from { opacity: 0; transform: translateY(12px) scale(0.992); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    input[type=range] {
-      accent-color: #F59E0B;
-    }
-  </style>
-</head>
-<body class="bg-dot-grid h-screen w-screen flex flex-col justify-between">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ROTA // FSPH — Squad 19 · Pitch Final Takeoff</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #091217;
+        --bg-card: #0f1e26;
+        --border-card: #1d3542;
+        --amber: #f59e0b;
+        --emerald: #10b981;
+        --crimson: #f43f5e;
+        --cyan: #38bdf8;
+        --paper: #f4efe6;
+      }
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background-color: var(--bg-dark);
+        color: #f8fafc;
+        overflow: hidden;
+        user-select: none;
+      }
+      .font-serif-display {
+        font-family: "Instrument Serif", Georgia, serif;
+      }
+      .font-mono-tech {
+        font-family: "JetBrains Mono", monospace;
+      }
+      .font-hand {
+        font-family: "Caveat", cursive;
+      }
+      .bg-dot-grid {
+        background-color: #091217;
+        background-image: radial-gradient(#1d3542 1px, transparent 1px);
+        background-size: 24px 24px;
+      }
+      .bg-lined-paper {
+        background-color: #f3efe6;
+        background-image: repeating-linear-gradient(
+          transparent,
+          transparent 31px,
+          #e0d9cc 31px,
+          #e0d9cc 32px
+        );
+      }
+      .bento-card {
+        background: linear-gradient(180deg, rgba(18, 35, 44, 0.92) 0%, rgba(11, 22, 28, 0.96) 100%);
+        border: 1px solid rgba(36, 65, 82, 0.85);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .bento-card:hover {
+        border-color: rgba(245, 158, 11, 0.45);
+        transform: translateY(-2px);
+      }
+      .slide-enter {
+        animation: slideFadeIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes slideFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(12px) scale(0.992);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      input[type="range"] {
+        accent-color: #f59e0b;
+      }
+    </style>
+  </head>
+  <body class="bg-dot-grid h-screen w-screen flex flex-col justify-between">
+    <!-- TOP EDITORIAL BAR -->
+    <header
+      class="h-14 px-8 border-b border-[#192D38] bg-[#091217]/90 backdrop-blur-md flex items-center justify-between z-30"
+    >
+      <div class="flex items-center gap-3">
+        <span class="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+        <span class="font-mono-tech text-xs tracking-widest uppercase text-slate-300"
+          >SQUAD 19 // FSPH · PROJETO ROTA</span
+        >
+      </div>
+      <div
+        id="rubric-badge"
+        class="font-mono-tech text-xs px-3.5 py-1 rounded-full bg-[#12242E] border border-amber-500/40 text-amber-300 tracking-wide"
+      >
+        ITEM 2.1.A · PROBLEMÁTICA & OPORTUNIDADE DE IA
+      </div>
+      <div class="flex items-center gap-4">
+        <span
+          id="timer-badge"
+          class="font-mono-tech text-xs text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-3 py-1 rounded-md"
+        >
+          ⏱ 00:00 – 00:55
+        </span>
+        <button
+          onclick="toggleNotes()"
+          class="font-mono-tech text-xs px-3 py-1.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 transition cursor-pointer"
+        >
+          🎙️ Ver Fala (Roteiro)
+        </button>
+      </div>
+    </header>
 
-  <!-- TOP EDITORIAL BAR -->
-  <header class="h-14 px-8 border-b border-[#192D38] bg-[#091217]/90 backdrop-blur-md flex items-center justify-between z-30">
-    <div class="flex items-center gap-3">
-      <span class="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-      <span class="font-mono-tech text-xs tracking-widest uppercase text-slate-300">SQUAD 19 // FSPH · PROJETO ROTA</span>
+    <!-- MAIN SLIDE VIEWPORT -->
+    <main
+      id="slide-container"
+      class="flex-1 relative overflow-hidden flex items-center justify-center px-10 py-6"
+    >
+      <!-- Injected by JS -->
+    </main>
+
+    <!-- SPEAKER NOTES DRAWER -->
+    <div
+      id="notes-drawer"
+      class="hidden fixed bottom-16 left-1/2 -translate-x-1/2 w-[88%] max-w-5xl bg-[#0D1A22]/98 border border-amber-500/50 rounded-2xl p-6 shadow-2xl z-40 backdrop-blur-xl"
+    >
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-mono-tech text-xs uppercase tracking-wider text-amber-400"
+          >🎙️ Fala Cronometrada deste Slide</span
+        >
+        <button
+          onclick="toggleNotes()"
+          class="text-slate-400 hover:text-white font-mono-tech text-xs"
+        >
+          ✕ Fechar [N]
+        </button>
+      </div>
+      <p id="notes-content" class="text-slate-100 text-base leading-relaxed font-normal"></p>
     </div>
-    <div id="rubric-badge" class="font-mono-tech text-xs px-3.5 py-1 rounded-full bg-[#12242E] border border-amber-500/40 text-amber-300 tracking-wide">
-      ITEM 2.1.A · PROBLEMÁTICA & OPORTUNIDADE DE IA
-    </div>
-    <div class="flex items-center gap-4">
-      <span id="timer-badge" class="font-mono-tech text-xs text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-3 py-1 rounded-md">
-        ⏱ 00:00 – 00:55
-      </span>
-      <button onclick="toggleNotes()" class="font-mono-tech text-xs px-3 py-1.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 transition cursor-pointer">
-        🎙️ Ver Fala (Roteiro)
-      </button>
-    </div>
-  </header>
 
-  <!-- MAIN SLIDE VIEWPORT -->
-  <main id="slide-container" class="flex-1 relative overflow-hidden flex items-center justify-center px-10 py-6">
-    <!-- Injected by JS -->
-  </main>
+    <!-- BOTTOM NAVIGATION BAR -->
+    <footer
+      class="h-14 px-8 border-t border-[#192D38] bg-[#091217]/90 backdrop-blur-md flex items-center justify-between z-30"
+    >
+      <div class="flex items-center gap-2" id="slide-dots"></div>
+      <div class="flex items-center gap-3">
+        <button
+          onclick="prevSlide()"
+          class="px-3.5 py-1.5 rounded-lg bg-[#12232C] hover:bg-[#1B3340] border border-[#234050] text-slate-200 font-mono-tech text-xs transition cursor-pointer"
+        >
+          ← Anterior
+        </button>
+        <span id="slide-counter" class="font-mono-tech text-xs text-slate-400 w-16 text-center"
+          >01 / 09</span
+        >
+        <button
+          onclick="nextSlide()"
+          class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono-tech font-semibold text-xs transition cursor-pointer"
+        >
+          Próximo →
+        </button>
+      </div>
+    </footer>
 
-  <!-- SPEAKER NOTES DRAWER -->
-  <div id="notes-drawer" class="hidden fixed bottom-16 left-1/2 -translate-x-1/2 w-[88%] max-w-5xl bg-[#0D1A22]/98 border border-amber-500/50 rounded-2xl p-6 shadow-2xl z-40 backdrop-blur-xl">
-    <div class="flex items-center justify-between mb-2">
-      <span class="font-mono-tech text-xs uppercase tracking-wider text-amber-400">🎙️ Fala Cronometrada deste Slide</span>
-      <button onclick="toggleNotes()" class="text-slate-400 hover:text-white font-mono-tech text-xs">✕ Fechar [N]</button>
-    </div>
-    <p id="notes-content" class="text-slate-100 text-base leading-relaxed font-normal"></p>
-  </div>
+    <script>
+      let currentSlide = 0;
+      let notebookClosed = false;
+      let demoStep = 0;
+      let liveIframeMode = false;
+      let scaleCalls = 3000;
+      let blackoutSim = false;
+      let selectedPromptFail = 0;
 
-  <!-- BOTTOM NAVIGATION BAR -->
-  <footer class="h-14 px-8 border-t border-[#192D38] bg-[#091217]/90 backdrop-blur-md flex items-center justify-between z-30">
-    <div class="flex items-center gap-2" id="slide-dots"></div>
-    <div class="flex items-center gap-3">
-      <button onclick="prevSlide()" class="px-3.5 py-1.5 rounded-lg bg-[#12232C] hover:bg-[#1B3340] border border-[#234050] text-slate-200 font-mono-tech text-xs transition cursor-pointer">
-        ← Anterior
-      </button>
-      <span id="slide-counter" class="font-mono-tech text-xs text-slate-400 w-16 text-center">01 / 09</span>
-      <button onclick="nextSlide()" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono-tech font-semibold text-xs transition cursor-pointer">
-        Próximo →
-      </button>
-    </div>
-  </footer>
-
-  <script>
-    let currentSlide = 0;
-    let notebookClosed = false;
-    let demoStep = 0;
-    let liveIframeMode = false;
-    let scaleCalls = 3000;
-    let blackoutSim = false;
-    let selectedPromptFail = 0;
-
-    const slides = [
-      // SLIDE 01 — COLD OPEN: 10:00 / 14:00 / 03:15 & O CADERNO FECHADO
-      {
-        rubric: "ITEM 2.1.A · PROBLEMÁTICA & OPORTUNIDADE DE IA (VALOR GERADO)",
-        time: "⏱ 00:00 – 00:55",
-        notes: `“Às 10h da manhã, uma caixa térmica com bolsas de sangue precisa sair do HEMOSE. Às 14h, amostras epidemiológicas precisam chegar ao LACEN. E às 3h15 da madrugada, uma família perde um ente querido em casa e aciona o SVO. Na primeira apresentação, nós mostramos a vocês que toda essa operação crítica do Estado de Sergipe dependia da memória do Vitor, de 4 canais de WhatsApp e de um caderno de papel. E nós fizemos uma promessa: na próxima solicitação, o caderno estaria fechado. Hoje nós não viemos mostrar um protótipo no Figma. Nós viemos mostrar o ROTA vivo, blindado por mais de 1.110 testes automatizados e operando no computador do gestor e no celular do motorista — mesmo sem internet no meio da estrada.”`,
-        render: () => `
+      const slides = [
+        // SLIDE 01 — COLD OPEN: 10:00 / 14:00 / 03:15 & O CADERNO FECHADO
+        {
+          rubric: "ITEM 2.1.A · PROBLEMÁTICA & OPORTUNIDADE DE IA (VALOR GERADO)",
+          time: "⏱ 00:00 – 00:55",
+          notes: `“Às 10h da manhã, uma caixa térmica com bolsas de sangue precisa sair do HEMOSE. Às 14h, amostras epidemiológicas precisam chegar ao LACEN. E às 3h15 da madrugada, uma família perde um ente querido em casa e aciona o SVO. Na primeira apresentação, nós mostramos a vocês que toda essa operação crítica do Estado de Sergipe dependia da memória do Vitor, de 4 canais de WhatsApp e de um caderno de papel. E nós fizemos uma promessa: na próxima solicitação, o caderno estaria fechado. Hoje nós não viemos mostrar um protótipo no Figma. Nós viemos mostrar o ROTA vivo, blindado por mais de 1.110 testes automatizados e operando no computador do gestor e no celular do motorista — mesmo sem internet no meio da estrada.”`,
+          render: () => `
           <div class="w-full max-w-6xl mx-auto slide-enter">
             <!-- 3 Critical Timestamps -->
             <div class="grid grid-cols-3 gap-5 mb-7">
@@ -158,14 +202,14 @@
 
             <!-- Interactive Notebook -> ROTA Transformation -->
             <div class="grid grid-cols-12 gap-6 items-stretch">
-              <div class="col-span-5 rounded-2xl p-6 relative overflow-hidden transition-all duration-500 ${notebookClosed ? 'opacity-40 scale-95 bg-[#162229] border border-slate-700' : 'bg-lined-paper text-slate-900 shadow-2xl'}">
+              <div class="col-span-5 rounded-2xl p-6 relative overflow-hidden transition-all duration-500 ${notebookClosed ? "opacity-40 scale-95 bg-[#162229] border border-slate-700" : "bg-lined-paper text-slate-900 shadow-2xl"}">
                 <div class="absolute left-7 top-0 bottom-0 w-0.5 bg-red-400/70"></div>
                 <div class="pl-5">
                   <span class="font-mono-tech text-[11px] uppercase px-2 py-0.5 rounded bg-red-600 text-white">1ª Apresentação · O Caos de Vitor</span>
-                  <h3 class="font-serif-display text-3xl mt-3 ${notebookClosed ? 'text-slate-300 line-through' : 'text-slate-900'}">
+                  <h3 class="font-serif-display text-3xl mt-3 ${notebookClosed ? "text-slate-300 line-through" : "text-slate-900"}">
                     4 canais, 2 frotas e um caderno de papel.
                   </h3>
-                  <div class="mt-4 space-y-2 text-xs font-medium ${notebookClosed ? 'text-slate-400' : 'text-slate-700'}">
+                  <div class="mt-4 space-y-2 text-xs font-medium ${notebookClosed ? "text-slate-400" : "text-slate-700"}">
                     <div class="p-2 rounded bg-yellow-200/90 text-slate-900 shadow-sm">📞 Diretoria: "Tem carro livre às 09h?"</div>
                     <div class="p-2 rounded bg-yellow-200/90 text-slate-900 shadow-sm">💬 WhatsApp: "Fábio já saiu pro interior?"</div>
                     <div class="p-2 rounded bg-red-100 text-red-900 border border-red-300">⚠️ Risco de choque de agenda, CNH vencida e viatura SVO sem controle de desinfecção.</div>
@@ -181,7 +225,7 @@
                       ✓ Promessa Cumprida · O Caderno Ficou Fechado
                     </span>
                     <button onclick="notebookClosed = !notebookClosed; renderCurrentSlide();" class="font-mono-tech text-xs px-3 py-1 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300 hover:bg-amber-500/30 cursor-pointer">
-                      ${notebookClosed ? '↺ Reabrir Caderno' : '📕 Fechar o Caderno Agora'}
+                      ${notebookClosed ? "↺ Reabrir Caderno" : "📕 Fechar o Caderno Agora"}
                     </button>
                   </div>
                   <h1 class="font-serif-display text-5xl leading-tight mt-4 text-white">
@@ -210,15 +254,15 @@
               </div>
             </div>
           </div>
-        `
-      },
+        `,
+        },
 
-      // SLIDE 02 — FERRAMENTAS & SERVIÇOS DE IA NA ENGENHARIA (2.1.B & 2.1.C)
-      {
-        rubric: "ITENS 2.1.B & 2.1.C · FERRAMENTAS UTILIZADAS + SERVIÇOS DE IA E IMPACTO",
-        time: "⏱ 00:55 – 01:45",
-        notes: `“Para tirar o ROTA do papel com qualidade industrial, construímos uma arquitetura moderna: React 19, TypeScript, Tailwind 4 e PWA com IndexedDB na ponta do Vitor e do motorista; Node.js, Express 5, Prisma 6 e Zod no Back-End; e Neon PostgreSQL com extensão espacial PostGIS e um servidor próprio de rotas OSRM em Docker. Durante o desenvolvimento, orquestramos quatro serviços de IA rastreados na pasta /prompts do nosso GitHub: Google Gemini e Antigravity na arquitetura, modelagem e auditoria LGPD; Claude Sonnet em locks transacionais e massa sintética; OpenAI GPT/Codex no PWA offline; e GitHub Copilot na padronização entre os 10 membros.”`,
-        render: () => `
+        // SLIDE 02 — FERRAMENTAS & SERVIÇOS DE IA NA ENGENHARIA (2.1.B & 2.1.C)
+        {
+          rubric: "ITENS 2.1.B & 2.1.C · FERRAMENTAS UTILIZADAS + SERVIÇOS DE IA E IMPACTO",
+          time: "⏱ 00:55 – 01:45",
+          notes: `“Para tirar o ROTA do papel com qualidade industrial, construímos uma arquitetura moderna: React 19, TypeScript, Tailwind 4 e PWA com IndexedDB na ponta do Vitor e do motorista; Node.js, Express 5, Prisma 6 e Zod no Back-End; e Neon PostgreSQL com extensão espacial PostGIS e um servidor próprio de rotas OSRM em Docker. Durante o desenvolvimento, orquestramos quatro serviços de IA rastreados na pasta /prompts do nosso GitHub: Google Gemini e Antigravity na arquitetura, modelagem e auditoria LGPD; Claude Sonnet em locks transacionais e massa sintética; OpenAI GPT/Codex no PWA offline; e GitHub Copilot na padronização entre os 10 membros.”`,
+          render: () => `
           <div class="w-full max-w-6xl mx-auto slide-enter">
             <div class="text-center mb-8">
               <h2 class="font-serif-display text-5xl text-white">
@@ -303,15 +347,15 @@
               </div>
             </div>
           </div>
-        `
-      },
+        `,
+        },
 
-      // SLIDE 03 — OS 5 DIFERENCIAIS DA SOLUÇÃO (2.1.D)
-      {
-        rubric: "ITEM 2.1.D · DIFERENCIAIS TÉCNICOS E OPERACIONAIS DA SOLUÇÃO",
-        time: "⏱ 01:45 – 02:25",
-        notes: `“E por que o ROTA é diferente de qualquer planilha ou sistema genérico? Por 5 diferenciais feitos sob medida para a FSPH: 1) Viagens Institucionais sem conflito para o Vitor aprovar demandas do HEMOSE e LACEN com cancelamento formal auditado; 2) Conservação em ciclo fechado, onde o checklist do motorista abre avaria automática e agenda manutenção com reserva de horário; 3) Segregação e Biossegurança estrita no SVO com limite de 4 urnas e status automático de DESINFECCAO; 4) PWA Mobile Offline-First no celular do Fábio; e 5) Trilha de Auditoria LGPD com relatórios CSV e PDF.”`,
-        render: () => `
+        // SLIDE 03 — OS 5 DIFERENCIAIS DA SOLUÇÃO (2.1.D)
+        {
+          rubric: "ITEM 2.1.D · DIFERENCIAIS TÉCNICOS E OPERACIONAIS DA SOLUÇÃO",
+          time: "⏱ 01:45 – 02:25",
+          notes: `“E por que o ROTA é diferente de qualquer planilha ou sistema genérico? Por 5 diferenciais feitos sob medida para a FSPH: 1) Viagens Institucionais sem conflito para o Vitor aprovar demandas do HEMOSE e LACEN com cancelamento formal auditado; 2) Conservação em ciclo fechado, onde o checklist do motorista abre avaria automática e agenda manutenção com reserva de horário; 3) Segregação e Biossegurança estrita no SVO com limite de 4 urnas e status automático de DESINFECCAO; 4) PWA Mobile Offline-First no celular do Fábio; e 5) Trilha de Auditoria LGPD com relatórios CSV e PDF.”`,
+          render: () => `
           <div class="w-full max-w-6xl mx-auto slide-enter">
             <h2 class="font-serif-display text-5xl text-center text-white mb-7">
               Cinco pilares que unem a <span class="italic text-amber-400">gestão de Vitor</span> à estrada de <span class="italic text-emerald-400">Fábio</span>.
@@ -365,27 +409,39 @@
               </div>
             </div>
           </div>
-        `
-      },
+        `,
+        },
 
-      // SLIDE 04 — DEMO SPLIT-SCREEN DENTRO DO SLIDE (2.1.E)
-      {
-        rubric: "ITEM 2.1.E · DEMONSTRAÇÃO DA SOLUÇÃO (WEB GESTOR VITOR + CELULAR PWA FÁBIO)",
-        time: "⏱ 02:25 – 04:20",
-        notes: `“Olhem para a tela dividida: à esquerda está o computador do Vitor; à direita, o celular do motorista Fábio. Passo 1: No Dashboard, Vitor vê os 7 KPIs e os 3 gráficos acima da dobra e aprova uma viagem institucional do HEMOSE (ou cancela formalmente liberando o carro na hora). Passo 2: No celular, Fábio vê a rota OSRM e marca avaria no freio no checklist de retorno, que já vira manutenção preventiva na tela do Vitor. Passo 3: No SVO, após a entrega no celular, a viatura entra automaticamente em DESINFECCAO. Passo 4: Relatórios PDF/CSV e Trilha de Auditoria com dados sensíveis mascarados com ****** pela LGPD.”`,
-        render: () => {
-          const steps = [
-            {
-              title: "1. Cockpit de Vitor & Viagens Institucionais",
-              webTitle: "Dashboard Compacto (7 KPIs + 3 Gráficos) & Aprovação de Viagem HEMOSE",
-              webContent: `
+        // SLIDE 04 — DEMO SPLIT-SCREEN DENTRO DO SLIDE (2.1.E)
+        {
+          rubric: "ITEM 2.1.E · DEMONSTRAÇÃO DA SOLUÇÃO (WEB GESTOR VITOR + CELULAR PWA FÁBIO)",
+          time: "⏱ 02:25 – 04:20",
+          notes: `“Olhem para a tela dividida: à esquerda está o computador do Vitor; à direita, o celular do motorista Fábio. Passo 1: No Dashboard, Vitor vê os 7 KPIs e os 3 gráficos acima da dobra e aprova uma viagem institucional do HEMOSE (ou cancela formalmente liberando o carro na hora). Passo 2: No celular, Fábio vê a rota OSRM e marca avaria no freio no checklist de retorno, que já vira manutenção preventiva na tela do Vitor. Passo 3: No SVO, após a entrega no celular, a viatura entra automaticamente em DESINFECCAO. Passo 4: Relatórios PDF/CSV e Trilha de Auditoria com dados sensíveis mascarados com ****** pela LGPD.”`,
+          render: () => {
+            const steps = [
+              {
+                title: "1. Cockpit de Vitor & Viagens Institucionais",
+                webTitle: "Dashboard Compacto (7 KPIs + 3 Gráficos) & Aprovação de Viagem HEMOSE",
+                webContent: `
                 <div class="grid grid-cols-7 gap-1.5 mb-3">
-                  ${[['Frota','24'],['Livres','14'],['Em Uso','6'],['Manut.','2'],['Viagens','18'],['SVO SLA','34m'],['Avarias','1']].map(([k,v]) => `
+                  ${[
+                    ["Frota", "24"],
+                    ["Livres", "14"],
+                    ["Em Uso", "6"],
+                    ["Manut.", "2"],
+                    ["Viagens", "18"],
+                    ["SVO SLA", "34m"],
+                    ["Avarias", "1"],
+                  ]
+                    .map(
+                      ([k, v]) => `
                     <div class="p-2 rounded bg-[#0C1820] border border-[#1F3847] text-center">
                       <div class="font-mono-tech text-sm font-bold text-amber-400">${v}</div>
                       <div class="text-[10px] text-slate-400">${k}</div>
                     </div>
-                  `).join('')}
+                  `,
+                    )
+                    .join("")}
                 </div>
                 <div class="grid grid-cols-3 gap-2 mb-3">
                   <div class="p-2.5 rounded bg-[#0C1820] border border-[#1F3847]">
@@ -421,8 +477,8 @@
                   </div>
                 </div>
               `,
-              pwaTitle: "Viagem Recebida + Rota OSRM",
-              pwaContent: `
+                pwaTitle: "Viagem Recebida + Rota OSRM",
+                pwaContent: `
                 <div class="p-3 rounded-xl bg-[#0F222D] border border-cyan-500/40 mb-3">
                   <div class="font-mono-tech text-[10px] text-cyan-300">ROTA OSRM CALCULADA</div>
                   <div class="text-xs font-bold text-white mt-1">HEMOSE Aracaju → Lagarto/SE</div>
@@ -432,12 +488,12 @@
                   <div class="text-xs font-bold text-emerald-300">▶ INICIAR VIAGEM (GPS)</div>
                   <div class="text-[10px] text-slate-300 mt-0.5">Fila Offline IndexedDB Pronta</div>
                 </div>
-              `
-            },
-            {
-              title: "2. Checklist do Fábio → Avaria & Manutenção de Vitor",
-              webTitle: "Gestão de Avarias & Programação de Manutenção com Reserva de Horário",
-              webContent: `
+              `,
+              },
+              {
+                title: "2. Checklist do Fábio → Avaria & Manutenção de Vitor",
+                webTitle: "Gestão de Avarias & Programação de Manutenção com Reserva de Horário",
+                webContent: `
                 <div class="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/40 mb-3">
                   <div class="flex justify-between items-center">
                     <span class="font-mono-tech text-xs text-rose-300">🚨 NOVA AVARIA ABERTA PELO CHECKLIST DE RETORNO</span>
@@ -453,8 +509,8 @@
                   </div>
                 </div>
               `,
-              pwaTitle: "Checklist Digital de Retorno",
-              pwaContent: `
+                pwaTitle: "Checklist Digital de Retorno",
+                pwaContent: `
                 <div class="space-y-2 text-xs">
                   <div class="p-2.5 rounded-lg bg-[#0F222D] flex justify-between"><span>Pneus e Lataria</span><span class="text-emerald-400">✓ OK</span></div>
                   <div class="p-2.5 rounded-lg bg-rose-950/50 border border-rose-500/50 flex justify-between"><span>Sistema de Freios</span><span class="text-rose-400 font-bold">⚠ AVARIA</span></div>
@@ -465,12 +521,12 @@
                     ✓ ENVIADO AUTOMATICAMENTE P/ VITOR
                   </div>
                 </div>
-              `
-            },
-            {
-              title: "3. Operação SVO & Desinfecção Automática",
-              webTitle: "Painel SVO (Portal Externo SVOE + SLA + Trava de 4 Urnas e Desinfecção)",
-              webContent: `
+              `,
+              },
+              {
+                title: "3. Operação SVO & Desinfecção Automática",
+                webTitle: "Painel SVO (Portal Externo SVOE + SLA + Trava de 4 Urnas e Desinfecção)",
+                webContent: `
                 <div class="grid grid-cols-3 gap-2.5 mb-3">
                   <div class="p-2.5 rounded-lg bg-[#0C1820] border border-[#1F3847]">
                     <div class="text-[10px] font-mono-tech text-slate-400">PROTOCOLO EXTERNO</div>
@@ -492,8 +548,8 @@
                   SLA Médio do Mês: <strong class="text-emerald-400">34 min até o local</strong> · Viatura S10 SVO-02 transitou automaticamente para <code class="text-rose-400">DESINFECCAO</code> após confirmação do motorista.
                 </div>
               `,
-              pwaTitle: "Minhas Coletas SVO (Fábio)",
-              pwaContent: `
+                pwaTitle: "Minhas Coletas SVO (Fábio)",
+                pwaContent: `
                 <div class="space-y-2 text-xs">
                   <div class="p-2 rounded bg-emerald-950/50 border border-emerald-500/40 text-emerald-300">1. Saída da Base SVO ✓</div>
                   <div class="p-2 rounded bg-emerald-950/50 border border-emerald-500/40 text-emerald-300">2. Chegada no Local ✓</div>
@@ -502,12 +558,12 @@
                     ☣ VIATURA EM DESINFECCAO
                   </div>
                 </div>
-              `
-            },
-            {
-              title: "4. Governança: Relatórios PDF/CSV & Auditoria LGPD",
-              webTitle: "Trilha de Auditoria Imutável (ADMIN) com Sanitização Recursiva LGPD",
-              webContent: `
+              `,
+              },
+              {
+                title: "4. Governança: Relatórios PDF/CSV & Auditoria LGPD",
+                webTitle: "Trilha de Auditoria Imutável (ADMIN) com Sanitização Recursiva LGPD",
+                webContent: `
                 <div class="flex items-center justify-between mb-2">
                   <span class="font-mono-tech text-xs text-emerald-400">MÓDULO: AUDITORIA & RELATÓRIOS OFICIAIS</span>
                   <div class="flex gap-2">
@@ -528,34 +584,40 @@
   }
 }</pre>
               `,
-              pwaTitle: "Sincronização Idempotente",
-              pwaContent: `
+                pwaTitle: "Sincronização Idempotente",
+                pwaContent: `
                 <div class="p-3 rounded-xl bg-[#0F222D] border border-emerald-500/40 text-xs space-y-2">
                   <div class="font-mono-tech text-[10px] text-emerald-400">SEGURANÇA DE SESSÃO</div>
                   <div class="text-slate-200">• Cookie <code class="text-amber-300">HttpOnly</code></div>
                   <div class="text-slate-200">• Token <code class="text-amber-300">CSRF</code> validado</div>
                   <div class="text-slate-200">• Isolamento RBAC horizontal</div>
                 </div>
-              `
-            }
-          ];
-          const s = steps[demoStep];
-          return `
+              `,
+              },
+            ];
+            const s = steps[demoStep];
+            return `
             <div class="w-full max-w-6xl mx-auto slide-enter">
               <div class="flex items-center justify-between mb-4">
                 <div class="flex gap-2">
-                  ${steps.map((st, idx) => `
-                    <button onclick="demoStep = ${idx}; liveIframeMode = false; renderCurrentSlide();" class="px-3 py-1.5 rounded-lg font-mono-tech text-xs transition cursor-pointer ${demoStep === idx && !liveIframeMode ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-[#11222B] text-slate-300 border border-[#1F3A49]'}">
+                  ${steps
+                    .map(
+                      (st, idx) => `
+                    <button onclick="demoStep = ${idx}; liveIframeMode = false; renderCurrentSlide();" class="px-3 py-1.5 rounded-lg font-mono-tech text-xs transition cursor-pointer ${demoStep === idx && !liveIframeMode ? "bg-amber-500 text-slate-950 font-bold" : "bg-[#11222B] text-slate-300 border border-[#1F3A49]"}">
                       ${st.title}
                     </button>
-                  `).join('')}
+                  `,
+                    )
+                    .join("")}
                 </div>
-                <button onclick="liveIframeMode = !liveIframeMode; renderCurrentSlide();" class="px-3 py-1.5 rounded-lg font-mono-tech text-xs border cursor-pointer ${liveIframeMode ? 'bg-emerald-500 text-slate-950 font-bold border-emerald-400' : 'bg-[#11222B] text-emerald-300 border-emerald-500/40'}">
-                  ${liveIframeMode ? '🟢 Modo Ao Vivo (localhost:5173)' : '⚡ Abrir localhost:5173 Ao Vivo no Slide'}
+                <button onclick="liveIframeMode = !liveIframeMode; renderCurrentSlide();" class="px-3 py-1.5 rounded-lg font-mono-tech text-xs border cursor-pointer ${liveIframeMode ? "bg-emerald-500 text-slate-950 font-bold border-emerald-400" : "bg-[#11222B] text-emerald-300 border-emerald-500/40"}">
+                  ${liveIframeMode ? "🟢 Modo Ao Vivo (localhost:5173)" : "⚡ Abrir localhost:5173 Ao Vivo no Slide"}
                 </button>
               </div>
 
-              ${liveIframeMode ? `
+              ${
+                liveIframeMode
+                  ? `
                 <div class="grid grid-cols-12 gap-5 h-[430px]">
                   <div class="col-span-8 bento-card rounded-2xl overflow-hidden flex flex-col">
                     <div class="px-4 py-2 bg-[#0B161C] border-b border-[#1D3542] flex items-center justify-between">
@@ -570,7 +632,8 @@
                     <iframe src="http://localhost:5173/motorista" class="w-full flex-1 bg-white"></iframe>
                   </div>
                 </div>
-              ` : `
+              `
+                  : `
                 <div class="grid grid-cols-12 gap-6 items-stretch">
                   <!-- MacBook Frame (Vitor) -->
                   <div class="col-span-8 bento-card rounded-2xl overflow-hidden flex flex-col">
@@ -600,22 +663,23 @@
                     </div>
                   </div>
                 </div>
-              `}
+              `
+              }
             </div>
           `;
-        }
-      },
+          },
+        },
 
-      // SLIDE 05 — CUSTO E VIABILIDADE ECONÔMICA COM SLIDER AO VIVO (2.2.A, 2.2.B, 2.2.C)
-      {
-        rubric: "ITEM 2.2 · CUSTO POR CHAMADA/TOKEN/USUÁRIO, TRADE-OFFS E VIABILIDADE EM ESCALA",
-        time: "⏱ 04:20 – 05:25",
-        notes: `“Quanto custa manter essa inteligência rodando na FSPH? No nosso core operacional em produção hoje, o custo variável de tokens é R$ 0,00, porque compilamos as regras em TypeScript determinístico e subimos nosso próprio motor OSRM com PostGIS (resposta abaixo de 45ms). E se a FSPH ativar um módulo consultivo de LLM (Gemini 2.5 Flash ou GPT-4o-mini) para pré-triagem e resumos executivos para o Vitor? Cada chamada consome 500 tokens de entrada e 200 de saída, custando US$ 0,00013 por chamada. Para 3.000 chamadas/mês na FSPH (2.100 viagens/operações adm + 900 chamados SVO), a conta mensal fecha em US$ 0,39 — apenas R$ 2,26 por mês para a fundação inteira (menos de 4 centavos por usuário). E arrastando o simulador para 10x (30.000 chamadas no estado inteiro), o custo continua abaixo de R$ 23/mês.”`,
-        render: () => {
-          const usdMonth = (scaleCalls * 0.00013).toFixed(2);
-          const brlMonth = (scaleCalls * 0.00013 * 5.8).toFixed(2).replace('.', ',');
-          const multiplier = (scaleCalls / 3000).toFixed(0);
-          return `
+        // SLIDE 05 — CUSTO E VIABILIDADE ECONÔMICA COM SLIDER AO VIVO (2.2.A, 2.2.B, 2.2.C)
+        {
+          rubric: "ITEM 2.2 · CUSTO POR CHAMADA/TOKEN/USUÁRIO, TRADE-OFFS E VIABILIDADE EM ESCALA",
+          time: "⏱ 04:20 – 05:25",
+          notes: `“Quanto custa manter essa inteligência rodando na FSPH? No nosso core operacional em produção hoje, o custo variável de tokens é R$ 0,00, porque compilamos as regras em TypeScript determinístico e subimos nosso próprio motor OSRM com PostGIS (resposta abaixo de 45ms). E se a FSPH ativar um módulo consultivo de LLM (Gemini 2.5 Flash ou GPT-4o-mini) para pré-triagem e resumos executivos para o Vitor? Cada chamada consome 500 tokens de entrada e 200 de saída, custando US$ 0,00013 por chamada. Para 3.000 chamadas/mês na FSPH (2.100 viagens/operações adm + 900 chamados SVO), a conta mensal fecha em US$ 0,39 — apenas R$ 2,26 por mês para a fundação inteira (menos de 4 centavos por usuário). E arrastando o simulador para 10x (30.000 chamadas no estado inteiro), o custo continua abaixo de R$ 23/mês.”`,
+          render: () => {
+            const usdMonth = (scaleCalls * 0.00013).toFixed(2);
+            const brlMonth = (scaleCalls * 0.00013 * 5.8).toFixed(2).replace(".", ",");
+            const multiplier = (scaleCalls / 3000).toFixed(0);
+            return `
             <div class="w-full max-w-6xl mx-auto slide-enter">
               <h2 class="font-serif-display text-5xl text-center text-white mb-6">
                 Custo zero no caminho crítico. <span class="italic text-emerald-400">Viabilidade total</span> para o setor público.
@@ -632,7 +696,7 @@
                 </div>
 
                 <div class="bento-card rounded-2xl p-7 border-l-4 border-l-amber-400">
-                  <span class="font-mono-tech text-xs text-amber-400 uppercase">[2.2.A] Módulo Consultivo de IA (${scaleCalls.toLocaleString('pt-BR')} chamadas/mês · ${multiplier}x)</span>
+                  <span class="font-mono-tech text-xs text-amber-400 uppercase">[2.2.A] Módulo Consultivo de IA (${scaleCalls.toLocaleString("pt-BR")} chamadas/mês · ${multiplier}x)</span>
                   <div class="font-mono-tech text-6xl font-extrabold text-amber-400 mt-3">R$ ${brlMonth}<span class="text-xl text-slate-400 font-normal"> / mês (US$ ${usdMonth})</span></div>
                   <p class="text-xs text-slate-300 mt-3">
                     <strong>Gemini 2.5 Flash / GPT-4o-mini:</strong> <code>500 tokens in</code> + <code>200 tokens out</code> = <strong>US$ 0,00013 / chamada</strong> · Menos de <strong>R$ 0,04 por usuário ativo/mês</strong> na FSPH.
@@ -644,7 +708,7 @@
               <div class="bento-card rounded-2xl p-6">
                 <div class="flex items-center justify-between mb-2">
                   <span class="font-mono-tech text-xs text-cyan-300 uppercase">[2.2.C] Simulador Ao Vivo de Escala em Produção Pública (Arraste para testar elasticidade 1x a 10x)</span>
-                  <span class="font-mono-tech text-xs text-amber-300 font-bold">${scaleCalls.toLocaleString('pt-BR')} chamadas/mês (${multiplier}x FSPH)</span>
+                  <span class="font-mono-tech text-xs text-amber-300 font-bold">${scaleCalls.toLocaleString("pt-BR")} chamadas/mês (${multiplier}x FSPH)</span>
                 </div>
                 <input type="range" min="3000" max="30000" step="3000" value="${scaleCalls}" oninput="scaleCalls = Number(this.value); renderCurrentSlide();" class="w-full h-2 cursor-pointer" />
                 <div class="flex justify-between font-mono-tech text-[11px] text-slate-400 mt-2">
@@ -655,27 +719,27 @@
               </div>
             </div>
           `;
-        }
-      },
+          },
+        },
 
-      // SLIDE 06 — E SE A IA FALHASSE? + OS 4 CADEADOS HUMANOS (2.3.A & 2.3.C)
-      {
-        rubric: "ITENS 2.3.A & 2.3.C · 'E SE A IA FALHASSE?' + O QUE NÃO DELEGAMOS À IA",
-        time: "⏱ 05:25 – 06:45",
-        notes: `“E se a IA falhasse? Se hoje a OpenAI, a Anthropic e o Google caírem ao mesmo tempo, nenhuma viagem institucional do Vitor e nenhuma remoção do SVO para por um único segundo. E se o 4G do motorista Fábio cair na estrada, o PWA guarda tudo no IndexedDB do celular e sincroniza sem duplicidade quando a rede volta. Isso nasce das 4 decisões que proibimos a IA de tomar sozinha: 1) Priorizar viagens institucionais entre HEMOSE, LACEN e Administração (decisão exclusiva do Vitor); 2) Triagem SVO vs. IML (uma alucinação sobre morte violenta causaria crime pericial — exigimos dupla trava humana: Atendente + Gestor); 3) Flexibilizar limite de 4 urnas ou desinfecção; e 4) Enviar CPFs ou dados reais para LLMs (LGPD).”`,
-        render: () => `
+        // SLIDE 06 — E SE A IA FALHASSE? + OS 4 CADEADOS HUMANOS (2.3.A & 2.3.C)
+        {
+          rubric: "ITENS 2.3.A & 2.3.C · 'E SE A IA FALHASSE?' + O QUE NÃO DELEGAMOS À IA",
+          time: "⏱ 05:25 – 06:45",
+          notes: `“E se a IA falhasse? Se hoje a OpenAI, a Anthropic e o Google caírem ao mesmo tempo, nenhuma viagem institucional do Vitor e nenhuma remoção do SVO para por um único segundo. E se o 4G do motorista Fábio cair na estrada, o PWA guarda tudo no IndexedDB do celular e sincroniza sem duplicidade quando a rede volta. Isso nasce das 4 decisões que proibimos a IA de tomar sozinha: 1) Priorizar viagens institucionais entre HEMOSE, LACEN e Administração (decisão exclusiva do Vitor); 2) Triagem SVO vs. IML (uma alucinação sobre morte violenta causaria crime pericial — exigimos dupla trava humana: Atendente + Gestor); 3) Flexibilizar limite de 4 urnas ou desinfecção; e 4) Enviar CPFs ou dados reais para LLMs (LGPD).”`,
+          render: () => `
           <div class="w-full max-w-6xl mx-auto slide-enter">
             <!-- Interactive Blackout Simulator (2.3.a) -->
-            <div class="bento-card rounded-2xl p-5 mb-6 border ${blackoutSim ? 'border-emerald-400 bg-emerald-950/20' : 'border-[#1E3644]'}">
+            <div class="bento-card rounded-2xl p-5 mb-6 border ${blackoutSim ? "border-emerald-400 bg-emerald-950/20" : "border-[#1E3644]"}">
               <div class="flex items-center justify-between">
                 <div>
                   <span class="font-mono-tech text-xs text-amber-400 uppercase">[2.3.A] Teste de Resiliência: "E se a IA ou a Internet falhassem agora?"</span>
                   <h3 class="text-xl font-bold text-white mt-1">
-                    ${blackoutSim ? '⚡ SIMULAÇÃO ATIVA: OpenAI Offline + 4G da Rodovia Cortado → ROTA 100% OPERACIONAL' : 'Clique ao lado para simular um apagão global de LLMs e perda de 4G na estrada'}
+                    ${blackoutSim ? "⚡ SIMULAÇÃO ATIVA: OpenAI Offline + 4G da Rodovia Cortado → ROTA 100% OPERACIONAL" : "Clique ao lado para simular um apagão global de LLMs e perda de 4G na estrada"}
                   </h3>
                 </div>
-                <button onclick="blackoutSim = !blackoutSim; renderCurrentSlide();" class="px-4 py-2 rounded-xl font-mono-tech text-xs font-bold cursor-pointer transition ${blackoutSim ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500 hover:bg-rose-400 text-white'}">
-                  ${blackoutSim ? '✓ Operação FSPH Intacta (Resetar)' : '⚡ Simular Apagão IA + 4G'}
+                <button onclick="blackoutSim = !blackoutSim; renderCurrentSlide();" class="px-4 py-2 rounded-xl font-mono-tech text-xs font-bold cursor-pointer transition ${blackoutSim ? "bg-emerald-500 text-slate-950" : "bg-rose-500 hover:bg-rose-400 text-white"}">
+                  ${blackoutSim ? "✓ Operação FSPH Intacta (Resetar)" : "⚡ Simular Apagão IA + 4G"}
                 </button>
               </div>
               <div class="grid grid-cols-3 gap-4 mt-4">
@@ -721,34 +785,40 @@
               </div>
             </div>
           </div>
-        `
-      },
+        `,
+        },
 
-      // SLIDE 07 — GARANTIA DE QUALIDADE & OS 3 PROMPTS QUE FALHARAM (2.3.B & 2.3.D)
-      {
-        rubric: "ITENS 2.3.B & 2.3.D · GARANTIA DE QUALIDADE DOS OUTPUTS DE IA + APRENDIZADOS",
-        time: "⏱ 06:45 – 08:25",
-        notes: `“Como garantimos a qualidade de cada output de IA? Criamos um funil de 4 barreiras automáticas no GitHub Actions: TypeScript estrito sem any, Oxlint com 0 warnings em mais de 280 arquivos, mais de 1.110 testes automatizados (915 Back-End + 235 Front-End + Playwright E2E) e Matriz de QA Exploratória. E nosso maior aprendizado veio de 3 prompts que falharam na v1.0: 1) A IA misturou carros administrativos do Vitor com viaturas do SVO; 2) Sugeriu pular a desinfecção e colocar 6 corpos numa viatura de 4 lugares, além de sofrer race condition em cliques simultâneos; 3) Usou Math.random() gerando datas impossíveis que quebravam os gráficos do Dashboard. Domamos isso com Negative Constraints explícitas, locks SELECT FOR UPDATE e PRNG determinístico.”`,
-        render: () => {
-          const fails = [
-            {
-              tag: "FALHA 1 · PRM-01 (MODELAGEM DE FROTA)",
-              wrong: "Prompt v1.0 aberto: A IA colocou os carros administrativos do Vitor e as viaturas de remoção do SVO num único pool genérico, permitindo escalar carro administrativo para óbito.",
-              right: "Prompt v3.0 com Negative Constraints: Segregação estrita no banco (tipoFrota: FROTA_ADM vs SVO) + bloqueio cruzado validado em suíte unitária."
-            },
-            {
-              tag: "FALHA 2 · PRM-02 (BIOSSEGURANÇA & CONCORRÊNCIA)",
-              wrong: "Prompt v1.0 ('otimize a rota'): A IA tentou alocar 6 corpos numa viatura de 4 urnas, ignorou o status DESINFECCAO e usou Check-Then-Act sem transação (permitindo dupla alocação da mesma viagem).",
-              right: "Prompt v4.0: Trava física de 4 urnas + transição automática para DESINFECCAO + Lock pessimista SELECT ... FOR UPDATE no PostgreSQL (testado no Playwright E2E)."
-            },
-            {
-              tag: "FALHA 3 · PRM-03 (MASSA DE DADOS & DASHBOARD DE VITOR)",
-              wrong: "Prompt v1.0: A IA usou Math.random() no seed, gerando viagens com data de chegada anterior à saída e quebrando os 3 gráficos analíticos do Dashboard de Vitor.",
-              right: "Prompt v3.0: Gerador matemático determinístico (Mulberry32, seed 202619) com invariantes cronológicos e sanitização LGPD."
-            }
-          ];
-          const f = fails[selectedPromptFail];
-          return `
+        // SLIDE 07 — GARANTIA DE QUALIDADE & OS 3 PROMPTS QUE FALHARAM (2.3.B & 2.3.D)
+        {
+          rubric: "ITENS 2.3.B & 2.3.D · GARANTIA DE QUALIDADE DOS OUTPUTS DE IA + APRENDIZADOS",
+          time: "⏱ 06:45 – 08:25",
+          notes: `“Como garantimos a qualidade de cada output de IA? Criamos um funil de 4 barreiras automáticas no GitHub Actions: TypeScript estrito sem any, Oxlint com 0 warnings em mais de 280 arquivos, mais de 1.110 testes automatizados (915 Back-End + 235 Front-End + Playwright E2E) e Matriz de QA Exploratória. E nosso maior aprendizado veio de 3 prompts que falharam na v1.0: 1) A IA misturou carros administrativos do Vitor com viaturas do SVO; 2) Sugeriu pular a desinfecção e colocar 6 corpos numa viatura de 4 lugares, além de sofrer race condition em cliques simultâneos; 3) Usou Math.random() gerando datas impossíveis que quebravam os gráficos do Dashboard. Domamos isso com Negative Constraints explícitas, locks SELECT FOR UPDATE e PRNG determinístico.”`,
+          render: () => {
+            const fails = [
+              {
+                tag: "FALHA 1 · PRM-01 (MODELAGEM DE FROTA)",
+                wrong:
+                  "Prompt v1.0 aberto: A IA colocou os carros administrativos do Vitor e as viaturas de remoção do SVO num único pool genérico, permitindo escalar carro administrativo para óbito.",
+                right:
+                  "Prompt v3.0 com Negative Constraints: Segregação estrita no banco (tipoFrota: FROTA_ADM vs SVO) + bloqueio cruzado validado em suíte unitária.",
+              },
+              {
+                tag: "FALHA 2 · PRM-02 (BIOSSEGURANÇA & CONCORRÊNCIA)",
+                wrong:
+                  "Prompt v1.0 ('otimize a rota'): A IA tentou alocar 6 corpos numa viatura de 4 urnas, ignorou o status DESINFECCAO e usou Check-Then-Act sem transação (permitindo dupla alocação da mesma viagem).",
+                right:
+                  "Prompt v4.0: Trava física de 4 urnas + transição automática para DESINFECCAO + Lock pessimista SELECT ... FOR UPDATE no PostgreSQL (testado no Playwright E2E).",
+              },
+              {
+                tag: "FALHA 3 · PRM-03 (MASSA DE DADOS & DASHBOARD DE VITOR)",
+                wrong:
+                  "Prompt v1.0: A IA usou Math.random() no seed, gerando viagens com data de chegada anterior à saída e quebrando os 3 gráficos analíticos do Dashboard de Vitor.",
+                right:
+                  "Prompt v3.0: Gerador matemático determinístico (Mulberry32, seed 202619) com invariantes cronológicos e sanitização LGPD.",
+              },
+            ];
+            const f = fails[selectedPromptFail];
+            return `
             <div class="w-full max-w-6xl mx-auto slide-enter">
               <h2 class="font-serif-display text-5xl text-center text-white mb-6">
                 Não confiamos cegamente na IA. <span class="italic text-amber-400">Nós a colocamos no banco de réus.</span>
@@ -785,11 +855,19 @@
                       <span class="font-mono-tech text-xs text-amber-400 uppercase">[2.3.D] Aprendizados: 3 Prompts que Falharam (Clique para inspecionar)</span>
                     </div>
                     <div class="flex gap-2 mb-4">
-                      ${['1. Frota Misturada (PRM-01)', '2. 6 Urnas & Race Condition (PRM-02)', '3. Seed Aleatório (PRM-03)'].map((label, idx) => `
-                        <button onclick="selectedPromptFail = ${idx}; renderCurrentSlide();" class="px-3 py-1.5 rounded-lg font-mono-tech text-xs cursor-pointer transition ${selectedPromptFail === idx ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-[#0B161C] text-slate-300 border border-[#1E3644]'}">
+                      ${[
+                        "1. Frota Misturada (PRM-01)",
+                        "2. 6 Urnas & Race Condition (PRM-02)",
+                        "3. Seed Aleatório (PRM-03)",
+                      ]
+                        .map(
+                          (label, idx) => `
+                        <button onclick="selectedPromptFail = ${idx}; renderCurrentSlide();" class="px-3 py-1.5 rounded-lg font-mono-tech text-xs cursor-pointer transition ${selectedPromptFail === idx ? "bg-amber-500 text-slate-950 font-bold" : "bg-[#0B161C] text-slate-300 border border-[#1E3644]"}">
                           ${label}
                         </button>
-                      `).join('')}
+                      `,
+                        )
+                        .join("")}
                     </div>
 
                     <div class="font-mono-tech text-xs text-slate-400 mb-2">${f.tag}</div>
@@ -810,15 +888,15 @@
               </div>
             </div>
           `;
-        }
-      },
+          },
+        },
 
-      // SLIDE 08 — EVOLUÇÕES FUTURAS PÓS-MVP (2.4.A)
-      {
-        rubric: "ITEM 2.4.A · EVOLUÇÕES FUTURAS PENSADAS PELA EQUIPE (PÓS-MVP)",
-        time: "⏱ 08:25 – 09:10",
-        notes: `“Olhando para o pós-MVP na FSPH, mapeamos 4 evoluções futuras: 1) Para o controle financeiro e mecânico do Vitor, um Detector Inteligente de Anomalia de Consumo (Km/L) cruzando abastecimentos do Cartão Prime com o hodômetro das viagens; 2) Emissão da Guia Oficial de Tráfego e Ordem de Coleta com QR Code verificável em portarias; 3) Assinatura Digital direto na tela do celular do motorista Fábio (Signature Pad); e 4) Mapa de Calor Geoespacial em PostGIS para apoiar a diretoria da FSPH no planejamento logístico e epidemiológico de Sergipe.”`,
-        render: () => `
+        // SLIDE 08 — EVOLUÇÕES FUTURAS PÓS-MVP (2.4.A)
+        {
+          rubric: "ITEM 2.4.A · EVOLUÇÕES FUTURAS PENSADAS PELA EQUIPE (PÓS-MVP)",
+          time: "⏱ 08:25 – 09:10",
+          notes: `“Olhando para o pós-MVP na FSPH, mapeamos 4 evoluções futuras: 1) Para o controle financeiro e mecânico do Vitor, um Detector Inteligente de Anomalia de Consumo (Km/L) cruzando abastecimentos do Cartão Prime com o hodômetro das viagens; 2) Emissão da Guia Oficial de Tráfego e Ordem de Coleta com QR Code verificável em portarias; 3) Assinatura Digital direto na tela do celular do motorista Fábio (Signature Pad); e 4) Mapa de Calor Geoespacial em PostGIS para apoiar a diretoria da FSPH no planejamento logístico e epidemiológico de Sergipe.”`,
+          render: () => `
           <div class="w-full max-w-6xl mx-auto slide-enter">
             <h2 class="font-serif-display text-5xl text-center text-white mb-8">
               O próximo horizonte do ROTA: <span class="italic text-amber-400">inteligência preditiva</span> e validação em campo.
@@ -858,15 +936,15 @@
               </div>
             </div>
           </div>
-        `
-      },
+        `,
+        },
 
-      // SLIDE 09 — SQUAD 19: OS 10 ENGENHEIROS E RESPONSABILIDADES (2.4.B)
-      {
-        rubric: "ITEM 2.4.B · APRESENTAÇÃO DOS MEMBROS DA EQUIPE E RESPONSABILIDADES",
-        time: "⏱ 09:10 – 10:00",
-        notes: `“E quem fechou o caderno do Vitor e colocou o ROTA de pé foram os 10 integrantes do Squad 19: Bruno Santana (Arquitetura Full-Stack, Trilha de Auditoria LGPD, Cancelamento Formal, Modelagem/Auth do Portal Externo SVO, Relatórios CSV/PDF, Dashboard e Engenharia de Prompts); Kennedhy Santos Reis (Arquitetura Back-End, Diário Operacional, PWA Offline-First com OSRM/PostGIS, Segurança HttpOnly/CSRF, Avarias e CI); Felipe Morais (Integração do Dashboard, Manutenção Preventiva com Reserva de Horário, Remanejamento e Infra HML); Danilo Libório (Avarias do Checklist e Conservação); Luiz Mendes (Full-Stack Frota e Solicitações); João Pedro (Controle Operacional, Motoristas, Documentos/CNH e Zod); José Matheus (Abastecimento Cartão Prime, Manutenções e Fornecedores); Anderson Hugo (Back-End Solicitações Externas SVO); Pedro Henrique (Painel do Gestor SVO Externo); e Lizandra (Matriz de QA Exploratória e E2E). Muito obrigado!”`,
-        render: () => `
+        // SLIDE 09 — SQUAD 19: OS 10 ENGENHEIROS E RESPONSABILIDADES (2.4.B)
+        {
+          rubric: "ITEM 2.4.B · APRESENTAÇÃO DOS MEMBROS DA EQUIPE E RESPONSABILIDADES",
+          time: "⏱ 09:10 – 10:00",
+          notes: `“E quem fechou o caderno do Vitor e colocou o ROTA de pé foram os 10 integrantes do Squad 19: Bruno Santana (Arquitetura Full-Stack, Trilha de Auditoria LGPD, Cancelamento Formal, Modelagem/Auth do Portal Externo SVO, Relatórios CSV/PDF, Dashboard e Engenharia de Prompts); Kennedhy Santos Reis (Arquitetura Back-End, Diário Operacional, PWA Offline-First com OSRM/PostGIS, Segurança HttpOnly/CSRF, Avarias e CI); Felipe Morais (Integração do Dashboard, Manutenção Preventiva com Reserva de Horário, Remanejamento e Infra HML); Danilo Libório (Avarias do Checklist e Conservação); Luiz Mendes (Full-Stack Frota e Solicitações); João Pedro (Controle Operacional, Motoristas, Documentos/CNH e Zod); José Matheus (Abastecimento Cartão Prime, Manutenções e Fornecedores); Anderson Hugo (Back-End Solicitações Externas SVO); Pedro Henrique (Painel do Gestor SVO Externo); e Lizandra (Matriz de QA Exploratória e E2E). Muito obrigado!”`,
+          render: () => `
           <div class="w-full max-w-6xl mx-auto slide-enter">
             <div class="flex items-end justify-between mb-5">
               <div>
@@ -880,17 +958,59 @@
 
             <div class="grid grid-cols-5 gap-3.5">
               ${[
-                ['Bruno Santana', 'Arquitetura & Governança', 'Trilha de Auditoria LGPD, Cancelamento Formal, Modelagem/Auth Portal Externo SVO, Relatórios CSV/PDF, Dashboard e Acervo de Prompts.'],
-                ['Kennedhy S. Reis', 'Back-End, PWA & Geo', 'Diário Operacional, PWA Offline-First com Rotas OSRM/PostGIS, Segurança HttpOnly/CSRF/Rate Limit, Avarias e Pipeline CI.'],
-                ['Felipe Morais', 'Dashboard & Manutenção', 'Integração do Dashboard Executivo de Vitor, Manutenção Preventiva c/ Reserva de Horário, Remanejamento, Sede e Infra HML.'],
-                ['Danilo Libório', 'Conservação & Avarias', 'Módulo de Acompanhamento de Avarias geradas pelo Checklist de Viagem, Regras de Conservação Veicular e Testes.'],
-                ['Luiz Mendes', 'Full-Stack Frota Adm', 'Desenvolvimento Full-Stack dos Módulos de Gestão de Frota Institucional, Interfaces de Solicitação de Viagem e UI.'],
-                ['João Pedro', 'Operações & Contratos', 'Endpoints e Interfaces de Controle Operacional, Gestão de Motoristas, Alertas de Documentos/CNH e Validações Zod.'],
-                ['José Matheus', 'Abastecimento & Custos', 'Módulos de Abastecimento (Cartão Prime), Manutenções, Fornecedores e Integração Front-End/Back-End.'],
-                ['Anderson Hugo', 'Back-End Portal SVOE', 'Back-End de Solicitações Externas SVO (SVOE), Endpoints Operacionais da Frota, Validações de Domínio e Testes.'],
-                ['Pedro Henrique', 'Front-End Triagem SVOE', 'Painel do Gestor e Atendente para Solicitações Externas SVO, Fluxos de Triagem/Aprovação e Testes React.'],
-                ['Lizandra', 'Qualidade (QA) & E2E', 'Garantia de Qualidade, Matriz Exploratória por Perfil de Acesso, Evidências de Regressão E2E e Documentação Funcional.']
-              ].map(([name, role, desc]) => `
+                [
+                  "Bruno Santana",
+                  "Arquitetura & Governança",
+                  "Trilha de Auditoria LGPD, Cancelamento Formal, Modelagem/Auth Portal Externo SVO, Relatórios CSV/PDF, Dashboard e Acervo de Prompts.",
+                ],
+                [
+                  "Kennedhy S. Reis",
+                  "Back-End, PWA & Geo",
+                  "Diário Operacional, PWA Offline-First com Rotas OSRM/PostGIS, Segurança HttpOnly/CSRF/Rate Limit, Avarias e Pipeline CI.",
+                ],
+                [
+                  "Felipe Morais",
+                  "Dashboard & Manutenção",
+                  "Integração do Dashboard Executivo de Vitor, Manutenção Preventiva c/ Reserva de Horário, Remanejamento, Sede e Infra HML.",
+                ],
+                [
+                  "Danilo Libório",
+                  "Conservação & Avarias",
+                  "Módulo de Acompanhamento de Avarias geradas pelo Checklist de Viagem, Regras de Conservação Veicular e Testes.",
+                ],
+                [
+                  "Luiz Mendes",
+                  "Full-Stack Frota Adm",
+                  "Desenvolvimento Full-Stack dos Módulos de Gestão de Frota Institucional, Interfaces de Solicitação de Viagem e UI.",
+                ],
+                [
+                  "João Pedro",
+                  "Operações & Contratos",
+                  "Endpoints e Interfaces de Controle Operacional, Gestão de Motoristas, Alertas de Documentos/CNH e Validações Zod.",
+                ],
+                [
+                  "José Matheus",
+                  "Abastecimento & Custos",
+                  "Módulos de Abastecimento (Cartão Prime), Manutenções, Fornecedores e Integração Front-End/Back-End.",
+                ],
+                [
+                  "Anderson Hugo",
+                  "Back-End Portal SVOE",
+                  "Back-End de Solicitações Externas SVO (SVOE), Endpoints Operacionais da Frota, Validações de Domínio e Testes.",
+                ],
+                [
+                  "Pedro Henrique",
+                  "Front-End Triagem SVOE",
+                  "Painel do Gestor e Atendente para Solicitações Externas SVO, Fluxos de Triagem/Aprovação e Testes React.",
+                ],
+                [
+                  "Lizandra",
+                  "Qualidade (QA) & E2E",
+                  "Garantia de Qualidade, Matriz Exploratória por Perfil de Acesso, Evidências de Regressão E2E e Documentação Funcional.",
+                ],
+              ]
+                .map(
+                  ([name, role, desc]) => `
                 <div class="bento-card rounded-xl p-4 flex flex-col justify-between">
                   <div>
                     <span class="font-mono-tech text-[10px] text-amber-400 uppercase">${role}</span>
@@ -898,64 +1018,71 @@
                     <p class="text-[11px] text-slate-300 mt-1.5 leading-snug">${desc}</p>
                   </div>
                 </div>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </div>
           </div>
-        `
+        `,
+        },
+      ];
+
+      function renderCurrentSlide() {
+        const s = slides[currentSlide];
+        document.getElementById("rubric-badge").textContent = s.rubric;
+        document.getElementById("timer-badge").textContent = s.time;
+        document.getElementById("slide-counter").textContent =
+          `${String(currentSlide + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+        document.getElementById("notes-content").textContent = s.notes;
+        document.getElementById("slide-container").innerHTML = s.render();
+
+        const dotsHtml = slides
+          .map(
+            (_, idx) => `
+        <button onclick="goToSlide(${idx})" class="h-2 rounded-full transition-all cursor-pointer ${idx === currentSlide ? "w-8 bg-amber-400" : "w-2 bg-slate-700 hover:bg-slate-500"}"></button>
+      `,
+          )
+          .join("");
+        document.getElementById("slide-dots").innerHTML = dotsHtml;
       }
-    ];
 
-    function renderCurrentSlide() {
-      const s = slides[currentSlide];
-      document.getElementById('rubric-badge').textContent = s.rubric;
-      document.getElementById('timer-badge').textContent = s.time;
-      document.getElementById('slide-counter').textContent = `${String(currentSlide + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
-      document.getElementById('notes-content').textContent = s.notes;
-      document.getElementById('slide-container').innerHTML = s.render();
+      function nextSlide() {
+        if (currentSlide < slides.length - 1) {
+          currentSlide++;
+          renderCurrentSlide();
+        }
+      }
 
-      const dotsHtml = slides.map((_, idx) => `
-        <button onclick="goToSlide(${idx})" class="h-2 rounded-full transition-all cursor-pointer ${idx === currentSlide ? 'w-8 bg-amber-400' : 'w-2 bg-slate-700 hover:bg-slate-500'}"></button>
-      `).join('');
-      document.getElementById('slide-dots').innerHTML = dotsHtml;
-    }
+      function prevSlide() {
+        if (currentSlide > 0) {
+          currentSlide--;
+          renderCurrentSlide();
+        }
+      }
 
-    function nextSlide() {
-      if (currentSlide < slides.length - 1) {
-        currentSlide++;
+      function goToSlide(idx) {
+        currentSlide = idx;
         renderCurrentSlide();
       }
-    }
 
-    function prevSlide() {
-      if (currentSlide > 0) {
-        currentSlide--;
-        renderCurrentSlide();
+      function toggleNotes() {
+        const el = document.getElementById("notes-drawer");
+        el.classList.toggle("hidden");
       }
-    }
 
-    function goToSlide(idx) {
-      currentSlide = idx;
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " ") {
+          e.preventDefault();
+          nextSlide();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          prevSlide();
+        } else if (e.key.toLowerCase() === "n") {
+          toggleNotes();
+        }
+      });
+
       renderCurrentSlide();
-    }
-
-    function toggleNotes() {
-      const el = document.getElementById('notes-drawer');
-      el.classList.toggle('hidden');
-    }
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') {
-        e.preventDefault();
-        nextSlide();
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        prevSlide();
-      } else if (e.key.toLowerCase() === 'n') {
-        toggleNotes();
-      }
-    });
-
-    renderCurrentSlide();
-  </script>
-</body>
+    </script>
+  </body>
 </html>
