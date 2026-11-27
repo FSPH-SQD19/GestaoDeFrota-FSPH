@@ -325,10 +325,10 @@ A atendente analisa as solicitações abertas pelo portal externo (S19FROTA-281)
 - `GET /triagem/:id`: dados da solicitação e histórico completo (criação, complementos, triagem), com o nome de cada autor. `404` inexistente.
 - `PATCH /:id/triagem`: `{ decisao, justificativa? }`. Resposta `{ dados, mensagem }`.
   - `SOLICITAR_COMPLEMENTACAO` (justificativa obrigatória): vai para `AGUARDANDO_COMPLEMENTACAO` e o texto aparece no portal como o pedido ao solicitante.
-  - `RECUSAR` (justificativa obrigatória): vai para `RECUSADA`, também a partir de `AGUARDANDO_COMPLEMENTACAO`. O portal mostra a mensagem padrão de recusa; a justificativa fica só no histórico interno.
-  - `ENCAMINHAR` (justificativa opcional, vira o relato para o gestor): vai para `AGUARDANDO_GESTOR` e registra `atendenteTriagemId` e `triadaEm`. Só essas solicitações chegam ao gestor.
+  - `RECUSAR` (justificativa obrigatória): vai para `RECUSADA`, também a partir de `AGUARDANDO_COMPLEMENTACAO`. O motivo é gravado em `motivoRecusa` e fica disponível no acompanhamento do protocolo.
+  - `ENCAMINHAR` (justificativa opcional, vira o relato para o gestor): vai para `AGUARDANDO_GESTOR`. Solicitar complementação, recusar ou encaminhar registra `atendenteTriagemId` e `triadaEm`; só as encaminhadas chegam ao gestor.
 
-Erros: `400` validação (não existe decisão de aprovar na triagem), `403` quando a atendente tenta triar uma solicitação aberta por ela mesma, `409` para decisão incompatível com o estado atual ou atualização simultânea. Estado, histórico e auditoria são gravados na mesma transação; a auditoria guarda apenas protocolo e estados, sem texto livre. A migration cria a tabela no formato usado pelo portal, incluindo a sequence do protocolo `EXT-AAAA-NNNNNN`, e o banco reforça por `CHECK` os estados válidos, a mensagem obrigatória ao pedir complementação e o registro da triagem antes do gestor.
+Erros: `400` validação (não existe decisão de aprovar na triagem), `403` quando a atendente tenta triar uma solicitação aberta por ela mesma, `409` para decisão incompatível com o estado atual ou atualização simultânea. Estado, histórico e auditoria são gravados na mesma transação; a auditoria guarda apenas protocolo e estados, sem texto livre. A triagem usa o modelo e a tabela `solicitacoes_externas_svo` existentes, preservando o protocolo gerado pelo fluxo do portal e a versão usada para controle de concorrência.
 
 ### Abastecimentos e Cartão Rede Prime
 

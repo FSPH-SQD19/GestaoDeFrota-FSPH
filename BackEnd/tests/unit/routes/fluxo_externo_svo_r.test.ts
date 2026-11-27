@@ -13,7 +13,6 @@ vi.mock("../../../src/service/session_s", async () => {
 
 type Linha = Record<string, unknown>;
 
-// Aiin testin
 const db = vi.hoisted(() => ({
   solicitacoes: [] as Record<string, unknown>[],
   chamados: [] as Record<string, unknown>[],
@@ -28,7 +27,7 @@ vi.mock("../../../src/lib/prisma", async () => {
   const { randomUUID } = await import("node:crypto");
   const { Prisma } = await import("@prisma/client");
   type Arg = {
-    where: { id?: string | { in: string[] }; estado?: unknown };
+    where: { id?: string | { in: string[] }; status?: unknown; versao?: unknown };
     data: Linha;
     skip: number;
     take: number;
@@ -40,14 +39,13 @@ vi.mock("../../../src/lib/prisma", async () => {
   const hidratar = (linha: Linha) => ({
     ...structuredClone(linha),
     chamadoSvo: db.chamados.find((c) => c.id === linha.chamadoSvoId) ?? null,
-    historico: structuredClone(db.historico.filter((h) => h.solicitacaoId === linha.id)),
+    historico: structuredClone(db.historico.filter((h) => h.solicitacaoExternaId === linha.id)),
   });
   const filtrar = ({ where }: Pick<Arg, "where">) =>
-    db.solicitacoes.filter((s) => where.estado === undefined || s.estado === where.estado);
+    db.solicitacoes.filter((s) => where.status === undefined || s.status === where.status);
   const buscar = ({ where }: Pick<Arg, "where">) => db.solicitacoes.find((s) => s.id === where.id);
 
   const cliente: Linha = {
-    // Contador de protocolo do chamado por telefone.
     $queryRaw: async () => [{ ultimo_valor: 7 }],
     usuario: {
       findMany: async ({ where }: Arg) =>
@@ -67,8 +65,16 @@ vi.mock("../../../src/lib/prisma", async () => {
       },
       findUniqueOrThrow: async (a: Arg) => hidratar(buscar(a)!),
       updateMany: async ({ where, data }: Arg) => {
-        const linha = db.solicitacoes.find((s) => s.id === where.id && s.estado === where.estado);
-        if (linha) Object.assign(linha, data, { atualizadoEm: new Date() });
+        const linha = db.solicitacoes.find(
+          (s) => s.id === where.id && s.status === where.status && s.versao === where.versao,
+        );
+        if (linha) {
+          const atualizacao = { ...data };
+          const incremento = atualizacao.versao as { increment?: number } | undefined;
+          if (incremento?.increment)
+            atualizacao.versao = Number(linha.versao) + incremento.increment;
+          Object.assign(linha, atualizacao, { atualizadoEm: new Date() });
+        }
         return { count: linha ? 1 : 0 };
       },
     },
@@ -200,13 +206,18 @@ function solicitacao(dados: Linha = {}): Linha {
     protocolo: "EXT-2026-000001",
     solicitanteId: ids.externo,
     chaveIdempotencia: "20000000-0000-4000-8000-000000000001",
-    estado: "AGUARDANDO_TRIAGEM",
-    contatoNome: "Maria Sintética",
-    contatoTelefone: "79999990000",
+    status: "AGUARDANDO_TRIAGEM",
+    versao: 0,
+    nomeContato: "Maria Sintética",
+    telefoneContato: "79999990000",
     contatoEmail: null,
     enderecoOcorrencia: "Rua Fictícia, 100, Aracaju",
     relatoOcorrencia: "Óbito em domicílio, família aguardando orientação.",
-    mensagemParaSolicitante: null,
+    complementacaoSolicitada: null,
+    complementacaoEnviada: null,
+    observacaoTriagem: null,
+    motivoRecusa: null,
+    justificativaDecisao: null,
     atendenteTriagemId: null,
     triadaEm: null,
     criadoEm: ABERTURA,
@@ -249,7 +260,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
       for (const [metodo, caminho, body] of rotas) {
         expect((await chamar(metodo, caminho, { perfis: [perfil], body })).status).toBe(403);
       }
-      expect(db.solicitacoes[0]!.estado).toBe("AGUARDANDO_TRIAGEM");
+      expect(db.solicitacoes[0]!.status).toBe("AGUARDANDO_TRIAGEM");
     },
   );
 
@@ -277,7 +288,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     });
     expect(status).toBe(400);
     expect(json.errors?.some((e) => e.campo === campo)).toBe(true);
-    expect(db.solicitacoes[0]!.estado).toBe("AGUARDANDO_TRIAGEM");
+    expect(db.solicitacoes[0]!.status).toBe("AGUARDANDO_TRIAGEM");
   });
 
   it("rejeita id inválido (400) e devolve 404 para inexistente", async () => {
@@ -294,15 +305,15 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
       solicitacao({
         id: "10000000-0000-4000-8000-000000000003",
         protocolo: "EXT-2026-000003",
-        estado: "AGUARDANDO_GESTOR",
+        status: "AGUARDANDO_GESTOR",
         atendenteTriagemId: ids.atendente,
         triadaEm: ABERTURA,
       }),
       solicitacao({
         id: "10000000-0000-4000-8000-000000000004",
         protocolo: "EXT-2026-000004",
-        estado: "AGUARDANDO_COMPLEMENTACAO",
-        mensagemParaSolicitante: "Informe o ponto de referência.",
+        status: "AGUARDANDO_COMPLEMENTACAO",
+        complementacaoSolicitada: "Informe o ponto de referência.",
       }),
     );
     const fila = await chamar("GET", `${BASE}/triagem`, atendente);
@@ -323,21 +334,25 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     db.solicitacoes.push(solicitacao());
     db.historico.push(
       {
-        solicitacaoId: solId,
-        tipo: "CRIACAO",
-        estadoAnterior: null,
-        estadoNovo: "AGUARDANDO_TRIAGEM",
+        solicitacaoExternaId: solId,
+        acao: "SOLICITACAO_CRIADA",
+        perfilAutor: "EXTERNO",
+        statusAnterior: null,
+        statusNovo: "AGUARDANDO_TRIAGEM",
         autorId: ids.externo,
-        conteudo: null,
+        mensagemPublica: "Solicitação recebida.",
+        observacaoInterna: null,
         criadoEm: ABERTURA,
       },
       {
-        solicitacaoId: solId,
-        tipo: "COMPLEMENTO",
-        estadoAnterior: "AGUARDANDO_COMPLEMENTACAO",
-        estadoNovo: "AGUARDANDO_TRIAGEM",
+        solicitacaoExternaId: solId,
+        acao: "COMPLEMENTACAO_ENVIADA",
+        perfilAutor: "EXTERNO",
+        statusAnterior: "AGUARDANDO_COMPLEMENTACAO",
+        statusNovo: "AGUARDANDO_TRIAGEM",
         autorId: ids.externo,
-        conteudo: "Fica ao lado da padaria.",
+        mensagemPublica: "Complementação enviada: Fica ao lado da padaria.",
+        observacaoInterna: null,
         criadoEm: ABERTURA,
       },
     );
@@ -368,8 +383,8 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
       estado: "AGUARDANDO_COMPLEMENTACAO",
       status: "DEVOLVIDA_PARA_COMPLEMENTACAO",
       mensagemParaSolicitante: "Informe a referência.",
-      triadaEm: null,
-      atendenteTriagem: null,
+      triadaEm: expect.any(String),
+      atendenteTriagem: { id: ids.atendente, nome: "Atendente SVO" },
     });
     expect(json.dados?.historico?.[0]).toMatchObject({
       tipo: "PEDIDO_COMPLEMENTO",
@@ -393,7 +408,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     expect(db.auditoria).toEqual([
       {
         usuarioId: ids.atendente,
-        acao: "TRIAGEM_ENCAMINHAR",
+        acao: "ENCAMINHAR_GESTOR",
         tabelaAfetada: "solicitacoes_externas_svo",
         registroId: solId,
         dadosNovos: {
@@ -408,8 +423,8 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
   it("recusa com justificativa interna, inclusive quando aguardava complementação", async () => {
     db.solicitacoes.push(
       solicitacao({
-        estado: "AGUARDANDO_COMPLEMENTACAO",
-        mensagemParaSolicitante: "Informe o ponto de referência.",
+        status: "AGUARDANDO_COMPLEMENTACAO",
+        complementacaoSolicitada: "Informe o ponto de referência.",
       }),
     );
     const { status, json } = await triar("RECUSAR", "Solicitante não retornou o contato.");
@@ -430,18 +445,18 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     ["SOLICITAR_COMPLEMENTACAO", "AGUARDANDO_GESTOR"],
     ["ENCAMINHAR", "APROVADA"],
     ["RECUSAR", "RECUSADA"],
-  ])("bloqueia %s quando a solicitação está %s (409)", async (decisao, estado) => {
+  ])("bloqueia %s quando a solicitação está %s", async (decisao, estado) => {
     db.solicitacoes.push(
       solicitacao({
-        estado,
-        mensagemParaSolicitante: "x",
+        status: estado,
+        complementacaoSolicitada: "x",
         atendenteTriagemId: ids.admin,
         triadaEm: ABERTURA,
       }),
     );
     const { status } = await triar(decisao, "Justificativa qualquer.");
-    expect(status).toBe(409);
-    expect(db.solicitacoes[0]!.estado).toBe(estado);
+    expect(status).toBe(decisao === "RECUSAR" && estado === "AGUARDANDO_GESTOR" ? 403 : 409);
+    expect(db.solicitacoes[0]!.status).toBe(estado);
     expect(db.historico).toHaveLength(0);
     expect(db.auditoria).toHaveLength(0);
   });
@@ -449,7 +464,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
   it("impede triar a própria solicitação (403)", async () => {
     db.solicitacoes.push(solicitacao({ solicitanteId: ids.atendente }));
     expect((await triar("ENCAMINHAR")).status).toBe(403);
-    expect(db.solicitacoes[0]!.estado).toBe("AGUARDANDO_TRIAGEM");
+    expect(db.solicitacoes[0]!.status).toBe("AGUARDANDO_TRIAGEM");
   });
 
   it("só o encaminhamento leva a solicitação ao gestor", async () => {
@@ -461,7 +476,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     await triar("SOLICITAR_COMPLEMENTACAO", "Informe a referência.", outra(2).id);
     await triar("RECUSAR", "Fora da área.", outra(3).id);
     await triar("ENCAMINHAR");
-    expect(db.solicitacoes.map((s) => s.estado)).toEqual([
+    expect(db.solicitacoes.map((s) => s.status)).toEqual([
       "AGUARDANDO_GESTOR",
       "AGUARDANDO_COMPLEMENTACAO",
       "RECUSADA",
@@ -473,7 +488,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     db.falhas.historico = true;
     expect((await triar("ENCAMINHAR")).status).toBe(500);
     expect(db.solicitacoes[0]).toMatchObject({
-      estado: "AGUARDANDO_TRIAGEM",
+      status: "AGUARDANDO_TRIAGEM",
       atendenteTriagemId: null,
     });
     expect(db.auditoria).toHaveLength(0);
