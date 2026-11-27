@@ -35,23 +35,23 @@ export function DetalhesChamadoModal({
   abrirEmissaoOrdem: (chamado: ChamadoSvo) => void;
   somenteExterno?: boolean;
 }) {
-  const [detalhe, setDetalhe] = useState<ChamadoSvo>(selecionado);
-  const [carregandoHistorico, setCarregandoHistorico] = useState(true);
+  const [detalheCarregado, setDetalheCarregado] = useState<{
+    id: string;
+    chamado: ChamadoSvo;
+  } | null>(null);
+  const detalhe = detalheCarregado?.id === selecionado.id ? detalheCarregado.chamado : selecionado;
+  const carregandoHistorico = detalheCarregado?.id !== selecionado.id;
 
   useEffect(() => {
     let cancelado = false;
-    setDetalhe(selecionado);
-    setCarregandoHistorico(true);
 
     obterChamadoSvoPorId(selecionado.id)
       .then((atualizado) => {
-        if (!cancelado) setDetalhe(atualizado);
+        if (!cancelado) setDetalheCarregado({ id: selecionado.id, chamado: atualizado });
       })
       .catch(() => {
         // Mantém os dados já carregados na fila caso a consulta individual falhe
-      })
-      .finally(() => {
-        if (!cancelado) setCarregandoHistorico(false);
+        if (!cancelado) setDetalheCarregado({ id: selecionado.id, chamado: selecionado });
       });
 
     return () => {

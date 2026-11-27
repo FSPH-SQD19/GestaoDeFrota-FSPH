@@ -830,7 +830,7 @@ export async function notificarSvoChamadoEnviado(dados: {
 
   try {
     await executarComRetentativa(async () => {
-      const ids = new Set<string>(await listarIdsUsuariosAtivosPorPerfis(["ATENDENTE"]));
+      const ids = new Set<string>(await listarIdsUsuariosAtivosPorPerfis(["SVO"]));
       if (dados.atendenteId) {
         ids.add(dados.atendenteId);
       }

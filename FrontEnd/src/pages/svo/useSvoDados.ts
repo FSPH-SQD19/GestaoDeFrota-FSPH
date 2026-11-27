@@ -100,10 +100,7 @@ export function useSvoDados(opcoes?: { somenteExterno?: boolean }) {
   }, [etapa, busca, page, reloadTick, revisaoAutomatica]);
 
   useEffect(() => {
-    if (somenteExterno) {
-      setErroRecursos("");
-      return;
-    }
+    if (somenteExterno) return;
 
     let cancelado = false;
 
@@ -126,11 +123,7 @@ export function useSvoDados(opcoes?: { somenteExterno?: boolean }) {
   }, [reloadTick, revisaoAutomatica, somenteExterno]);
 
   useEffect(() => {
-    if (somenteExterno) {
-      setCarregandoEscalas(false);
-      setErroEscalas("");
-      return;
-    }
+    if (somenteExterno) return;
 
     let cancelado = false;
 
@@ -201,10 +194,10 @@ export function useSvoDados(opcoes?: { somenteExterno?: boolean }) {
     totalRegistros,
     totalPages,
     carregando,
-    carregandoEscalas,
+    carregandoEscalas: somenteExterno ? false : carregandoEscalas,
     erroPagina,
-    erroRecursos,
-    erroEscalas,
+    erroRecursos: somenteExterno ? "" : erroRecursos,
+    erroEscalas: somenteExterno ? "" : erroEscalas,
     setErroPagina,
     setErroRecursos,
     dispararRecarregamento,

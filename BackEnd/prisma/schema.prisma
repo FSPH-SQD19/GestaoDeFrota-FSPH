@@ -22,7 +22,6 @@ model Usuario {
   perfis       UsuarioPerfil[]
   motorista    Motorista?
   solicitacoes SolicitacaoViagem[]
-  chamados     ChamadoSvo[]
   desinfeccoes DesinfeccaoSvo[]
   auditorias   AuditoriaSistema[]
   notificacoes Notificacao[]

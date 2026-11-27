@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   chamadoFindUniqueOrThrow: vi.fn(),
   chamadoCreate: vi.fn(),
   chamadoUpdateMany: vi.fn(),
+  chamadoHistoricoCreate: vi.fn(),
   ordemCount: vi.fn(),
   ordemFindMany: vi.fn(),
   ordemFindFirst: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock("../../../src/lib/prisma", () => ({
       create: mocks.chamadoCreate,
       updateMany: mocks.chamadoUpdateMany,
     },
+    chamadoSvoHistorico: { create: mocks.chamadoHistoricoCreate },
     ordemColetaSvo: {
       count: mocks.ordemCount,
       findMany: mocks.ordemFindMany,
@@ -110,6 +112,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
     vi.resetAllMocks();
     mocks.ordemFindFirst.mockResolvedValue(null);
     mocks.veiculoUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.chamadoHistoricoCreate.mockResolvedValue({ id: "historico-svo-1" });
     mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         $queryRaw: mocks.queryRaw,
@@ -119,6 +122,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
           create: mocks.chamadoCreate,
           updateMany: mocks.chamadoUpdateMany,
         },
+        chamadoSvoHistorico: { create: mocks.chamadoHistoricoCreate },
         ordemColetaSvo: {
           findUnique: mocks.ordemFindUnique,
           count: mocks.ordemCount,
@@ -317,7 +321,12 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
       }),
     );
     expect(resultado.meta).toEqual({ page: 2, pageSize: 5, total: 6, totalPages: 2 });
-    expect(resultado.data[0]?.justificativaTriagem).toBe("Critérios clínicos compatíveis com SVO.");
+    const primeiroChamado = resultado.data[0];
+    expect(
+      primeiroChamado && "justificativaTriagem" in primeiroChamado
+        ? primeiroChamado.justificativaTriagem
+        : undefined,
+    ).toBe("Critérios clínicos compatíveis com SVO.");
   });
 
   it("gera protocolo sequencial SVO-AAAA-NNNN ao registrar chamado", async () => {
@@ -338,6 +347,7 @@ describe("svo_s — schemas e regras do módulo SVO", () => {
         relatoOcorrencia: "Óbito natural em domicílio.",
       },
       usuarioId,
+      ["SVO"],
       new Date("2026-10-29T15:00:00.000Z"),
     );
 

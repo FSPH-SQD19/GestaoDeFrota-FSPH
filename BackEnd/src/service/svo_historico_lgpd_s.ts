@@ -32,11 +32,11 @@ const PADROES_DADOS_SENSIVEIS = [
   /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g,
   /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g,
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
-  /\b(?:\+55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}-?\d{4}\b/g,
+  /\b(?:\+55\s?)?\(?\d{2}\)?\s?\d{4,5}-?\d{4}\b/g,
 ];
 
 export function ehSolicitanteExternoSomente(perfis: readonly string[]): boolean {
-  const temPerfilExterno = perfis.includes("SOLICITANTE_EXTERNO") || perfis.includes("EXTERNO");
+  const temPerfilExterno = perfis.includes("SOLICITANTE");
   const temPerfilOperacao =
     perfis.includes("ADMIN") || perfis.includes("SVO") || perfis.includes("GESTOR");
   return temPerfilExterno && !temPerfilOperacao;

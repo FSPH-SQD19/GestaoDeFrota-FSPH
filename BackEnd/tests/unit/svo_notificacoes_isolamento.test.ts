@@ -10,8 +10,8 @@ import {
 
 describe("SVO — Isolamento, LGPD e Histórico Público", () => {
   it("identifica solicitante externo sem perfil operacional", () => {
-    expect(ehSolicitanteExternoSomente(["SOLICITANTE_EXTERNO"])).toBe(true);
-    expect(ehSolicitanteExternoSomente(["SOLICITANTE_EXTERNO", "SVO"])).toBe(false);
+    expect(ehSolicitanteExternoSomente(["SOLICITANTE"])).toBe(true);
+    expect(ehSolicitanteExternoSomente(["SOLICITANTE", "SVO"])).toBe(false);
     expect(ehSolicitanteExternoSomente(["ADMIN"])).toBe(false);
   });
 
