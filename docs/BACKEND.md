@@ -317,6 +317,30 @@ Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatur
 
 A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
 
+### Triagem de solicitações externas do SVO
+
+Atende a S19FROTA-283. A atendente analisa as solicitações abertas pelo portal externo (S19FROTA-281) antes de qualquer decisão do gestor. As rotas ficam em `/api/v1/solicitacoes-externas-svo` e exigem perfil `SVO` ou `ADMIN`; os demais recebem `403`.
+
+- `GET /triagem`: fila paginada (`page`, `pageSize` até 100), das mais antigas para as mais recentes. Por padrão traz `AGUARDANDO_TRIAGEM`; `?estado=AGUARDANDO_COMPLEMENTACAO` lista as que aguardam retorno do solicitante. Resposta `{ data, meta }`.
+- `GET /triagem/:id`: dados da solicitação e histórico completo (criação, complementos, triagem), com o nome de cada autor. `404` inexistente.
+- `PATCH /:id/triagem`: `{ decisao, justificativa? }`. Resposta `{ dados, mensagem }`.
+  - `SOLICITAR_COMPLEMENTACAO` (justificativa obrigatória): vai para `AGUARDANDO_COMPLEMENTACAO` e o texto aparece no portal como o pedido ao solicitante.
+  - `RECUSAR` (justificativa obrigatória): vai para `RECUSADA`, também a partir de `AGUARDANDO_COMPLEMENTACAO`. O motivo é gravado em `motivoRecusa` e fica disponível no acompanhamento do protocolo.
+  - `ENCAMINHAR` (justificativa opcional, vira o relato para o gestor): vai para `AGUARDANDO_GESTOR`. Solicitar complementação, recusar ou encaminhar registra `atendenteTriagemId` e `triadaEm`; só as encaminhadas chegam ao gestor.
+
+Erros: `400` validação (não existe decisão de aprovar na triagem), `403` quando a atendente tenta triar uma solicitação aberta por ela mesma, `409` para decisão incompatível com o estado atual ou atualização simultânea. Estado, histórico e auditoria são gravados na mesma transação; a auditoria guarda apenas protocolo e estados, sem texto livre. A triagem usa o modelo e a tabela `solicitacoes_externas_svo` existentes, preservando o protocolo gerado pelo fluxo do portal e a versão usada para controle de concorrência.
+
+### Decisão do gestor sobre solicitações externas do SVO
+
+Rotas em `/api/v1/solicitacoes-externas-svo`, exclusivas de `GESTOR` e `ADMIN` (a atendente `SVO` recebe `403`). São os caminhos usados pelo painel do gestor.
+
+- `GET /gestor`: fila paginada só com `AGUARDANDO_GESTOR`, pela ordem de triagem. Resposta `{ data, meta }`.
+- `PATCH /:id/aprovar`: `{ justificativa? }`. Cria o `ChamadoSvo` na mesma transação, com o mesmo protocolo, `origem: EXTERNA`, `statusTriagem: APROVADO`, `atendenteId` de quem triou e `criadoEm` igual à abertura da solicitação (o SLA conta desde o pedido). Nenhuma ordem de coleta é criada: o despacho continua manual pelo fluxo atual.
+- `PATCH /:id/recusar`: `{ justificativa }` obrigatória. O portal mostra a mensagem padrão de recusa; a justificativa fica no histórico interno.
+- As duas decisões aceitam o cabeçalho `Idempotency-Key` (8 a 100 caracteres). Reenvio com a mesma chave pelo mesmo gestor devolve a decisão já gravada, sem criar outro chamado. Resposta `{ dados, mensagem }`.
+
+Erros: `400` validação, `403` quando quem decide abriu ou triou a solicitação (vale também para `ADMIN`), `409` para solicitação ainda não triada, já decidida, decisão simultânea ou protocolo já usado por outro chamado. A linha da solicitação é travada (`FOR UPDATE`) durante a decisão; qualquer falha desfaz o chamado criado. O banco exige gestor, data e chamado vinculado em `APROVADA` e impede que o gestor seja quem triou. Chamados por telefone continuam com `origem` padrão `TELEFONE`. O CORS libera o cabeçalho `Idempotency-Key`.
+
 ### Abastecimentos e Cartão Rede Prime
 
 Atende a S19FROTA-242. O Cartão Corporativo Rede Prime vale em vários postos credenciados, sem fornecedor fixo por CNPJ: o campo opcional `postoCredenciado` (texto até 150 caracteres; vazio ou só espaços vira `null`) registra o posto, e `fornecedorId` continua opcional.

@@ -1,8 +1,12 @@
 import { Router } from "express";
 import { revokeSession } from "../service/session_s";
 import { issueCsrf, cookieOptions, sessionCookieName } from "../middleware/session_http";
-import { limitLogin, limitPasswordChange } from "../middleware/login_limit";
+import { limitExternalSignup, limitLogin, limitPasswordChange } from "../middleware/login_limit";
 import { loginController } from "../controller/auth_c";
+import {
+  cadastrarUsuarioExternoController,
+  obterMeuPerfilExternoController,
+} from "../controller/auth_externo_c";
 import { alterarSenhaController, redefinirSenhaAdminController } from "../controller/senha_c";
 import { authenticate, requireRole, usuarioAutenticado } from "../middleware/http_m";
 
@@ -10,6 +14,8 @@ const router = Router();
 
 router.get("/csrf", issueCsrf);
 router.post("/login", limitLogin, loginController);
+router.post("/cadastro-externo", limitExternalSignup, cadastrarUsuarioExternoController);
+router.get("/externo/me", authenticate, requireRole("EXTERNO"), obterMeuPerfilExternoController);
 router.post("/logout", authenticate, async (_req, res) => {
   await revokeSession(usuarioAutenticado(res).sessaoId!);
   res.clearCookie(sessionCookieName(), cookieOptions());
