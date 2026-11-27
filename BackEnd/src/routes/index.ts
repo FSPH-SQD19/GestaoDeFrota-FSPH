@@ -36,6 +36,11 @@ import {
   encerrarEscalaSvoController,
   listarEscalasSvoController,
 } from "../controller/escala_svo_c";
+import {
+  listarFilaTriagemExternaController,
+  obterSolicitacaoExternaTriagemController,
+  triarSolicitacaoExternaController,
+} from "../controller/fluxo_externo_svo_c";
 import solicitacaoExternaRoutes from "./solicitacao_externa_r";
 import svoRoutes from "./svo_r";
 
@@ -44,6 +49,7 @@ router.use("/api/v1", diarioRoutes);
 const abastecimento = Router();
 const manutencoes = Router();
 const escalasSvo = Router();
+const fluxoExternoSvo = Router();
 
 router.get("/health", healthController);
 router.use("/auth", authRoutes);
@@ -96,6 +102,15 @@ escalasSvo.patch("/:id/encerrar", encerrarEscalaSvoController);
 router.use("/api/v1/svo/solicitacoes-externas", solicitacaoExternaRoutes);
 router.use("/api/v1/svo/escalas", escalasSvo);
 router.use("/api/v1/svo", svoRoutes);
+
+// Solicitações externas do SVO: triagem da atendente
+const triagemExterna = requireRole("ADMIN", "SVO");
+fluxoExternoSvo.use(authenticate);
+fluxoExternoSvo.get("/triagem", triagemExterna, listarFilaTriagemExternaController);
+fluxoExternoSvo.get("/triagem/:id", triagemExterna, obterSolicitacaoExternaTriagemController);
+fluxoExternoSvo.patch("/:id/triagem", triagemExterna, triarSolicitacaoExternaController);
+
+router.use("/api/v1/solicitacoes-externas-svo", fluxoExternoSvo);
 
 router.use("/notificacoes", notificacaoRoutes);
 router.use("/api/v1/notificacoes", notificacaoRoutes);
