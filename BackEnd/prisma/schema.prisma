@@ -26,11 +26,13 @@ model Usuario {
   desinfeccoes DesinfeccaoSvo[]
   auditorias   AuditoriaSistema[]
   notificacoes Notificacao[]
-  avariasRegistradas AvariaViagem[] @relation("AvariaRegistradaPor")
-  avariasAnalisadas  AvariaViagem[] @relation("AvariaAnalisadaPor")
-  historicosAvaria   AvariaHistorico[]
-
-  solicitacoesExternas SolicitacaoExternaSvo[]
+  avariasRegistradas            AvariaViagem[]                   @relation("AvariaRegistradaPor")
+  avariasAnalisadas             AvariaViagem[]                   @relation("AvariaAnalisadaPor")
+  historicosAvaria              AvariaHistorico[]
+  solicitacoesExternasSvo       SolicitacaoExternaSvo[]          @relation("SolicitacaoExternaSolicitante")
+  triagensSolicitacaoExternaSvo SolicitacaoExternaSvo[]          @relation("SolicitacaoExternaTriagem")
+  decisoesSolicitacaoExternaSvo SolicitacaoExternaSvo[]          @relation("SolicitacaoExternaGestor")
+  historicosSolicitacaoExterna  SolicitacaoExternaSvoHistorico[] @relation("SolicitacaoExternaHistoricoAutor")
 
   @@index([ativo])
   @@index([setor])
@@ -581,45 +583,63 @@ model SolicitacaoExternaSvo {
   id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   protocolo                String    @unique @db.VarChar(20)
   solicitanteId            String    @map("solicitante_id") @db.Uuid
-  chaveIdempotencia        String    @map("chave_idempotencia") @db.Uuid
-  estado                   String    @default("AGUARDANDO_TRIAGEM") @db.VarChar(30)
-  contatoNome              String    @map("contato_nome") @db.VarChar(150)
-  contatoTelefone          String    @map("contato_telefone") @db.VarChar(11)
+  nomeContato              String    @map("nome_contato") @db.VarChar(150)
+  telefoneContato          String    @map("telefone_contato") @db.VarChar(20)
   contatoEmail             String?   @map("contato_email") @db.VarChar(150)
+  tipoSolicitante          String    @default("FAMILIAR") @map("tipo_solicitante") @db.VarChar(40)
+  instituicaoSolicitante   String?   @map("instituicao_solicitante") @db.VarChar(150)
+  nomeFalecido             String    @map("nome_falecido") @db.VarChar(150)
   enderecoOcorrencia       String    @map("endereco_ocorrencia") @db.VarChar(300)
-  relatoOcorrencia         String    @map("relato_ocorrencia") @db.VarChar(2000)
-  mensagemParaSolicitante  String?   @map("mensagem_solicitante") @db.VarChar(500)
+  municipioOcorrencia      String?   @map("municipio_ocorrencia") @db.VarChar(100)
+  pontoReferencia          String?   @map("ponto_referencia") @db.VarChar(200)
+  relatoOcorrencia         String    @map("relato_ocorrencia") @db.VarChar(1000)
+  complementacaoSolicitada String?   @map("complementacao_solicitada") @db.VarChar(500)
+  complementacaoEnviada    String?   @map("complementacao_enviada") @db.VarChar(1000)
+  status                   String    @default("AGUARDANDO_TRIAGEM") @db.VarChar(40)
   atendenteTriagemId       String?   @map("atendente_triagem_id") @db.Uuid
   triadaEm                 DateTime? @map("triada_em")
+  observacaoTriagem        String?   @map("observacao_triagem") @db.VarChar(500)
   gestorDecisaoId          String?   @map("gestor_decisao_id") @db.Uuid
   decididaEm               DateTime? @map("decidida_em")
   chaveIdempotenciaDecisao String?   @map("chave_idempotencia_decisao") @db.VarChar(100)
+  justificativaDecisao     String?   @map("justificativa_decisao") @db.VarChar(500)
+  motivoRecusa             String?   @map("motivo_recusa") @db.VarChar(500)
   chamadoSvoId             String?   @unique @map("chamado_svo_id") @db.Uuid
+  chaveIdempotencia        String?   @unique @map("chave_idempotencia") @db.VarChar(100)
+  versao                   Int       @default(0)
   criadoEm                 DateTime  @default(now()) @map("criado_em")
   atualizadoEm             DateTime  @default(now()) @updatedAt @map("atualizado_em")
 
-  solicitante Usuario                          @relation(fields: [solicitanteId], references: [id])
-  chamadoSvo  ChamadoSvo?                      @relation(fields: [chamadoSvoId], references: [id], onDelete: Restrict)
-  historico   SolicitacaoExternaSvoHistorico[]
+  solicitante      Usuario                          @relation("SolicitacaoExternaSolicitante", fields: [solicitanteId], references: [id], onDelete: Restrict)
+  atendenteTriagem Usuario?                         @relation("SolicitacaoExternaTriagem", fields: [atendenteTriagemId], references: [id], onDelete: Restrict)
+  gestorDecisao    Usuario?                         @relation("SolicitacaoExternaGestor", fields: [gestorDecisaoId], references: [id], onDelete: Restrict)
+  chamadoSvo       ChamadoSvo?                      @relation(fields: [chamadoSvoId], references: [id], onDelete: Restrict)
+  historico        SolicitacaoExternaSvoHistorico[]
 
-  @@unique([solicitanteId, chaveIdempotencia], map: "sol_ext_svo_solicitante_chave_key")
   @@index([solicitanteId, criadoEm])
-  @@index([estado, criadoEm])
+  @@index([status, criadoEm])
+  @@index([atendenteTriagemId])
+  @@index([gestorDecisaoId])
+  @@unique([gestorDecisaoId, chaveIdempotenciaDecisao], map: "sol_ext_svo_gestor_chave_decisao_key")
   @@map("solicitacoes_externas_svo")
 }
 
 model SolicitacaoExternaSvoHistorico {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  solicitacaoId  String   @map("solicitacao_id") @db.Uuid
-  tipo           String   @db.VarChar(20)
-  estadoAnterior String?  @map("estado_anterior") @db.VarChar(30)
-  estadoNovo     String   @map("estado_novo") @db.VarChar(30)
-  autorId        String?  @map("autor_id") @db.Uuid
-  conteudo       String?  @db.VarChar(2000)
-  criadoEm       DateTime @default(now()) @map("criado_em")
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitacaoExternaId String   @map("solicitacao_externa_id") @db.Uuid
+  autorId              String   @map("autor_id") @db.Uuid
+  perfilAutor          String   @map("perfil_autor") @db.VarChar(30)
+  acao                 String   @db.VarChar(50)
+  statusAnterior       String?  @map("status_anterior") @db.VarChar(40)
+  statusNovo           String   @map("status_novo") @db.VarChar(40)
+  mensagemPublica      String?  @map("mensagem_publica") @db.VarChar(500)
+  observacaoInterna    String?  @map("observacao_interna") @db.VarChar(500)
+  criadoEm             DateTime @default(now()) @map("criado_em")
 
-  solicitacao SolicitacaoExternaSvo @relation(fields: [solicitacaoId], references: [id])
+  solicitacaoExterna SolicitacaoExternaSvo @relation(fields: [solicitacaoExternaId], references: [id], onDelete: Cascade)
+  autor              Usuario               @relation("SolicitacaoExternaHistoricoAutor", fields: [autorId], references: [id], onDelete: Restrict)
 
-  @@index([solicitacaoId, criadoEm], map: "sol_ext_svo_hist_solicitacao_criado_idx")
+  @@index([solicitacaoExternaId, criadoEm])
+  @@index([autorId])
   @@map("solicitacoes_externas_svo_historico")
 }

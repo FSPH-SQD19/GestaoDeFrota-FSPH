@@ -44,6 +44,8 @@ import {
   recusarSolicitacaoExternaController,
   triarSolicitacaoExternaController,
 } from "../controller/fluxo_externo_svo_c";
+import solicitacaoExternaRoutes from "./solicitacao_externa_r";
+import svoRoutes from "./svo_r";
 
 const router = Router();
 router.use("/api/v1", diarioRoutes);
@@ -99,7 +101,10 @@ escalasSvo.get("/", listarEscalasSvoController);
 escalasSvo.post("/", criarEscalaSvoController);
 escalasSvo.patch("/:id/encerrar", encerrarEscalaSvoController);
 
+// solicitacoes externas
+router.use("/api/v1/svo/solicitacoes-externas", solicitacaoExternaRoutes);
 router.use("/api/v1/svo/escalas", escalasSvo);
+router.use("/api/v1/svo", svoRoutes);
 
 // Solicitações externas do SVO: triagem da atendente e decisão do gestor
 const triagemExterna = requireRole("ADMIN", "SVO");
