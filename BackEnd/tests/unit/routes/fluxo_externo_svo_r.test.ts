@@ -203,7 +203,7 @@ const triar = (decisao: string, justificativa?: string, id = solId) =>
 function solicitacao(dados: Linha = {}): Linha {
   return {
     id: solId,
-    protocolo: "EXT-2026-000001",
+    protocolo: "SVOE-2026-000001",
     solicitanteId: ids.externo,
     chaveIdempotencia: "20000000-0000-4000-8000-000000000001",
     status: "AGUARDANDO_TRIAGEM",
@@ -211,6 +211,7 @@ function solicitacao(dados: Linha = {}): Linha {
     nomeContato: "Maria Sintética",
     telefoneContato: "79999990000",
     contatoEmail: null,
+    nomeFalecido: "Paciente Inicial Teste",
     enderecoOcorrencia: "Rua Fictícia, 100, Aracaju",
     relatoOcorrencia: "Óbito em domicílio, família aguardando orientação.",
     complementacaoSolicitada: null,
@@ -220,6 +221,10 @@ function solicitacao(dados: Linha = {}): Linha {
     justificativaDecisao: null,
     atendenteTriagemId: null,
     triadaEm: null,
+    gestorDecisaoId: null,
+    decididaEm: null,
+    chaveIdempotenciaDecisao: null,
+    chamadoSvoId: null,
     criadoEm: ABERTURA,
     atualizadoEm: ABERTURA,
     ...dados,
@@ -301,31 +306,34 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
   it("lista AGUARDANDO_TRIAGEM por padrão e filtra as devolvidas", async () => {
     db.solicitacoes.push(
       solicitacao(),
-      solicitacao({ id: "10000000-0000-4000-8000-000000000002", protocolo: "EXT-2026-000002" }),
+      solicitacao({ id: "10000000-0000-4000-8000-000000000002", protocolo: "SVOE-2026-000002" }),
       solicitacao({
         id: "10000000-0000-4000-8000-000000000003",
-        protocolo: "EXT-2026-000003",
+        protocolo: "SVOE-2026-000003",
         status: "AGUARDANDO_GESTOR",
         atendenteTriagemId: ids.atendente,
         triadaEm: ABERTURA,
       }),
       solicitacao({
         id: "10000000-0000-4000-8000-000000000004",
-        protocolo: "EXT-2026-000004",
+        protocolo: "SVOE-2026-000004",
         status: "AGUARDANDO_COMPLEMENTACAO",
         complementacaoSolicitada: "Informe o ponto de referência.",
       }),
     );
     const fila = await chamar("GET", `${BASE}/triagem`, atendente);
     expect(fila.status).toBe(200);
-    expect(fila.json.data?.map((s) => s.protocolo)).toEqual(["EXT-2026-000001", "EXT-2026-000002"]);
+    expect(fila.json.data?.map((s) => s.protocolo)).toEqual([
+      "SVOE-2026-000001",
+      "SVOE-2026-000002",
+    ]);
     expect(fila.json.meta).toEqual({ page: 1, pageSize: 10, total: 2, totalPages: 1 });
 
     const devolvidas = await chamar("GET", `${BASE}/triagem?estado=AGUARDANDO_COMPLEMENTACAO`, {
       ...atendente,
     });
     expect(devolvidas.json.data?.map((s) => [s.protocolo, s.status])).toEqual([
-      ["EXT-2026-000004", "DEVOLVIDA_PARA_COMPLEMENTACAO"],
+      ["SVOE-2026-000004", "DEVOLVIDA_PARA_COMPLEMENTACAO"],
     ]);
     expect((await chamar("GET", `${BASE}/triagem?estado=APROVADA`, atendente)).status).toBe(400);
   });
@@ -359,7 +367,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     const { status, json } = await chamar("GET", `${BASE}/triagem/${solId}`, atendente);
     expect(status).toBe(200);
     expect(json).toMatchObject({
-      protocolo: "EXT-2026-000001",
+      protocolo: "SVOE-2026-000001",
       status: "AGUARDANDO_TRIAGEM",
       nomeSolicitante: "Maria Sintética",
       contato: "79999990000",
@@ -412,7 +420,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
         tabelaAfetada: "solicitacoes_externas_svo",
         registroId: solId,
         dadosNovos: {
-          protocolo: "EXT-2026-000001",
+          protocolo: "SVOE-2026-000001",
           estadoAnterior: "AGUARDANDO_TRIAGEM",
           estadoNovo: "AGUARDANDO_GESTOR",
         },
@@ -470,7 +478,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
   it("só o encaminhamento leva a solicitação ao gestor", async () => {
     const outra = (n: number) => ({
       id: `10000000-0000-4000-8000-00000000000${n}`,
-      protocolo: `EXT-2026-00000${n}`,
+      protocolo: `SVOE-2026-00000${n}`,
     });
     db.solicitacoes.push(solicitacao(), solicitacao(outra(2)), solicitacao(outra(3)));
     await triar("SOLICITAR_COMPLEMENTACAO", "Informe a referência.", outra(2).id);
@@ -492,5 +500,221 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
       atendenteTriagemId: null,
     });
     expect(db.auditoria).toHaveLength(0);
+  });
+});
+
+const gestor = { perfis: ["GESTOR"], usuario: ids.gestor };
+const decidir = (acao: "aprovar" | "recusar", opcoes: Parameters<typeof chamar>[2] = {}) =>
+  chamar("PATCH", `${BASE}/${solId}/${acao}`, { ...gestor, body: {}, ...opcoes });
+const triada = (dados: Linha = {}) =>
+  solicitacao({
+    status: "AGUARDANDO_GESTOR",
+    atendenteTriagemId: ids.atendente,
+    triadaEm: new Date("2026-11-20T10:05:00.000Z"),
+    ...dados,
+  });
+
+describe("decisão do gestor e conversão em ChamadoSvo (S19FROTA-285)", () => {
+  const rotas: Array<[string, string, unknown?]> = [
+    ["GET", `${BASE}/gestor`],
+    ["PATCH", `${BASE}/${solId}/aprovar`, {}],
+    ["PATCH", `${BASE}/${solId}/recusar`, { justificativa: "Fora da área de cobertura." }],
+  ];
+
+  it.each(rotas)("%s %s exige login (401)", async (metodo, caminho, body) => {
+    expect((await chamar(metodo, caminho, { body })).status).toBe(401);
+  });
+
+  it.each(["SVO", "MOTORISTA", "SOLICITANTE", "EXTERNO"])(
+    "nega a decisão para %s (403), inclusive a atendente",
+    async (perfil) => {
+      db.solicitacoes.push(triada());
+      for (const [metodo, caminho, body] of rotas) {
+        expect((await chamar(metodo, caminho, { perfis: [perfil], body })).status).toBe(403);
+      }
+      expect(db.solicitacoes[0]!.status).toBe("AGUARDANDO_GESTOR");
+      expect(db.chamados).toHaveLength(0);
+    },
+  );
+
+  it("a fila do gestor traz somente AGUARDANDO_GESTOR", async () => {
+    db.solicitacoes.push(
+      solicitacao(),
+      triada({ id: "10000000-0000-4000-8000-000000000002", protocolo: "SVOE-2026-0002" }),
+      solicitacao({
+        id: "10000000-0000-4000-8000-000000000003",
+        protocolo: "SVOE-2026-0003",
+        status: "AGUARDANDO_COMPLEMENTACAO",
+        complementacaoSolicitada: "Informe o ponto de referência.",
+      }),
+    );
+    const { status, json } = await chamar("GET", `${BASE}/gestor`, gestor);
+    expect(status).toBe(200);
+    expect(json.data?.map((s) => [s.protocolo, s.status])).toEqual([
+      ["SVOE-2026-0002", "AGUARDANDO_GESTOR"],
+    ]);
+    expect(json.meta).toEqual({ page: 1, pageSize: 10, total: 1, totalPages: 1 });
+  });
+
+  it("valida motivo da recusa, id e chave de idempotência (400)", async () => {
+    db.solicitacoes.push(triada());
+    const semMotivo = await decidir("recusar");
+    expect(semMotivo.status).toBe(400);
+    expect(semMotivo.json.errors?.[0]?.campo).toBe("justificativa");
+    expect((await chamar("PATCH", `${BASE}/abc/aprovar`, { ...gestor, body: {} })).status).toBe(
+      400,
+    );
+    expect((await decidir("aprovar", { chave: "curta" })).status).toBe(400);
+    expect((await decidir("aprovar", { body: { status: "APROVADA" } })).status).toBe(400);
+    expect(db.solicitacoes[0]!.status).toBe("AGUARDANDO_GESTOR");
+  });
+
+  it("aprova criando o chamado SVO na mesma transação, sem despacho automático", async () => {
+    db.solicitacoes.push(triada());
+    const { status, json } = await decidir("aprovar", { chave: "chave-aprovacao-0001" });
+    expect(status).toBe(200);
+    expect(db.chamados).toHaveLength(1);
+    const chamado = db.chamados[0]!;
+    expect(chamado).toMatchObject({
+      numeroProtocolo: "SVOE-2026-000001",
+      origem: "EXTERNA",
+      statusTriagem: "APROVADO",
+      atendenteId: ids.atendente,
+      nomeFalecido: "Paciente Inicial Teste",
+      criadoEm: ABERTURA,
+      ordemColeta: null,
+    });
+    expect(json.dados).toMatchObject({
+      estado: "APROVADA",
+      chamadoSvoId: chamado.id,
+      chamadoSvoProtocolo: "SVOE-2026-000001",
+      gestorDecisao: { id: ids.gestor, nome: "Gestor Um" },
+      mensagemParaSolicitante: null,
+    });
+    expect(json.mensagem).toContain("SVOE-2026-000001");
+    expect(db.historico.map((h) => h.acao)).toEqual(["APROVAR_GESTOR"]);
+    expect(db.auditoria.map((a) => [a.tabelaAfetada, a.acao])).toEqual([
+      ["chamados_svo", "CRIAR"],
+      ["solicitacoes_externas_svo", "GESTOR_APROVAR"],
+    ]);
+  });
+
+  it("recusa com justificativa interna e sem criar chamado", async () => {
+    db.solicitacoes.push(triada());
+    const { status, json } = await decidir("recusar", {
+      body: { justificativa: "Ocorrência fora da área de cobertura." },
+    });
+    expect(status).toBe(200);
+    expect(json.dados).toMatchObject({
+      estado: "RECUSADA",
+      justificativa: "Ocorrência fora da área de cobertura.",
+      chamadoSvoId: null,
+      mensagemParaSolicitante: null,
+    });
+    expect(db.chamados).toHaveLength(0);
+  });
+
+  it.each(["AGUARDANDO_TRIAGEM", "AGUARDANDO_COMPLEMENTACAO"])(
+    "não decide solicitação não triada (%s → 409)",
+    async (status) => {
+      db.solicitacoes.push(solicitacao({ status }));
+      const { status: httpStatus, json } = await decidir("aprovar");
+      expect(httpStatus).toBe(409);
+      expect(json.message).toContain("triada");
+      expect(db.chamados).toHaveLength(0);
+    },
+  );
+
+  it("impede decisão repetida (409), inclusive recusa após aprovação", async () => {
+    db.solicitacoes.push(triada());
+    expect((await decidir("aprovar")).status).toBe(200);
+    expect((await decidir("aprovar")).status).toBe(409);
+    expect(
+      (
+        await decidir("recusar", {
+          usuario: ids.gestor2,
+          body: { justificativa: "Mudança de ideia." },
+        })
+      ).status,
+    ).toBe(409);
+    expect(db.chamados).toHaveLength(1);
+    expect(db.solicitacoes[0]!.status).toBe("APROVADA");
+  });
+
+  it("impede autoaprovação de quem triou, mesmo sendo ADMIN (403)", async () => {
+    db.solicitacoes.push(triada({ atendenteTriagemId: ids.admin }));
+    const { status } = await decidir("aprovar", { perfis: ["ADMIN"], usuario: ids.admin });
+    expect(status).toBe(403);
+    expect(db.chamados).toHaveLength(0);
+  });
+
+  it("reenvio com a mesma chave devolve a mesma decisão sem duplicar o chamado", async () => {
+    db.solicitacoes.push(triada());
+    const primeira = await decidir("aprovar", { chave: "chave-aprovacao-0002" });
+    const segunda = await decidir("aprovar", { chave: "chave-aprovacao-0002" });
+    expect([primeira.status, segunda.status]).toEqual([200, 200]);
+    expect(segunda.json.dados?.chamadoSvoId).toBe(primeira.json.dados?.chamadoSvoId);
+    expect(db.chamados).toHaveLength(1);
+    expect(db.historico).toHaveLength(1);
+
+    const outroGestor = await decidir("aprovar", {
+      usuario: ids.gestor2,
+      chave: "chave-aprovacao-0002",
+    });
+    expect(outroGestor.status).toBe(409);
+  });
+
+  it("aprovações simultâneas geram um único chamado (200 + 409)", async () => {
+    db.solicitacoes.push(triada());
+    const respostas = await Promise.all(
+      [ids.gestor, ids.gestor2].map((usuario, i) =>
+        decidir("aprovar", { usuario, chave: `chave-concorrente-000${i}` }),
+      ),
+    );
+    expect(respostas.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(db.chamados).toHaveLength(1);
+    expect(db.historico).toHaveLength(1);
+  });
+
+  it("faz rollback do chamado quando uma etapa posterior falha", async () => {
+    db.solicitacoes.push(triada());
+    db.falhas.historico = true;
+    expect((await decidir("aprovar")).status).toBe(500);
+    expect(db.chamados).toHaveLength(0);
+    expect(db.auditoria).toHaveLength(0);
+    expect(db.solicitacoes[0]).toMatchObject({ status: "AGUARDANDO_GESTOR", chamadoSvoId: null });
+
+    db.falhas.historico = false;
+    expect((await decidir("aprovar")).status).toBe(200);
+  });
+
+  it("protocolo já usado por outro chamado vira 409 sem alterar a solicitação", async () => {
+    db.solicitacoes.push(triada());
+    db.chamados.push({
+      id: "30000000-0000-4000-8000-000000000001",
+      numeroProtocolo: "SVOE-2026-000001",
+    });
+    expect((await decidir("aprovar")).status).toBe(409);
+    expect(db.chamados).toHaveLength(1);
+    expect(db.solicitacoes[0]!.status).toBe("AGUARDANDO_GESTOR");
+  });
+});
+
+describe("regressão do chamado por telefone", () => {
+  it("POST /svo/chamados mantém origem e status padrão", async () => {
+    const { status, json } = await chamar("POST", "/api/v1/svo/chamados", {
+      ...atendente,
+      body: {
+        nomeFalecido: "Pessoa Sintética",
+        enderecoOcorrencia: "Av. Teste, 10",
+        relatoOcorrencia: "Chamado recebido por telefone.",
+      },
+    });
+    expect(status).toBe(201);
+    expect(json.numeroProtocolo).toMatch(/^SVO-\d{4}-0007$/);
+    expect(db.chamados[0]).not.toHaveProperty("origem");
+    expect(db.chamados[0]).not.toHaveProperty("statusTriagem");
+    expect(db.chamados[0]).toMatchObject({ atendenteId: ids.atendente });
+    expect(db.solicitacoes).toHaveLength(0);
   });
 });

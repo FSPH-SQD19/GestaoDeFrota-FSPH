@@ -112,6 +112,7 @@ function criarRegistroMock(
     observacaoTriagem: null,
     gestorDecisaoId: null,
     decididaEm: null,
+    chaveIdempotenciaDecisao: null,
     justificativaDecisao: null,
     motivoRecusa: null,
     chamadoSvoId: null,

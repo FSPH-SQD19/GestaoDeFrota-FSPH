@@ -37,8 +37,11 @@ import {
   listarEscalasSvoController,
 } from "../controller/escala_svo_c";
 import {
+  aprovarSolicitacaoExternaController,
+  listarFilaGestorExternaController,
   listarFilaTriagemExternaController,
   obterSolicitacaoExternaTriagemController,
+  recusarSolicitacaoExternaController,
   triarSolicitacaoExternaController,
 } from "../controller/fluxo_externo_svo_c";
 import solicitacaoExternaRoutes from "./solicitacao_externa_r";
@@ -103,12 +106,16 @@ router.use("/api/v1/svo/solicitacoes-externas", solicitacaoExternaRoutes);
 router.use("/api/v1/svo/escalas", escalasSvo);
 router.use("/api/v1/svo", svoRoutes);
 
-// Solicitações externas do SVO: triagem da atendente
+// Solicitações externas do SVO: triagem da atendente e decisão do gestor
 const triagemExterna = requireRole("ADMIN", "SVO");
+const decisaoExterna = requireRole("ADMIN", "GESTOR");
 fluxoExternoSvo.use(authenticate);
 fluxoExternoSvo.get("/triagem", triagemExterna, listarFilaTriagemExternaController);
 fluxoExternoSvo.get("/triagem/:id", triagemExterna, obterSolicitacaoExternaTriagemController);
 fluxoExternoSvo.patch("/:id/triagem", triagemExterna, triarSolicitacaoExternaController);
+fluxoExternoSvo.get("/gestor", decisaoExterna, listarFilaGestorExternaController);
+fluxoExternoSvo.patch("/:id/aprovar", decisaoExterna, aprovarSolicitacaoExternaController);
+fluxoExternoSvo.patch("/:id/recusar", decisaoExterna, recusarSolicitacaoExternaController);
 
 router.use("/api/v1/solicitacoes-externas-svo", fluxoExternoSvo);
 

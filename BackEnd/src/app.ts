@@ -29,7 +29,7 @@ app.use(
       }
     },
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "Idempotency-Key"],
   }),
 );
 app.use(express.json({ limit: "512kb" }));

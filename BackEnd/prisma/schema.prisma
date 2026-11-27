@@ -320,6 +320,7 @@ model ChamadoSvo {
   localizacaoGeo     Unsupported("geometry(Point, 4326)")? @map("localizacao_geo")
   relatoOcorrencia   String?                               @map("relato_ocorrencia")
   statusTriagem      String                                @default("EM_ANALISE") @map("status_triagem") @db.VarChar(30)
+  origem             String                                @default("TELEFONE") @db.VarChar(20)
   criadoEm           DateTime?                             @default(now()) @map("criado_em")
 
   atendente          Usuario?               @relation(fields: [atendenteId], references: [id])
@@ -600,6 +601,7 @@ model SolicitacaoExternaSvo {
   observacaoTriagem        String?   @map("observacao_triagem") @db.VarChar(500)
   gestorDecisaoId          String?   @map("gestor_decisao_id") @db.Uuid
   decididaEm               DateTime? @map("decidida_em")
+  chaveIdempotenciaDecisao String?   @map("chave_idempotencia_decisao") @db.VarChar(100)
   justificativaDecisao     String?   @map("justificativa_decisao") @db.VarChar(500)
   motivoRecusa             String?   @map("motivo_recusa") @db.VarChar(500)
   chamadoSvoId             String?   @unique @map("chamado_svo_id") @db.Uuid
@@ -611,13 +613,14 @@ model SolicitacaoExternaSvo {
   solicitante      Usuario                          @relation("SolicitacaoExternaSolicitante", fields: [solicitanteId], references: [id], onDelete: Restrict)
   atendenteTriagem Usuario?                         @relation("SolicitacaoExternaTriagem", fields: [atendenteTriagemId], references: [id], onDelete: Restrict)
   gestorDecisao    Usuario?                         @relation("SolicitacaoExternaGestor", fields: [gestorDecisaoId], references: [id], onDelete: Restrict)
-  chamadoSvo       ChamadoSvo?                      @relation(fields: [chamadoSvoId], references: [id], onDelete: SetNull)
+  chamadoSvo       ChamadoSvo?                      @relation(fields: [chamadoSvoId], references: [id], onDelete: Restrict)
   historico        SolicitacaoExternaSvoHistorico[]
 
   @@index([solicitanteId, criadoEm])
   @@index([status, criadoEm])
   @@index([atendenteTriagemId])
   @@index([gestorDecisaoId])
+  @@unique([gestorDecisaoId, chaveIdempotenciaDecisao], map: "sol_ext_svo_gestor_chave_decisao_key")
   @@map("solicitacoes_externas_svo")
 }
 
