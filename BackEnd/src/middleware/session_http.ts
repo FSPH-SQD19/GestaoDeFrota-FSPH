@@ -98,7 +98,7 @@ export const protectRequests: RequestHandler = (req, _res, next) => {
   }
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
   // Clientes de API com Bearer não usam credenciais anexadas automaticamente.
-  const authEndpoint = /\/auth\/(login|logout)\/?$/i.test(req.path);
+  const authEndpoint = /\/auth\/(login|logout|cadastro-externo)\/?$/i.test(req.path);
   if (!authEndpoint && !readCookie(req, sessionCookieName())) return next();
   const nonce = req.headers["x-csrf-token"];
   const cookie = readCookie(req, csrfCookieName());

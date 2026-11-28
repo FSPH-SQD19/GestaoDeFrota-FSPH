@@ -146,6 +146,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToForgot }) => {
             >
               Está com problemas para acessar o sistema?
             </button>
+            <a href="/portal-svo/cadastro" className="mt-3 block text-sm underline">
+              Criar conta para solicitar atendimento SVO
+            </a>
           </div>
         </div>
       </div>

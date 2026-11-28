@@ -1,3 +1,4 @@
+import { notificarSolicitanteExterno } from "./notificacao_s";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { HttpError } from "../lib/http_error";
@@ -63,7 +64,7 @@ export const MENSAGEM_PUBLICA_POR_STATUS: Readonly<Record<StatusSolicitacaoExter
   APROVADA:
     "Solicitação aprovada pela gestão e integrada à central operacional do SVO para atendimento.",
   RECUSADA:
-    "Solicitação não autorizada. Confira o motivo informado no acompanhamento do protocolo.",
+    "Não foi possível atender a solicitação. Em caso de dúvida, entre em contato com o SVO.",
 };
 
 export function obterTransicoesPermitidasSolicitacaoExterna(
@@ -96,7 +97,7 @@ export function validarTransicaoStatusSolicitacaoExterna(
   }
 
   const isExterno = perfisAutor.includes("EXTERNO");
-  const isAtendenteSvo = perfisAutor.includes("SVO") || perfisAutor.includes("ADMIN");
+  const isAtendenteSvo = perfisAutor.includes("SVO") || perfisAutor.includes("ATENDENTE_SVO");
   const isGestor = perfisAutor.includes("GESTOR") || perfisAutor.includes("ADMIN");
 
   if (statusAtual === "AGUARDANDO_COMPLEMENTACAO" && statusNovo === "AGUARDANDO_TRIAGEM") {
@@ -116,7 +117,7 @@ export function validarTransicaoStatusSolicitacaoExterna(
         "Apenas a equipe de triagem do SVO pode avaliar ou encaminhar solicitações nesta etapa.",
       );
     }
-    const perfilResponsavel = perfisAutor.includes("SVO") ? "SVO" : "ADMIN";
+    const perfilResponsavel = perfisAutor.includes("SVO") ? "SVO" : "ATENDENTE_SVO";
     if (statusNovo === "AGUARDANDO_COMPLEMENTACAO") {
       return { acaoHistorico: "SOLICITAR_COMPLEMENTACAO", perfilResponsavel };
     }
@@ -286,6 +287,21 @@ export function serializarSolicitacaoExternaPublica(registro: SolicitacaoExterna
     status,
     mensagemStatus:
       MENSAGEM_PUBLICA_POR_STATUS[status] ?? MENSAGEM_PUBLICA_POR_STATUS.AGUARDANDO_TRIAGEM,
+    criadoEm: registro.criadoEm,
+    atualizadoEm: registro.atualizadoEm,
+    historico: registro.historico.map((item) => ({
+      statusNovo: item.statusNovo,
+      mensagemPublica:
+        MENSAGEM_PUBLICA_POR_STATUS[item.statusNovo as StatusSolicitacaoExternaSvo] ??
+        MENSAGEM_PUBLICA_POR_STATUS.AGUARDANDO_TRIAGEM,
+      criadoEm: item.criadoEm,
+    })),
+  };
+}
+
+export function serializarSolicitacaoExternaInterna(registro: SolicitacaoExternaSvoCompleta) {
+  return {
+    ...serializarSolicitacaoExternaPublica(registro),
     nomeContato: registro.nomeContato,
     telefoneContato: registro.telefoneContato,
     tipoSolicitante: registro.tipoSolicitante,
@@ -300,22 +316,6 @@ export function serializarSolicitacaoExternaPublica(registro: SolicitacaoExterna
     motivoRecusa: registro.motivoRecusa,
     protocoloChamadoSvo: registro.chamadoSvo?.numeroProtocolo ?? null,
     versao: registro.versao,
-    criadoEm: registro.criadoEm,
-    atualizadoEm: registro.atualizadoEm,
-    historico: registro.historico.map((item) => ({
-      id: item.id,
-      acao: item.acao,
-      statusAnterior: item.statusAnterior,
-      statusNovo: item.statusNovo,
-      mensagemPublica: item.mensagemPublica,
-      criadoEm: item.criadoEm,
-    })),
-  };
-}
-
-export function serializarSolicitacaoExternaInterna(registro: SolicitacaoExternaSvoCompleta) {
-  return {
-    ...serializarSolicitacaoExternaPublica(registro),
     solicitante: registro.solicitante,
     atendenteTriagem: registro.atendenteTriagem,
     triadaEm: registro.triadaEm,
@@ -493,16 +493,13 @@ export async function transicionarSolicitacaoExternaSvo(
       throw new HttpError(409, "Esta solicitação externa já possui um chamado SVO vinculado.");
     }
 
-    const mensagemPublica =
-      acaoHistorico === "COMPLEMENTACAO_ENVIADA"
-        ? `Complementação enviada: ${parsed.complementacaoEnviada}`
-        : parsed.statusNovo === "AGUARDANDO_COMPLEMENTACAO"
-          ? `Complementação solicitada: ${parsed.complementacaoSolicitada}`
-          : parsed.statusNovo === "RECUSADA"
-            ? `Solicitação recusada: ${parsed.motivoRecusa}`
-            : MENSAGEM_PUBLICA_POR_STATUS[parsed.statusNovo];
+    const mensagemPublica = MENSAGEM_PUBLICA_POR_STATUS[parsed.statusNovo];
 
-    const observacaoInterna = parsed.observacaoTriagem ?? parsed.justificativaDecisao ?? null;
+    const observacaoInterna =
+      parsed.complementacaoEnviada ??
+      parsed.observacaoTriagem ??
+      parsed.justificativaDecisao ??
+      null;
 
     const atualizados = await tx.solicitacaoExternaSvo.updateMany({
       where: {
@@ -566,6 +563,7 @@ export async function transicionarSolicitacaoExternaSvo(
       },
     });
 
+    await notificarSolicitanteExterno(tx, atual, mensagemPublica);
     await tx.auditoriaSistema.create({
       data: {
         usuarioId: usuario.id,

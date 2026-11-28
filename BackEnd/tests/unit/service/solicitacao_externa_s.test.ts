@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => {
         findUniqueOrThrow: m.findUniqueOrThrow,
       },
       solicitacaoExternaSvoHistorico: { create: m.historicoCreate },
+      notificacao: { create: vi.fn() },
       auditoriaSistema: { create: m.auditoriaCreate },
       $queryRaw: m.queryRaw,
     },
@@ -192,9 +193,8 @@ describe("serializarSolicitacaoExterna (resposta pública)", () => {
 
     expect(Object.keys(publico).sort()).toEqual([
       "atualizadoEm",
-      "complementos",
       "criadoEm",
-      "dadosEnviados",
+      "historico",
       "id",
       "mensagem",
       "permiteComplementar",
@@ -226,7 +226,7 @@ describe("serializarSolicitacaoExterna (resposta pública)", () => {
     expect(publico.permiteComplementar).toBe(permiteComplementar);
   });
 
-  it("usa o texto do atendimento só na complementação e na recusa", () => {
+  it("mantém o parecer da atendente fora da resposta pública", () => {
     const texto = "Informe o ponto de referência.";
 
     expect(
@@ -236,7 +236,7 @@ describe("serializarSolicitacaoExterna (resposta pública)", () => {
         complementacaoSolicitada: texto,
         historico: [],
       } as Parameters<typeof serializarSolicitacaoExterna>[0]).mensagem,
-    ).toBe(texto);
+    ).not.toBe(texto);
     expect(
       serializarSolicitacaoExterna({
         ...registro,
@@ -399,7 +399,7 @@ describe("detalharSolicitacaoExterna", () => {
     );
   });
 
-  it("devolve o detalhe com os complementos enviados", async () => {
+  it("devolve apenas a mudança de situação e sua data", async () => {
     mocks.findFirst.mockResolvedValue({
       ...registro,
       historico: [
@@ -416,9 +416,8 @@ describe("detalharSolicitacaoExterna", () => {
     const detalhe = await detalharSolicitacaoExterna(solicitacaoId, usuarioId);
 
     expect(detalhe.protocolo).toBe("SVOE-2026-0001");
-    expect(detalhe.complementos).toEqual([
-      { conteudo: "Ponto de referência: praça.", enviadoEm: agora },
-    ]);
+    expect(detalhe.historico).toEqual([{ situacao: "Recebida", ocorridoEm: agora }]);
+    expect(JSON.stringify(detalhe)).not.toContain("Ponto de referência: praça.");
   });
 });
 
@@ -482,7 +481,8 @@ describe("complementarSolicitacaoExterna", () => {
       data: expect.objectContaining({
         solicitacaoExternaId: solicitacaoId,
         acao: "COMPLEMENTACAO_ENVIADA",
-        mensagemPublica: `Complementação enviada: ${input.complemento}`,
+        mensagemPublica: expect.not.stringContaining(input.complemento),
+        observacaoInterna: input.complemento,
         autorId: usuarioId,
       }),
     });

@@ -1,3 +1,4 @@
+import { notificarSolicitanteExterno } from "./notificacao_s";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { HttpError } from "../lib/http_error";
@@ -50,9 +51,7 @@ export const triagemExternaSchema = z
     }
   });
 
-export const aprovarExternaSchema = z
-  .object({ justificativa: justificativaSchema.optional() })
-  .strict();
+export const aprovarExternaSchema = z.object({ justificativa: justificativaSchema }).strict();
 export const recusarExternaSchema = z.object({ justificativa: justificativaSchema }).strict();
 export const chaveIdempotenciaSchema = z
   .string()
@@ -258,11 +257,7 @@ export async function triarSolicitacaoExterna(
     const complemento = input.decisao === "SOLICITAR_COMPLEMENTACAO";
     const recusa = input.decisao === "RECUSAR";
     const encaminhamento = input.decisao === "ENCAMINHAR";
-    const mensagemPublica = complemento
-      ? `Complementação solicitada: ${justificativa}`
-      : recusa
-        ? MENSAGEM_PUBLICA_POR_STATUS.RECUSADA
-        : MENSAGEM_PUBLICA_POR_STATUS.AGUARDANDO_GESTOR;
+    const mensagemPublica = MENSAGEM_PUBLICA_POR_STATUS[regra.para];
 
     const resultado = await tx.solicitacaoExternaSvo.updateMany({
       where: { id, status: statusAtual, versao: atual.versao },
@@ -272,7 +267,7 @@ export async function triarSolicitacaoExterna(
         atualizadoEm: agora,
         atendenteTriagemId: usuario.id,
         triadaEm: agora,
-        ...(complemento ? { complementacaoSolicitada: justificativa } : {}),
+        ...(complemento ? { complementacaoSolicitada: mensagemPublica } : {}),
         ...(recusa ? { motivoRecusa: justificativa } : {}),
         ...(encaminhamento && justificativa ? { observacaoTriagem: justificativa } : {}),
       },
@@ -297,6 +292,7 @@ export async function triarSolicitacaoExterna(
         criadoEm: agora,
       },
     });
+    await notificarSolicitanteExterno(tx, { id, ...atual }, mensagemPublica);
     await tx.auditoriaSistema.create({
       data: {
         usuarioId: usuario.id,
@@ -449,6 +445,7 @@ export async function decidirSolicitacaoExterna(
           },
         });
 
+        await notificarSolicitanteExterno(tx, atual, MENSAGEM_PUBLICA_POR_STATUS[statusFinal]);
         const registro = await tx.solicitacaoExternaSvo.findUniqueOrThrow({
           where: { id },
           include: incluirHistorico,

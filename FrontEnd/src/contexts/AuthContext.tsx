@@ -13,7 +13,14 @@ import {
 } from "../services/browserSession";
 import { AuthContext } from "./auth";
 
-const validRoles = new Set<UserRole>(["ADMIN", "GESTOR", "MOTORISTA", "SVO", "SOLICITANTE"]);
+const validRoles = new Set<UserRole>([
+  "ADMIN",
+  "GESTOR",
+  "MOTORISTA",
+  "SVO",
+  "SOLICITANTE",
+  "EXTERNO",
+]);
 interface SessionResponse {
   usuario: { id: string; nome: string; email: string; perfis: string[] };
 }

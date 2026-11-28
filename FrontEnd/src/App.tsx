@@ -7,6 +7,8 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { podeAcessar, telaInicial, type TabId } from "./config/navigation";
 import { api } from "./services/api";
+import { CadastroExternoSvo, PortalExternoSvo } from "./pages/svo/PortalExternoSvo";
+import { TriagemExternaSvo } from "./pages/svo/TriagemExternaSvo";
 
 const MotoristaPwa = lazy(() => import("./features/motorista/MotoristaPwa"));
 const CentralOperacional = lazy(() => import("./features/motorista/CentralOperacional"));
@@ -111,6 +113,7 @@ const AppContent: React.FC = () => {
 
   // Visualização de telas não autenticadas (Login / Esqueci a Senha)
   if (!isAuthenticated) {
+    if (window.location.pathname === "/portal-svo/cadastro") return <CadastroExternoSvo />;
     if (authView === "forgot") {
       return <ForgotPasswordPage onBackToLogin={() => setAuthView("login")} />;
     }
@@ -118,6 +121,8 @@ const AppContent: React.FC = () => {
   }
 
   // Se o perfil atual não tiver acesso à aba selecionada, cai na tela inicial do perfil
+  if (roles.includes("EXTERNO")) return <PortalExternoSvo key={user?.id} />;
+
   const currentTab: TabId =
     window.location.pathname === "/motorista" && roles.includes("MOTORISTA")
       ? "viagens"
@@ -194,6 +199,7 @@ const AppContent: React.FC = () => {
             {currentTab === "motoristas" && <MotoristasPage />}
 
             {currentTab === "solicitacoes" && <SolicitacoesPage />}
+            {currentTab === "triagemExternaSvo" && <TriagemExternaSvo />}
             {currentTab === "solicitacoesExternasSvo" && <SolicitacoesExternasSvoPage />}
             {currentTab === "agenda" && <AgendaPage />}
 

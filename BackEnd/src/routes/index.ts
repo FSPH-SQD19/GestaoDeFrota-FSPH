@@ -107,7 +107,7 @@ router.use("/api/v1/svo/escalas", escalasSvo);
 router.use("/api/v1/svo", svoRoutes);
 
 // Solicitações externas do SVO: triagem da atendente e decisão do gestor
-const triagemExterna = requireRole("ADMIN", "SVO");
+const triagemExterna = requireRole("SVO", "ATENDENTE_SVO");
 const decisaoExterna = requireRole("ADMIN", "GESTOR");
 fluxoExternoSvo.use(authenticate);
 fluxoExternoSvo.get("/triagem", triagemExterna, listarFilaTriagemExternaController);

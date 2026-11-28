@@ -36,6 +36,7 @@ vi.mock("../../../src/lib/prisma", () => ({
         solicitacaoExternaSvoHistorico: {
           create: mocks.historicoCreate,
         },
+        notificacao: { create: vi.fn() },
         auditoriaSistema: {
           create: mocks.auditoriaCreate,
         },
@@ -422,7 +423,7 @@ describe("S19FROTA-279 — Modelagem, estados, protocolo e auditoria de Solicita
       );
 
       expect(aprovada.status).toBe("APROVADA");
-      expect(aprovada.protocoloChamadoSvo).toBe("SVO-2026-0042");
+      expect(aprovada).toHaveProperty("protocoloChamadoSvo", "SVO-2026-0042");
       expect(mocks.historicoCreate).toHaveBeenCalledTimes(4);
       expect(mocks.auditoriaCreate).toHaveBeenCalledTimes(4);
     });
@@ -485,6 +486,9 @@ describe("S19FROTA-279 — Modelagem, estados, protocolo e auditoria de Solicita
       expect(publica).not.toHaveProperty("justificativaDecisao");
       expect(publica).not.toHaveProperty("solicitante");
       expect(publica.historico[0]).not.toHaveProperty("observacaoInterna");
+      expect(publica).not.toHaveProperty("nomeFalecido");
+      expect(publica).not.toHaveProperty("telefoneContato");
+      expect(publica).not.toHaveProperty("motivoRecusa");
 
       expect(interna.observacaoTriagem).toBe("Detalhe interno sigiloso da triagem");
       expect(interna.historico[0].observacaoInterna).toBe("Anotação restrita à equipe interna");

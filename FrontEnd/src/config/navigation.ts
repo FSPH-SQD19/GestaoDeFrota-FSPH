@@ -24,6 +24,7 @@ export type TabId =
   | "rastreamento"
   | "dashboard"
   | "solicitacoes"
+  | "triagemExternaSvo"
   | "solicitacoesExternasSvo"
   | "agenda"
   | "viagens"
@@ -66,6 +67,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: (roles) => (isGestao(roles) ? "Solicitações" : "Minhas Solicitações"),
         icon: ClipboardList,
         roles: ["ADMIN", "GESTOR", "SOLICITANTE"],
+      },
+      {
+        id: "triagemExternaSvo",
+        label: () => "Triagem externa SVO",
+        icon: PhoneCall,
+        roles: ["SVO"],
       },
       {
         id: "solicitacoesExternasSvo",
@@ -160,6 +167,7 @@ const TELA_INICIAL_POR_PERFIL: Record<UserRole, TabId> = {
   SVO: "svo",
   MOTORISTA: "viagens",
   SOLICITANTE: "solicitacoes",
+  EXTERNO: "dashboard",
 };
 
 /** Ordem de prioridade quando o usuário possui mais de um perfil. */
@@ -170,7 +178,7 @@ const ROLES_POR_TAB = new Map<TabId, UserRole[]>(
 );
 
 export function podeAcessar(tab: TabId, roles: UserRole[]): boolean {
-  if (tab === "solicitacoesExternasSvo" && import.meta.env.VITE_PAINEL_GESTOR_SVO !== "true") {
+  if (tab === "solicitacoesExternasSvo" && import.meta.env.VITE_PAINEL_GESTOR_SVO === "false") {
     return false;
   }
   const permitidos = ROLES_POR_TAB.get(tab);
