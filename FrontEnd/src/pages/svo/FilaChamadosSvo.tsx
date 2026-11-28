@@ -3,6 +3,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
   MapPin,
   Search,
@@ -16,10 +17,12 @@ import {
   STATUS_CHAMADO_LABEL,
   STATUS_CHAMADO_VARIANT,
   proximaEtapaColeta,
+  formatarDataHoraColeta,
 } from "./svoApresentacao";
 import type { ChamadoSvo } from "../../services/svo";
 import type { useSvoDados } from "./useSvoDados";
 import { useAgora } from "./useAgora";
+
 type Props = Pick<
   ReturnType<typeof useSvoDados>,
   | "chamados"
@@ -39,7 +42,9 @@ type Props = Pick<
   abrirEmissaoOrdem: (chamado: ChamadoSvo) => void;
   abrirDetalhes: (chamado: ChamadoSvo) => void;
   handleEtapaColeta: (chamado: ChamadoSvo, cancelar?: boolean) => void;
+  somenteExterno?: boolean;
 };
+
 export function FilaChamadosSvo({
   chamados,
   busca,
@@ -57,20 +62,26 @@ export function FilaChamadosSvo({
   abrirEmissaoOrdem,
   abrirDetalhes,
   handleEtapaColeta,
+  somenteExterno = false,
 }: Props) {
   const agora = useAgora();
+
   return (
     <Card className="overflow-hidden p-0">
       <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-slate-900">Fila de chamados</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {somenteExterno ? "Minhas solicitações SVO" : "Fila de chamados"}
+            </h2>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600 tabular-nums">
               {totalRegistros}
             </span>
           </div>
           <p className="mt-0.5 text-xs text-slate-500">
-            Acompanhe o atendimento, a triagem e a execução das ordens de coleta.
+            {somenteExterno
+              ? "Acompanhe o andamento público das suas solicitações."
+              : "Acompanhe o atendimento, a triagem e a execução das ordens de coleta."}
           </p>
         </div>
         <div className="w-full sm:max-w-[260px]">
@@ -78,7 +89,7 @@ export function FilaChamadosSvo({
             aria-label="Buscar chamado"
             value={busca}
             onChange={(e) => handleBuscaChange(e.target.value)}
-            placeholder="Protocolo, nome ou endereço"
+            placeholder={somenteExterno ? "Buscar por protocolo" : "Protocolo, nome ou endereço"}
             leftIcon={<Search className="h-4 w-4" />}
           />
         </div>
@@ -105,15 +116,21 @@ export function FilaChamadosSvo({
       <div className="divide-y divide-slate-200/70">
         {carregando && chamados.length === 0 ? (
           <div className="p-10 text-center text-sm text-slate-500">
-            Carregando chamados do SVO...
+            Carregando solicitações do SVO...
           </div>
         ) : (
           chamados.map((c) => {
             const statusOp = classificarChamado(c);
             const protocolo = c.numeroProtocolo ?? c.id;
             const processandoEste = processandoAcaoId === c.id;
-            const proximaEtapa = c.ordemColeta ? proximaEtapaColeta(c.ordemColeta.status) : null;
-            const minutosAbertos = chamadoAbertoParaSla(c) ? minutosDesde(c.criadoEm, agora) : null;
+            const proximaEtapa =
+              !somenteExterno && c.ordemColeta ? proximaEtapaColeta(c.ordemColeta.status) : null;
+            const minutosAbertos =
+              !somenteExterno && chamadoAbertoParaSla(c) ? minutosDesde(c.criadoEm, agora) : null;
+            const ultimoEventoPublico =
+              c.historicoPublico && c.historicoPublico.length > 0
+                ? c.historicoPublico[c.historicoPublico.length - 1]
+                : null;
 
             return (
               <article key={c.id} className="p-4 transition-colors hover:bg-slate-50/70 sm:px-5">
@@ -131,41 +148,57 @@ export function FilaChamadosSvo({
                           SLA {formatarDuracaoSla(minutosAbertos)}
                         </Badge>
                       )}
-                      {c.ordemColeta?.veiculo && (
+                      {!somenteExterno && c.ordemColeta?.veiculo && (
                         <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
                           {c.ordemColeta.veiculo.placa}
                         </span>
                       )}
                     </div>
-                    <p className="mt-1.5 line-clamp-1 text-sm font-semibold text-slate-900">
-                      {c.nomeFalecido || "Identificação não informada"}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                        {c.enderecoOcorrencia || "Endereço não informado"}
-                      </span>
-                      {c.ordemColeta?.numeroDeclaracaoObito && (
-                        <span className="inline-flex items-center gap-1 font-mono">
-                          <FileText className="h-3.5 w-3.5 text-slate-400" />
-                          DO: {c.ordemColeta.numeroDeclaracaoObito}
-                        </span>
-                      )}
-                    </div>
+
+                    {somenteExterno ? (
+                      <div className="mt-1.5 space-y-1">
+                        <p className="text-sm font-medium text-slate-800">
+                          {ultimoEventoPublico?.mensagem ??
+                            "Solicitação registrada. Aguardando atualização."}
+                        </p>
+                        <p className="inline-flex items-center gap-1 text-xs text-slate-500">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          Abertura: {formatarDataHoraColeta(c.criadoEm)}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="mt-1.5 line-clamp-1 text-sm font-semibold text-slate-900">
+                          {c.nomeFalecido || "Identificação não informada"}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                            {c.enderecoOcorrencia || "Endereço não informado"}
+                          </span>
+                          {c.ordemColeta?.numeroDeclaracaoObito && (
+                            <span className="inline-flex items-center gap-1 font-mono">
+                              <FileText className="h-3.5 w-3.5 text-slate-400" />
+                              DO: {c.ordemColeta.numeroDeclaracaoObito}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    {statusOp === "EM_ANALISE" && (
+                    {!somenteExterno && statusOp === "EM_ANALISE" && (
                       <Button size="sm" onClick={() => abrirTriagem(c)}>
                         Iniciar triagem
                       </Button>
                     )}
-                    {statusOp === "AGUARDANDO_ORDEM" && (
+                    {!somenteExterno && statusOp === "AGUARDANDO_ORDEM" && (
                       <Button size="sm" onClick={() => abrirEmissaoOrdem(c)}>
                         Emitir ordem
                       </Button>
                     )}
-                    {proximaEtapa && (
+                    {!somenteExterno && proximaEtapa && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -176,7 +209,7 @@ export function FilaChamadosSvo({
                         {processandoEste ? "Registrando..." : proximaEtapa.label}
                       </Button>
                     )}
-                    {statusOp === "AGUARDANDO_DESPACHO" && (
+                    {!somenteExterno && statusOp === "AGUARDANDO_DESPACHO" && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -186,14 +219,14 @@ export function FilaChamadosSvo({
                         Cancelar ordem
                       </Button>
                     )}
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
+                      variant={somenteExterno ? "outline" : "ghost"}
                       onClick={() => abrirDetalhes(c)}
                       aria-label={`Ver detalhes ${protocolo}`}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                     >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
+                      {somenteExterno ? "Ver histórico" : <ChevronRight className="h-4 w-4" />}
+                    </Button>
                   </div>
                 </div>
               </article>

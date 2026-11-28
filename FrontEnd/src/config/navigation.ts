@@ -122,9 +122,13 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         id: "svo",
-        label: () => "Módulo SVO",
+        label: (roles) =>
+          roles.includes("SOLICITANTE") &&
+          !roles.some((role) => ["ADMIN", "GESTOR", "SVO"].includes(role))
+            ? "Minhas Solicitações SVO"
+            : "Módulo SVO",
         icon: PhoneCall,
-        roles: ["ADMIN", "SVO"],
+        roles: ["ADMIN", "SVO", "SOLICITANTE"],
       },
     ],
   },

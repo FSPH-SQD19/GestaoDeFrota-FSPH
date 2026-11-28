@@ -26,6 +26,9 @@ const TIPOS_NOTIFICACAO = [
   "CNH_VENCENDO",
   "DOCUMENTO_VEICULO_VENCENDO",
   "SVO_DESINFECCAO_CONCLUIDA",
+  "SVO_CHAMADO_ENVIADO",
+  "SVO_TRIAGEM_CONCLUIDA",
+  "SVO_SOLICITACAO_ATUALIZADA",
   "REVISAO_PREVENTIVA_PROXIMA",
   "REVISAO_PREVENTIVA_VENCIDA",
 ] as const;
@@ -815,4 +818,99 @@ export async function notificarRevisaoPreventiva(
     })),
     tx,
   );
+}
+
+export async function notificarSvoChamadoEnviado(dados: {
+  chamadoId: string;
+  numeroProtocolo: string;
+  atendenteId?: string | null;
+  eventoId: string;
+}): Promise<void> {
+  invalidarCacheSincronizacaoNotificacoes();
+
+  try {
+    await executarComRetentativa(async () => {
+      const ids = new Set<string>(await listarIdsUsuariosAtivosPorPerfis(["SVO"]));
+      if (dados.atendenteId) {
+        ids.add(dados.atendenteId);
+      }
+      const destinatarios = Array.from(ids);
+      if (destinatarios.length === 0) return;
+
+      await criarNotificacoesEmLote(
+        destinatarios.map((destinatarioId) => ({
+          usuarioId: destinatarioId,
+          tipo: "SVO_CHAMADO_ENVIADO" as const,
+          titulo: `Chamado SVO ${dados.numeroProtocolo} enviado`,
+          mensagem: `A solicitação SVO ${dados.numeroProtocolo} foi registrada e encaminhada para triagem.`,
+          referenciaTipo: "CHAMADO_SVO",
+          referenciaId: dados.chamadoId,
+          chaveUnica: `svo-envio:${dados.chamadoId}:${dados.eventoId}:${destinatarioId}`,
+        })),
+      );
+    });
+  } catch (erro) {
+    console.error("Falha ao notificar envio de chamado SVO:", dados.chamadoId, erro);
+  }
+}
+
+export async function notificarSvoTriagemRealizada(dados: {
+  chamadoId: string;
+  numeroProtocolo: string;
+  decisao: "APROVAR" | "RECUSAR";
+  eventoId: string;
+}): Promise<void> {
+  invalidarCacheSincronizacaoNotificacoes();
+
+  try {
+    await executarComRetentativa(async () => {
+      const destinatarios = await listarIdsUsuariosAtivosPorPerfis(["GESTOR", "ADMIN"]);
+      if (destinatarios.length === 0) return;
+
+      const rotuloDecisao =
+        dados.decisao === "APROVAR" ? "aprovada na triagem" : "recusada na triagem";
+      await criarNotificacoesEmLote(
+        destinatarios.map((destinatarioId) => ({
+          usuarioId: destinatarioId,
+          tipo: "SVO_TRIAGEM_CONCLUIDA" as const,
+          titulo: `Triagem SVO ${dados.numeroProtocolo}`,
+          mensagem: `A solicitação SVO ${dados.numeroProtocolo} foi ${rotuloDecisao}.`,
+          referenciaTipo: "CHAMADO_SVO",
+          referenciaId: dados.chamadoId,
+          chaveUnica: `svo-triagem:${dados.chamadoId}:${dados.eventoId}:${destinatarioId}`,
+        })),
+      );
+    });
+  } catch (erro) {
+    console.error("Falha ao notificar triagem SVO:", dados.chamadoId, erro);
+  }
+}
+
+export async function notificarSvoSolicitanteExterno(dados: {
+  chamadoId: string;
+  numeroProtocolo: string;
+  solicitanteId?: string | null;
+  mensagemPublica: string;
+  eventoId: string;
+}): Promise<void> {
+  if (!dados.solicitanteId) return;
+  invalidarCacheSincronizacaoNotificacoes();
+
+  try {
+    await executarComRetentativa(async () => {
+      await criarNotificacoesEmLote([
+        {
+          usuarioId: dados.solicitanteId!,
+          tipo: "SVO_SOLICITACAO_ATUALIZADA",
+          titulo: `Atualização da solicitação ${dados.numeroProtocolo}`,
+          mensagem: truncar(dados.mensagemPublica, 500),
+          referenciaTipo: "CHAMADO_SVO",
+          referenciaId: dados.chamadoId,
+          chaveUnica: `svo-ext:${dados.chamadoId}:${dados.eventoId}:${dados.solicitanteId}`,
+        },
+      ]);
+    });
+  } catch (erro) {
+    console.error("Falha ao notificar solicitante externo SVO:", dados.chamadoId, erro);
+  }
 }

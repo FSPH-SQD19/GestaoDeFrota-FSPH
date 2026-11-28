@@ -16,6 +16,7 @@ type Linha = Record<string, unknown>;
 const db = vi.hoisted(() => ({
   solicitacoes: [] as Record<string, unknown>[],
   chamados: [] as Record<string, unknown>[],
+  historicosChamadoSvo: [] as Record<string, unknown>[],
   historico: [] as Record<string, unknown>[],
   auditoria: [] as Record<string, unknown>[],
   usuarios: new Map<string, string>(),
@@ -32,7 +33,13 @@ vi.mock("../../../src/lib/prisma", async () => {
     skip: number;
     take: number;
   };
-  const tabelas = ["solicitacoes", "chamados", "historico", "auditoria"] as const;
+  const tabelas = [
+    "solicitacoes",
+    "chamados",
+    "historicosChamadoSvo",
+    "historico",
+    "auditoria",
+  ] as const;
   const snapshot = () => structuredClone(tabelas.map((t) => db[t]));
   const restaurar = (copia: Linha[][]) =>
     tabelas.forEach((t, i) => db[t].splice(0, db[t].length, ...copia[i]!));
@@ -96,6 +103,13 @@ vi.mock("../../../src/lib/prisma", async () => {
         const chamado = { id: randomUUID(), ordemColeta: null, atendente: null, ...data };
         db.chamados.push(chamado);
         return chamado;
+      },
+    },
+    chamadoSvoHistorico: {
+      create: async ({ data }: Arg) => {
+        const evento = { id: randomUUID(), ...data };
+        db.historicosChamadoSvo.push(evento);
+        return evento;
       },
     },
     auditoriaSistema: {

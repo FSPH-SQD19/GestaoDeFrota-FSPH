@@ -382,6 +382,8 @@ for (const cancelar of [false, true]) {
             meta: { page: 1, pageSize: 10, total: chamado ? 1 : 0, totalPages: chamado ? 1 : 0 },
           },
         });
+      if (chamado && caminho.endsWith(`/chamados/${chamado.id}`) && request.method() === "GET")
+        return route.fulfill({ json: chamado });
       if (caminho.endsWith("/chamados") && request.method() === "POST") {
         acoes.push("registrar");
         chamado = {

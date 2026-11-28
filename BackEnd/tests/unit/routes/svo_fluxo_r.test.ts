@@ -22,6 +22,9 @@ vi.mock("../../../src/service/session_s", async () => {
 });
 vi.mock("../../../src/service/notificacao_s", () => ({
   notificarViaturaSvoLiberada: vi.fn(),
+  notificarSvoChamadoEnviado: vi.fn(),
+  notificarSvoSolicitanteExterno: vi.fn(),
+  notificarSvoTriagemRealizada: vi.fn(),
 }));
 vi.mock("../../../src/lib/prisma", () => {
   function corresponde(registro: Record<string, unknown> | null, where: Record<string, unknown>) {
@@ -64,6 +67,12 @@ vi.mock("../../../src/lib/prisma", () => {
       count: async ({ where = {} }: { where?: Record<string, unknown> } = {}) =>
         Number(corresponde(banco.chamado, where)),
       findMany: async () => (banco.chamado ? [{ ...banco.chamado, ordemColeta: banco.ordem }] : []),
+    },
+    chamadoSvoHistorico: {
+      create: async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "00000000-0000-4000-8000-000000000050",
+        ...data,
+      }),
     },
     ordemColetaSvo: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
@@ -320,6 +329,23 @@ describe("fluxo HTTP SVO com controladores e serviços reais", () => {
     expect((await etapa("EM_DESLOCAMENTO")).status).toBe(404);
     expect((await cancelar()).status).toBe(404);
     expect((await etapa("CONCLUIDA")).status).toBe(400);
+  });
+
+  it("permite ao SOLICITANTE registrar e acompanhar seus chamados sem acessar operações SVO", async () => {
+    const chamado = await request(
+      "POST",
+      "/chamados",
+      {
+        nomeFalecido: "Pessoa Teste",
+        enderecoOcorrencia: "Rua das Flores, 100",
+        relatoOcorrencia: "Óbito informado pela família.",
+      },
+      "SOLICITANTE",
+    );
+    expect(chamado.status).toBe(201);
+    expect(banco.chamado?.solicitanteId).toBe(usuarioId);
+    expect((await request("GET", "/chamados", undefined, "SOLICITANTE")).status).toBe(200);
+    expect((await request("GET", "/indicadores", undefined, "SOLICITANTE")).status).toBe(403);
   });
 
   it("permite ao motorista listar a coleta atribuída e avançar as três etapas", async () => {

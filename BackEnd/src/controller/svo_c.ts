@@ -4,6 +4,11 @@ import { z } from "zod";
 import { usuarioAutenticado } from "../middleware/http_m";
 import { HttpError } from "../lib/http_error";
 import {
+  complementarChamadoSchema,
+  complementarChamadoSvo,
+  obterChamadoSvoDetalhes,
+} from "../service/svo_s";
+import {
   remanejarOrdemSchema,
   remanejarOrdemColetaSvo,
   listarRemanejamentosSvo,
@@ -43,13 +48,39 @@ export async function indicadoresSvoController(_req: Request, res: Response) {
 }
 
 export async function listarChamadosSvoController(req: Request, res: Response) {
-  return res.json(await listarChamadosSvo(validar(listarChamadosSchema, req.query)));
+  const usuario = usuarioAutenticado(res);
+  return res.json(
+    await listarChamadosSvo(validar(listarChamadosSchema, req.query), usuario.id, usuario.perfis),
+  );
+}
+
+export async function complementarChamadoSvoController(req: Request, res: Response) {
+  const usuario = usuarioAutenticado(res);
+  const result = await complementarChamadoSvo(
+    validarId(req.params.id as string | undefined),
+    validar(complementarChamadoSchema, req.body ?? {}),
+    usuario.id,
+  );
+  return res.status(201).json(result);
+}
+
+export async function obterChamadoSvoController(req: Request, res: Response) {
+  const usuario = usuarioAutenticado(res);
+  return res.json(
+    await obterChamadoSvoDetalhes(
+      validarId(req.params.id as string | undefined),
+      usuario.id,
+      usuario.perfis,
+    ),
+  );
 }
 
 export async function registrarChamadoSvoController(req: Request, res: Response) {
+  const usuario = usuarioAutenticado(res);
   const result = await registrarChamadoSvo(
     validar(criarChamadoSchema, req.body ?? {}),
-    usuarioAutenticado(res).id,
+    usuario.id,
+    usuario.perfis,
   );
   return res.status(201).json(result);
 }

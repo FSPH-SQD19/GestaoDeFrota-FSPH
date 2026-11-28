@@ -3,10 +3,24 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http_error";
-import { notificarViaturaSvoLiberada } from "./notificacao_s";
+import {
+  notificarSvoChamadoEnviado,
+  notificarSvoSolicitanteExterno,
+  notificarSvoTriagemRealizada,
+  notificarViaturaSvoLiberada,
+} from "./notificacao_s";
+import {
+  ehSolicitanteExternoSomente,
+  filtrarHistoricoPublicoSeguro,
+  montarMensagemPublicaComplementacao,
+  montarMensagemPublicaEtapaOrdem,
+  montarMensagemPublicaTriagem,
+  serializarChamadoParaSolicitanteExterno,
+} from "./svo_historico_lgpd_s";
 
 import { STATUS_ORDEM_ATIVA, STATUS_ORDEM_EM_COLETA } from "./svo_status";
 export { STATUS_ORDEM_ATIVA, STATUS_ORDEM_EM_COLETA } from "./svo_status";
+
 const PREFIXO_PROTOCOLO_SVO = "SVO";
 const FUSO_PROTOCOLO = "America/Maceio";
 
@@ -52,6 +66,16 @@ export const triagemSchema = z
       });
     }
   });
+
+export const complementarChamadoSchema = z
+  .object({
+    complemento: z
+      .string({ error: "Descreva a complementação." })
+      .trim()
+      .min(3, "Complementação deve ter ao menos 3 caracteres.")
+      .max(500, "Complementação deve ter no máximo 500 caracteres."),
+  })
+  .strict();
 
 export const emitirOrdemSchema = z
   .object({
@@ -335,18 +359,57 @@ export async function indicadoresSvo() {
   };
 }
 
-export async function listarChamadosSvo(filtros: z.infer<typeof listarChamadosSchema>) {
-  const where = construirWhereChamados(filtros);
+export async function listarChamadosSvo(
+  filtros: z.infer<typeof listarChamadosSchema>,
+  usuarioId?: string,
+  perfis: string[] = ["SVO"],
+) {
+  const ehExterno = ehSolicitanteExternoSomente(perfis);
+  const whereBase = construirWhereChamados(filtros);
+  const where: Prisma.ChamadoSvoWhereInput = ehExterno
+    ? { AND: [whereBase, { solicitanteId: usuarioId ?? "" }] }
+    : whereBase;
+
   const [registros, total] = await Promise.all([
     prisma.chamadoSvo.findMany({
       where,
-      include: incluirRelacoesChamado,
+      include: {
+        ...incluirRelacoesChamado,
+        historico: {
+          where: ehExterno ? { visivelSolicitante: true } : undefined,
+          orderBy: [{ criadoEm: "asc" }, { id: "asc" }],
+        },
+      },
       orderBy: [{ numeroProtocolo: "desc" }, { id: "desc" }],
       skip: (filtros.page - 1) * filtros.pageSize,
       take: filtros.pageSize,
     }),
     prisma.chamadoSvo.count({ where }),
   ]);
+
+  if (ehExterno) {
+    const dataSegura = registros
+      .map((registro) =>
+        serializarChamadoParaSolicitanteExterno(
+          {
+            ...registro,
+            statusOperacao: registro.ordemColeta?.status ?? null,
+          },
+          usuarioId ?? "",
+        ),
+      )
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    return {
+      data: dataSegura,
+      meta: {
+        page: filtros.page,
+        pageSize: filtros.pageSize,
+        total: dataSegura.length,
+        totalPages: Math.max(1, Math.ceil(dataSegura.length / filtros.pageSize)),
+      },
+    };
+  }
 
   const ids = registros.map((item) => item.id);
   const auditoriasTriagem =
@@ -389,38 +452,80 @@ export async function listarChamadosSvo(filtros: z.infer<typeof listarChamadosSc
 
 export async function registrarChamadoSvo(
   input: z.infer<typeof criarChamadoSchema>,
-  atendenteId: string,
+  usuarioId: string,
+  perfis: string[] = ["SVO"],
   agora: Date = new Date(),
 ) {
-  return prisma.$transaction(async (tx) => {
+  const ehExterno = ehSolicitanteExternoSomente(perfis);
+
+  const resultado = await prisma.$transaction(async (tx) => {
     const numeroProtocolo = await gerarProtocoloSvo(tx, agora);
     const chamado = await tx.chamadoSvo.create({
       data: {
         ...input,
         numeroProtocolo,
-        atendenteId,
+        atendenteId: ehExterno ? null : usuarioId,
+        solicitanteId: ehExterno ? usuarioId : null,
         criadoEm: agora,
       },
       include: incluirRelacoesChamado,
     });
 
+    const eventoHistorico = await tx.chamadoSvoHistorico.create({
+      data: {
+        chamadoId: chamado.id,
+        autorId: usuarioId,
+        etapa: "ENVIADO",
+        mensagemPublica: `Solicitação ${numeroProtocolo} enviada e encaminhada para triagem.`,
+        visivelSolicitante: true,
+        criadoEm: agora,
+      },
+    });
+
     await tx.auditoriaSistema.create({
       data: {
-        usuarioId: atendenteId,
+        usuarioId,
         acao: "CRIAR",
         tabelaAfetada: "chamados_svo",
         registroId: chamado.id,
         dadosNovos: {
           numeroProtocolo: chamado.numeroProtocolo,
-          nomeFalecido: chamado.nomeFalecido,
-          enderecoOcorrencia: chamado.enderecoOcorrencia,
           statusTriagem: chamado.statusTriagem,
         },
       },
     });
 
-    return { ...chamado, justificativaTriagem: null };
+    return { chamado, eventoId: eventoHistorico.id };
   });
+
+  await notificarSvoChamadoEnviado({
+    chamadoId: resultado.chamado.id,
+    numeroProtocolo: resultado.chamado.numeroProtocolo ?? resultado.chamado.id,
+    atendenteId: resultado.chamado.atendenteId,
+    eventoId: resultado.eventoId,
+  });
+
+  if (ehExterno) {
+    return (
+      serializarChamadoParaSolicitanteExterno(
+        {
+          ...resultado.chamado,
+          historico: [
+            {
+              id: resultado.eventoId,
+              etapa: "ENVIADO",
+              mensagemPublica: `Solicitação ${resultado.chamado.numeroProtocolo ?? ""} enviada e encaminhada para triagem.`,
+              visivelSolicitante: true,
+              criadoEm: agora,
+            },
+          ],
+        },
+        usuarioId,
+      ) ?? { id: resultado.chamado.id, numeroProtocolo: resultado.chamado.numeroProtocolo }
+    );
+  }
+
+  return { ...resultado.chamado, justificativaTriagem: null };
 }
 
 export async function realizarTriagemSvo(
@@ -429,8 +534,10 @@ export async function realizarTriagemSvo(
   usuarioId?: string,
 ) {
   const statusTriagem = input.decisao === "APROVAR" ? "APROVADO" : "RECUSADO";
+  const agora = new Date();
+  const mensagemPublica = montarMensagemPublicaTriagem(input.decisao);
 
-  return prisma.$transaction(async (tx) => {
+  const resultado = await prisma.$transaction(async (tx) => {
     const result = await tx.chamadoSvo.updateMany({
       where: { id, statusTriagem: "EM_ANALISE" },
       data: { statusTriagem },
@@ -449,6 +556,18 @@ export async function realizarTriagemSvo(
       include: incluirRelacoesChamado,
     });
 
+    const eventoHistorico = await tx.chamadoSvoHistorico.create({
+      data: {
+        chamadoId: id,
+        autorId: usuarioId ?? null,
+        etapa: `TRIAGEM_${statusTriagem}`,
+        mensagemPublica,
+        parecerInterno: input.justificativa ?? null,
+        visivelSolicitante: true,
+        criadoEm: agora,
+      },
+    });
+
     await tx.auditoriaSistema.create({
       data: {
         usuarioId: usuarioId ?? null,
@@ -463,11 +582,124 @@ export async function realizarTriagemSvo(
       },
     });
 
-    return {
-      ...atualizado,
-      justificativaTriagem: input.justificativa ?? null,
-    };
+    return { atualizado, eventoId: eventoHistorico.id };
   });
+
+  await Promise.all([
+    notificarSvoTriagemRealizada({
+      chamadoId: resultado.atualizado.id,
+      numeroProtocolo: resultado.atualizado.numeroProtocolo ?? resultado.atualizado.id,
+      decisao: input.decisao,
+      eventoId: resultado.eventoId,
+    }),
+    notificarSvoSolicitanteExterno({
+      chamadoId: resultado.atualizado.id,
+      numeroProtocolo: resultado.atualizado.numeroProtocolo ?? resultado.atualizado.id,
+      solicitanteId: resultado.atualizado.solicitanteId,
+      mensagemPublica,
+      eventoId: resultado.eventoId,
+    }),
+  ]);
+
+  return {
+    ...resultado.atualizado,
+    justificativaTriagem: input.justificativa ?? null,
+  };
+}
+
+export async function complementarChamadoSvo(
+  id: string,
+  input: z.infer<typeof complementarChamadoSchema>,
+  usuarioId: string,
+  agora: Date = new Date(),
+) {
+  const resultado = await prisma.$transaction(async (tx) => {
+    const chamado = await tx.chamadoSvo.findUnique({ where: { id } });
+    if (!chamado) throw new HttpError(404, "Chamado não encontrado.");
+
+    const mensagemPublica = montarMensagemPublicaComplementacao(chamado.numeroProtocolo);
+    const eventoHistorico = await tx.chamadoSvoHistorico.create({
+      data: {
+        chamadoId: id,
+        autorId: usuarioId,
+        etapa: "COMPLEMENTACAO",
+        mensagemPublica,
+        parecerInterno: input.complemento,
+        visivelSolicitante: true,
+        criadoEm: agora,
+      },
+    });
+
+    await tx.auditoriaSistema.create({
+      data: {
+        usuarioId,
+        acao: "COMPLEMENTAR_CHAMADO",
+        tabelaAfetada: "chamados_svo",
+        registroId: id,
+        dadosNovos: { etapa: "COMPLEMENTACAO" },
+      },
+    });
+
+    return { chamado, eventoId: eventoHistorico.id, mensagemPublica };
+  });
+
+  await notificarSvoSolicitanteExterno({
+    chamadoId: resultado.chamado.id,
+    numeroProtocolo: resultado.chamado.numeroProtocolo ?? resultado.chamado.id,
+    solicitanteId: resultado.chamado.solicitanteId,
+    mensagemPublica: resultado.mensagemPublica,
+    eventoId: resultado.eventoId,
+  });
+
+  return {
+    id: resultado.chamado.id,
+    etapa: "COMPLEMENTACAO",
+    mensagemPublica: resultado.mensagemPublica,
+    registradoEm: agora.toISOString(),
+  };
+}
+
+export async function obterChamadoSvoDetalhes(
+  id: string,
+  usuarioId: string,
+  perfis: string[] = ["SVO"],
+) {
+  const ehExterno = ehSolicitanteExternoSomente(perfis);
+  const chamado = await prisma.chamadoSvo.findUnique({
+    where: { id },
+    include: {
+      ...incluirRelacoesChamado,
+      historico: {
+        where: ehExterno ? { visivelSolicitante: true } : undefined,
+        orderBy: [{ criadoEm: "asc" }, { id: "asc" }],
+      },
+    },
+  });
+
+  if (!chamado) throw new HttpError(404, "Chamado não encontrado.");
+
+  if (ehExterno) {
+    const seguro = serializarChamadoParaSolicitanteExterno(
+      {
+        ...chamado,
+        statusOperacao: chamado.ordemColeta?.status ?? null,
+      },
+      usuarioId,
+    );
+    if (!seguro) {
+      throw new HttpError(403, "Acesso negado à solicitação de outro solicitante.");
+    }
+    return seguro;
+  }
+
+  return {
+    ...chamado,
+    historicoPublico: filtrarHistoricoPublicoSeguro(chamado.historico, [
+      chamado.nomeFalecido,
+      chamado.enderecoOcorrencia,
+      chamado.relatoOcorrencia,
+    ]),
+  };
 }
 
 async function transacionarSvo<T>(operacao: (tx: Prisma.TransactionClient) => Promise<T>) {
@@ -493,7 +725,6 @@ async function bloquearRecursosSvo(
   motoristaId?: string | null,
   chamadoId?: string,
 ) {
-  // Mesma ordem e chaves da aprovação de solicitações e das manutenções.
   const recursos = [motoristaId && `motorista:${motoristaId}`, veiculoId && `veiculo:${veiculoId}`]
     .filter((valor): valor is string => Boolean(valor))
     .sort();
@@ -597,6 +828,7 @@ export async function emitirOrdemColetaSvo(
       if (ativa || conflito)
         throw new HttpError(409, "Recursos já alocados em saída ou viagem administrativa.");
     }
+
     const ordem = await tx.ordemColetaSvo.create({
       data: {
         chamadoId,
@@ -609,6 +841,16 @@ export async function emitirOrdemColetaSvo(
     });
 
     await tx.motorista.update({ where: { id: motorista.id }, data: { status: "OCUPADO" } });
+
+    await tx.chamadoSvoHistorico.create({
+      data: {
+        chamadoId,
+        autorId: usuarioId ?? null,
+        etapa: "ORDEM_EMITIDA",
+        mensagemPublica: "Ordem de coleta emitida e aguardando despacho.",
+        visivelSolicitante: true,
+      },
+    });
 
     await tx.auditoriaSistema.create({
       data: {
@@ -670,7 +912,7 @@ async function atualizarEtapaColetaSvo(
   status: z.infer<typeof avancarEtapaSchema>["status"] | "CANCELADA",
   ordemId?: string,
 ) {
-  return transacionarSvo(async (tx) => {
+  const resultado = await transacionarSvo(async (tx) => {
     const referencia = await tx.chamadoSvo.findUnique({
       where: { id: chamadoId },
       include: { ordemColeta: true },
@@ -713,7 +955,6 @@ async function atualizarEtapaColetaSvo(
 
     const anterior = chamado.ordemColeta.status;
     const esperado = status === "CANCELADA" ? "AGUARDANDO_DESPACHO" : etapaAnterior[status];
-    // Ordens legadas em andamento já têm saída registrada.
     if (anterior !== esperado && !(anterior === "EM_ANDAMENTO" && status === "NO_LOCAL")) {
       throw new HttpError(409, "Transição inválida para a etapa atual da coleta.");
     }
@@ -796,6 +1037,18 @@ async function atualizarEtapaColetaSvo(
       }
     }
 
+    const mensagemPublicaEtapa = montarMensagemPublicaEtapaOrdem(status);
+    const eventoHistorico = await tx.chamadoSvoHistorico.create({
+      data: {
+        chamadoId,
+        autorId: usuarioId ?? null,
+        etapa: `ORDEM_${status}`,
+        mensagemPublica: mensagemPublicaEtapa,
+        visivelSolicitante: true,
+        criadoEm: agora,
+      },
+    });
+
     await tx.auditoriaSistema.create({
       data: {
         usuarioId: usuarioId ?? null,
@@ -813,8 +1066,26 @@ async function atualizarEtapaColetaSvo(
       },
     });
 
-    return ordem;
+    return {
+      ordem,
+      solicitanteId: chamado.solicitanteId,
+      numeroProtocolo: chamado.numeroProtocolo,
+      mensagemPublicaEtapa,
+      eventoId: eventoHistorico.id,
+    };
   });
+
+  if (resultado.solicitanteId) {
+    await notificarSvoSolicitanteExterno({
+      chamadoId,
+      numeroProtocolo: resultado.numeroProtocolo ?? chamadoId,
+      solicitanteId: resultado.solicitanteId,
+      mensagemPublica: resultado.mensagemPublicaEtapa,
+      eventoId: resultado.eventoId,
+    });
+  }
+
+  return resultado.ordem;
 }
 
 export async function concluirDesinfeccaoSvo(veiculoId: string, usuarioId?: string) {
@@ -985,7 +1256,6 @@ export async function remanejarOrdemColetaSvo(
     const veiculoId = input.veiculoId ?? referencia.veiculoId;
     const motoristaId = input.motoristaId ?? referencia.motoristaId;
     if (!veiculoId || !motoristaId) throw new HttpError(422, "Informe viatura e condutor.");
-    // Bloquear todos os recursos na mesma ordem global usada nos despachos.
     const chaves = [
       ...new Set(
         [

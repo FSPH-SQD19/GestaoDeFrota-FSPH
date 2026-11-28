@@ -9,6 +9,18 @@ export type EtapaFiltroSvo =
 export type StatusVeiculoSvo = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO" | "DESINFECCAO";
 export type EtapaColetaSvo = "EM_DESLOCAMENTO" | "NO_LOCAL" | "ENTREGUE_SVO";
 
+export interface ItemHistoricoPublicoSeguro {
+  id: string;
+  etapa: string;
+  mensagem: string;
+  registradoEm: string;
+}
+
+export async function obterChamadoSvoPorId(id: string): Promise<ChamadoSvo> {
+  const response = await api.get<ChamadoSvo>(`${BASE}/chamados/${encodeURIComponent(id)}`);
+  return response.data;
+}
+
 export interface OrdemColetaSvo {
   id: string;
   chamadoId: string;
@@ -46,6 +58,8 @@ export interface ChamadoSvo {
   justificativaTriagem?: string | null;
   atendente?: { id: string; nome: string } | null;
   ordemColeta?: OrdemColetaSvo | null;
+  statusOperacao?: string | null;
+  historicoPublico?: ItemHistoricoPublicoSeguro[];
 }
 
 export interface MinhaColetaSvo extends OrdemColetaSvo {
