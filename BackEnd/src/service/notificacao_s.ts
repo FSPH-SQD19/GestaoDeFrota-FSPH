@@ -509,6 +509,23 @@ export async function sincronizarAlertasVencimento(
   }
 }
 
+export async function notificarSolicitanteExterno(
+  tx: Prisma.TransactionClient,
+  solicitacao: { id: string; solicitanteId: string; protocolo: string },
+  mensagem: string,
+) {
+  await tx.notificacao.create({
+    data: {
+      usuarioId: solicitacao.solicitanteId,
+      tipo: "SVO_SOLICITACAO_EXTERNA",
+      titulo: `Solicitação SVO ${solicitacao.protocolo}`,
+      mensagem,
+      referenciaTipo: "SOLICITACAO_EXTERNA_SVO",
+      referenciaId: solicitacao.id,
+    },
+  });
+}
+
 export async function listarNotificacoes(
   usuario: UsuarioAutenticado,
   query: ListarNotificacoesQuery,
@@ -521,7 +538,7 @@ export async function listarNotificacoes(
     ultimoSync.dia !== hoje ||
     agora.getTime() - ultimoSync.timestampMs >= INTERVALO_SINCRONIZACAO_NOTIFICACOES_MS;
 
-  if (precisaSincronizar) {
+  if (precisaSincronizar && !usuario.perfis.includes("EXTERNO")) {
     try {
       await sincronizarAlertasVencimento(usuario, agora, { usarCacheFrota: true });
       registrarSincronizacaoNotificacoes(usuario.id, {

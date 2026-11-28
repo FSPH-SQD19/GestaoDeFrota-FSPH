@@ -49,6 +49,7 @@ describe("SolicitacoesExternasSvoPage", () => {
 
     render(<SolicitacoesExternasSvoPage />);
     await user.click(await screen.findByRole("button", { name: "Aprovar" }));
+    await user.type(screen.getByLabelText(/Justificativa interna/), "Triagem validada.");
     await user.click(screen.getByRole("button", { name: "Confirmar aprovação" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Falha temporária");
 
@@ -73,6 +74,7 @@ describe("SolicitacoesExternasSvoPage", () => {
 
     render(<SolicitacoesExternasSvoPage />);
     await user.click(await screen.findByRole("button", { name: "Aprovar" }));
+    await user.type(screen.getByLabelText(/Justificativa interna/), "Triagem validada.");
     await user.click(screen.getByRole("button", { name: "Confirmar aprovação" }));
 
     await waitFor(() => expect(screen.queryByText("SE-SVO-2026-0001")).not.toBeInTheDocument());
@@ -136,7 +138,7 @@ describe("SolicitacoesExternasSvoPage", () => {
     render(<SolicitacoesExternasSvoPage />);
     await user.click(await screen.findByRole("button", { name: "Recusar" }));
     await user.click(screen.getByRole("button", { name: "Confirmar recusa" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("pelo menos 3 caracteres");
+    expect(screen.getByRole("alert")).toHaveTextContent("pelo menos 5 caracteres");
     expect(mocks.recusar).not.toHaveBeenCalled();
   });
 });

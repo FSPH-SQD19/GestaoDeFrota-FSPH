@@ -36,6 +36,9 @@ export const authenticate: RequestHandler = async (req, res, next) => {
   }
   const usuario = await resolveSession(identity.usuarioId, identity.sessaoId);
   if (!usuario) return next(new HttpError(401, "Sua sessão expirou. Entre novamente."));
+  if (usuario.perfis.includes("EXTERNO") && usuario.perfis.some((perfil) => perfil !== "EXTERNO")) {
+    return next(new HttpError(403, "O perfil externo deve ser usado separadamente."));
+  }
   res.locals.usuario = usuario;
   next();
 };

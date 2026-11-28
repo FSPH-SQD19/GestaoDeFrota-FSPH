@@ -24,8 +24,11 @@ import {
   bloquearSaida,
 } from "../service/diario_s";
 const router = Router();
-router.get("/motorista/config", authenticate, (_req, res) =>
-  res.json({ enabled: diarioConfig().enabled }),
+router.get(
+  "/motorista/config",
+  authenticate,
+  requireRole("MOTORISTA", "ADMIN", "GESTOR", "SVO", "ATENDENTE_SVO", "SOLICITANTE"),
+  (_req, res) => res.json({ enabled: diarioConfig().enabled }),
 );
 router.use(
   ["/motorista", "/rastreamento", "/locais", "/geografia"],

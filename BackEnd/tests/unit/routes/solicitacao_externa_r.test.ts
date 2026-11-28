@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => {
         findUniqueOrThrow: m.findUniqueOrThrow,
       },
       solicitacaoExternaSvoHistorico: { create: m.historicoCreate },
+      notificacao: { create: vi.fn() },
       auditoriaSistema: { create: m.auditoriaCreate },
       $queryRaw: m.queryRaw,
     },
@@ -338,7 +339,7 @@ describe("GET /api/v1/svo/solicitacoes-externas/:id", () => {
     const resposta = await chamar(`${base}/${solicitacaoId}`, { perfis: ["EXTERNO"] });
 
     expect(resposta.status).toBe(200);
-    expect(resposta.json).toMatchObject({ protocolo: "SVOE-2026-0001", complementos: [] });
+    expect(resposta.json).toMatchObject({ protocolo: "SVOE-2026-0001", historico: [] });
     expect(mocks.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: solicitacaoId, solicitanteId: usuarioId } }),
     );

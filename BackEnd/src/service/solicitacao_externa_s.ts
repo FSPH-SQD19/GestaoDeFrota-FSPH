@@ -3,6 +3,7 @@ import { z } from "zod";
 import { HttpError } from "../lib/http_error";
 import { prisma } from "../lib/prisma";
 import type { UsuarioAutenticado } from "../middleware/http_m";
+import { notificarSolicitanteExterno } from "./notificacao_s";
 import { sanitizarLgpd } from "./auditoria_s";
 import {
   gerarProtocoloSolicitacaoExternaSvo,
@@ -21,7 +22,6 @@ export type EstadoSolicitacaoExterna = (typeof ESTADOS_SOLICITACAO_EXTERNA)[numb
 
 const ESTADO_INICIAL: EstadoSolicitacaoExterna = "AGUARDANDO_TRIAGEM";
 const ESTADO_COMPLEMENTACAO: EstadoSolicitacaoExterna = "AGUARDANDO_COMPLEMENTACAO";
-const TIPO_HISTORICO_COMPLEMENTO = "COMPLEMENTACAO_ENVIADA";
 
 export function normalizarTelefone(valor: string): string {
   return valor.replace(/\D/g, "");
@@ -53,7 +53,8 @@ export const criarSolicitacaoExternaSchema = z.object({
     .string({ error: "Informe a identificação do falecido." })
     .trim()
     .min(2, "O nome deve ter ao menos 2 caracteres.")
-    .max(150, "O nome deve ter no máximo 150 caracteres."),
+    .max(150, "O nome deve ter no máximo 150 caracteres.")
+    .optional(),
   enderecoOcorrencia: z
     .string({ error: "Informe o endereço da ocorrência." })
     .trim()
@@ -102,7 +103,8 @@ const MENSAGENS_PUBLICAS: Record<EstadoSolicitacaoExterna, { situacao: string; m
     },
     AGUARDANDO_COMPLEMENTACAO: {
       situacao: "Precisamos de mais informações",
-      mensagem: "Envie as informações solicitadas para que possamos continuar a análise.",
+      mensagem:
+        "Revise o contato, o endereço e a descrição. Envie as informações que faltam sem identificar pacientes ou terceiros.",
     },
     AGUARDANDO_GESTOR: {
       situacao: "Em análise",
@@ -128,10 +130,7 @@ const incluirHistorico = {
   historico: {
     orderBy: { criadoEm: "asc" as const },
     select: {
-      acao: true,
-      statusAnterior: true,
       statusNovo: true,
-      mensagemPublica: true,
       criadoEm: true,
     },
   },
@@ -152,23 +151,13 @@ export type SolicitacaoExternaResumo = {
 };
 
 export type SolicitacaoExternaDetalhe = SolicitacaoExternaResumo & {
-  dadosEnviados: {
-    contatoNome: string;
-    contatoTelefone: string;
-    contatoEmail: string | null;
-    nomeFalecido: string;
-    enderecoOcorrencia: string;
-    relatoOcorrencia: string;
-  };
-  complementos: { conteudo: string; enviadoEm: Date }[];
+  historico: { situacao: string; ocorridoEm: Date }[];
 };
 
 function serializarResumo(registro: {
   id: string;
   protocolo: string;
   status: string;
-  complementacaoSolicitada: string | null;
-  motivoRecusa: string | null;
   criadoEm: Date;
   atualizadoEm: Date;
 }): SolicitacaoExternaResumo {
@@ -176,16 +165,12 @@ function serializarResumo(registro: {
     ? (registro.status as EstadoSolicitacaoExterna)
     : null;
   const padrao = status ? MENSAGENS_PUBLICAS[status] : MENSAGEM_GENERICA;
-  const mensagem =
-    status === ESTADO_COMPLEMENTACAO
-      ? (registro.complementacaoSolicitada ?? padrao.mensagem)
-      : padrao.mensagem;
 
   return {
     id: registro.id,
     protocolo: registro.protocolo,
     situacao: padrao.situacao,
-    mensagem,
+    mensagem: padrao.mensagem,
     permiteComplementar: status === ESTADO_COMPLEMENTACAO,
     criadoEm: registro.criadoEm,
     atualizadoEm: registro.atualizadoEm,
@@ -197,20 +182,12 @@ export function serializarSolicitacaoExterna(
 ): SolicitacaoExternaDetalhe {
   return {
     ...serializarResumo(registro),
-    dadosEnviados: {
-      contatoNome: registro.nomeContato,
-      contatoTelefone: registro.telefoneContato,
-      contatoEmail: registro.contatoEmail,
-      nomeFalecido: registro.nomeFalecido,
-      enderecoOcorrencia: registro.enderecoOcorrencia,
-      relatoOcorrencia: registro.relatoOcorrencia,
-    },
-    complementos: registro.historico
-      .filter((item) => item.acao === TIPO_HISTORICO_COMPLEMENTO && item.mensagemPublica)
-      .map((item) => ({
-        conteudo: item.mensagemPublica!.replace(/^Complementação enviada:\s*/, ""),
-        enviadoEm: item.criadoEm,
-      })),
+    historico: registro.historico.map((item) => ({
+      situacao: (
+        MENSAGENS_PUBLICAS[item.statusNovo as EstadoSolicitacaoExterna] ?? MENSAGEM_GENERICA
+      ).situacao,
+      ocorridoEm: item.criadoEm,
+    })),
   };
 }
 
@@ -250,7 +227,7 @@ export async function criarSolicitacaoExterna(
           nomeContato: input.contatoNome,
           telefoneContato: input.contatoTelefone,
           contatoEmail: input.contatoEmail ?? null,
-          nomeFalecido: input.nomeFalecido,
+          nomeFalecido: input.nomeFalecido ?? null,
           enderecoOcorrencia: input.enderecoOcorrencia,
           relatoOcorrencia: input.relatoOcorrencia,
           status: ESTADO_INICIAL,
@@ -269,6 +246,7 @@ export async function criarSolicitacaoExterna(
         include: incluirHistorico,
       });
 
+      await notificarSolicitanteExterno(tx, registro, MENSAGENS_PUBLICAS[ESTADO_INICIAL].mensagem);
       await tx.auditoriaSistema.create({
         data: {
           usuarioId,

@@ -588,7 +588,7 @@ model SolicitacaoExternaSvo {
   contatoEmail             String?   @map("contato_email") @db.VarChar(150)
   tipoSolicitante          String    @default("FAMILIAR") @map("tipo_solicitante") @db.VarChar(40)
   instituicaoSolicitante   String?   @map("instituicao_solicitante") @db.VarChar(150)
-  nomeFalecido             String    @map("nome_falecido") @db.VarChar(150)
+  nomeFalecido             String?   @map("nome_falecido") @db.VarChar(150)
   enderecoOcorrencia       String    @map("endereco_ocorrencia") @db.VarChar(300)
   municipioOcorrencia      String?   @map("municipio_ocorrencia") @db.VarChar(100)
   pontoReferencia          String?   @map("ponto_referencia") @db.VarChar(200)

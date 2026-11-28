@@ -98,6 +98,7 @@ vi.mock("../../../src/lib/prisma", async () => {
         return chamado;
       },
     },
+    notificacao: { create: async () => undefined },
     auditoriaSistema: {
       create: async ({ data }: Arg) => {
         db.auditoria.push(data);
@@ -258,7 +259,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     expect((await chamar(metodo, caminho, { body })).status).toBe(401);
   });
 
-  it.each(["GESTOR", "MOTORISTA", "SOLICITANTE", "EXTERNO"])(
+  it.each(["ADMIN", "GESTOR", "MOTORISTA", "SOLICITANTE", "EXTERNO"])(
     "nega a triagem para %s (403)",
     async (perfil) => {
       db.solicitacoes.push(solicitacao());
@@ -269,7 +270,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     },
   );
 
-  it.each(["SVO", "ADMIN"])("permite a triagem para %s", async (perfil) => {
+  it.each(["SVO", "ATENDENTE_SVO"])("permite a triagem para %s", async (perfil) => {
     db.solicitacoes.push(solicitacao());
     const { status } = await chamar("PATCH", `${BASE}/${solId}/triagem`, {
       perfis: [perfil],
@@ -390,7 +391,7 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
     expect(json.dados).toMatchObject({
       estado: "AGUARDANDO_COMPLEMENTACAO",
       status: "DEVOLVIDA_PARA_COMPLEMENTACAO",
-      mensagemParaSolicitante: "Informe a referência.",
+      mensagemParaSolicitante: expect.not.stringContaining("Informe a referência."),
       triadaEm: expect.any(String),
       atendenteTriagem: { id: ids.atendente, nome: "Atendente SVO" },
     });
@@ -505,7 +506,11 @@ describe("triagem da atendente SVO (S19FROTA-283)", () => {
 
 const gestor = { perfis: ["GESTOR"], usuario: ids.gestor };
 const decidir = (acao: "aprovar" | "recusar", opcoes: Parameters<typeof chamar>[2] = {}) =>
-  chamar("PATCH", `${BASE}/${solId}/${acao}`, { ...gestor, body: {}, ...opcoes });
+  chamar("PATCH", `${BASE}/${solId}/${acao}`, {
+    ...gestor,
+    body: acao === "aprovar" ? { justificativa: "Triagem validada pelo gestor." } : {},
+    ...opcoes,
+  });
 const triada = (dados: Linha = {}) =>
   solicitacao({
     status: "AGUARDANDO_GESTOR",

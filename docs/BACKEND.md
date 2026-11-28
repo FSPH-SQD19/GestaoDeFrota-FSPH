@@ -317,14 +317,20 @@ Atende a RF014-SVO (S19FROTA-249). Cada escala vincula um motorista a uma viatur
 
 A situação é calculada a cada consulta. Se o motorista ou a viatura forem inativados depois do cadastro, a escala ainda não terminada fica `SUSPENSA`: sai de `AGENDADA` e `EM_ANDAMENTO` (o plantão atual só mostra recursos ativos), pode ser encerrada e volta sozinha à situação anterior se o recurso for reativado. Para reescalar o motorista no mesmo horário, encerre antes a escala suspensa. O cadastro usa a mesma trava por motorista da emissão de ordens SVO. Cadastro e encerramento geram auditoria na mesma transação, sem copiar as observações. A emissão da ordem de coleta não consulta a escala: o painel destaca os recursos em plantão, sem bloquear despacho.
 
+### Portal de solicitação externa SVO
+
+O cadastro fica em `/portal-svo/cadastro`. Após entrar, o solicitante externo vê seus protocolos, situações, orientações públicas e datas das mudanças. As notificações são registradas por etapa. A atendente usa **Triagem externa SVO** e a gestão usa **Solicitações Externas SVO**.
+
+Para homologar em ambiente de teste, use contas e ocorrências sintéticas. Abra uma solicitação como `EXTERNO`, peça complementação com uma conta `SVO` e confirme que a justificativa interna está ausente do portal. Envie o complemento, encaminhe ao gestor e aprove com justificativa. Confira que o protocolo corresponde a um único chamado pendente de despacho. Repita o fluxo com recusa e verifique que uma segunda conta externa não consegue consultar o protocolo. Confira as três telas em tamanho de celular.
+
 ### Triagem de solicitações externas do SVO
 
-Atende a S19FROTA-283. A atendente analisa as solicitações abertas pelo portal externo (S19FROTA-281) antes de qualquer decisão do gestor. As rotas ficam em `/api/v1/solicitacoes-externas-svo` e exigem perfil `SVO` ou `ADMIN`; os demais recebem `403`.
+Atende a S19FROTA-283. A atendente analisa as solicitações abertas pelo portal externo (S19FROTA-281) antes de qualquer decisão do gestor. As rotas ficam em `/api/v1/solicitacoes-externas-svo` e exigem perfil `SVO` ou `ATENDENTE_SVO`; os demais recebem `403`.
 
 - `GET /triagem`: fila paginada (`page`, `pageSize` até 100), das mais antigas para as mais recentes. Por padrão traz `AGUARDANDO_TRIAGEM`; `?estado=AGUARDANDO_COMPLEMENTACAO` lista as que aguardam retorno do solicitante. Resposta `{ data, meta }`.
 - `GET /triagem/:id`: dados da solicitação e histórico completo (criação, complementos, triagem), com o nome de cada autor. `404` inexistente.
 - `PATCH /:id/triagem`: `{ decisao, justificativa? }`. Resposta `{ dados, mensagem }`.
-  - `SOLICITAR_COMPLEMENTACAO` (justificativa obrigatória): vai para `AGUARDANDO_COMPLEMENTACAO` e o texto aparece no portal como o pedido ao solicitante.
+  - `SOLICITAR_COMPLEMENTACAO` (justificativa obrigatória): vai para `AGUARDANDO_COMPLEMENTACAO` com orientação padronizada no portal e justificativa no histórico interno.
   - `RECUSAR` (justificativa obrigatória): vai para `RECUSADA`, também a partir de `AGUARDANDO_COMPLEMENTACAO`. O motivo é gravado em `motivoRecusa` e fica disponível no acompanhamento do protocolo.
   - `ENCAMINHAR` (justificativa opcional, vira o relato para o gestor): vai para `AGUARDANDO_GESTOR`. Solicitar complementação, recusar ou encaminhar registra `atendenteTriagemId` e `triadaEm`; só as encaminhadas chegam ao gestor.
 
@@ -335,7 +341,7 @@ Erros: `400` validação (não existe decisão de aprovar na triagem), `403` qua
 Rotas em `/api/v1/solicitacoes-externas-svo`, exclusivas de `GESTOR` e `ADMIN` (a atendente `SVO` recebe `403`). São os caminhos usados pelo painel do gestor.
 
 - `GET /gestor`: fila paginada só com `AGUARDANDO_GESTOR`, pela ordem de triagem. Resposta `{ data, meta }`.
-- `PATCH /:id/aprovar`: `{ justificativa? }`. Cria o `ChamadoSvo` na mesma transação, com o mesmo protocolo, `origem: EXTERNA`, `statusTriagem: APROVADO`, `atendenteId` de quem triou e `criadoEm` igual à abertura da solicitação (o SLA conta desde o pedido). Nenhuma ordem de coleta é criada: o despacho continua manual pelo fluxo atual.
+- `PATCH /:id/aprovar`: `{ justificativa }` obrigatória (5 a 500 caracteres). Cria o `ChamadoSvo` na mesma transação, com o mesmo protocolo, `origem: EXTERNA`, `statusTriagem: APROVADO`, `atendenteId` de quem triou e `criadoEm` igual à abertura da solicitação (o SLA conta desde o pedido). Nenhuma ordem de coleta é criada: o despacho continua manual pelo fluxo atual.
 - `PATCH /:id/recusar`: `{ justificativa }` obrigatória. O portal mostra a mensagem padrão de recusa; a justificativa fica no histórico interno.
 - As duas decisões aceitam o cabeçalho `Idempotency-Key` (8 a 100 caracteres). Reenvio com a mesma chave pelo mesmo gestor devolve a decisão já gravada, sem criar outro chamado. Resposta `{ dados, mensagem }`.
 

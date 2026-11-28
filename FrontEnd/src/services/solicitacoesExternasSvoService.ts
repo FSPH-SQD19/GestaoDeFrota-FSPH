@@ -149,8 +149,12 @@ async function decidirSolicitacaoExternaSvo(
   }
 }
 
-export function aprovarSolicitacaoExternaSvo(id: string, chaveIdempotencia: string) {
-  return decidirSolicitacaoExternaSvo(id, "aprovar", { chaveIdempotencia });
+export function aprovarSolicitacaoExternaSvo(
+  id: string,
+  chaveIdempotencia: string,
+  justificativa: string,
+) {
+  return decidirSolicitacaoExternaSvo(id, "aprovar", { chaveIdempotencia, justificativa });
 }
 
 export function recusarSolicitacaoExternaSvo(

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, Check, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { AlertCircle, Check, RefreshCw, X } from "lucide-react";
 import { Badge, Button, Card, Modal, Textarea } from "../../components/common";
 import {
   aprovarSolicitacaoExternaSvo,
@@ -103,8 +103,8 @@ export function SolicitacoesExternasSvoPage() {
   const confirmarDecisao = async (event: FormEvent) => {
     event.preventDefault();
     if (!selecionada || !modo || salvando.current) return;
-    if (modo === "recusar" && justificativa.trim().length < 3) {
-      setErroDecisao("Informe uma justificativa com pelo menos 3 caracteres.");
+    if (justificativa.trim().length < 5) {
+      setErroDecisao("Informe uma justificativa com pelo menos 5 caracteres.");
       return;
     }
     salvando.current = true;
@@ -113,7 +113,11 @@ export function SolicitacoesExternasSvoPage() {
     try {
       const resposta =
         modo === "aprovar"
-          ? await aprovarSolicitacaoExternaSvo(selecionada.id, chaveIdempotencia)
+          ? await aprovarSolicitacaoExternaSvo(
+              selecionada.id,
+              chaveIdempotencia,
+              justificativa.trim(),
+            )
           : await recusarSolicitacaoExternaSvo(
               selecionada.id,
               justificativa.trim(),
@@ -368,22 +372,14 @@ export function SolicitacoesExternasSvoPage() {
                 </p>
               )}
             </div>
-            {modo === "aprovar" ? (
-              <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                <ShieldCheck className="h-5 w-5 shrink-0" />
-                Ao aprovar, o back-end deverá criar ou reutilizar o ChamadoSvo existente. Esta tela
-                não cria chamados diretamente.
-              </div>
-            ) : (
-              <Textarea
-                label="Justificativa da recusa"
-                required
-                value={justificativa}
-                onChange={(event) => setJustificativa(event.target.value)}
-                maxLength={500}
-                placeholder="Informe o motivo público da recusa..."
-              />
-            )}
+            <Textarea
+              label="Justificativa interna"
+              required
+              value={justificativa}
+              onChange={(event) => setJustificativa(event.target.value)}
+              maxLength={500}
+              placeholder="Registre o motivo da decisão"
+            />
             {erroDecisao && (
               <p role="alert" className="text-sm text-rose-700">
                 {erroDecisao}
