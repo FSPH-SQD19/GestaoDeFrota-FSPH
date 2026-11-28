@@ -17,7 +17,7 @@ export interface ItemHistoricoPublicoSeguro {
 }
 
 export async function obterChamadoSvoPorId(id: string): Promise<ChamadoSvo> {
-  const response = await api.get<ChamadoSvo>(`/svo/chamados/${id}`);
+  const response = await api.get<ChamadoSvo>(`${BASE}/chamados/${encodeURIComponent(id)}`);
   return response.data;
 }
 
